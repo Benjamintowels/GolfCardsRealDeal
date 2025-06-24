@@ -1,0 +1,11 @@
+[gd_scene load_steps=3 format=3 uid="uid://rxw3odvten3a"]
+
+[ext_resource type="Texture2D" uid="uid://cwvkxqyv1aes7" path="res://Obstacles/Water.png" id="1_w3hv0"]
+[ext_resource type="Script" uid="uid://c7vqclxi0uvoc" path="res://Obstacles/WaterHazard.gd" id="2_jhi6d"]
+
+[node name="WaterHazard" type="Node2D"]
+z_index = 1
+script = ExtResource("2_jhi6d")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("1_w3hv0")

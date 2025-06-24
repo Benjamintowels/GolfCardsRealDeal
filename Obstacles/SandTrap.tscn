@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=3 uid="uid://bgw7j7xbbljsy"]
+
+[ext_resource type="Texture2D" uid="uid://b6jv5uyq0wfcw" path="res://Obstacles/Sand.png" id="1_wn6jh"]
+
+[node name="SandTrap" type="Node2D"]
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("1_wn6jh")

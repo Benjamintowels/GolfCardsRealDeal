@@ -1,0 +1,13 @@
+[gd_scene load_steps=3 format=3 uid="uid://bxv07b18i4gic"]
+
+[ext_resource type="Texture2D" uid="uid://wdopa806par7" path="res://Obstacles/Tree.png" id="1_le26f"]
+[ext_resource type="Script" uid="uid://ckbeprdpbpcg1" path="res://Obstacles/BaseObstacle.gd" id="1_o8bt2"]
+
+[node name="Tree" type="Node2D"]
+z_index = 3
+position = Vector2(0, -112.1)
+scale = Vector2(0.28, 0.28)
+script = ExtResource("1_o8bt2")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("1_le26f")

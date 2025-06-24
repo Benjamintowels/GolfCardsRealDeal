@@ -1,0 +1,48 @@
+[gd_scene load_steps=6 format=3 uid="uid://b63032ekv2fkj"]
+
+[ext_resource type="Script" uid="uid://qexh7swq4bwr" path="res://CardStackDisplay.gd" id="1_2cvs3"]
+[ext_resource type="AudioStream" uid="uid://c0ovkerpgp3kr" path="res://Shuffle.mp3" id="2_624r3"]
+[ext_resource type="AudioStream" uid="uid://dq03v06seotrw" path="res://Sounds/CardDraw.mp3" id="3_pmtth"]
+[ext_resource type="AudioStream" uid="uid://sd8kwo1diart" path="res://Sounds/Discard.mp3" id="4_f4ykw"]
+[ext_resource type="AudioStream" uid="uid://cbtxeam8fk1bb" path="res://Sounds/DiscardEmpty.mp3" id="5_6j7o4"]
+
+[node name="CardStackDisplay" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_2cvs3")
+
+[node name="StackRoot" type="Control" parent="."]
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="DrawStack" type="Control" parent="StackRoot"]
+anchors_preset = 0
+offset_left = -39.0
+offset_top = 55.0
+offset_right = 1.0
+offset_bottom = 95.0
+
+[node name="DiscardStack" type="Control" parent="StackRoot"]
+anchors_preset = 0
+offset_left = 217.0
+offset_top = 44.0
+offset_right = 257.0
+offset_bottom = 84.0
+
+[node name="ShuffleSound" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("2_624r3")
+
+[node name="CardDraw" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("3_pmtth")
+volume_db = 2.112
+
+[node name="Discard" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("4_f4ykw")
+
+[node name="DiscardEmpty" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("5_6j7o4")

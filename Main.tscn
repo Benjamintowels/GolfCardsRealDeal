@@ -1,0 +1,106 @@
+[gd_scene load_steps=8 format=3 uid="uid://wyu3udwngros"]
+
+[ext_resource type="Texture2D" uid="uid://cntpxwpa61iaa" path="res://bobby.png" id="1_glv2v"]
+[ext_resource type="Script" uid="uid://ct4bebh7dhisi" path="res://Main.gd" id="1_r0du0"]
+[ext_resource type="Texture2D" uid="uid://ctp0drq17owtd" path="res://report45943284082943370519bf42584-4abe-49aa-92b6-3b791f932737_piclumen_contentRefer_100661_.png" id="2_3dxm6"]
+[ext_resource type="Texture2D" uid="uid://cwaaj26ms2r67" path="res://character2.png" id="3_fos0i"]
+[ext_resource type="Texture2D" uid="uid://ijg1v1gijysb" path="res://character3.png" id="4_3dxm6"]
+[ext_resource type="Texture2D" uid="uid://teiswhfqg2yb" path="res://character1.png" id="5_lgr22"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_0e48y"]
+radius = 11.0454
+
+[node name="Main" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("1_r0du0")
+
+[node name="TextureRect" type="TextureRect" parent="."]
+texture_filter = 1
+layout_mode = 0
+offset_left = -99.0
+offset_right = 1117.0
+offset_bottom = 832.0
+texture = ExtResource("2_3dxm6")
+
+[node name="Player" type="CharacterBody2D" parent="."]
+
+[node name="Sprite2D" type="Sprite2D" parent="Player"]
+position = Vector2(10, -2.00001)
+scale = Vector2(0.0429688, 0.0402778)
+texture = ExtResource("1_glv2v")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player"]
+shape = SubResource("CircleShape2D_0e48y")
+
+[node name="PlayArea" type="ColorRect" parent="."]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="Cardbox" type="HBoxContainer" parent="UI"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 20.0
+offset_bottom = 20.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Character1Button" type="Button" parent="UI"]
+offset_left = 880.0
+offset_top = 317.0
+offset_right = 928.0
+offset_bottom = 348.0
+toggle_mode = true
+text = "Layla"
+
+[node name="Character2Button" type="Button" parent="UI"]
+offset_left = 546.0
+offset_top = 319.0
+offset_right = 603.0
+offset_bottom = 350.0
+toggle_mode = true
+text = "Benny"
+
+[node name="Character3Button" type="Button" parent="UI"]
+offset_left = 184.0
+offset_top = 313.0
+offset_right = 233.0
+offset_bottom = 344.0
+toggle_mode = true
+text = "Clark"
+
+[node name="StartRoundButton" type="Button" parent="UI"]
+texture_filter = 1
+offset_left = 467.0
+offset_top = 554.0
+offset_right = 677.0
+offset_bottom = 597.0
+text = "Start Round"
+
+[node name="Character2" type="Sprite2D" parent="UI"]
+texture_filter = 1
+position = Vector2(592.155, 174.82)
+scale = Vector2(2.43, 2.43)
+texture = ExtResource("3_fos0i")
+
+[node name="Character3" type="Sprite2D" parent="UI"]
+texture_filter = 1
+position = Vector2(218, 179)
+scale = Vector2(2.396, 2.312)
+texture = ExtResource("4_3dxm6")
+
+[node name="Character1" type="Sprite2D" parent="UI"]
+texture_filter = 1
+position = Vector2(915, 177)
+scale = Vector2(2.43, 2.43)
+texture = ExtResource("5_lgr22")
+
+[connection signal="pressed" from="UI/StartRoundButton" to="." method="_on_start_round_button_pressed"]

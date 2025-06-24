@@ -1,0 +1,10 @@
+[gd_scene load_steps=3 format=3 uid="uid://ckpyk1oluosm2"]
+
+[ext_resource type="Script" uid="uid://ckbeprdpbpcg1" path="res://Obstacles/BaseObstacle.gd" id="1_5wf5q"]
+[ext_resource type="Texture2D" uid="uid://difqkwi6vsrii" path="res://Obstacles/RoughGrass.png" id="1_yy7hx"]
+
+[node name="Rough" type="Node2D"]
+script = ExtResource("1_5wf5q")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("1_yy7hx")

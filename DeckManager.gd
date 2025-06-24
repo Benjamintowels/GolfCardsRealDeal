@@ -1,0 +1,73 @@
+extends Node
+class_name DeckManager
+
+signal deck_updated
+signal discard_recycled(count: int)
+
+var draw_pile: Array[CardData] = []
+var discard_pile: Array[CardData] = []
+var hand: Array[CardData] = []
+
+var starter_deck: Array[CardData] = [
+	preload("res://Cards/Move1.tres"),
+	preload("res://Cards/Move2.tres"),
+	preload("res://Cards/Move3.tres"),
+	preload("res://Cards/Move1.tres"),
+	preload("res://Cards/Move2.tres"),
+	preload("res://Cards/Move3.tres"),
+	preload("res://Cards/Move1.tres"),
+	preload("res://Cards/Move2.tres"),
+	preload("res://Cards/Move3.tres")
+]
+
+
+func initialize_deck(cards: Array[CardData]) -> void:
+	draw_pile = cards.duplicate()
+	draw_pile.shuffle()
+	discard_pile.clear()
+	hand.clear()
+	emit_signal("deck_updated")
+
+func draw_cards(count: int = 3) -> void:
+	for i in range(count):
+		if draw_pile.is_empty():
+			reshuffle_discard_into_draw()
+		if draw_pile.is_empty():
+			break
+
+		var index := randi() % draw_pile.size()
+		var card := draw_pile[index]
+		draw_pile.remove_at(index)
+		hand.append(card)
+
+	emit_signal("deck_updated")
+
+func discard(card: CardData) -> void:
+	if hand.has(card):
+		print("Discarding card from hand:", card.name)
+		hand.erase(card)
+	else:
+		print("Warning: Tried to discard a card not in hand:", card.name)
+
+	discard_pile.append(card)
+	emit_signal("deck_updated")
+
+
+
+func reshuffle_discard_into_draw() -> void:
+	var count := discard_pile.size()
+	if count == 0:
+		return
+
+	draw_pile = discard_pile.duplicate()
+	draw_pile.shuffle()
+	discard_pile.clear()
+	emit_signal("deck_updated")
+	emit_signal("discard_recycled", count)
+
+func debug_print_state() -> void:
+	print("--- Deck State ---")
+	print("Draw Pile:", draw_pile.size())
+	print("Discard Pile:", discard_pile.size())
+	print("Hand:", hand.size())
+	print("------------------")

@@ -1,0 +1,2151 @@
+extends Control
+
+@onready var character_image = $UILayer/CharacterImage
+@onready var character_label = $UILayer/CharacterLabel
+@onready var end_round_button = $UILayer/EndRoundButton
+@onready var card_stack_display := $UILayer/CardStackDisplay
+@onready var card_hand_anchor: Control = $UILayer/CardHandAnchor
+@onready var card_anchor := $UILayer/CardAnchor
+@onready var hud = $UILayer/HUD
+@onready var ui_layer := self  # or a dedicated Control if you have one
+@onready var movement_buttons_container: BoxContainer = $UILayer/CardHandAnchor/CardRow
+@onready var card_click_sound: AudioStreamPlayer2D = $CardClickSound
+@onready var card_play_sound: AudioStreamPlayer2D = $CardPlaySound
+@onready var obstacle_layer = $ObstacleLayer
+@onready var end_turn_button: Button = $UILayer/EndTurnButton
+@onready var camera := $GameCamera
+@onready var map_manager := $MapManager
+@onready var draw_cards_button: Button = $UILayer/DrawCards
+const GolfCourseLayout := preload("res://Maps/GolfCourseLayout.gd")
+
+var is_placing_player := true
+
+var obstacle_map: Dictionary = {}  # Vector2i -> BaseObstacle
+
+var turn_count: int = 1
+var selected_card: CardData = null
+
+var grid_size := Vector2i(50, 50)
+var cell_size: int = 48 # This will be set by the main script
+var grid_tiles = []
+var grid_container: Control
+var camera_container: Control
+
+var player_node: Control
+var player_grid_pos := Vector2i(25, 25)
+
+var movement_buttons := []
+var active_button: TextureButton = null
+
+var is_movement_mode := false
+var movement_range := 2
+var valid_movement_tiles := []
+
+var is_panning := false
+var pan_start_pos := Vector2.ZERO
+var camera_offset := Vector2.ZERO
+var camera_snap_back_pos := Vector2.ZERO
+
+var flashlight_radius := 150.0
+var mouse_world_pos := Vector2.ZERO
+var player_flashlight_center := Vector2.ZERO
+var tree_scene = preload("res://Obstacles/Tree.tscn")
+var water_scene = preload("res://Obstacles/WaterHazard.tscn")
+
+var selected_card_label: String = ""
+
+var deck_manager: DeckManager
+
+var player_stats = {} # Will be set after character selection
+
+var CHARACTER_STATS = {
+	1: { "name": "Layla", "base_mobility": 3 },
+	2: { "name": "Benny", "base_mobility": 2 },
+	3: { "name": "Clark", "base_mobility": 1 }
+}
+
+var game_phase := "tee_select" # Possible: tee_select, draw_cards, aiming, launch, ball_flying, move, etc.
+var hole_score := 0
+var golf_ball: Node2D = null
+var power_meter: Control = null
+var height_meter: Control = null
+var aiming_arrow: Control = null  # New aiming arrow
+var launch_power := 0.0
+var launch_height := 0.0
+var launch_direction := Vector2.ZERO
+var is_charging := false
+var is_charging_height := false
+const MAX_LAUNCH_POWER := 1200.0
+const MIN_LAUNCH_POWER := 300.0
+const POWER_CHARGE_RATE := 300.0 # units per second (reduced from 900.0)
+const MAX_LAUNCH_HEIGHT := 2000.0
+const MIN_LAUNCH_HEIGHT := 400.0
+const HEIGHT_CHARGE_RATE := 600.0 # units per second
+const HEIGHT_SWEET_SPOT_MIN := 0.4 # 40% of max height
+const HEIGHT_SWEET_SPOT_MAX := 0.6 # 60% of max height
+
+# Camera following variables
+var camera_following_ball := false
+var drive_distance := 0.0
+var drive_distance_dialog: Control = null
+
+# Swing sound effects
+var swing_strong_sound: AudioStreamPlayer2D
+var swing_med_sound: AudioStreamPlayer2D
+var swing_soft_sound: AudioStreamPlayer2D
+var water_plunk_sound: AudioStreamPlayer2D
+
+# Multi-shot golf variables
+var ball_landing_tile: Vector2i = Vector2i.ZERO
+var ball_landing_position: Vector2 = Vector2.ZERO
+var waiting_for_player_to_reach_ball := false
+var shot_start_grid_pos: Vector2i = Vector2i.ZERO  # Store where the shot was taken from (grid position)
+
+# Red circle aiming system variables
+var aiming_circle: Control = null
+var chosen_landing_spot: Vector2 = Vector2.ZERO
+var max_shot_distance: float = 800.0  # Reduced from 2000.0 to something more on-screen
+var is_aiming_phase: bool = false
+
+# Add at the top with other variables
+var original_aim_mouse_pos: Vector2 = Vector2.ZERO
+var launch_spin: float = 0.0
+var current_charge_mouse_pos: Vector2 = Vector2.ZERO
+var spin_indicator: Line2D = null
+
+# Club selection variables
+var selected_club: String = ""
+var club_max_distances = {
+	"Driver": 1200.0,        # Longest distance
+	"Hybrid": 1050.0,        # Slightly less than Driver
+	"Wood": 800.0,           # Slightly more than Iron
+	"Iron": 600.0,           # Medium distance
+	"Wooden": 350.0,         # Slightly better than Putter
+	"Putter": 200.0          # Shortest distance
+}
+
+# New club data with min distances and trailoff stats
+var club_data = {
+	"Driver": {
+		"max_distance": 1200.0,
+		"min_distance": 800.0,    # Smallest gap (400)
+		"trailoff_forgiveness": 0.3  # Less forgiving (lower = more severe undercharge penalty)
+	},
+	"Hybrid": {
+		"max_distance": 1050.0,
+		"min_distance": 200.0,    # Biggest gap (850)
+		"trailoff_forgiveness": 0.8  # Most forgiving (higher = less severe undercharge penalty)
+	},
+	"Wood": {
+		"max_distance": 800.0,
+		"min_distance": 300.0,    # Medium gap (500)
+		"trailoff_forgiveness": 0.6  # Medium forgiving
+	},
+	"Iron": {
+		"max_distance": 600.0,
+		"min_distance": 250.0,    # Medium gap (350)
+		"trailoff_forgiveness": 0.5  # Medium forgiving
+	},
+	"Wooden": {
+		"max_distance": 350.0,
+		"min_distance": 150.0,    # Small gap (200)
+		"trailoff_forgiveness": 0.4  # Less forgiving
+	},
+	"Putter": {
+		"max_distance": 200.0,
+		"min_distance": 100.0,    # Smallest gap (100)
+		"trailoff_forgiveness": 0.2  # Least forgiving (most severe undercharge penalty)
+	}
+}
+
+# Bag pile for club cards
+var bag_pile: Array[CardData] = [
+	preload("res://Cards/Driver.tres"),
+	preload("res://Cards/Hybrid.tres"),
+	preload("res://Cards/Wood.tres"),
+	preload("res://Cards/Iron.tres"),
+	preload("res://Cards/Wooden.tres"),
+	preload("res://Cards/Putter.tres")
+]
+
+# --- 1. Add these variables at the top (after var launch_power, etc.) ---
+var power_for_target := 0.0
+var max_power_for_bar := 0.0
+
+# Add these variables at the top (after var launch_power, etc.)
+var charge_time := 0.0  # Time spent charging (in seconds)
+var max_charge_time := 3.0  # Maximum time to fully charge (varies by distance)
+
+func _process(delta):
+	# Handle power charging during launch phase
+	if is_charging and game_phase == "launch":
+		# Calculate max charge time based on target distance
+		max_charge_time = 3.0  # Default for close shots
+		if chosen_landing_spot != Vector2.ZERO:
+			var player_center = player_node.global_position + player_node.size / 2
+			var distance_to_target = player_center.distance_to(chosen_landing_spot)
+			var distance_factor = distance_to_target / max_shot_distance
+			# Far shots = less time (1 second), close shots = more time (3 seconds)
+			max_charge_time = 3.0 - (distance_factor * 2.0)  # 3.0 to 1.0 seconds
+			max_charge_time = clamp(max_charge_time, 1.0, 3.0)
+		
+		# Charge time at a constant rate
+		charge_time = min(charge_time + delta, max_charge_time)
+		
+		# UI update - show time as percentage
+		if power_meter:
+			var meter_fill = power_meter.get_node_or_null("MeterFill")
+			var value_label = power_meter.get_node_or_null("PowerValue")
+			var time_percent = charge_time / max_charge_time
+			time_percent = clamp(time_percent, 0.0, 1.0)
+			
+			if meter_fill:
+				meter_fill.size.x = 300 * time_percent
+				# Sweet spot is always 65-75%
+				if time_percent >= 0.65 and time_percent <= 0.75:
+					meter_fill.color = Color(0, 1, 0, 0.8)
+				else:
+					meter_fill.color = Color(1, 0.8, 0.2, 0.8)
+			if value_label:
+				value_label.text = str(int(time_percent * 100)) + "%"
+	
+	# Handle height charging during launch phase
+	if is_charging_height and game_phase == "launch":
+		# Charge height
+		launch_height = min(launch_height + HEIGHT_CHARGE_RATE * delta, MAX_LAUNCH_HEIGHT)
+		if height_meter:
+			var meter_fill = height_meter.get_node_or_null("MeterFill")
+			var value_label = height_meter.get_node_or_null("HeightValue")
+			if meter_fill:
+				var height_percentage = (launch_height - MIN_LAUNCH_HEIGHT) / (MAX_LAUNCH_HEIGHT - MIN_LAUNCH_HEIGHT)
+				meter_fill.size.y = 300 * height_percentage
+				meter_fill.position.y = 330 - meter_fill.size.y  # Start from bottom
+			if value_label:
+				value_label.text = str(int(launch_height))
+			
+			# Change color based on sweet spot
+			var height_percentage = (launch_height - MIN_LAUNCH_HEIGHT) / (MAX_LAUNCH_HEIGHT - MIN_LAUNCH_HEIGHT)
+			if meter_fill:
+				if height_percentage >= HEIGHT_SWEET_SPOT_MIN and height_percentage <= HEIGHT_SWEET_SPOT_MAX:
+					meter_fill.color = Color(0, 1, 0, 0.8)  # Green for sweet spot
+				else:
+					meter_fill.color = Color(1, 0.8, 0.2, 0.8)  # Yellow for other areas
+	
+	# Track mouse position during charging for spin
+	if game_phase == "launch" and (is_charging or is_charging_height):
+		current_charge_mouse_pos = get_global_mouse_position()
+	
+	# Handle camera following the ball
+	if camera_following_ball and golf_ball and is_instance_valid(golf_ball):
+		var ball_center = golf_ball.global_position
+		var tween := get_tree().create_tween()
+		tween.tween_property(camera, "position", ball_center, 0.1).set_trans(Tween.TRANS_LINEAR)
+	
+	# Handle UI layer fixes
+	if card_hand_anchor and card_hand_anchor.z_index != 100:
+		card_hand_anchor.z_index = 100
+		card_hand_anchor.mouse_filter = Control.MOUSE_FILTER_STOP
+		set_process(false)  # stop checking after setting
+	
+	# Update aiming arrow during launch phase (when not charging)
+	if game_phase == "launch" and not is_charging and not is_charging_height:
+		update_aiming_arrow()
+	
+	# Update aiming circle during aiming phase
+	if is_aiming_phase and aiming_circle:
+		update_aiming_circle()
+	
+	# Update spin indicator during launch phase before charging
+	if game_phase == "launch" and not is_charging and not is_charging_height and spin_indicator and spin_indicator.visible:
+		update_spin_indicator()
+	# Hide spin indicator when charging starts
+	if (is_charging or is_charging_height) and spin_indicator and spin_indicator.visible:
+		spin_indicator.visible = false
+
+func _ready() -> void:
+	call_deferred("fix_ui_layers")
+	display_selected_character()
+	if end_round_button:
+		end_round_button.pressed.connect(_on_end_round_pressed)
+
+	create_grid()
+	create_player()
+	
+	# Reparent the obstacle layer to align with the grid
+	if obstacle_layer.get_parent():
+		obstacle_layer.get_parent().remove_child(obstacle_layer)
+	camera_container.add_child(obstacle_layer)
+	
+	# Load map data first
+	map_manager.load_map_data(GolfCourseLayout.LEVEL_LAYOUT)
+	build_map_from_layout(map_manager.level_layout)
+	
+	# Start in tee selection mode
+	is_placing_player = true
+	highlight_tee_tiles()
+	
+	# Don't initialize deck or create movement buttons until player is placed
+	# We'll do this after tee selection
+	
+	deck_manager = DeckManager.new()
+	add_child(deck_manager)
+	deck_manager.deck_updated.connect(update_deck_display)
+	deck_manager.discard_recycled.connect(card_stack_display.animate_card_recycle)
+
+	var hud := $UILayer/HUD
+
+	update_deck_display()
+	set_process_input(true)
+	
+	# Set up swing sound effects
+	setup_swing_sounds()
+	
+	# Ensure the UI gets drawn on top and intercepts input
+	# Bring CardHandAnchor to front
+	card_hand_anchor.z_index = 100
+	card_hand_anchor.mouse_filter = Control.MOUSE_FILTER_STOP
+	card_hand_anchor.get_parent().move_child(card_hand_anchor, card_hand_anchor.get_parent().get_child_count() - 1)
+
+# Bring HUD to front too (if needed)
+	hud.z_index = 101
+	hud.mouse_filter = Control.MOUSE_FILTER_STOP
+	hud.get_parent().move_child(hud, hud.get_parent().get_child_count() - 1)
+	# Move CardHandAnchor & HUD to the top of their parent's draw order
+	var parent := card_hand_anchor.get_parent()
+	parent.move_child(card_hand_anchor, parent.get_child_count() - 1)
+	parent.move_child(hud,             parent.get_child_count() - 1)
+
+# Large z-index so they render over the grid
+	card_hand_anchor.z_index = 100
+	hud.z_index             = 101
+	end_turn_button.pressed.connect(_on_end_turn_pressed)
+	end_turn_button.z_index = 102
+	end_turn_button.mouse_filter = Control.MOUSE_FILTER_STOP
+	end_turn_button.get_parent().move_child(end_turn_button, end_turn_button.get_parent().get_child_count() - 1)
+
+# Prevent the grid from stealing UI clicks
+	grid_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	
+	# Focus camera on the tee area initially
+	focus_camera_on_tee()
+	
+	# Show instruction to player
+	show_tee_selection_instruction()
+
+	draw_cards_button.visible = false
+	draw_cards_button.pressed.connect(_on_draw_cards_pressed)
+
+# Separate mappings for tiles (ground) and objects (placed on top)
+var tile_scene_map := {
+	"W": preload("res://Obstacles/WaterHazard.tscn"),
+	"F": preload("res://Obstacles/Fairway.tscn"),
+	"S": preload("res://Obstacles/SandTrap.tscn"),
+	"R": preload("res://Obstacles/Rough.tscn"),
+	"G": preload("res://Obstacles/Green.tscn"),
+	"Tee": preload("res://Obstacles/Tee.tscn"),
+	"Base": preload("res://Obstacles/Base.tscn"),  # required for filling empty space
+}
+
+var object_scene_map := {
+	"T": preload("res://Obstacles/Tree.tscn"),
+	"P": preload("res://Obstacles/Pin.tscn"),
+}
+
+# Mapping for what tile type should be placed under objects
+var object_to_tile_mapping := {
+	"T": "Base",  # Trees go on Base tiles
+	"P": "G",     # Pins go on Green tiles
+}
+
+func build_map_from_layout(layout: Array) -> void:
+	obstacle_map.clear()
+
+	# First pass: Place all tiles (ground)
+	for y in layout.size():
+		for x in layout[y].size():
+			var code: String = layout[y][x]
+			var pos: Vector2i = Vector2i(x, y)
+			var world_pos: Vector2 = Vector2(x, y) * cell_size
+
+			# Determine what tile to place
+			var tile_code: String = code
+			if object_scene_map.has(code):
+				# This is an object, place the appropriate tile underneath
+				tile_code = object_to_tile_mapping[code]
+			
+			# Place the tile
+			if tile_scene_map.has(tile_code):
+				var scene: PackedScene = tile_scene_map[tile_code]
+				if scene == null:
+					push_error("🚫 Tile scene for code '%s' is null at (%d,%d)" % [tile_code, x, y])
+					continue
+
+				var tile: Node2D = scene.instantiate() as Node2D
+				if tile == null:
+					push_error("❌ Tile instantiation failed for '%s' at (%d,%d)" % [tile_code, x, y])
+					continue
+
+				tile.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
+				tile.z_index = -5  # Ensure tiles are behind player & UI
+
+				# Scale tiles to match grid size
+				var sprite: Sprite2D = tile.get_node_or_null("Sprite2D")
+				if sprite and sprite.texture:
+					var texture_size: Vector2 = sprite.texture.get_size()
+					if texture_size.x > 0 and texture_size.y > 0:
+						var scale_x = cell_size / texture_size.x
+						var scale_y = cell_size / texture_size.y
+						sprite.scale = Vector2(scale_x, scale_y)
+
+				# Set grid_position if the property exists
+				if tile.has_meta("grid_position") or "grid_position" in tile:
+					tile.set("grid_position", pos)
+				else:
+					push_warning("⚠️ Tile missing 'grid_position'. Type: %s" % tile.get_class())
+
+				obstacle_layer.add_child(tile)
+				obstacle_map[pos] = tile
+			else:
+				print("ℹ️ Skipping unmapped tile code '%s' at (%d,%d)" % [tile_code, x, y])
+
+	# Second pass: Place objects on top of tiles
+	for y in layout.size():
+		for x in layout[y].size():
+			var code: String = layout[y][x]
+			var pos: Vector2i = Vector2i(x, y)
+			var world_pos: Vector2 = Vector2(x, y) * cell_size
+
+			# Only place objects (not tiles)
+			if object_scene_map.has(code):
+				var scene: PackedScene = object_scene_map[code]
+				if scene == null:
+					push_error("🚫 Object scene for code '%s' is null at (%d,%d)" % [code, x, y])
+					continue
+
+				var object: Node2D = scene.instantiate() as Node2D
+				if object == null:
+					push_error("❌ Object instantiation failed for '%s' at (%d,%d)" % [code, x, y])
+					continue
+
+				object.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
+				object.z_index = 0  # Objects are above tiles but below player
+
+				# Don't scale objects - they should be Y-sorted sprites
+				# Objects will handle their own scaling and positioning
+
+				# Set grid_position if the property exists
+				if object.has_meta("grid_position") or "grid_position" in object:
+					object.set("grid_position", pos)
+				else:
+					push_warning("⚠️ Object missing 'grid_position'. Type: %s" % object.get_class())
+
+				obstacle_layer.add_child(object)
+				# Note: We don't overwrite obstacle_map[pos] since the tile is already there
+				# Objects are separate from the tile system for movement/collision
+			elif not tile_scene_map.has(code):
+				print("ℹ️ Skipping unmapped code '%s' at (%d,%d)" % [code, x, y])
+
+func _get_tee_area_center() -> Vector2:
+	var tee_positions: Array[Vector2i] = []
+	for y in map_manager.level_layout.size():
+		for x in map_manager.level_layout[y].size():
+			if map_manager.get_tile_type(x, y) == "Tee":
+				tee_positions.append(Vector2i(x, y))
+
+	if tee_positions.is_empty():
+		return get_viewport_rect().size / 2 # Fallback to screen center
+
+	var min_pos := Vector2i(999, 999)
+	var max_pos := Vector2i(-1, -1)
+	for pos in tee_positions:
+		min_pos.x = min(min_pos.x, pos.x)
+		min_pos.y = min(min_pos.y, pos.y)
+		max_pos.x = max(max_pos.x, pos.x)
+		max_pos.y = max(max_pos.y, pos.y)
+
+	var center_grid_pos = (min_pos + max_pos) / 2.0
+	var center_world_pos = (center_grid_pos + Vector2(0.5, 0.5)) * cell_size
+	return center_world_pos
+
+func focus_camera_on_tee():
+	var tee_center_local := _get_tee_area_center()
+	var tee_center_global := camera_container.position + tee_center_local
+	
+	camera_snap_back_pos = tee_center_global
+	var tween := get_tree().create_tween()
+	tween.tween_property(camera, "position", tee_center_global, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+
+func _input(event: InputEvent) -> void:
+	if game_phase == "aiming":
+		# Aiming phase - player moves red circle to set landing spot
+		if event is InputEventMouseButton:
+			if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+				# Confirm the landing spot and enter launch phase
+				print("Landing spot confirmed at:", chosen_landing_spot)
+				is_aiming_phase = false
+				hide_aiming_circle()
+				hide_aiming_instruction()
+				enter_launch_phase()
+			elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
+				# Cancel aiming and return to previous phase
+				print("Aiming cancelled")
+				is_aiming_phase = false
+				hide_aiming_circle()
+				hide_aiming_instruction()
+				game_phase = "move"  # Return to move phase
+	elif game_phase == "launch":
+		if event is InputEventMouseButton:
+			if event.button_index == MOUSE_BUTTON_LEFT:
+				if event.pressed and not is_charging and not is_charging_height:
+					# Start charging power
+					is_charging = true
+					charge_time = 0.0  # Reset charge time
+					# Direction: from player to chosen landing spot
+					var player_center = player_node.global_position + player_node.size / 2
+					launch_direction = (chosen_landing_spot - player_center).normalized()
+				elif not event.pressed and is_charging:
+					# Stop charging power, start charging height
+					is_charging = false
+					is_charging_height = true
+					launch_height = MIN_LAUNCH_HEIGHT
+				elif not event.pressed and is_charging_height:
+					# Launch!
+					is_charging_height = false
+					launch_golf_ball(launch_direction, 0.0, launch_height)  # Pass 0.0 since we calculate power from charge_time
+					hide_power_meter()
+					hide_height_meter()
+					game_phase = "ball_flying"
+			elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
+				# Right click to cancel charging
+				if is_charging or is_charging_height:
+					is_charging = false
+					is_charging_height = false
+					charge_time = 0.0  # Reset charge time
+					hide_power_meter()
+					hide_height_meter()
+		elif event is InputEventMouseMotion and (is_charging or is_charging_height):
+			# Update direction while charging (but keep the same landing spot)
+			var player_center = player_node.global_position + player_node.size / 2
+			launch_direction = (chosen_landing_spot - player_center).normalized()
+	elif game_phase == "ball_flying":
+		# Ball is flying - disable most input until it lands
+		# Only allow camera panning during ball flight
+		if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_MIDDLE:
+			is_panning = event.pressed
+			if is_panning:
+				pan_start_pos = event.position
+			else:
+				# Snap camera back to the current target position
+				var tween := get_tree().create_tween()
+				tween.tween_property(camera, "position", camera_snap_back_pos, 0.6).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		elif event is InputEventMouseMotion and is_panning:
+			var delta: Vector2 = event.position - pan_start_pos
+			camera.position -= delta
+			pan_start_pos = event.position
+		return  # Don't process other input during ball flight
+
+	# Track hovered nodes if needed
+	if event is InputEventMouseButton and event.pressed:
+		var mouse_pos = get_global_mouse_position()
+		var node = get_viewport().gui_get_hovered_control()
+		print("Clicked at:", mouse_pos, "→ Node:", node)
+
+	# Start or stop panning
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_MIDDLE:
+		is_panning = event.pressed
+		if is_panning:
+			pan_start_pos = event.position
+		else:
+			# Snap camera back to the current target position
+			var tween := get_tree().create_tween()
+			tween.tween_property(camera, "position", camera_snap_back_pos, 0.6).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+
+	# Pan while moving mouse
+	elif event is InputEventMouseMotion and is_panning:
+		var delta: Vector2 = event.position - pan_start_pos
+		camera.position -= delta
+		pan_start_pos = event.position
+
+	# Update flashlight tracking (optional)
+	if player_node:
+		player_flashlight_center = get_flashlight_center()
+
+	# Redraw tiles to reflect flashlight
+	for y in grid_size.y:
+		for x in grid_size.x:
+			grid_tiles[y][x].get_node("TileDrawer").queue_redraw()
+
+	queue_redraw()
+
+func _draw() -> void:
+	draw_flashlight_effect()
+
+func draw_flashlight_effect() -> void:
+	var flashlight_pos := get_flashlight_center()
+	var steps := 20
+	for i in steps:
+		var t := float(i) / steps
+		var radius := flashlight_radius * t
+		var alpha := 1.0 - t
+		draw_circle(flashlight_pos, radius, Color(1, 1, 1, alpha * 0.1))
+
+func get_flashlight_center() -> Vector2:
+	if not player_node:
+		return Vector2.ZERO
+	var player_screen_pos := player_node.get_global_position() + player_node.size / 2
+	var mouse_pos := get_global_mouse_position()
+	var dir := mouse_pos - player_screen_pos
+	var dist := dir.length()
+	if dist > flashlight_radius:
+		dir = dir.normalized() * flashlight_radius
+	return player_screen_pos + dir
+
+func create_grid() -> void:
+	camera_container = Control.new()
+	camera_container.name = "CameraContainer"
+	add_child(camera_container)
+
+	grid_container = Control.new()
+	grid_container.name = "GridContainer"
+	camera_container.add_child(grid_container)
+
+	var total_size := Vector2(grid_size.x, grid_size.y) * cell_size
+	grid_container.size = total_size
+	camera_offset = (get_viewport_rect().size - total_size) / 2
+	camera_container.position = camera_offset
+
+	for y in grid_size.y:
+		grid_tiles.append([])
+		for x in grid_size.x:
+			var tile := create_grid_tile(x, y)
+			grid_tiles[y].append(tile)
+			grid_container.add_child(tile)
+
+func create_grid_tile(x: int, y: int) -> Control:
+	var tile := Control.new()
+	tile.name = "Tile_%d_%d" % [x, y]
+	tile.position = Vector2(x, y) * cell_size
+	tile.size = Vector2(cell_size, cell_size)
+	tile.mouse_filter = Control.MOUSE_FILTER_PASS
+
+	var drawer := Control.new()
+	drawer.name = "TileDrawer"
+	drawer.size = tile.size
+	drawer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	drawer.draw.connect(_draw_tile.bind(drawer, x, y))
+	tile.add_child(drawer)
+
+	var red := ColorRect.new()
+	red.name = "Highlight"
+	red.size = tile.size
+	red.color = Color(1, 0, 0, 0.3)
+	red.visible = false
+	red.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tile.add_child(red)
+
+	var green := ColorRect.new()
+	green.name = "MovementHighlight"
+	green.size = tile.size
+	green.color = Color(0, 1, 0, 0.4)
+	green.visible = false
+	green.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tile.add_child(green)
+
+	tile.mouse_entered.connect(_on_tile_mouse_entered.bind(x, y))
+	tile.mouse_exited.connect(_on_tile_mouse_exited.bind(x, y))
+	tile.gui_input.connect(_on_tile_input.bind(x, y))
+	return tile
+	
+func _draw_tile(drawer: Control, x: int, y: int) -> void:
+	var tile_screen_pos := Vector2(x, y) * cell_size + Vector2(cell_size / 2, cell_size / 2) + camera_container.position
+	var dist := tile_screen_pos.distance_to(player_flashlight_center)
+	if dist <= flashlight_radius:
+		var alpha: float = clamp(1.0 - (dist / flashlight_radius), 0.0, 1.0)
+		drawer.draw_rect(Rect2(Vector2.ZERO, drawer.size), Color(0.1, 0.1, 0.1, alpha * 0.3), true)
+		drawer.draw_rect(Rect2(Vector2.ZERO, drawer.size), Color(0.5, 0.5, 0.5, alpha * 0.8), false, 1.0)
+
+func create_player() -> void:
+	player_node = Control.new()
+	player_node.name = "Player"
+	player_node.size = Vector2(cell_size - 4, cell_size - 4)
+	player_node.mouse_filter = Control.MOUSE_FILTER_STOP  # Ensure it can receive input
+	grid_container.add_child(player_node)
+
+	var visual := ColorRect.new()
+	visual.name = "PlayerVisual"
+	visual.size = player_node.size
+	visual.color = Color.BLUE
+	visual.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Let clicks pass through to parent
+	player_node.add_child(visual)
+
+	var label := Label.new()
+	label.text = "Start"
+	label.position = Vector2(0, -20)
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Let clicks pass through to parent
+	player_node.add_child(label)
+
+	# Add click handler to the player
+	player_node.gui_input.connect(_on_player_input)
+	print("Player input handler connected!")
+
+	update_player_position()
+	player_node.visible = false
+
+func _on_player_input(event: InputEvent) -> void:
+	print("Player input received:", event)
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		print("Player clicked! Current game phase:", game_phase)
+		
+		# If we're in move phase (after ball lands), start aiming phase
+		if game_phase == "move":
+			print("Starting aiming phase from move phase")
+			enter_aiming_phase()  # Start aiming phase instead of just drawing cards
+		# If we're in launch phase (first shot or ready to take shot), check if we have cards
+		elif game_phase == "launch":
+			if deck_manager.hand.size() == 0:
+				print("No cards in hand - drawing cards for shot")
+				draw_cards_for_next_shot()  # Draw cards for shot
+			else:
+				print("Already have cards in launch phase - ready to take shot")
+				# Do nothing - player should click on cards to take shot
+		else:
+			print("Player clicked but game phase is:", game_phase, "- not in move or launch phase")
+
+func update_player_position() -> void:
+	player_node.position = Vector2(player_grid_pos.x, player_grid_pos.y) * cell_size + Vector2(2, 2)
+	var player_center := player_node.global_position + player_node.size / 2
+	camera_snap_back_pos = player_center
+	var tween := get_tree().create_tween()
+	tween.tween_property(camera, "position", player_center, 0.5).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+
+func create_movement_buttons() -> void:
+	# 1. Clear old buttons
+	for child in movement_buttons_container.get_children():
+		child.queue_free()
+	movement_buttons.clear()
+
+	# 2. Build new buttons
+	for i in deck_manager.hand.size():
+		var card := deck_manager.hand[i]
+
+		var btn := TextureButton.new()
+		btn.name = "CardButton%d" % i
+		btn.texture_normal = card.image
+		btn.custom_minimum_size = Vector2(100, 140)
+		btn.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
+
+		# Input behaviour
+		btn.mouse_filter = Control.MOUSE_FILTER_STOP
+		btn.focus_mode = Control.FOCUS_NONE
+		btn.z_index = 10
+
+		# Hover overlay
+		var overlay := ColorRect.new()
+		overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		overlay.color = Color(1, 0.84, 0, 0.25)
+		overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+		overlay.visible = false
+		btn.add_child(overlay)
+
+		btn.mouse_entered.connect(func(): overlay.visible = true)
+		btn.mouse_exited.connect(func(): overlay.visible = false)
+
+		btn.pressed.connect(func(): _on_movement_card_pressed(card, btn))
+
+		movement_buttons_container.add_child(btn)
+		movement_buttons.append(btn)
+
+func _on_movement_card_pressed(card: CardData, button: TextureButton) -> void:
+	# Do nothing if this card is already active
+	
+	if selected_card == card:
+		return
+	card_click_sound.play()
+	# Deselect previous highlights, but don't discard yet
+	hide_all_movement_highlights()
+	valid_movement_tiles.clear()
+
+	# Update selected state
+	is_movement_mode = true
+	active_button = button
+	selected_card = card
+	selected_card_label = card.name
+	movement_range = card.effect_strength
+
+	print("Card selected:", card.name, "Range:", movement_range)
+
+	calculate_valid_movement_tiles()
+	show_movement_highlights()
+	
+func calculate_valid_movement_tiles() -> void:
+	valid_movement_tiles.clear()
+
+	var base_mobility = player_stats.get("base_mobility", 0)
+	var total_range = movement_range + base_mobility
+
+	for y in grid_size.y:
+		for x in grid_size.x:
+			var pos := Vector2i(x, y)
+
+			if calculate_grid_distance(player_grid_pos, pos) <= total_range and pos != player_grid_pos:
+				if obstacle_map.has(pos):
+					var obstacle = obstacle_map[pos]
+
+					# Check if the obstacle blocks movement via method
+					if obstacle.has_method("blocks") and obstacle.blocks():
+						continue
+
+				valid_movement_tiles.append(pos)
+
+func calculate_grid_distance(a: Vector2i, b: Vector2i) -> int:
+	return abs(a.x - b.x) + abs(a.y - b.y)
+
+func show_movement_highlights() -> void:
+	hide_all_movement_highlights()
+	for pos in valid_movement_tiles:
+		grid_tiles[pos.y][pos.x].get_node("MovementHighlight").visible = true
+
+func hide_all_movement_highlights() -> void:
+	for y in grid_size.y:
+		for x in grid_size.x:
+			grid_tiles[y][x].get_node("MovementHighlight").visible = false
+
+func _on_tile_mouse_entered(x: int, y: int) -> void:
+	if not is_panning and is_movement_mode:
+		var tile: Control = grid_tiles[y][x]
+		var clicked := Vector2i(x, y)
+		
+		# Only show red highlight if it's not a valid movement tile
+		if not Vector2i(x, y) in valid_movement_tiles:
+			tile.get_node("Highlight").visible = true
+
+func _on_tile_mouse_exited(x: int, y: int) -> void:
+	if not is_panning:
+		grid_tiles[y][x].get_node("Highlight").visible = false
+
+func _on_tile_input(event: InputEvent, x: int, y: int) -> void:
+	if event is InputEventMouseButton and event.pressed and not is_panning and event.button_index == MOUSE_BUTTON_LEFT:
+		var clicked := Vector2i(x, y)
+		
+		if is_placing_player:
+			# Player is selecting a tee box
+			if map_manager.get_tile_type(x, y) == "Tee":
+				player_grid_pos = clicked
+				update_player_position()
+				player_node.visible = true
+				is_placing_player = false
+
+				# Update the camera snap-back position to the player
+				var player_center := player_node.global_position + player_node.size / 2
+				camera_snap_back_pos = player_center
+				
+				print("Player placed at Tee. Round begins.")
+				
+				# Start the round
+				start_round_after_tee_selection()
+			else:
+				print("Please select a Tee Box to start your round.")
+		else:
+			# Normal gameplay - check for valid movement
+			var is_valid := valid_movement_tiles.any(func(pos: Vector2i) -> bool:
+				return pos == clicked)
+
+			if is_movement_mode and is_valid:
+				player_grid_pos = clicked
+				update_player_position()
+				card_play_sound.play()  # 🔊 Play sound when a card is used
+				exit_movement_mode()
+				# (Removed: automatic start of next shot when reaching ball tile)
+			else:
+				print("Invalid movement tile or not in movement mode")
+
+func start_round_after_tee_selection() -> void:
+	# Remove tee selection instruction
+	var instruction_label = $UILayer.get_node_or_null("TeeInstructionLabel")
+	if instruction_label:
+		instruction_label.queue_free()
+	
+	# Clear tee highlights
+	for y in grid_size.y:
+		for x in grid_size.x:
+			grid_tiles[y][x].get_node("Highlight").visible = false
+	
+	# Get player stats from Global
+	player_stats = Global.CHARACTER_STATS.get(Global.selected_character, {})
+	
+	# Initialize the deck
+	deck_manager.initialize_deck(deck_manager.starter_deck)
+	print("Deck initialized with", deck_manager.draw_pile.size(), "cards")
+	
+	# Set up for first shot - start with club selection phase
+	hole_score = 0
+	enter_draw_cards_phase()  # Start with club selection phase
+	
+	print("Round started! Player at position:", player_grid_pos)
+
+func show_power_meter():
+	if power_meter:
+		power_meter.queue_free()
+	
+	power_for_target = MIN_LAUNCH_POWER  # Default if no target
+	max_power_for_bar = MAX_LAUNCH_POWER  # Default
+
+	if chosen_landing_spot != Vector2.ZERO:
+		var player_center = player_node.global_position + player_node.size / 2
+		var distance_to_target = player_center.distance_to(chosen_landing_spot)
+		# Use your existing logic for physics compensation
+		var ball_physics_factor = 0.8  # Reduced from 1.8 to 0.8
+		var base_power_per_distance = 0.6  # Reduced from 1.2 to 0.6
+		var required_power = distance_to_target * base_power_per_distance * ball_physics_factor
+		power_for_target = max(required_power, 0.0)
+		# 100% = target + 25% of club's max power
+		var club_max = club_data[selected_club]["max_distance"] if selected_club in club_data else MAX_LAUNCH_POWER
+		max_power_for_bar = power_for_target + 0.25 * club_max
+		print("=== POWER BAR MAPPING DEBUG ===")
+		print("Distance to target:", distance_to_target)
+		print("Power for target (75%):", power_for_target)
+		print("Club max:", club_max)
+		print("Max power for bar (100%):", max_power_for_bar)
+		print("=== END POWER BAR MAPPING DEBUG ===")
+	
+	# Create a container for the power meter
+	power_meter = Control.new()
+	power_meter.name = "PowerMeter"
+	power_meter.size = Vector2(350, 80)
+	power_meter.position = Vector2(50, get_viewport_rect().size.y - 120)
+	$UILayer.add_child(power_meter)
+	power_meter.z_index = 200
+	
+	# Background panel
+	var background := ColorRect.new()
+	background.color = Color(0.1, 0.1, 0.1, 0.8)
+	background.size = power_meter.size
+	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	power_meter.add_child(background)
+	
+	# Border
+	var border := ColorRect.new()
+	border.color = Color(0.8, 0.8, 0.8, 0.6)
+	border.size = Vector2(power_meter.size.x + 4, power_meter.size.y + 4)
+	border.position = Vector2(-2, -2)
+	border.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	power_meter.add_child(border)
+	border.z_index = -1
+	
+	# Title label
+	var title_label := Label.new()
+	title_label.text = "CHARGE TIME (0-100%)"
+	title_label.add_theme_font_size_override("font_size", 16)
+	title_label.add_theme_color_override("font_color", Color.WHITE)
+	title_label.add_theme_constant_override("outline_size", 1)
+	title_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	title_label.position = Vector2(10, 5)
+	title_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	power_meter.add_child(title_label)
+	
+	# Meter background
+	var meter_bg := ColorRect.new()
+	meter_bg.color = Color(0.2, 0.2, 0.2, 0.9)
+	meter_bg.size = Vector2(300, 20)
+	meter_bg.position = Vector2(10, 30)
+	meter_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	power_meter.add_child(meter_bg)
+	
+	# Sweet spot indicator (green zone for 65-75%)
+	var sweet_spot := ColorRect.new()
+	sweet_spot.name = "SweetSpot"
+	sweet_spot.color = Color(0, 0.8, 0, 0.3)  # Green with transparency
+	sweet_spot.size = Vector2(30, 20)  # 10% of 300 (65-75% = 10% range)
+	sweet_spot.position = Vector2(195, 30)  # 65% of 300 = 195
+	sweet_spot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	power_meter.add_child(sweet_spot)
+	
+	# Meter fill (this will be updated in _process)
+	var meter_fill := ColorRect.new()
+	meter_fill.name = "MeterFill"
+	meter_fill.color = Color(1, 0.8, 0.2, 0.8)
+	meter_fill.size = Vector2(0, 20)  # Start at 0 width
+	meter_fill.position = Vector2(10, 30)
+	meter_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	power_meter.add_child(meter_fill)
+	
+	# Power value label (shows percentage)
+	var value_label := Label.new()
+	value_label.name = "PowerValue"
+	value_label.text = "0%"  # Start at 0%
+	value_label.add_theme_font_size_override("font_size", 14)
+	value_label.add_theme_color_override("font_color", Color.WHITE)
+	value_label.add_theme_constant_override("outline_size", 1)
+	value_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	value_label.position = Vector2(320, 30)
+	value_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	power_meter.add_child(value_label)
+	
+	# Min/Max labels
+	var min_label := Label.new()
+	min_label.text = "0%"
+	min_label.add_theme_font_size_override("font_size", 10)
+	min_label.add_theme_color_override("font_color", Color.LIGHT_GRAY)
+	min_label.position = Vector2(10, 55)
+	min_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	power_meter.add_child(min_label)
+	
+	var max_label := Label.new()
+	max_label.text = "100%"
+	max_label.add_theme_font_size_override("font_size", 10)
+	max_label.add_theme_color_override("font_color", Color.LIGHT_GRAY)
+	max_label.position = Vector2(280, 55)
+	max_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	power_meter.add_child(max_label)
+	
+	# Store for use in _process
+	power_meter.set_meta("max_power_for_bar", max_power_for_bar)
+	power_meter.set_meta("power_for_target", power_for_target)
+
+func hide_power_meter():
+	if power_meter:
+		power_meter.queue_free()
+		power_meter = null
+	hide_aiming_arrow()  # Hide arrow when power meter is hidden
+
+func show_height_meter():
+	if height_meter:
+		height_meter.queue_free()
+	
+	# Create a container for the height meter
+	height_meter = Control.new()
+	height_meter.name = "HeightMeter"
+	height_meter.size = Vector2(80, 350)
+	height_meter.position = Vector2(get_viewport_rect().size.x - 130, get_viewport_rect().size.y - 400)
+	$UILayer.add_child(height_meter)
+	height_meter.z_index = 200
+	
+	# Background panel
+	var background := ColorRect.new()
+	background.color = Color(0.1, 0.1, 0.1, 0.8)
+	background.size = height_meter.size
+	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	height_meter.add_child(background)
+	
+	# Border
+	var border := ColorRect.new()
+	border.color = Color(0.8, 0.8, 0.8, 0.6)
+	border.size = Vector2(height_meter.size.x + 4, height_meter.size.y + 4)
+	border.position = Vector2(-2, -2)
+	border.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	height_meter.add_child(border)
+	border.z_index = -1
+	
+	# Title label
+	var title_label := Label.new()
+	title_label.text = "HEIGHT"
+	title_label.add_theme_font_size_override("font_size", 16)
+	title_label.add_theme_color_override("font_color", Color.WHITE)
+	title_label.add_theme_constant_override("outline_size", 1)
+	title_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	title_label.position = Vector2(5, 5)
+	title_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	height_meter.add_child(title_label)
+	
+	# Meter background
+	var meter_bg := ColorRect.new()
+	meter_bg.color = Color(0.2, 0.2, 0.2, 0.9)
+	meter_bg.size = Vector2(20, 300)
+	meter_bg.position = Vector2(30, 30)
+	meter_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	height_meter.add_child(meter_bg)
+	
+	# Sweet spot indicator (green zone)
+	var sweet_spot := ColorRect.new()
+	sweet_spot.name = "SweetSpot"
+	sweet_spot.color = Color(0, 0.8, 0, 0.3)
+	sweet_spot.size = Vector2(20, 60)  # 20% of 300
+	sweet_spot.position = Vector2(30, 120)  # Center of the meter
+	sweet_spot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	height_meter.add_child(sweet_spot)
+	
+	# Meter fill (this will be updated in _process)
+	var meter_fill := ColorRect.new()
+	meter_fill.name = "MeterFill"
+	meter_fill.color = Color(1, 0.8, 0.2, 0.8)
+	meter_fill.size = Vector2(20, 100)
+	meter_fill.position = Vector2(30, 230)  # Start from bottom
+	meter_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	height_meter.add_child(meter_fill)
+	
+	# Height value label
+	var value_label := Label.new()
+	value_label.name = "HeightValue"
+	value_label.text = "400"
+	value_label.add_theme_font_size_override("font_size", 14)
+	value_label.add_theme_color_override("font_color", Color.WHITE)
+	value_label.add_theme_constant_override("outline_size", 1)
+	value_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	value_label.position = Vector2(55, 30)
+	value_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	height_meter.add_child(value_label)
+	
+	# Min/Max labels
+	var max_label := Label.new()
+	max_label.text = "MAX"
+	max_label.add_theme_font_size_override("font_size", 10)
+	max_label.add_theme_color_override("font_color", Color.LIGHT_GRAY)
+	max_label.position = Vector2(55, 30)
+	max_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	height_meter.add_child(max_label)
+	
+	var min_label := Label.new()
+	min_label.text = "MIN"
+	min_label.add_theme_font_size_override("font_size", 10)
+	min_label.add_theme_color_override("font_color", Color.LIGHT_GRAY)
+	min_label.position = Vector2(55, 320)
+	min_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	height_meter.add_child(min_label)
+
+func hide_height_meter():
+	if height_meter:
+		height_meter.queue_free()
+		height_meter = null
+	hide_aiming_arrow()  # Hide arrow when height meter is hidden
+
+func show_aiming_arrow():
+	if aiming_arrow:
+		aiming_arrow.queue_free()
+	
+	# Create a container for the aiming arrow
+	aiming_arrow = Control.new()
+	aiming_arrow.name = "AimingArrow"
+	aiming_arrow.size = Vector2(200, 50)
+	aiming_arrow.z_index = 200  # Increased from 150 to 200 - above the player
+	camera_container.add_child(aiming_arrow)
+	
+	# Create the arrow visual (a simple triangle)
+	var arrow_polygon = Polygon2D.new()
+	arrow_polygon.polygon = PackedVector2Array([
+		Vector2(0, 0),      # Base of arrow at player center
+		Vector2(-40, -12),  # Top corner
+		Vector2(-40, 12),   # Bottom corner
+	])
+	arrow_polygon.color = Color(1, 0.8, 0.2, 0.8)  # Yellow with transparency
+	aiming_arrow.add_child(arrow_polygon)
+	
+	# Add a line behind the arrow
+	var arrow_line = Line2D.new()
+	arrow_line.points = PackedVector2Array([
+		Vector2(0, 0),      # Start at player center
+		Vector2(-80, 0),    # Extend outward
+	])
+	arrow_line.width = 3
+	arrow_line.default_color = Color(1, 0.8, 0.2, 0.6)  # Slightly more transparent
+	aiming_arrow.add_child(arrow_line)
+	
+	print("Aiming arrow created")
+
+func hide_aiming_arrow():
+	if aiming_arrow:
+		aiming_arrow.queue_free()
+		aiming_arrow = null
+
+func update_aiming_arrow():
+	if not aiming_arrow or not player_node:
+		return
+	
+	# Get player center position
+	var player_center = player_node.global_position + player_node.size / 2
+	# Get mouse position
+	var mouse_pos = get_global_mouse_position()
+	# Calculate direction and distance
+	var direction = (mouse_pos - player_center).normalized()
+	var distance = player_center.distance_to(mouse_pos)
+	
+	# Position the arrow at the player center
+	aiming_arrow.global_position = player_center
+	
+	# Update the arrow polygon to point to the mouse
+	var arrow_tip = direction * distance
+	var base_left = direction.rotated(-PI/10) * 30
+	var base_right = direction.rotated(PI/10) * 30
+	var arrow_polygon = aiming_arrow.get_child(0)
+	arrow_polygon.polygon = PackedVector2Array([
+		Vector2(0, 0),
+		base_left,
+		arrow_tip,
+		base_right
+	])
+	
+	# Update the line to point to the mouse
+	var arrow_line = aiming_arrow.get_child(1)
+	arrow_line.points = PackedVector2Array([
+		Vector2(0, 0),
+		arrow_tip
+	])
+
+func show_aiming_circle():
+	if aiming_circle:
+		aiming_circle.queue_free()
+	
+	# Create a container for the aiming circle
+	aiming_circle = Control.new()
+	aiming_circle.name = "AimingCircle"
+	aiming_circle.size = Vector2(50, 50)
+	aiming_circle.z_index = 150  # Above the player but below UI
+	camera_container.add_child(aiming_circle)
+	
+	# Create the red circle visual
+	var circle = ColorRect.new()
+	circle.name = "CircleVisual"
+	circle.size = Vector2(50, 50)
+	circle.color = Color(1, 0, 0, 0.6)  # Red with transparency
+	circle.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	aiming_circle.add_child(circle)
+	
+	# Make it circular by using a custom draw function
+	circle.draw.connect(_draw_circle.bind(circle))
+	
+	# Add distance indicator label
+	var distance_label = Label.new()
+	distance_label.name = "DistanceLabel"
+	distance_label.text = "0"
+	distance_label.add_theme_font_size_override("font_size", 12)
+	distance_label.add_theme_color_override("font_color", Color.WHITE)
+	distance_label.add_theme_constant_override("outline_size", 1)
+	distance_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	distance_label.position = Vector2(60, 20)
+	distance_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	aiming_circle.add_child(distance_label)
+	
+	print("Aiming circle created")
+
+func _draw_circle(circle: ColorRect):
+	# Draw a red circle
+	var center = circle.size / 2
+	var radius = min(circle.size.x, circle.size.y) / 2
+	circle.draw_circle(center, radius, Color(1, 0, 0, 0.8))
+	circle.draw_arc(center, radius, 0, 2 * PI, 32, Color(1, 0, 0, 1.0), 2.0)
+
+func hide_aiming_circle():
+	if aiming_circle:
+		aiming_circle.queue_free()
+		aiming_circle = null
+
+func update_aiming_circle():
+	if not aiming_circle or not player_node:
+		return
+	
+	# Get player center position
+	var player_center = player_node.global_position + player_node.size / 2
+	# Get mouse position
+	var mouse_pos = get_global_mouse_position()
+	# Calculate direction and distance
+	var direction = (mouse_pos - player_center).normalized()
+	var distance = player_center.distance_to(mouse_pos)
+	
+	# Clamp the distance to the maximum shot distance
+	var clamped_distance = min(distance, max_shot_distance)
+	var clamped_position = player_center + direction * clamped_distance
+	
+	# Position the circle at the clamped position
+	aiming_circle.global_position = clamped_position - aiming_circle.size / 2
+	
+	# Store the chosen landing spot
+	chosen_landing_spot = clamped_position
+	
+	# Change circle color based on distance vs min distance
+	var circle = aiming_circle.get_node_or_null("CircleVisual")
+	if circle and selected_club in club_data:
+		var min_distance = club_data[selected_club]["min_distance"]
+		if clamped_distance >= min_distance:
+			# Safe range - green circle
+			circle.color = Color(0, 1, 0, 0.8)  # Green
+		else:
+			# Penalty range - red circle
+			circle.color = Color(1, 0, 0, 0.8)  # Red
+		print("Circle color updated - distance:", clamped_distance, "min_distance:", min_distance, "color:", circle.color)
+	
+	# Make camera follow the red circle smoothly
+	var target_camera_pos = clamped_position
+	var current_camera_pos = camera.position
+	var camera_speed = 5.0  # Adjust for faster/slower camera movement
+	
+	# Smoothly move camera toward the red circle
+	var new_camera_pos = current_camera_pos.lerp(target_camera_pos, camera_speed * get_process_delta_time())
+	camera.position = new_camera_pos
+	
+	
+	# Update distance label
+	var distance_label = aiming_circle.get_node_or_null("DistanceLabel")
+	if distance_label:
+		distance_label.text = str(int(clamped_distance)) + "px"
+	
+
+func launch_golf_ball(direction: Vector2, charged_power: float, height: float):
+	print("LAUNCH_GOLF_BALL FUNCTION CALLED!")
+	print("Launching ball!")
+	print("Direction:", direction, "Charge time:", charge_time, "Height:", height)
+	print("Chosen landing spot:", chosen_landing_spot)
+	
+	# Calculate power from charge time instead of charged_power
+	var time_percent = charge_time / max_charge_time
+	time_percent = clamp(time_percent, 0.0, 1.0)
+	
+	# Calculate actual power based on time percentage and target distance
+	var actual_power = 0.0
+	if chosen_landing_spot != Vector2.ZERO:
+		var player_center = player_node.global_position + player_node.size / 2
+		var distance_to_target = player_center.distance_to(chosen_landing_spot)
+		
+		# Use distance-based scaling for physics factors
+		# Far shots need higher factors to generate more power
+		# Use a consistent reference distance (Driver's max) for scaling
+		var reference_distance = 1200.0  # Driver's max distance as reference
+		var distance_factor = distance_to_target / reference_distance
+		var ball_physics_factor = 0.8 + (distance_factor * 0.4)  # Reduced from 1.2 to 0.4 (0.8 to 1.2)
+		var base_power_per_distance = 0.6 + (distance_factor * 0.2)  # Reduced from 0.8 to 0.2 (0.6 to 0.8)
+		var power_for_target = distance_to_target * base_power_per_distance * ball_physics_factor
+		
+		# Calculate power based on time percentage
+		if time_percent <= 0.75:
+			# 0-75% time = 0-100% of target power
+			actual_power = (time_percent / 0.75) * power_for_target
+		else:
+			# 75-100% time = target power + overcharge bonus
+			var club_max = club_data[selected_club]["max_distance"] if selected_club in club_data else MAX_LAUNCH_POWER
+			var overcharge_bonus = ((time_percent - 0.75) / 0.25) * (0.25 * club_max)
+			actual_power = power_for_target + overcharge_bonus
+	else:
+		# No target - use time percentage of max power
+		actual_power = time_percent * MAX_LAUNCH_POWER
+	
+	print("Time percent:", time_percent, "Actual power for launch:", actual_power)
+	
+	# Store the shot start position for out of bounds handling
+	shot_start_grid_pos = player_grid_pos
+	
+	# Increment shot score and update HUD immediately
+	hole_score += 1
+	update_deck_display()
+	
+	# Calculate spin based on mouse deviation from original aim
+	var aim_deviation = current_charge_mouse_pos - original_aim_mouse_pos
+	var launch_dir_perp = Vector2(-direction.y, direction.x) # Perpendicular to launch direction
+	var spin_strength = aim_deviation.dot(launch_dir_perp)
+	# Scale spin (dramatically increased for more noticeable curve effects)
+	launch_spin = clamp(spin_strength * 1.0, -800, 800)  # Increased from 0.1 to 1.0 and max from 200 to 800
+	
+	# Calculate spin strength for scaling (same logic as spin indicator)
+	var spin_abs = abs(spin_strength)
+	var spin_strength_category = 0  # 0=green, 1=yellow, 2=red
+	if spin_abs > 120:
+		spin_strength_category = 2  # Red - high spin
+	elif spin_abs > 48:
+		spin_strength_category = 1  # Yellow - medium spin
+	else:
+		spin_strength_category = 0  # Green - low spin
+	
+	# Apply height resistance to the final launch power
+	var height_percentage = (height - MIN_LAUNCH_HEIGHT) / (MAX_LAUNCH_HEIGHT - MIN_LAUNCH_HEIGHT)
+	height_percentage = clamp(height_percentage, 0.0, 1.0)
+	
+	var height_resistance_multiplier = 1.0
+	if height_percentage > HEIGHT_SWEET_SPOT_MAX:  # Above 60% height
+		# Calculate how much above the sweet spot we are
+		var excess_height = height_percentage - HEIGHT_SWEET_SPOT_MAX
+		var max_excess = 1.0 - HEIGHT_SWEET_SPOT_MAX  # 0.4 (from 60% to 100%)
+		
+		# Progressive resistance: more excess height = more power reduction
+		var resistance_factor = excess_height / max_excess  # 0.0 to 1.0
+		height_resistance_multiplier = 1.0 - (resistance_factor * 0.5)  # Reduce power by up to 50%
+	
+	# Apply height resistance to final power
+	var final_power = actual_power * height_resistance_multiplier
+	
+	# Focused debug print for power calculation
+	print("=== POWER DEBUG ===")
+	var debug_distance = 0.0
+	if chosen_landing_spot != Vector2.ZERO:
+		var player_center = player_node.global_position + player_node.size / 2
+		debug_distance = player_center.distance_to(chosen_landing_spot)
+	print("Distance to target:", debug_distance)
+	print("Time percent:", time_percent)
+	print("Actual power:", actual_power)
+	print("Final power:", final_power)
+	print("=== END POWER DEBUG ===")
+	
+	if golf_ball:
+		golf_ball.queue_free()
+	golf_ball = preload("res://GolfBall.tscn").instantiate()
+	
+	# Use player's current position relative to the camera container
+	# This will be the ball's landing position for subsequent shots
+	var player_center = player_node.position + player_node.size / 2
+	print("Player center position:", player_center)
+	
+	golf_ball.position = player_center
+	golf_ball.cell_size = cell_size
+	golf_ball.map_manager = map_manager  # Pass map manager reference for tile-based friction
+	
+	# Don't set z_index here - let individual sprites control their own layering
+	camera_container.add_child(golf_ball)  # Add to camera container instead of main scene
+	print("Golf ball added to scene at position:", golf_ball.position)
+	print("Golf ball node z_index:", golf_ball.z_index)
+	print("Golf ball visible:", golf_ball.visible)
+	print("Golf ball global position:", golf_ball.global_position)
+	
+	# Debug: Check child z_index values
+	var shadow = golf_ball.get_node_or_null("Shadow")
+	var sprite = golf_ball.get_node_or_null("Sprite2D")
+	print("Shadow z_index after adding to scene:", shadow.z_index if shadow else "No shadow")
+	print("Ball sprite z_index after adding to scene:", sprite.z_index if sprite else "No sprite")
+	
+	play_swing_sound(final_power)  # Use final_power for sound
+	
+	# Pass the chosen landing spot to the ball for trajectory calculation
+	golf_ball.chosen_landing_spot = chosen_landing_spot
+	# Pass the club information to the ball for progressive overcharge system
+	golf_ball.club_info = club_data[selected_club] if selected_club in club_data else {}
+	# Pass the time percentage information for proper sweet spot detection
+	golf_ball.time_percentage = time_percent
+	# Pass the spin value to the ball
+	golf_ball.launch(direction, final_power, height, launch_spin, spin_strength_category)  # Pass spin strength category
+	golf_ball.landed.connect(_on_golf_ball_landed)
+	golf_ball.out_of_bounds.connect(_on_golf_ball_out_of_bounds)  # Connect out of bounds signal
+	golf_ball.sand_landing.connect(_on_golf_ball_sand_landing)  # Connect sand landing signal
+	print("Ball launched and signal connected!")
+	
+	# Start camera following the ball
+	camera_following_ball = true
+	print("Camera following ball started")
+
+func _on_golf_ball_landed(tile: Vector2i):
+	hole_score += 1
+	print("Golf ball landed on tile:", tile, "Shots so far:", hole_score)
+	print("Ball final position:", golf_ball.position if golf_ball else "No ball")
+	print("Ball final global position:", golf_ball.global_position if golf_ball else "No ball")
+	print("Transitioning from ball_flying to move phase")
+	
+	# Stop camera following
+	camera_following_ball = false
+	
+	# Store ball landing information for multi-shot golf
+	ball_landing_tile = tile
+	ball_landing_position = golf_ball.global_position if golf_ball else Vector2.ZERO
+	waiting_for_player_to_reach_ball = true
+	
+	# Calculate drive distance (distance from player to ball landing position)
+	var player_start_pos = player_node.global_position + player_node.size / 2
+	var ball_landing_pos = golf_ball.global_position if golf_ball else player_start_pos
+	drive_distance = player_start_pos.distance_to(ball_landing_pos)
+	print("Drive distance:", drive_distance, "pixels")
+	
+	# Add a delay before showing the dialog so player can appreciate their shot
+	var dialog_timer = get_tree().create_timer(0.5)  # Reduced from 1.5 to 0.5 second delay
+	dialog_timer.timeout.connect(func():
+		show_drive_distance_dialog()
+		print("Drive distance dialog created and input connected")
+	)
+	
+	# Keep the ball visible on the screen - don't remove it!
+	# The ball will stay until the player reaches its tile
+	print("Ball will remain visible until player reaches tile:", tile)
+	
+	# Set player target tile for next move phase, or check for pin, etc.
+	# For now, just transition to movement phase
+	game_phase = "move"
+	print("Game phase set to:", game_phase)
+	
+	# Don't draw cards here - they will be drawn when starting the next shot
+	# print("Drawing cards from deck...")
+	# deck_manager.draw_cards()
+	# print("Cards drawn. Hand size:", deck_manager.hand.size())
+	
+	# Don't create movement buttons here - there are no cards yet
+	# Movement buttons will be created when cards are drawn for the next shot
+	# print("Creating movement buttons...")
+	# create_movement_buttons()
+	# print("Movement phase ready!")
+
+func highlight_tee_tiles():
+	# Clear any existing highlights first
+	for y in grid_size.y:
+		for x in grid_size.x:
+			grid_tiles[y][x].get_node("Highlight").visible = false
+	
+	# Highlight all tee tiles
+	for y in grid_size.y:
+		for x in grid_size.x:
+			if map_manager.get_tile_type(x, y) == "Tee":
+				grid_tiles[y][x].get_node("Highlight").visible = true
+				# Change highlight color to blue for tee tiles
+				var highlight = grid_tiles[y][x].get_node("Highlight")
+				highlight.color = Color(0, 0.5, 1, 0.6)  # Blue with transparency
+
+func exit_movement_mode() -> void:
+	is_movement_mode = false
+	hide_all_movement_highlights()
+	valid_movement_tiles.clear()
+
+	if active_button and active_button.is_inside_tree():
+		if selected_card:
+			var card_discarded := false
+
+			if deck_manager.hand.has(selected_card):
+				print("Discarding selected card:", selected_card.name)
+				deck_manager.discard(selected_card)
+				card_discarded = true
+			else:
+				print("Card not in hand:", selected_card.name)
+
+			card_stack_display.animate_card_discard(selected_card.name)
+			update_deck_display()
+
+		if movement_buttons_container and movement_buttons_container.has_node(NodePath(active_button.name)):
+			movement_buttons_container.remove_child(active_button)
+
+		active_button.queue_free()
+		movement_buttons.erase(active_button)
+		active_button = null
+
+	selected_card_label = ""
+	selected_card = null
+	print("Exited movement mode")
+
+func _on_end_turn_pressed() -> void:
+	if is_movement_mode:
+		exit_movement_mode()
+
+	# Check if there are cards in hand to discard
+	var cards_to_discard = deck_manager.hand.size()
+	
+	# Always discard all cards and clear movement buttons
+	for card in deck_manager.hand:
+		deck_manager.discard(card)
+	deck_manager.hand.clear()
+	hide_all_movement_highlights()
+	for child in movement_buttons_container.get_children():
+		child.queue_free()
+	movement_buttons.clear()
+	selected_card_label = ""
+	selected_card = null
+	active_button = null
+	is_movement_mode = false
+	turn_count += 1
+	update_deck_display()
+	
+	# Play discard sound if there were cards in hand
+	if cards_to_discard > 0:
+		if card_stack_display.has_node("Discard"):
+			var discard_sound = card_stack_display.get_node("Discard")
+			if discard_sound and discard_sound.stream:
+				discard_sound.play()
+				print("Playing discard sound for", cards_to_discard, "cards")
+	# Play DiscardEmpty sound if there were no cards in hand
+	elif cards_to_discard == 0:
+		if card_stack_display.has_node("DiscardEmpty"):
+			var discard_empty_sound = card_stack_display.get_node("DiscardEmpty")
+			if discard_empty_sound and discard_empty_sound.stream:
+				discard_empty_sound.play()
+				print("Playing DiscardEmpty sound (no cards to discard)")
+
+	# Only start the next shot if player is on the ball tile
+	if waiting_for_player_to_reach_ball and player_grid_pos == ball_landing_tile:
+		enter_draw_cards_phase()  # Start with club selection phase
+		print("New Turn and club selection started:", turn_count)
+	else:
+		print("Turn ended. You must be on the ball tile to start the next shot.")
+		# Draw regular movement cards instead of club cards
+		draw_cards_for_shot(3)
+		create_movement_buttons()
+		draw_cards_button.visible = false
+		print("Drew regular movement cards. DrawCards button hidden:", draw_cards_button.visible)
+
+func update_deck_display() -> void:
+	var hud := get_node("UILayer/HUD")
+	hud.get_node("TurnLabel").text = "Turn: %d" % turn_count
+	hud.get_node("DrawLabel").text = "Draw Pile: %d" % deck_manager.draw_pile.size()
+	hud.get_node("DiscardLabel").text = "Discard Pile: %d" % deck_manager.discard_pile.size()
+	hud.get_node("ShotLabel").text = "Shots: %d" % hole_score
+	card_stack_display.update_draw_stack(deck_manager.draw_pile.size())
+	card_stack_display.update_discard_stack(deck_manager.discard_pile.size())
+
+func display_selected_character() -> void:
+	print("Selected character: ", Global.selected_character)
+	if character_label:
+		var name = ""
+		match Global.selected_character:
+			1: name = "Layla"
+			2: name = "Benny"
+			3: name = "Clark"
+			_: name = "Unknown"
+		character_label.text = name
+	if character_image:
+		match Global.selected_character:
+			1: character_image.texture = load("res://character1.png")
+			2: character_image.texture = load("res://character2.png")
+			3: character_image.texture = load("res://character3.png")
+
+func _on_end_round_pressed() -> void:
+	if is_movement_mode:
+		exit_movement_mode()
+	call_deferred("_change_to_main")
+
+func _change_to_main() -> void:
+	get_tree().change_scene_to_file("res://Main.tscn")
+
+func show_tee_selection_instruction() -> void:
+	# Create a temporary instruction label
+	var instruction_label := Label.new()
+	instruction_label.name = "TeeInstructionLabel"
+	instruction_label.text = "Click on a Tee Box to start your round!"
+	instruction_label.add_theme_font_size_override("font_size", 24)
+	instruction_label.add_theme_color_override("font_color", Color.YELLOW)
+	instruction_label.add_theme_constant_override("outline_size", 2)
+	instruction_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	
+	# Position it in the center of the screen
+	instruction_label.position = Vector2(400, 200)
+	instruction_label.z_index = 200
+	
+	# Add to UI layer
+	$UILayer.add_child(instruction_label)
+
+func show_drive_distance_dialog() -> void:
+	if drive_distance_dialog:
+		drive_distance_dialog.queue_free()
+	
+	drive_distance_dialog = Control.new()
+	drive_distance_dialog.name = "DriveDistanceDialog"
+	drive_distance_dialog.size = get_viewport_rect().size
+	drive_distance_dialog.z_index = 500  # Very high z-index to appear on top
+	drive_distance_dialog.mouse_filter = Control.MOUSE_FILTER_STOP
+	
+	# Semi-transparent background
+	var background := ColorRect.new()
+	background.color = Color(0, 0, 0, 0.7)
+	background.size = drive_distance_dialog.size
+	background.mouse_filter = Control.MOUSE_FILTER_STOP  # Make sure it can receive input
+	drive_distance_dialog.add_child(background)
+	
+	# Connect input to the background
+	background.gui_input.connect(_on_drive_distance_dialog_input)
+	
+	# Dialog box
+	var dialog_box := ColorRect.new()
+	dialog_box.color = Color(0.2, 0.2, 0.2, 0.9)
+	dialog_box.size = Vector2(400, 200)
+	dialog_box.position = Vector2(400, 200)
+	dialog_box.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Let clicks pass through to background
+	drive_distance_dialog.add_child(dialog_box)
+	
+	# Title label
+	var title_label := Label.new()
+	title_label.text = "Drive Distance"
+	title_label.add_theme_font_size_override("font_size", 28)
+	title_label.add_theme_color_override("font_color", Color.YELLOW)
+	title_label.add_theme_constant_override("outline_size", 2)
+	title_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	title_label.position = Vector2(150, 20)
+	title_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dialog_box.add_child(title_label)
+	
+	# Distance label
+	var distance_label := Label.new()
+	distance_label.text = "%d pixels" % drive_distance
+	distance_label.add_theme_font_size_override("font_size", 36)
+	distance_label.add_theme_color_override("font_color", Color.WHITE)
+	distance_label.add_theme_constant_override("outline_size", 2)
+	distance_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	distance_label.position = Vector2(150, 80)
+	distance_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dialog_box.add_child(distance_label)
+	
+	# Click instruction
+	var instruction_label := Label.new()
+	instruction_label.text = "Click anywhere to continue"
+	instruction_label.add_theme_font_size_override("font_size", 18)
+	instruction_label.add_theme_color_override("font_color", Color.LIGHT_GRAY)
+	instruction_label.position = Vector2(120, 150)
+	instruction_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dialog_box.add_child(instruction_label)
+	
+	$UILayer.add_child(drive_distance_dialog)
+	print("Drive distance dialog created and input connected")
+
+func _on_drive_distance_dialog_input(event: InputEvent) -> void:
+	print("Dialog input received:", event)
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		print("Dialog clicked - dismissing")
+		# Dismiss dialog
+		if drive_distance_dialog:
+			drive_distance_dialog.queue_free()
+			drive_distance_dialog = null
+		
+		# Go to move phase so player can move to the ball
+		print("Going to move phase after drive distance dialog")
+		game_phase = "move"
+		
+		# Show the draw cards button for movement cards
+		draw_cards_button.visible = true
+		draw_cards_button.text = "Draw Cards"
+		print("Draw cards button made visible for movement phase")
+		
+		# Return camera to player
+		var player_center := player_node.global_position + player_node.size / 2
+		var tween := get_tree().create_tween()
+		tween.tween_property(camera, "position", player_center, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		print("Camera returned to player")
+
+func setup_swing_sounds() -> void:
+	# Get references to the existing audio players in the scene
+	swing_strong_sound = $SwingStrong
+	swing_med_sound = $SwingMed
+	swing_soft_sound = $SwingSoft
+	water_plunk_sound = $WaterPlunk
+	
+	print("Swing sounds setup complete")
+
+func play_swing_sound(power: float) -> void:
+	# Calculate power percentage (0.0 to 1.0)
+	var power_percentage = (power - MIN_LAUNCH_POWER) / (MAX_LAUNCH_POWER - MIN_LAUNCH_POWER)
+	power_percentage = clamp(power_percentage, 0.0, 1.0)
+	
+	print("Power percentage:", power_percentage)
+	
+	# Play different sounds based on power level
+	if power_percentage >= 0.7:  # Strong swing (70%+ power)
+		print("Playing strong swing sound")
+		swing_strong_sound.play()
+	elif power_percentage >= 0.4:  # Medium swing (40-70% power)
+		print("Playing medium swing sound")
+		swing_med_sound.play()
+	else:  # Soft swing (0-40% power)
+		print("Playing soft swing sound")
+		swing_soft_sound.play()
+
+func start_next_shot_from_ball() -> void:
+	# Remove the old ball since we're taking a new shot from its position
+	if golf_ball and is_instance_valid(golf_ball):
+		golf_ball.queue_free()
+		golf_ball = null
+	
+	# Reset the waiting flag since we're taking the next shot
+	waiting_for_player_to_reach_ball = false
+	
+	# Move the player to the ball's position (they're already there, but update visuals)
+	update_player_position()
+	
+	# Start with club selection phase
+	enter_draw_cards_phase()
+	
+	print("Ready for next shot from position:", player_grid_pos)
+
+func _on_golf_ball_out_of_bounds():
+	print("Golf ball went out of bounds!")
+	
+	# Play water plunk sound if available
+	if water_plunk_sound and water_plunk_sound.stream:
+		water_plunk_sound.play()
+	
+	# Stop camera following
+	camera_following_ball = false
+	
+	# Add penalty stroke
+	hole_score += 1
+	print("Out of bounds penalty! Shots so far:", hole_score)
+	
+	# Remove the ball from the scene
+	if golf_ball:
+		golf_ball.queue_free()
+		golf_ball = null
+	
+	# Show out of bounds dialog
+	show_out_of_bounds_dialog()
+	
+	# Return ball to the shot start position (not tee box)
+	ball_landing_tile = shot_start_grid_pos
+	ball_landing_position = Vector2(shot_start_grid_pos.x * cell_size + cell_size/2, shot_start_grid_pos.y * cell_size + cell_size/2)
+	waiting_for_player_to_reach_ball = true
+	
+	# Move player to the shot start position
+	player_grid_pos = shot_start_grid_pos
+	update_player_position()
+	
+	# Set game phase to draw_cards for club selection since player is at ball position
+	game_phase = "draw_cards"
+	print("Game phase set to:", game_phase)
+	print("Ball returned to shot start position:", shot_start_grid_pos)
+	print("Player moved to shot start position:", player_grid_pos)
+	print("Ready for club selection for penalty shot")
+
+func show_out_of_bounds_dialog():
+	# Create a dialog to inform the player
+	var dialog = AcceptDialog.new()
+	dialog.title = "Out of Bounds!"
+	dialog.dialog_text = "Your ball went out of bounds!\n\nPenalty: +1 stroke\nYour ball has been returned to where you took the shot from.\n\nClick to select your club for the penalty shot."
+	dialog.add_theme_font_size_override("font_size", 18)
+	dialog.add_theme_color_override("font_color", Color.RED)
+	
+	# Position the dialog in the center of the screen
+	dialog.position = Vector2(400, 300)
+	# Remove z_index setting as AcceptDialog doesn't support it
+	
+	# Add to UI layer
+	$UILayer.add_child(dialog)
+	
+	# Show the dialog
+	dialog.popup_centered()
+	
+	# Connect the confirmed signal to remove the dialog and enter club selection
+	dialog.confirmed.connect(func():
+		dialog.queue_free()
+		print("Out of bounds dialog dismissed")
+		enter_draw_cards_phase()  # Go directly to club selection
+		print("Entering club selection phase for penalty shot")
+	)
+
+func reset_player_to_tee():
+	# Find the first tee box and place the player there
+	for y in map_manager.level_layout.size():
+		for x in map_manager.level_layout[y].size():
+			if map_manager.get_tile_type(x, y) == "Tee":
+				player_grid_pos = Vector2i(x, y)
+				update_player_position()
+				print("Player reset to tee box at:", player_grid_pos)
+				return
+	
+	# If no tee box found, use a default position
+	player_grid_pos = Vector2i(25, 25)
+	update_player_position()
+	print("Player reset to default position:", player_grid_pos)
+
+func enter_launch_phase() -> void:
+	"""Enter the launch phase for taking a shot"""
+	game_phase = "launch"
+	print("Entered launch phase - ready to take shot")
+	
+	# Reset charge time
+	charge_time = 0.0
+	
+	# Store the original aiming mouse position
+	original_aim_mouse_pos = get_global_mouse_position()
+	print("Original aim mouse position:", original_aim_mouse_pos)
+	
+	# Show power and height meters first to get the scaled values
+	show_power_meter()
+	show_height_meter()
+	
+	# Initialize power to the scaled minimum
+	var scaled_min_power = power_meter.get_meta("scaled_min_power", MIN_LAUNCH_POWER)
+	launch_power = scaled_min_power
+	
+	print("=== LAUNCH PHASE INITIALIZATION ===")
+	print("Initial power:", launch_power)
+	print("Scaled min power:", scaled_min_power)
+	print("Chosen landing spot:", chosen_landing_spot)
+	if chosen_landing_spot != Vector2.ZERO:
+		var player_center = player_node.global_position + player_node.size / 2
+		var distance_to_target = player_center.distance_to(chosen_landing_spot)
+		print("Distance to target:", distance_to_target)
+	print("=== END LAUNCH PHASE INITIALIZATION ===")
+	
+	# Don't draw cards here - they will be drawn after the drive distance dialog
+	# Cards should only be drawn when the player clicks on themselves after the dialog
+	
+	# Show aiming arrow
+	show_aiming_arrow()
+	
+	# Center camera on player
+	var player_center := player_node.global_position + player_node.size / 2
+	var tween := get_tree().create_tween()
+	tween.tween_property(camera, "position", player_center, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	
+	# Create or show spin indicator
+	if not spin_indicator:
+		spin_indicator = Line2D.new()
+		spin_indicator.width = 12 # Make it thick for testing
+		spin_indicator.default_color = Color(1, 1, 0, 1) # Bright yellow for testing
+		spin_indicator.z_index = 999
+		camera_container.add_child(spin_indicator)
+	spin_indicator.z_index = 999
+	spin_indicator.visible = true
+	update_spin_indicator()
+	
+	print("Launch phase ready!")
+
+func enter_aiming_phase() -> void:
+	"""Enter the aiming phase where player sets the landing spot"""
+	game_phase = "aiming"
+	is_aiming_phase = true
+	print("Entered aiming phase - move mouse to set landing spot")
+	
+	# Show the aiming circle
+	show_aiming_circle()
+	
+	# Show instruction label
+	show_aiming_instruction()
+	
+	# Center camera on player
+	var player_center := player_node.global_position + player_node.size / 2
+	var tween := get_tree().create_tween()
+	tween.tween_property(camera, "position", player_center, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	
+	print("Aiming phase ready! Left click to confirm landing spot, right click to cancel")
+
+func show_aiming_instruction() -> void:
+	# Remove any existing instruction
+	var existing_instruction = $UILayer.get_node_or_null("AimingInstructionLabel")
+	if existing_instruction:
+		existing_instruction.queue_free()
+	
+	# Create instruction label
+	var instruction_label := Label.new()
+	instruction_label.name = "AimingInstructionLabel"
+	instruction_label.text = "Move mouse to set landing spot\nLeft click to confirm, Right click to cancel"
+	instruction_label.add_theme_font_size_override("font_size", 18)
+	instruction_label.add_theme_color_override("font_color", Color.YELLOW)
+	instruction_label.add_theme_constant_override("outline_size", 2)
+	instruction_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	
+	# Position it at the top of the screen
+	instruction_label.position = Vector2(400, 50)
+	instruction_label.z_index = 200
+	
+	# Add to UI layer
+	$UILayer.add_child(instruction_label)
+
+func hide_aiming_instruction() -> void:
+	var instruction_label = $UILayer.get_node_or_null("AimingInstructionLabel")
+	if instruction_label:
+		instruction_label.queue_free()
+
+func draw_cards_for_shot(card_count: int = 3) -> void:
+	"""Draw cards for the current shot"""
+	print("Drawing", card_count, "cards for shot...")
+	deck_manager.draw_cards(card_count)
+	print("Cards drawn. Hand size:", deck_manager.hand.size())
+
+func start_shot_sequence() -> void:
+	"""Start a complete shot sequence - enter aiming phase first"""
+	enter_aiming_phase()
+
+func draw_cards_for_next_shot() -> void:
+	"""Draw cards for the next shot without entering launch phase"""
+	print("Drawing cards for next shot...")
+	# Play CardDraw sound when drawing the 3 cards
+	if card_stack_display.has_node("CardDraw"):
+		var card_draw_sound = card_stack_display.get_node("CardDraw")
+		if card_draw_sound and card_draw_sound.stream:
+			card_draw_sound.play()
+	draw_cards_for_shot(3)
+	create_movement_buttons()
+	print("Cards drawn and movement buttons created for next shot")
+
+func _on_golf_ball_sand_landing():
+	print("Golf ball landed in sand trap!")
+	
+	# Stop camera following
+	camera_following_ball = false
+	
+	# Get the final tile position where the ball landed
+	if golf_ball and map_manager:
+		var final_tile = Vector2i(floor(golf_ball.position.x / cell_size), floor(golf_ball.position.y / cell_size))
+		print("Ball landed in sand at tile:", final_tile)
+		
+		# Handle exactly like a normal landing (this will remove the ball)
+		_on_golf_ball_landed(final_tile)
+
+func show_sand_landing_dialog():
+	# Create a dialog to inform the player
+	var dialog = AcceptDialog.new()
+	dialog.title = "Sand Trap!"
+	dialog.dialog_text = "Your ball landed in a sand trap!\n\nThis is a valid shot - no penalty.\nYou'll take your next shot from here."
+	dialog.add_theme_font_size_override("font_size", 18)
+	dialog.add_theme_color_override("font_color", Color.ORANGE)
+	
+	# Position the dialog in the center of the screen
+	dialog.position = Vector2(400, 300)
+	
+	# Add to UI layer
+	$UILayer.add_child(dialog)
+	
+	# Show the dialog
+	dialog.popup_centered()
+	
+	# Connect the confirmed signal to remove the dialog only
+	dialog.confirmed.connect(func():
+		dialog.queue_free()
+		print("Sand landing dialog dismissed")
+		print("Move your character to the ball position to take your next shot!")
+	)
+
+func _on_draw_cards_pressed() -> void:
+	if game_phase == "draw_cards":
+		# Club selection phase - draw club cards
+		print("Drawing club cards for selection...")
+		draw_club_cards()
+	else:
+		# Normal movement phase - draw movement cards
+		# Play CardDraw sound
+		if card_stack_display.has_node("CardDraw"):
+			var card_draw_sound = card_stack_display.get_node("CardDraw")
+			if card_draw_sound and card_draw_sound.stream:
+				card_draw_sound.play()
+		draw_cards_for_shot(3)
+		create_movement_buttons()
+		draw_cards_button.visible = false
+		print("Drew 3 new cards after ending turn. DrawCards button hidden:", draw_cards_button.visible)
+
+func update_spin_indicator():
+	if not spin_indicator:
+		return
+	
+	# DEBUG: Force it to be visible at a fixed position in camera container coordinates
+	var screen_center = Vector2(get_viewport().size.x, get_viewport().size.y) / 2
+	var debug_pos = screen_center - camera_container.position  # Convert to camera container coordinates
+	spin_indicator.clear_points()
+	spin_indicator.add_point(debug_pos)
+	spin_indicator.add_point(debug_pos + Vector2(100, 0))  # 100 pixel line to the right
+	spin_indicator.default_color = Color(1, 0, 0, 1)  # Bright red
+	spin_indicator.width = 20  # Very thick
+	# Get current mouse position and calculate spin
+	var current_mouse_pos = get_global_mouse_position()
+	var mouse_deviation = current_mouse_pos - original_aim_mouse_pos
+	
+	# Calculate spin direction (perpendicular to launch direction)
+	var launch_dir = Vector2.ZERO
+	if chosen_landing_spot != Vector2.ZERO and player_node:
+		var player_center = player_node.global_position + player_node.size / 2
+		launch_dir = (chosen_landing_spot - player_center).normalized()
+	else:
+		launch_dir = Vector2(1, 0)  # Default direction
+	
+	var spin_dir = Vector2(-launch_dir.y, launch_dir.x)  # Perpendicular to launch direction
+	var spin_strength = mouse_deviation.dot(spin_dir)
+	
+	# Scale the spin for visual display
+	var spin_scale = 2.0  # Reduced from 6.0 to keep indicator on screen
+	var max_spin_threshold = 120.0  # Increased from 60.0 to require greater mouse movement
+	var visual_length = clamp(spin_strength * spin_scale, -max_spin_threshold * spin_scale, max_spin_threshold * spin_scale)
+	
+	# Position the indicator at the player's position in camera container coordinates
+	var indicator_pos = Vector2.ZERO
+	if player_node:
+		var player_screen_pos = player_node.global_position + player_node.size / 2
+		indicator_pos = player_screen_pos - camera_container.position
+	else:
+		var fallback_center = Vector2(get_viewport().size.x, get_viewport().size.y) / 2
+		indicator_pos = fallback_center - camera_container.position
+	
+	# Clear and redraw the indicator
+	spin_indicator.clear_points()
+	spin_indicator.add_point(indicator_pos)
+	spin_indicator.add_point(indicator_pos + spin_dir * visual_length)
+	
+	# Change color based on spin strength
+	var spin_abs = abs(spin_strength)
+	if spin_abs > 120:  # Increased from 60 to 120 for high spin
+		spin_indicator.default_color = Color(1, 0, 0, 1)  # Red for high spin
+	elif spin_abs > 48:  # Increased from 24 to 48 for medium spin
+		spin_indicator.default_color = Color(1, 1, 0, 1)  # Yellow for medium spin
+	else:
+		spin_indicator.default_color = Color(0, 1, 0, 1)  # Green for low spin
+	
+	
+
+func enter_draw_cards_phase() -> void:
+	"""Enter the club selection phase where player draws club cards"""
+	game_phase = "draw_cards"
+	print("Entered draw cards phase - selecting club for shot")
+	
+	# Show the draw cards button
+	draw_cards_button.visible = true
+	draw_cards_button.text = "Draw Club Cards"
+	
+	# Center camera on player
+	var player_center := player_node.global_position + player_node.size / 2
+	var tween := get_tree().create_tween()
+	tween.tween_property(camera, "position", player_center, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	
+	print("Draw cards phase ready! Click 'Draw Club Cards' to select your club")
+
+func draw_club_cards() -> void:
+	"""Draw club cards for selection (Driver, Iron, Putter)"""
+	print("Drawing club cards from bag pile...")
+	
+	# Clear any existing movement buttons
+	for child in movement_buttons_container.get_children():
+		child.queue_free()
+	movement_buttons.clear()
+	
+	# Create a copy of the bag pile to draw from
+	var available_clubs = bag_pile.duplicate()
+	var selected_clubs: Array[CardData] = []
+	
+	# Randomly select 2 clubs from the bag pile
+	if available_clubs.size() >= 2:
+		selected_clubs.append(available_clubs[randi() % available_clubs.size()])
+		available_clubs.erase(selected_clubs[0])
+		selected_clubs.append(available_clubs[randi() % available_clubs.size()])
+	elif available_clubs.size() == 1:
+		selected_clubs.append(available_clubs[0])
+	
+	print("Selected clubs to draw:", selected_clubs.map(func(card): return card.name))
+	
+	# Create club card buttons using actual card data
+	for i in selected_clubs.size():
+		var club_card = selected_clubs[i]
+		var club_name = club_card.name
+		var club_info = club_data[club_name]
+		var max_distance = club_info["max_distance"]
+		
+		var btn := TextureButton.new()
+		btn.name = "ClubButton%d" % i
+		btn.texture_normal = club_card.image  # Use the actual card image
+		btn.custom_minimum_size = Vector2(100, 140)
+		btn.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
+		
+		# Input behaviour
+		btn.mouse_filter = Control.MOUSE_FILTER_STOP
+		btn.focus_mode = Control.FOCUS_NONE
+		btn.z_index = 10
+		
+		# Hover overlay
+		var overlay := ColorRect.new()
+		overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		overlay.color = Color(1, 0.84, 0, 0.25)
+		overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+		overlay.visible = false
+		btn.add_child(overlay)
+		
+		btn.mouse_entered.connect(func(): overlay.visible = true)
+		btn.mouse_exited.connect(func(): overlay.visible = false)
+		
+		btn.pressed.connect(func(): _on_club_card_pressed(club_name, club_info, btn))
+		
+		movement_buttons_container.add_child(btn)
+		movement_buttons.append(btn)
+	
+	# Hide the draw cards button
+	draw_cards_button.visible = false
+	
+	print("Club cards created from bag pile. Select your club!")
+
+func _on_club_card_pressed(club_name: String, club_info: Dictionary, button: TextureButton) -> void:
+	"""Handle club card selection"""
+	print("Club selected:", club_name, "Club info:", club_info)
+	
+	# Store the selected club and its data
+	selected_club = club_name
+	max_shot_distance = club_info["max_distance"]
+	
+	# Play card click sound
+	card_click_sound.play()
+	
+	# Clear club card buttons
+	for child in movement_buttons_container.get_children():
+		child.queue_free()
+	movement_buttons.clear()
+	
+	# Transition to aiming phase
+	enter_aiming_phase()
+	
+	print("Club selection complete. Entering aiming phase with", club_name, "max distance:", max_shot_distance)

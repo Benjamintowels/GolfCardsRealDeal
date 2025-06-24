@@ -1,0 +1,15 @@
+[gd_scene load_steps=3 format=3 uid="uid://sblupej8nqta"]
+
+[ext_resource type="Texture2D" uid="uid://crwn4in1hrdek" path="res://Obstacles/Pin.png" id="1_d4e4i"]
+[ext_resource type="Script" uid="uid://ckbeprdpbpcg1" path="res://Obstacles/BaseObstacle.gd" id="1_ttkiq"]
+
+[node name="Pin" type="Node2D"]
+z_index = 2
+texture_filter = 1
+position = Vector2(0, -103)
+scale = Vector2(0.075, 0.075)
+script = ExtResource("1_ttkiq")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture_filter = 1
+texture = ExtResource("1_d4e4i")

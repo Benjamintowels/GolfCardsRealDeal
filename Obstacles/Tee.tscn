@@ -1,0 +1,10 @@
+[gd_scene load_steps=3 format=3 uid="uid://dj4kg8vtpsy5i"]
+
+[ext_resource type="Texture2D" uid="uid://dnwogq4nfd0ug" path="res://Obstacles/Tee.png" id="1_b36lu"]
+[ext_resource type="Script" uid="uid://ckbeprdpbpcg1" path="res://Obstacles/BaseObstacle.gd" id="1_rl8wu"]
+
+[node name="Tee" type="Node2D"]
+script = ExtResource("1_rl8wu")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("1_b36lu")
