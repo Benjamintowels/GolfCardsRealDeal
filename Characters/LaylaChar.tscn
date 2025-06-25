@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3 uid="uid://dhsqc6186gu42"]
+
+[ext_resource type="Texture2D" uid="uid://cj5ys81w05bua" path="res://Characters/LaylaChar.png" id="1_tghli"]
+
+[node name="Layla" type="Node2D"]
+position = Vector2(0, -37.71)
+scale = Vector2(0.055, 0.055)
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("1_tghli")

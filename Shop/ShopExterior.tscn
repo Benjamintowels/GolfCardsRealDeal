@@ -1,0 +1,15 @@
+[gd_scene load_steps=3 format=3 uid="uid://dueq102y73kxl"]
+
+[ext_resource type="Texture2D" uid="uid://cvbfrguogrje5" path="res://Shop/Shop.png" id="1_3tnb3"]
+[ext_resource type="Script" uid="uid://b06k3fgclgfpu" path="res://Shop/shop_exterior.gd" id="1_iws6i"]
+
+[node name="Shop" type="Node2D"]
+z_index = -1
+scale = Vector2(1.39, 1.39)
+script = ExtResource("1_iws6i")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+z_index = -5
+position = Vector2(23.42, -35.145)
+scale = Vector2(0.125, 0.125)
+texture = ExtResource("1_3tnb3")

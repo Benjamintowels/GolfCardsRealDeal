@@ -71,3 +71,57 @@ func debug_print_state() -> void:
 	print("Discard Pile:", discard_pile.size())
 	print("Hand:", hand.size())
 	print("------------------")
+
+func get_deck_state() -> Dictionary:
+	"""Get the current state of the draw pile"""
+	var state := {}
+	state["cards"] = []
+	for card in draw_pile:
+		state["cards"].append(card.resource_path)
+	return state
+
+func get_discard_state() -> Dictionary:
+	"""Get the current state of the discard pile"""
+	var state := {}
+	state["cards"] = []
+	for card in discard_pile:
+		state["cards"].append(card.resource_path)
+	return state
+
+func get_hand_state() -> Dictionary:
+	"""Get the current state of the hand"""
+	var state := {}
+	state["cards"] = []
+	for card in hand:
+		state["cards"].append(card.resource_path)
+	return state
+
+func restore_deck_state(state: Dictionary) -> void:
+	"""Restore the draw pile from saved state"""
+	draw_pile.clear()
+	if state.has("cards"):
+		for card_path in state["cards"]:
+			var card = load(card_path)
+			if card:
+				draw_pile.append(card)
+	emit_signal("deck_updated")
+
+func restore_discard_state(state: Dictionary) -> void:
+	"""Restore the discard pile from saved state"""
+	discard_pile.clear()
+	if state.has("cards"):
+		for card_path in state["cards"]:
+			var card = load(card_path)
+			if card:
+				discard_pile.append(card)
+	emit_signal("deck_updated")
+
+func restore_hand_state(state: Dictionary) -> void:
+	"""Restore the hand from saved state"""
+	hand.clear()
+	if state.has("cards"):
+		for card_path in state["cards"]:
+			var card = load(card_path)
+			if card:
+				hand.append(card)
+	emit_signal("deck_updated")

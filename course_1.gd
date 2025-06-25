@@ -31,7 +31,7 @@ var grid_tiles = []
 var grid_container: Control
 var camera_container: Control
 
-var player_node: Control
+var player_node: Node2D
 var player_grid_pos := Vector2i(25, 25)
 
 var movement_buttons := []
@@ -176,13 +176,72 @@ var max_power_for_bar := 0.0
 var charge_time := 0.0  # Time spent charging (in seconds)
 var max_charge_time := 3.0  # Maximum time to fully charge (varies by distance)
 
+# Add this variable to track objects and their grid positions
+var ysort_objects := [] # Array of {node: Node2D, grid_pos: Vector2i}
+
+# Shop interaction variables
+var shop_dialog: Control = null
+var shop_entrance_detected := false
+var shop_grid_pos := Vector2i(2, 6)  # Position of shop from map layout
+
+var has_started := false
+
+# Move these variable declarations to just before build_map_from_layout
+var tile_scene_map := {
+	"W": preload("res://Obstacles/WaterHazard.tscn"),
+	"F": preload("res://Obstacles/Fairway.tscn"),
+	"S": preload("res://Obstacles/SandTrap.tscn"),
+	"R": preload("res://Obstacles/Rough.tscn"),
+	"G": preload("res://Obstacles/Green.tscn"),
+	"Tee": preload("res://Obstacles/Tee.tscn"),
+	"Base": preload("res://Obstacles/Base.tscn"),
+	"SHOP": preload("res://Obstacles/Base.tscn"),
+}
+
+var object_scene_map := {
+	"T": preload("res://Obstacles/Tree.tscn"),
+	"P": preload("res://Obstacles/Pin.tscn"),
+	"SHOP": preload("res://Shop/ShopExterior.tscn"),
+}
+
+var object_to_tile_mapping := {
+	"T": "Base",
+	"P": "G",
+	"SHOP": "Base",
+}
+
+# Move this function above focus_camera_on_tee
+func _get_tee_area_center() -> Vector2:
+	var tee_positions: Array[Vector2i] = []
+	for y in map_manager.level_layout.size():
+		for x in map_manager.level_layout[y].size():
+			if map_manager.get_tile_type(x, y) == "Tee":
+				tee_positions.append(Vector2i(x, y))
+
+	if tee_positions.is_empty():
+		return get_viewport_rect().size / 2 # Fallback to screen center
+
+	var min_pos := Vector2i(999, 999)
+	var max_pos := Vector2i(-1, -1)
+	for pos in tee_positions:
+		min_pos.x = min(min_pos.x, pos.x)
+		min_pos.y = min(min_pos.y, pos.y)
+		max_pos.x = max(max_pos.x, pos.x)
+		max_pos.y = max(max_pos.y, pos.y)
+
+	var center_grid_pos = (min_pos + max_pos) / 2.0
+	var center_world_pos = (center_grid_pos + Vector2(0.5, 0.5)) * cell_size
+	return center_world_pos
+
 func _process(delta):
 	# Handle power charging during launch phase
 	if is_charging and game_phase == "launch":
 		# Calculate max charge time based on target distance
 		max_charge_time = 3.0  # Default for close shots
 		if chosen_landing_spot != Vector2.ZERO:
-			var player_center = player_node.global_position + player_node.size / 2
+			var sprite = player_node.get_node_or_null("Sprite2D")
+			var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
+			var player_center = player_node.global_position + player_size / 2
 			var distance_to_target = player_center.distance_to(chosen_landing_spot)
 			var distance_factor = distance_to_target / max_shot_distance
 			# Far shots = less time (1 second), close shots = more time (3 seconds)
@@ -270,23 +329,16 @@ func _ready() -> void:
 
 	create_grid()
 	create_player()
-	
+
 	# Reparent the obstacle layer to align with the grid
 	if obstacle_layer.get_parent():
 		obstacle_layer.get_parent().remove_child(obstacle_layer)
 	camera_container.add_child(obstacle_layer)
-	
+
 	# Load map data first
 	map_manager.load_map_data(GolfCourseLayout.LEVEL_LAYOUT)
 	build_map_from_layout(map_manager.level_layout)
-	
-	# Start in tee selection mode
-	is_placing_player = true
-	highlight_tee_tiles()
-	
-	# Don't initialize deck or create movement buttons until player is placed
-	# We'll do this after tee selection
-	
+
 	deck_manager = DeckManager.new()
 	add_child(deck_manager)
 	deck_manager.deck_updated.connect(update_deck_display)
@@ -296,17 +348,17 @@ func _ready() -> void:
 
 	update_deck_display()
 	set_process_input(true)
-	
+
 	# Set up swing sound effects
 	setup_swing_sounds()
-	
+
 	# Ensure the UI gets drawn on top and intercepts input
 	# Bring CardHandAnchor to front
 	card_hand_anchor.z_index = 100
 	card_hand_anchor.mouse_filter = Control.MOUSE_FILTER_STOP
 	card_hand_anchor.get_parent().move_child(card_hand_anchor, card_hand_anchor.get_parent().get_child_count() - 1)
 
-# Bring HUD to front too (if needed)
+	# Bring HUD to front too (if needed)
 	hud.z_index = 101
 	hud.mouse_filter = Control.MOUSE_FILTER_STOP
 	hud.get_parent().move_child(hud, hud.get_parent().get_child_count() - 1)
@@ -315,7 +367,7 @@ func _ready() -> void:
 	parent.move_child(card_hand_anchor, parent.get_child_count() - 1)
 	parent.move_child(hud,             parent.get_child_count() - 1)
 
-# Large z-index so they render over the grid
+	# Large z-index so they render over the grid
 	card_hand_anchor.z_index = 100
 	hud.z_index             = 101
 	end_turn_button.pressed.connect(_on_end_turn_pressed)
@@ -323,157 +375,29 @@ func _ready() -> void:
 	end_turn_button.mouse_filter = Control.MOUSE_FILTER_STOP
 	end_turn_button.get_parent().move_child(end_turn_button, end_turn_button.get_parent().get_child_count() - 1)
 
-# Prevent the grid from stealing UI clicks
+	# Prevent the grid from stealing UI clicks
 	grid_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	
-	# Focus camera on the tee area initially
-	focus_camera_on_tee()
-	
-	# Show instruction to player
-	show_tee_selection_instruction()
 
 	draw_cards_button.visible = false
 	draw_cards_button.pressed.connect(_on_draw_cards_pressed)
 
-# Separate mappings for tiles (ground) and objects (placed on top)
-var tile_scene_map := {
-	"W": preload("res://Obstacles/WaterHazard.tscn"),
-	"F": preload("res://Obstacles/Fairway.tscn"),
-	"S": preload("res://Obstacles/SandTrap.tscn"),
-	"R": preload("res://Obstacles/Rough.tscn"),
-	"G": preload("res://Obstacles/Green.tscn"),
-	"Tee": preload("res://Obstacles/Tee.tscn"),
-	"Base": preload("res://Obstacles/Base.tscn"),  # required for filling empty space
-}
+	# Check if returning from shop FIRST
+	if Global.saved_game_state == "shop_entrance":
+		print("Returning from shop - restoring game state")
+		restore_game_state()
+		return  # Skip tee selection/setup when returning from shop
 
-var object_scene_map := {
-	"T": preload("res://Obstacles/Tree.tscn"),
-	"P": preload("res://Obstacles/Pin.tscn"),
-}
+	# Only do tee selection if NOT returning from shop
+	print("Starting new game - tee selection mode")
+	# Start in tee selection mode
+	is_placing_player = true
+	highlight_tee_tiles()
 
-# Mapping for what tile type should be placed under objects
-var object_to_tile_mapping := {
-	"T": "Base",  # Trees go on Base tiles
-	"P": "G",     # Pins go on Green tiles
-}
+	# Focus camera on the tee area initially
+	focus_camera_on_tee()
 
-func build_map_from_layout(layout: Array) -> void:
-	obstacle_map.clear()
-
-	# First pass: Place all tiles (ground)
-	for y in layout.size():
-		for x in layout[y].size():
-			var code: String = layout[y][x]
-			var pos: Vector2i = Vector2i(x, y)
-			var world_pos: Vector2 = Vector2(x, y) * cell_size
-
-			# Determine what tile to place
-			var tile_code: String = code
-			if object_scene_map.has(code):
-				# This is an object, place the appropriate tile underneath
-				tile_code = object_to_tile_mapping[code]
-			
-			# Place the tile
-			if tile_scene_map.has(tile_code):
-				var scene: PackedScene = tile_scene_map[tile_code]
-				if scene == null:
-					push_error("🚫 Tile scene for code '%s' is null at (%d,%d)" % [tile_code, x, y])
-					continue
-
-				var tile: Node2D = scene.instantiate() as Node2D
-				if tile == null:
-					push_error("❌ Tile instantiation failed for '%s' at (%d,%d)" % [tile_code, x, y])
-					continue
-
-				tile.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
-				tile.z_index = -5  # Ensure tiles are behind player & UI
-
-				# Scale tiles to match grid size
-				var sprite: Sprite2D = tile.get_node_or_null("Sprite2D")
-				if sprite and sprite.texture:
-					var texture_size: Vector2 = sprite.texture.get_size()
-					if texture_size.x > 0 and texture_size.y > 0:
-						var scale_x = cell_size / texture_size.x
-						var scale_y = cell_size / texture_size.y
-						sprite.scale = Vector2(scale_x, scale_y)
-
-				# Set grid_position if the property exists
-				if tile.has_meta("grid_position") or "grid_position" in tile:
-					tile.set("grid_position", pos)
-				else:
-					push_warning("⚠️ Tile missing 'grid_position'. Type: %s" % tile.get_class())
-
-				obstacle_layer.add_child(tile)
-				obstacle_map[pos] = tile
-			else:
-				print("ℹ️ Skipping unmapped tile code '%s' at (%d,%d)" % [tile_code, x, y])
-
-	# Second pass: Place objects on top of tiles
-	for y in layout.size():
-		for x in layout[y].size():
-			var code: String = layout[y][x]
-			var pos: Vector2i = Vector2i(x, y)
-			var world_pos: Vector2 = Vector2(x, y) * cell_size
-
-			# Only place objects (not tiles)
-			if object_scene_map.has(code):
-				var scene: PackedScene = object_scene_map[code]
-				if scene == null:
-					push_error("🚫 Object scene for code '%s' is null at (%d,%d)" % [code, x, y])
-					continue
-
-				var object: Node2D = scene.instantiate() as Node2D
-				if object == null:
-					push_error("❌ Object instantiation failed for '%s' at (%d,%d)" % [code, x, y])
-					continue
-
-				object.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
-				object.z_index = 0  # Objects are above tiles but below player
-
-				# Don't scale objects - they should be Y-sorted sprites
-				# Objects will handle their own scaling and positioning
-
-				# Set grid_position if the property exists
-				if object.has_meta("grid_position") or "grid_position" in object:
-					object.set("grid_position", pos)
-				else:
-					push_warning("⚠️ Object missing 'grid_position'. Type: %s" % object.get_class())
-
-				obstacle_layer.add_child(object)
-				# Note: We don't overwrite obstacle_map[pos] since the tile is already there
-				# Objects are separate from the tile system for movement/collision
-			elif not tile_scene_map.has(code):
-				print("ℹ️ Skipping unmapped code '%s' at (%d,%d)" % [code, x, y])
-
-func _get_tee_area_center() -> Vector2:
-	var tee_positions: Array[Vector2i] = []
-	for y in map_manager.level_layout.size():
-		for x in map_manager.level_layout[y].size():
-			if map_manager.get_tile_type(x, y) == "Tee":
-				tee_positions.append(Vector2i(x, y))
-
-	if tee_positions.is_empty():
-		return get_viewport_rect().size / 2 # Fallback to screen center
-
-	var min_pos := Vector2i(999, 999)
-	var max_pos := Vector2i(-1, -1)
-	for pos in tee_positions:
-		min_pos.x = min(min_pos.x, pos.x)
-		min_pos.y = min(min_pos.y, pos.y)
-		max_pos.x = max(max_pos.x, pos.x)
-		max_pos.y = max(max_pos.y, pos.y)
-
-	var center_grid_pos = (min_pos + max_pos) / 2.0
-	var center_world_pos = (center_grid_pos + Vector2(0.5, 0.5)) * cell_size
-	return center_world_pos
-
-func focus_camera_on_tee():
-	var tee_center_local := _get_tee_area_center()
-	var tee_center_global := camera_container.position + tee_center_local
-	
-	camera_snap_back_pos = tee_center_global
-	var tween := get_tree().create_tween()
-	tween.tween_property(camera, "position", tee_center_global, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	# Show instruction to player
+	show_tee_selection_instruction()
 
 func _input(event: InputEvent) -> void:
 	if game_phase == "aiming":
@@ -501,8 +425,10 @@ func _input(event: InputEvent) -> void:
 					is_charging = true
 					charge_time = 0.0  # Reset charge time
 					# Direction: from player to chosen landing spot
-					var player_center = player_node.global_position + player_node.size / 2
-					launch_direction = (chosen_landing_spot - player_center).normalized()
+					var input_start_sprite = player_node.get_node_or_null("Sprite2D")
+					var input_start_player_size = input_start_sprite.texture.get_size() * input_start_sprite.scale if input_start_sprite and input_start_sprite.texture else Vector2(cell_size, cell_size)
+					var input_start_player_center = player_node.global_position + input_start_player_size / 2
+					launch_direction = (chosen_landing_spot - input_start_player_center).normalized()
 				elif not event.pressed and is_charging:
 					# Stop charging power, start charging height
 					is_charging = false
@@ -525,8 +451,10 @@ func _input(event: InputEvent) -> void:
 					hide_height_meter()
 		elif event is InputEventMouseMotion and (is_charging or is_charging_height):
 			# Update direction while charging (but keep the same landing spot)
-			var player_center = player_node.global_position + player_node.size / 2
-			launch_direction = (chosen_landing_spot - player_center).normalized()
+			var input_motion_sprite = player_node.get_node_or_null("Sprite2D")
+			var input_motion_player_size = input_motion_sprite.texture.get_size() * input_motion_sprite.scale if input_motion_sprite and input_motion_sprite.texture else Vector2(cell_size, cell_size)
+			var input_motion_player_center = player_node.global_position + input_motion_player_size / 2
+			launch_direction = (chosen_landing_spot - input_motion_player_center).normalized()
 	elif game_phase == "ball_flying":
 		# Ball is flying - disable most input until it lands
 		# Only allow camera panning during ball flight
@@ -592,13 +520,15 @@ func draw_flashlight_effect() -> void:
 func get_flashlight_center() -> Vector2:
 	if not player_node:
 		return Vector2.ZERO
-	var player_screen_pos := player_node.get_global_position() + player_node.size / 2
-	var mouse_pos := get_global_mouse_position()
-	var dir := mouse_pos - player_screen_pos
-	var dist := dir.length()
+	var sprite = player_node.get_node_or_null("Sprite2D")
+	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
+	var player_center = player_node.global_position + player_size / 2
+	var mouse_pos: Vector2 = get_global_mouse_position()
+	var dir: Vector2 = mouse_pos - player_center
+	var dist: float = dir.length()
 	if dist > flashlight_radius:
 		dir = dir.normalized() * flashlight_radius
-	return player_screen_pos + dir
+	return player_center + dir
 
 func create_grid() -> void:
 	camera_container = Control.new()
@@ -665,28 +595,57 @@ func _draw_tile(drawer: Control, x: int, y: int) -> void:
 		drawer.draw_rect(Rect2(Vector2.ZERO, drawer.size), Color(0.5, 0.5, 0.5, alpha * 0.8), false, 1.0)
 
 func create_player() -> void:
-	player_node = Control.new()
+	# Remove old player node if it exists
+	if player_node and is_instance_valid(player_node):
+		player_node.queue_free()
+
+	# Instance the Player.tscn container
+	var player_scene = preload("res://Characters/Player1.tscn")
+	player_node = player_scene.instantiate()
 	player_node.name = "Player"
-	player_node.size = Vector2(cell_size - 4, cell_size - 4)
-	player_node.mouse_filter = Control.MOUSE_FILTER_STOP  # Ensure it can receive input
+	player_node.position = Vector2(player_grid_pos.x, player_grid_pos.y) * cell_size + Vector2(2, 2)
+	# Removed: player_node.mouse_filter (Node2D does not have this property)
 	grid_container.add_child(player_node)
 
-	var visual := ColorRect.new()
-	visual.name = "PlayerVisual"
-	visual.size = player_node.size
-	visual.color = Color.BLUE
-	visual.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Let clicks pass through to parent
-	player_node.add_child(visual)
+	# Instance the selected character as a child of the player node
+	var char_scene_path = ""
+	var char_scale = Vector2.ONE  # Default scale
+	var char_offset = Vector2.ZERO  # Default offset
+	match Global.selected_character:
+		1:
+			char_scene_path = "res://Characters/LaylaChar.tscn"
+			char_scale = Vector2(0.055, 0.055)
+			char_offset = Vector2(0, -36.815)
+		2:
+			char_scene_path = "res://Characters/BennyChar.tscn"
+			char_scale = Vector2(0.055, 0.055)
+			char_offset = Vector2(0, -36.815)
+		3:
+			char_scene_path = "res://Characters/ClarkChar.tscn"
+			char_scale = Vector2(0.055, 0.055)
+			char_offset = Vector2(0, -36.815)
+		_:
+			char_scene_path = "res://Characters/BennyChar.tscn" # Default to Benny if unknown
+			char_scale = Vector2(0.055, 0.055)
+			char_offset = Vector2(0, -36.815)
+	if char_scene_path != "":
+		var char_scene = load(char_scene_path)
+		if char_scene:
+			var char_instance = char_scene.instantiate()
+			char_instance.scale = char_scale  # Apply the scale
+			char_instance.position = char_offset  # Apply the offset
+			player_node.add_child(char_instance)
 
-	var label := Label.new()
-	label.text = "Start"
-	label.position = Vector2(0, -20)
-	label.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Let clicks pass through to parent
-	player_node.add_child(label)
+	# Setup the player with grid and movement info
+	var base_mobility = player_stats.get("base_mobility", 0)
+	player_node.setup(grid_size, cell_size, base_mobility, obstacle_map)
+	
+	# Set the player's initial grid position
+	player_node.set_grid_position(player_grid_pos)
 
-	# Add click handler to the player
-	player_node.gui_input.connect(_on_player_input)
-	print("Player input handler connected!")
+	# Connect signals
+	player_node.player_clicked.connect(_on_player_input)
+	player_node.moved_to_tile.connect(_on_player_moved_to_tile)
 
 	update_player_position()
 	player_node.visible = false
@@ -712,10 +671,38 @@ func _on_player_input(event: InputEvent) -> void:
 			print("Player clicked but game phase is:", game_phase, "- not in move or launch phase")
 
 func update_player_position() -> void:
+	if not player_node:
+		print("Warning: player_node is null in update_player_position()")
+		return
+	# Get the Sprite2D node and its size
+	var sprite = player_node.get_node_or_null("Sprite2D")
+	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
+	
 	player_node.position = Vector2(player_grid_pos.x, player_grid_pos.y) * cell_size + Vector2(2, 2)
-	var player_center := player_node.global_position + player_node.size / 2
+	
+	# Update the player's grid position in the Player.gd script
+	player_node.set_grid_position(player_grid_pos)
+	
+	# --- Y-SORT LOGIC FIXED ---
+	var max_object_z = null
+	var min_object_z = null
+	for obj in ysort_objects:
+		if player_grid_pos.y >= obj["grid_pos"].y:
+			if max_object_z == null or obj["node"].z_index > max_object_z:
+				max_object_z = obj["node"].z_index
+		else:
+			if min_object_z == null or obj["node"].z_index < min_object_z:
+				min_object_z = obj["node"].z_index
+	if max_object_z != null:
+		player_node.z_index = max_object_z + 1
+	elif min_object_z != null:
+		player_node.z_index = min_object_z - 1
+	else:
+		player_node.z_index = 1 # Default
+	# --- END Y-SORT LOGIC FIXED ---
+	var player_center: Vector2 = player_node.global_position + player_size / 2
 	camera_snap_back_pos = player_center
-	var tween := get_tree().create_tween()
+	var tween = get_tree().create_tween()
 	tween.tween_property(camera, "position", player_center, 0.5).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 
 func create_movement_buttons() -> void:
@@ -756,16 +743,12 @@ func create_movement_buttons() -> void:
 		movement_buttons.append(btn)
 
 func _on_movement_card_pressed(card: CardData, button: TextureButton) -> void:
-	# Do nothing if this card is already active
-	
 	if selected_card == card:
 		return
 	card_click_sound.play()
-	# Deselect previous highlights, but don't discard yet
 	hide_all_movement_highlights()
 	valid_movement_tiles.clear()
 
-	# Update selected state
 	is_movement_mode = true
 	active_button = button
 	selected_card = card
@@ -774,9 +757,15 @@ func _on_movement_card_pressed(card: CardData, button: TextureButton) -> void:
 
 	print("Card selected:", card.name, "Range:", movement_range)
 
-	calculate_valid_movement_tiles()
-	show_movement_highlights()
+	# Use player_node to start movement mode (this will calculate valid tiles)
+	player_node.start_movement_mode(card, movement_range)
 	
+	# Get the valid tiles from the player node
+	valid_movement_tiles = player_node.valid_movement_tiles.duplicate()
+	print("Using Player.gd valid tiles:", valid_movement_tiles)
+	
+	show_movement_highlights()
+
 func calculate_valid_movement_tiles() -> void:
 	valid_movement_tiles.clear()
 
@@ -826,36 +815,42 @@ func _on_tile_mouse_exited(x: int, y: int) -> void:
 func _on_tile_input(event: InputEvent, x: int, y: int) -> void:
 	if event is InputEventMouseButton and event.pressed and not is_panning and event.button_index == MOUSE_BUTTON_LEFT:
 		var clicked := Vector2i(x, y)
-		
 		if is_placing_player:
-			# Player is selecting a tee box
 			if map_manager.get_tile_type(x, y) == "Tee":
 				player_grid_pos = clicked
 				update_player_position()
 				player_node.visible = true
 				is_placing_player = false
-
-				# Update the camera snap-back position to the player
-				var player_center := player_node.global_position + player_node.size / 2
+				var sprite = player_node.get_node_or_null("Sprite2D")
+				var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
+				var player_center = player_node.global_position + player_size / 2
 				camera_snap_back_pos = player_center
-				
 				print("Player placed at Tee. Round begins.")
-				
-				# Start the round
 				start_round_after_tee_selection()
 			else:
 				print("Please select a Tee Box to start your round.")
 		else:
-			# Normal gameplay - check for valid movement
-			var is_valid := valid_movement_tiles.any(func(pos: Vector2i) -> bool:
-				return pos == clicked)
-
-			if is_movement_mode and is_valid:
-				player_grid_pos = clicked
-				update_player_position()
-				card_play_sound.play()  # 🔊 Play sound when a card is used
-				exit_movement_mode()
-				# (Removed: automatic start of next shot when reaching ball tile)
+			# Use player_node to move
+			print("=== MOVEMENT DEBUG ===")
+			print("is_movement_mode:", is_movement_mode)
+			print("clicked tile:", clicked)
+			print("valid_movement_tiles:", valid_movement_tiles)
+			print("clicked in valid tiles:", clicked in valid_movement_tiles)
+			if player_node.has_method("can_move_to"):
+				print("player_node.can_move_to(clicked):", player_node.can_move_to(clicked))
+			else:
+				print("player_node does not have can_move_to method")
+			print("=== END MOVEMENT DEBUG ===")
+			
+			if is_movement_mode and clicked in valid_movement_tiles:
+				print("=== MOVEMENT ATTEMPT DEBUG ===")
+				print("Calling player_node.move_to_grid with:", clicked)
+				player_node.move_to_grid(clicked)
+				print("player_node.move_to_grid call completed")
+				card_play_sound.play()
+				print("Card play sound played")
+				# exit_movement_mode() will be called from moved_to_tile signal
+				print("=== END MOVEMENT ATTEMPT DEBUG ===")
 			else:
 				print("Invalid movement tile or not in movement mode")
 
@@ -876,6 +871,8 @@ func start_round_after_tee_selection() -> void:
 	# Initialize the deck
 	deck_manager.initialize_deck(deck_manager.starter_deck)
 	print("Deck initialized with", deck_manager.draw_pile.size(), "cards")
+
+	has_started = true
 	
 	# Set up for first shot - start with club selection phase
 	hole_score = 0
@@ -891,7 +888,9 @@ func show_power_meter():
 	max_power_for_bar = MAX_LAUNCH_POWER  # Default
 
 	if chosen_landing_spot != Vector2.ZERO:
-		var player_center = player_node.global_position + player_node.size / 2
+		var sprite = player_node.get_node_or_null("Sprite2D")
+		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
+		var player_center = player_node.global_position + player_size / 2
 		var distance_to_target = player_center.distance_to(chosen_landing_spot)
 		# Use your existing logic for physics compensation
 		var ball_physics_factor = 0.8  # Reduced from 1.8 to 0.8
@@ -1151,7 +1150,9 @@ func update_aiming_arrow():
 		return
 	
 	# Get player center position
-	var player_center = player_node.global_position + player_node.size / 2
+	var sprite = player_node.get_node_or_null("Sprite2D")
+	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
+	var player_center = player_node.global_position + player_size / 2
 	# Get mouse position
 	var mouse_pos = get_global_mouse_position()
 	# Calculate direction and distance
@@ -1233,7 +1234,9 @@ func update_aiming_circle():
 		return
 	
 	# Get player center position
-	var player_center = player_node.global_position + player_node.size / 2
+	var sprite = player_node.get_node_or_null("Sprite2D")
+	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
+	var player_center = player_node.global_position + player_size / 2
 	# Get mouse position
 	var mouse_pos = get_global_mouse_position()
 	# Calculate direction and distance
@@ -1281,28 +1284,36 @@ func update_aiming_circle():
 func launch_golf_ball(direction: Vector2, charged_power: float, height: float):
 	print("LAUNCH_GOLF_BALL FUNCTION CALLED!")
 	print("Launching ball!")
-	print("Direction:", direction, "Charge time:", charge_time, "Height:", height)
+	print("Direction (input):", direction, "Charge time:", charge_time, "Height:", height)
 	print("Chosen landing spot:", chosen_landing_spot)
-	
+
+	# Get player center using new system
+	var player_sprite = player_node.get_node_or_null("Sprite2D")
+	var player_size = player_sprite.texture.get_size() * player_sprite.scale if player_sprite and player_sprite.texture else Vector2(cell_size, cell_size)
+	var player_center = player_node.global_position + player_size / 2
+	print("Player global position at launch:", player_node.global_position)
+	print("Player size at launch:", player_size)
+	print("Player center at launch:", player_center)
+
+	# Calculate direction from player center to chosen landing spot
+	var launch_direction = (chosen_landing_spot - player_center).normalized() if chosen_landing_spot != Vector2.ZERO else Vector2.ZERO
+	print("Calculated launch direction:", launch_direction)
+
 	# Calculate power from charge time instead of charged_power
 	var time_percent = charge_time / max_charge_time
 	time_percent = clamp(time_percent, 0.0, 1.0)
-	
+
 	# Calculate actual power based on time percentage and target distance
 	var actual_power = 0.0
 	if chosen_landing_spot != Vector2.ZERO:
-		var player_center = player_node.global_position + player_node.size / 2
 		var distance_to_target = player_center.distance_to(chosen_landing_spot)
-		
 		# Use distance-based scaling for physics factors
-		# Far shots need higher factors to generate more power
-		# Use a consistent reference distance (Driver's max) for scaling
 		var reference_distance = 1200.0  # Driver's max distance as reference
 		var distance_factor = distance_to_target / reference_distance
 		var ball_physics_factor = 0.8 + (distance_factor * 0.4)  # Reduced from 1.2 to 0.4 (0.8 to 1.2)
 		var base_power_per_distance = 0.6 + (distance_factor * 0.2)  # Reduced from 0.8 to 0.2 (0.6 to 0.8)
 		var power_for_target = distance_to_target * base_power_per_distance * ball_physics_factor
-		
+
 		# Calculate power based on time percentage
 		if time_percent <= 0.75:
 			# 0-75% time = 0-100% of target power
@@ -1315,23 +1326,23 @@ func launch_golf_ball(direction: Vector2, charged_power: float, height: float):
 	else:
 		# No target - use time percentage of max power
 		actual_power = time_percent * MAX_LAUNCH_POWER
-	
+
 	print("Time percent:", time_percent, "Actual power for launch:", actual_power)
-	
+
 	# Store the shot start position for out of bounds handling
 	shot_start_grid_pos = player_grid_pos
-	
+
 	# Increment shot score and update HUD immediately
 	hole_score += 1
 	update_deck_display()
-	
+
 	# Calculate spin based on mouse deviation from original aim
 	var aim_deviation = current_charge_mouse_pos - original_aim_mouse_pos
-	var launch_dir_perp = Vector2(-direction.y, direction.x) # Perpendicular to launch direction
+	var launch_dir_perp = Vector2(-launch_direction.y, launch_direction.x) # Perpendicular to launch direction
 	var spin_strength = aim_deviation.dot(launch_dir_perp)
 	# Scale spin (dramatically increased for more noticeable curve effects)
 	launch_spin = clamp(spin_strength * 1.0, -800, 800)  # Increased from 0.1 to 1.0 and max from 200 to 800
-	
+
 	# Calculate spin strength for scaling (same logic as spin indicator)
 	var spin_abs = abs(spin_strength)
 	var spin_strength_category = 0  # 0=green, 1=yellow, 2=red
@@ -1341,46 +1352,49 @@ func launch_golf_ball(direction: Vector2, charged_power: float, height: float):
 		spin_strength_category = 1  # Yellow - medium spin
 	else:
 		spin_strength_category = 0  # Green - low spin
-	
+
 	# Apply height resistance to the final launch power
 	var height_percentage = (height - MIN_LAUNCH_HEIGHT) / (MAX_LAUNCH_HEIGHT - MIN_LAUNCH_HEIGHT)
 	height_percentage = clamp(height_percentage, 0.0, 1.0)
-	
+
 	var height_resistance_multiplier = 1.0
 	if height_percentage > HEIGHT_SWEET_SPOT_MAX:  # Above 60% height
 		# Calculate how much above the sweet spot we are
 		var excess_height = height_percentage - HEIGHT_SWEET_SPOT_MAX
 		var max_excess = 1.0 - HEIGHT_SWEET_SPOT_MAX  # 0.4 (from 60% to 100%)
-		
 		# Progressive resistance: more excess height = more power reduction
 		var resistance_factor = excess_height / max_excess  # 0.0 to 1.0
 		height_resistance_multiplier = 1.0 - (resistance_factor * 0.5)  # Reduce power by up to 50%
-	
+
 	# Apply height resistance to final power
 	var final_power = actual_power * height_resistance_multiplier
-	
+
 	# Focused debug print for power calculation
 	print("=== POWER DEBUG ===")
 	var debug_distance = 0.0
 	if chosen_landing_spot != Vector2.ZERO:
-		var player_center = player_node.global_position + player_node.size / 2
 		debug_distance = player_center.distance_to(chosen_landing_spot)
 	print("Distance to target:", debug_distance)
 	print("Time percent:", time_percent)
 	print("Actual power:", actual_power)
 	print("Final power:", final_power)
 	print("=== END POWER DEBUG ===")
-	
+
 	if golf_ball:
 		golf_ball.queue_free()
 	golf_ball = preload("res://GolfBall.tscn").instantiate()
 	
-	# Use player's current position relative to the camera container
-	# This will be the ball's landing position for subsequent shots
-	var player_center = player_node.position + player_node.size / 2
-	print("Player center position:", player_center)
+	# Calculate ball position relative to camera container
+	var ball_setup_player_sprite = player_node.get_node_or_null("Sprite2D")
+	var ball_setup_player_size = ball_setup_player_sprite.texture.get_size() * ball_setup_player_sprite.scale if ball_setup_player_sprite and ball_setup_player_sprite.texture else Vector2(cell_size, cell_size)
+	var ball_setup_player_center = player_node.global_position + ball_setup_player_size / 2
+	print("Player center position:", ball_setup_player_center)
 	
-	golf_ball.position = player_center
+	# Convert global position to camera container local position
+	var ball_local_position = ball_setup_player_center - camera_container.global_position
+	golf_ball.position = ball_local_position
+	print("Ball local position in camera container:", ball_local_position)
+	
 	golf_ball.cell_size = cell_size
 	golf_ball.map_manager = map_manager  # Pass map manager reference for tile-based friction
 	
@@ -1393,9 +1407,9 @@ func launch_golf_ball(direction: Vector2, charged_power: float, height: float):
 	
 	# Debug: Check child z_index values
 	var shadow = golf_ball.get_node_or_null("Shadow")
-	var sprite = golf_ball.get_node_or_null("Sprite2D")
+	var ball_sprite = golf_ball.get_node_or_null("Sprite2D")
 	print("Shadow z_index after adding to scene:", shadow.z_index if shadow else "No shadow")
-	print("Ball sprite z_index after adding to scene:", sprite.z_index if sprite else "No sprite")
+	print("Ball sprite z_index after adding to scene:", ball_sprite.z_index if ball_sprite else "No sprite")
 	
 	play_swing_sound(final_power)  # Use final_power for sound
 	
@@ -1432,10 +1446,12 @@ func _on_golf_ball_landed(tile: Vector2i):
 	waiting_for_player_to_reach_ball = true
 	
 	# Calculate drive distance (distance from player to ball landing position)
-	var player_start_pos = player_node.global_position + player_node.size / 2
+	var sprite = player_node.get_node_or_null("Sprite2D")
+	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
+	var player_center = player_node.global_position + player_size / 2
+	var player_start_pos = player_center
 	var ball_landing_pos = golf_ball.global_position if golf_ball else player_start_pos
 	drive_distance = player_start_pos.distance_to(ball_landing_pos)
-	print("Drive distance:", drive_distance, "pixels")
 	
 	# Add a delay before showing the dialog so player can appreciate their shot
 	var dialog_timer = get_tree().create_timer(0.5)  # Reduced from 1.5 to 0.5 second delay
@@ -1579,9 +1595,16 @@ func display_selected_character() -> void:
 		character_label.text = name
 	if character_image:
 		match Global.selected_character:
-			1: character_image.texture = load("res://character1.png")
-			2: character_image.texture = load("res://character2.png")
-			3: character_image.texture = load("res://character3.png")
+			1: 
+				character_image.texture = load("res://character1.png")
+				character_image.scale = Vector2(0.42, 0.42)
+				character_image.position.y = 320.82
+			2: 
+				character_image.texture = load("res://character2.png")
+				# Don't change scale or position - keep original
+			3: 
+				character_image.texture = load("res://character3.png")
+				# Don't change scale or position - keep original
 
 func _on_end_round_pressed() -> void:
 	if is_movement_mode:
@@ -1632,8 +1655,8 @@ func show_drive_distance_dialog() -> void:
 	var dialog_box := ColorRect.new()
 	dialog_box.color = Color(0.2, 0.2, 0.2, 0.9)
 	dialog_box.size = Vector2(400, 200)
-	dialog_box.position = Vector2(400, 200)
-	dialog_box.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Let clicks pass through to background
+	dialog_box.position = (drive_distance_dialog.size - dialog_box.size) / 2  # Center the dialog
+	dialog_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	drive_distance_dialog.add_child(dialog_box)
 	
 	# Title label
@@ -1689,7 +1712,9 @@ func _on_drive_distance_dialog_input(event: InputEvent) -> void:
 		print("Draw cards button made visible for movement phase")
 		
 		# Return camera to player
-		var player_center := player_node.global_position + player_node.size / 2
+		var dialog_player_sprite = player_node.get_node_or_null("Sprite2D")
+		var dialog_player_size = dialog_player_sprite.texture.get_size() * dialog_player_sprite.scale if dialog_player_sprite and dialog_player_sprite.texture else Vector2(cell_size, cell_size)
+		var player_center: Vector2 = player_node.global_position + dialog_player_size / 2
 		var tween := get_tree().create_tween()
 		tween.tween_property(camera, "position", player_center, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 		print("Camera returned to player")
@@ -1842,7 +1867,9 @@ func enter_launch_phase() -> void:
 	print("Scaled min power:", scaled_min_power)
 	print("Chosen landing spot:", chosen_landing_spot)
 	if chosen_landing_spot != Vector2.ZERO:
-		var player_center = player_node.global_position + player_node.size / 2
+		var sprite = player_node.get_node_or_null("Sprite2D")
+		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
+		var player_center = player_node.global_position + player_size / 2
 		var distance_to_target = player_center.distance_to(chosen_landing_spot)
 		print("Distance to target:", distance_to_target)
 	print("=== END LAUNCH PHASE INITIALIZATION ===")
@@ -1854,7 +1881,9 @@ func enter_launch_phase() -> void:
 	show_aiming_arrow()
 	
 	# Center camera on player
-	var player_center := player_node.global_position + player_node.size / 2
+	var sprite = player_node.get_node_or_null("Sprite2D")
+	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
+	var player_center = player_node.global_position + player_size / 2
 	var tween := get_tree().create_tween()
 	tween.tween_property(camera, "position", player_center, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	
@@ -1884,7 +1913,9 @@ func enter_aiming_phase() -> void:
 	show_aiming_instruction()
 	
 	# Center camera on player
-	var player_center := player_node.global_position + player_node.size / 2
+	var sprite = player_node.get_node_or_null("Sprite2D")
+	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
+	var player_center = player_node.global_position + player_size / 2
 	var tween := get_tree().create_tween()
 	tween.tween_property(camera, "position", player_center, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	
@@ -2013,7 +2044,9 @@ func update_spin_indicator():
 	# Calculate spin direction (perpendicular to launch direction)
 	var launch_dir = Vector2.ZERO
 	if chosen_landing_spot != Vector2.ZERO and player_node:
-		var player_center = player_node.global_position + player_node.size / 2
+		var sprite = player_node.get_node_or_null("Sprite2D")
+		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
+		var player_center = player_node.global_position + player_size / 2
 		launch_dir = (chosen_landing_spot - player_center).normalized()
 	else:
 		launch_dir = Vector2(1, 0)  # Default direction
@@ -2029,8 +2062,10 @@ func update_spin_indicator():
 	# Position the indicator at the player's position in camera container coordinates
 	var indicator_pos = Vector2.ZERO
 	if player_node:
-		var player_screen_pos = player_node.global_position + player_node.size / 2
-		indicator_pos = player_screen_pos - camera_container.position
+		var sprite = player_node.get_node_or_null("Sprite2D")
+		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
+		var player_center = player_node.global_position + player_size / 2
+		indicator_pos = player_center - camera_container.position
 	else:
 		var fallback_center = Vector2(get_viewport().size.x, get_viewport().size.y) / 2
 		indicator_pos = fallback_center - camera_container.position
@@ -2061,7 +2096,9 @@ func enter_draw_cards_phase() -> void:
 	draw_cards_button.text = "Draw Club Cards"
 	
 	# Center camera on player
-	var player_center := player_node.global_position + player_node.size / 2
+	var sprite = player_node.get_node_or_null("Sprite2D")
+	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
+	var player_center = player_node.global_position + player_size / 2
 	var tween := get_tree().create_tween()
 	tween.tween_property(camera, "position", player_center, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	
@@ -2149,3 +2186,400 @@ func _on_club_card_pressed(club_name: String, club_info: Dictionary, button: Tex
 	enter_aiming_phase()
 	
 	print("Club selection complete. Entering aiming phase with", club_name, "max distance:", max_shot_distance)
+
+func _on_player_moved_to_tile(new_grid_pos: Vector2i) -> void:
+	print("=== PLAYER MOVED DEBUG ===")
+	print("Player moved to new grid position:", new_grid_pos)
+	print("Old player_grid_pos:", player_grid_pos)
+	
+	# Update the main script's grid position
+	player_grid_pos = new_grid_pos
+	print("Updated player_grid_pos to:", player_grid_pos)
+	
+	# Check if player moved to shop position
+	if player_grid_pos == shop_grid_pos and not shop_entrance_detected:
+		shop_entrance_detected = true
+		show_shop_entrance_dialog()
+		return  # Don't exit movement mode yet
+	elif player_grid_pos != shop_grid_pos:
+		# Reset shop entrance detection if player moved away
+		shop_entrance_detected = false
+	
+	# Update the player's visual position
+	update_player_position()
+	
+	# Exit movement mode (this will discard the card)
+	exit_movement_mode()
+	
+	print("=== END PLAYER MOVED DEBUG ===")
+
+func show_shop_entrance_dialog():
+	"""Show dialog asking if player wants to enter the shop"""
+	if shop_dialog:
+		shop_dialog.queue_free()
+	
+	shop_dialog = Control.new()
+	shop_dialog.name = "ShopEntranceDialog"
+	shop_dialog.size = get_viewport_rect().size
+	shop_dialog.z_index = 500
+	shop_dialog.mouse_filter = Control.MOUSE_FILTER_STOP
+	
+	# Semi-transparent background
+	var background := ColorRect.new()
+	background.color = Color(0, 0, 0, 0.7)
+	background.size = shop_dialog.size
+	background.mouse_filter = Control.MOUSE_FILTER_STOP
+	shop_dialog.add_child(background)
+	
+	# Dialog box
+	var dialog_box := ColorRect.new()
+	dialog_box.color = Color(0.2, 0.2, 0.2, 0.9)
+	dialog_box.size = Vector2(400, 200)
+	dialog_box.position = (shop_dialog.size - dialog_box.size) / 2  # Center the dialog
+	dialog_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	shop_dialog.add_child(dialog_box)
+	
+	# Title label
+	var title_label := Label.new()
+	title_label.text = "Golf Shop"
+	title_label.add_theme_font_size_override("font_size", 28)
+	title_label.add_theme_color_override("font_color", Color.YELLOW)
+	title_label.add_theme_constant_override("outline_size", 2)
+	title_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	title_label.position = Vector2(150, 20)
+	title_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dialog_box.add_child(title_label)
+	
+	# Question label
+	var question_label := Label.new()
+	question_label.text = "Would you like to enter the shop?"
+	question_label.add_theme_font_size_override("font_size", 18)
+	question_label.add_theme_color_override("font_color", Color.WHITE)
+	question_label.position = Vector2(100, 80)
+	question_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dialog_box.add_child(question_label)
+	
+	# Yes button
+	var yes_button := Button.new()
+	yes_button.text = "Yes"
+	yes_button.size = Vector2(80, 40)
+	yes_button.position = Vector2(120, 140)
+	yes_button.pressed.connect(_on_shop_enter_yes)
+	dialog_box.add_child(yes_button)
+	
+	# No button
+	var no_button := Button.new()
+	no_button.text = "No"
+	no_button.size = Vector2(80, 40)
+	no_button.position = Vector2(220, 140)
+	no_button.pressed.connect(_on_shop_enter_no)
+	dialog_box.add_child(no_button)
+	
+	$UILayer.add_child(shop_dialog)
+	print("Shop entrance dialog created")
+
+func _on_shop_enter_yes():
+	"""Player chose to enter the shop"""
+	print("Player chose to enter shop")
+	
+	# Save current game state
+	save_game_state()
+	
+	# Transition to shop interior scene
+	get_tree().change_scene_to_file("res://Shop/ShopInterior.tscn")
+
+func _on_shop_enter_no():
+	"""Player chose not to enter the shop"""
+	print("Player chose not to enter shop")
+	
+	# Dismiss dialog
+	if shop_dialog:
+		shop_dialog.queue_free()
+		shop_dialog = null
+	
+	# Reset shop entrance detection
+	shop_entrance_detected = false
+	
+	# Exit movement mode normally
+	exit_movement_mode()
+
+func show_shop_under_construction_dialog():
+	"""Show shop under construction dialog"""
+	if shop_dialog:
+		shop_dialog.queue_free()
+	
+	shop_dialog = Control.new()
+	shop_dialog.name = "ShopUnderConstructionDialog"
+	shop_dialog.size = get_viewport_rect().size
+	shop_dialog.z_index = 500
+	shop_dialog.mouse_filter = Control.MOUSE_FILTER_STOP
+	
+	# Semi-transparent background
+	var background := ColorRect.new()
+	background.color = Color(0, 0, 0, 0.7)
+	background.size = shop_dialog.size
+	background.mouse_filter = Control.MOUSE_FILTER_STOP
+	shop_dialog.add_child(background)
+	
+	# Dialog box
+	var dialog_box := ColorRect.new()
+	dialog_box.color = Color(0.2, 0.2, 0.2, 0.9)
+	dialog_box.size = Vector2(400, 200)
+	dialog_box.position = Vector2(400, 200)
+	dialog_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	shop_dialog.add_child(dialog_box)
+	
+	# Title label
+	var title_label := Label.new()
+	title_label.text = "Shop Under Construction"
+	title_label.add_theme_font_size_override("font_size", 24)
+	title_label.add_theme_color_override("font_color", Color.ORANGE)
+	title_label.add_theme_constant_override("outline_size", 2)
+	title_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	title_label.position = Vector2(100, 20)
+	title_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dialog_box.add_child(title_label)
+	
+	# Message label
+	var message_label := Label.new()
+	message_label.text = "Shop under construction, brb!\n\nClick to return to the course."
+	message_label.add_theme_font_size_override("font_size", 16)
+	message_label.add_theme_color_override("font_color", Color.WHITE)
+	message_label.position = Vector2(100, 80)
+	message_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dialog_box.add_child(message_label)
+	
+	# Click instruction
+	var instruction_label := Label.new()
+	instruction_label.text = "Click anywhere to continue"
+	instruction_label.add_theme_font_size_override("font_size", 14)
+	instruction_label.add_theme_color_override("font_color", Color.LIGHT_GRAY)
+	instruction_label.position = Vector2(120, 150)
+	instruction_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dialog_box.add_child(instruction_label)
+	
+	# Connect input to background
+	background.gui_input.connect(_on_shop_under_construction_input)
+	
+	$UILayer.add_child(shop_dialog)
+	print("Shop under construction dialog created")
+
+func _on_shop_under_construction_input(event: InputEvent):
+	"""Handle input for shop under construction dialog"""
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		print("Shop under construction dialog clicked - returning to course")
+		
+		# Dismiss dialog
+		if shop_dialog:
+			shop_dialog.queue_free()
+			shop_dialog = null
+		
+		# Restore game state
+		restore_game_state()
+		
+		# Reset shop entrance detection
+		shop_entrance_detected = false
+		
+		# Exit movement mode
+		exit_movement_mode()
+
+func save_game_state():
+	"""Save important game state before entering shop"""
+	print("Saving game state before entering shop")
+	
+	# Save important game state to Global
+	Global.saved_player_grid_pos = player_grid_pos
+	Global.saved_ball_position = golf_ball.global_position if golf_ball else Vector2.ZERO
+	Global.saved_current_turn = turn_count
+	Global.saved_shot_score = hole_score
+	Global.saved_deck_manager_state = deck_manager.get_deck_state()
+	Global.saved_discard_pile_state = deck_manager.get_discard_state()
+	Global.saved_hand_state = deck_manager.get_hand_state()
+	Global.saved_game_state = "shop_entrance"
+	Global.saved_has_started = has_started
+	Global.saved_game_phase = game_phase  # Save current game phase
+	
+	# Save ball-related state
+	Global.saved_ball_landing_tile = ball_landing_tile
+	Global.saved_ball_landing_position = ball_landing_position
+	Global.saved_waiting_for_player_to_reach_ball = waiting_for_player_to_reach_ball
+	Global.saved_ball_exists = (golf_ball != null and is_instance_valid(golf_ball))
+	
+	print("Game state saved to Global - game phase:", game_phase, "ball exists:", Global.saved_ball_exists)
+
+func restore_game_state():
+	"""Restore game state after returning from shop"""
+	print("Restoring game state after returning from shop")
+	
+	# Check if we have saved state
+	if Global.saved_game_state == "shop_entrance":
+		# Restore player position
+		player_grid_pos = Global.saved_player_grid_pos
+		update_player_position()
+		
+		# Make player visible (important!)
+		player_node.visible = true
+		
+		# IMPORTANT: Set is_placing_player to false so movement works
+		is_placing_player = false
+		
+		# Restore ball-related state
+		ball_landing_tile = Global.saved_ball_landing_tile
+		ball_landing_position = Global.saved_ball_landing_position
+		waiting_for_player_to_reach_ball = Global.saved_waiting_for_player_to_reach_ball
+		
+		# Restore the ball if it existed
+		if Global.saved_ball_exists and Global.saved_ball_position != Vector2.ZERO:
+			print("Recreating golf ball at saved position:", Global.saved_ball_position)
+			# Remove any existing ball
+			if golf_ball and is_instance_valid(golf_ball):
+				golf_ball.queue_free()
+			
+			# Create new ball
+			golf_ball = preload("res://GolfBall.tscn").instantiate()
+			
+			# Set ball position in camera container coordinates
+			var ball_local_position = Global.saved_ball_position - camera_container.global_position
+			golf_ball.position = ball_local_position
+			
+			# Set up the ball
+			golf_ball.cell_size = cell_size
+			golf_ball.map_manager = map_manager
+			camera_container.add_child(golf_ball)
+			
+			print("Golf ball restored at position:", golf_ball.global_position)
+		else:
+			print("No ball to restore or ball position was zero")
+			if golf_ball and is_instance_valid(golf_ball):
+				golf_ball.queue_free()
+				golf_ball = null
+		
+		# Restore turn and score
+		turn_count = Global.saved_current_turn
+		hole_score = Global.saved_shot_score
+		
+		# Restore deck state
+		deck_manager.restore_deck_state(Global.saved_deck_manager_state)
+		deck_manager.restore_discard_state(Global.saved_discard_pile_state)
+		deck_manager.restore_hand_state(Global.saved_hand_state)
+		
+		# Restore has_started
+		has_started = Global.saved_has_started
+		
+		# Restore the saved game phase (instead of always setting to "move")
+		if Global.get("saved_game_phase") != null:
+			game_phase = Global.saved_game_phase
+		else:
+			game_phase = "move"
+		
+		# Recreate movement buttons if there are cards in hand
+		if deck_manager.hand.size() > 0:
+			print("Recreating movement buttons for", deck_manager.hand.size(), "cards")
+			create_movement_buttons()
+		
+		# Update UI
+		update_deck_display()
+		
+		# Focus camera on the player at shop position
+		var sprite = player_node.get_node_or_null("Sprite2D")
+		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
+		var player_center = player_node.global_position + player_size / 2
+		camera_snap_back_pos = player_center
+		
+		# Smoothly move camera to player
+		var tween := get_tree().create_tween()
+		tween.tween_property(camera, "position", player_center, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		
+		print("Game state restored from Global - player at shop position, game phase:", game_phase, "is_placing_player:", is_placing_player, "ball exists:", golf_ball != null)
+	else:
+		print("No saved game state found")
+
+func is_player_on_shop_tile() -> bool:
+	"""Check if the player is currently on the shop tile"""
+	return player_grid_pos == shop_grid_pos
+
+# Place these at the top, after variable declarations and before _ready
+
+func build_map_from_layout(layout: Array) -> void:
+	obstacle_map.clear()
+	ysort_objects.clear() # Clear previous objects
+	# First pass: Place all tiles (ground)
+	for y in layout.size():
+		for x in layout[y].size():
+			var code: String = layout[y][x]
+			var pos: Vector2i = Vector2i(x, y)
+			var world_pos: Vector2 = Vector2(x, y) * cell_size
+
+			# Determine what tile to place
+			var tile_code: String = code
+			if object_scene_map.has(code):
+				# This is an object, place the appropriate tile underneath
+				tile_code = object_to_tile_mapping[code]
+			# Place the tile
+			if tile_scene_map.has(tile_code):
+				var scene: PackedScene = tile_scene_map[tile_code]
+				if scene == null:
+					push_error("🚫 Tile scene for code '%s' is null at (%d,%d)" % [tile_code, x, y])
+					continue
+				var tile: Node2D = scene.instantiate() as Node2D
+				if tile == null:
+					push_error("❌ Tile instantiation failed for '%s' at (%d,%d)" % [tile_code, x, y])
+					continue
+				tile.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
+				tile.z_index = -5  # Ensure tiles are behind player & UI
+				# Scale tiles to match grid size
+				var sprite: Sprite2D = tile.get_node_or_null("Sprite2D")
+				if sprite and sprite.texture:
+					var texture_size: Vector2 = sprite.texture.get_size()
+					if texture_size.x > 0 and texture_size.y > 0:
+						var scale_x = cell_size / texture_size.x
+						var scale_y = cell_size / texture_size.y
+						sprite.scale = Vector2(scale_x, scale_y)
+				# Set grid_position if the property exists
+				if tile.has_meta("grid_position") or "grid_position" in tile:
+					tile.set("grid_position", pos)
+				else:
+					push_warning("⚠️ Tile missing 'grid_position'. Type: %s" % tile.get_class())
+				obstacle_layer.add_child(tile)
+				obstacle_map[pos] = tile
+			else:
+				print("ℹ️ Skipping unmapped tile code '%s' at (%d,%d)" % [tile_code, x, y])
+	# Second pass: Place objects on top of tiles
+	for y in layout.size():
+		for x in layout[y].size():
+			var code: String = layout[y][x]
+			var pos: Vector2i = Vector2i(x, y)
+			var world_pos: Vector2 = Vector2(x, y) * cell_size
+			# Only place objects (not tiles)
+			if object_scene_map.has(code):
+				var scene: PackedScene = object_scene_map[code]
+				if scene == null:
+					push_error("🚫 Object scene for code '%s' is null at (%d,%d)" % [code, x, y])
+					continue
+				var object: Node2D = scene.instantiate() as Node2D
+				if object == null:
+					push_error("❌ Object instantiation failed for '%s' at (%d,%d)" % [code, x, y])
+					continue
+				object.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
+				object.z_index = 0  # Default, will be managed by Y-sort
+				# Don't scale objects - they should be Y-sorted sprites
+				# Objects will handle their own scaling and positioning
+				# Set grid_position if the property exists
+				if object.has_meta("grid_position") or "grid_position" in object:
+					object.set("grid_position", pos)
+				else:
+					push_warning("⚠️ Object missing 'grid_position'. Type: %s" % object.get_class())
+				# Track for Y-sorting
+				ysort_objects.append({"node": object, "grid_pos": pos})
+				obstacle_layer.add_child(object)
+				# Note: We don't overwrite obstacle_map[pos] since the tile is already there
+				# Objects are separate from the tile system for movement/collision
+			elif not tile_scene_map.has(code):
+				print("ℹ️ Skipping unmapped code '%s' at (%d,%d)" % [code, x, y])
+
+func focus_camera_on_tee():
+	var tee_center_local := _get_tee_area_center()
+	var tee_center_global := camera_container.position + tee_center_local
+	camera_snap_back_pos = tee_center_global
+	var tween := get_tree().create_tween()
+	tween.tween_property(camera, "position", tee_center_global, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)

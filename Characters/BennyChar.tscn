@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3 uid="uid://bc8s6t7wka23s"]
+
+[ext_resource type="Texture2D" uid="uid://bqtrta5v6jvuj" path="res://Characters/BennyChar.png" id="1_oukfo"]
+
+[node name="BennyChar" type="Node2D"]
+position = Vector2(0, -36.815)
+scale = Vector2(0.055, 0.055)
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("1_oukfo")

@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3 uid="uid://1ivjyhoug6fo"]
+
+[ext_resource type="Texture2D" uid="uid://bgps7nghqxf2o" path="res://Characters/ClarkChar.png" id="1_pt0yq"]
+
+[node name="Clark" type="Node2D"]
+position = Vector2(0, -39.97)
+scale = Vector2(0.055, 0.055)
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("1_pt0yq")

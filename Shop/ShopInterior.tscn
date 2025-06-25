@@ -1,0 +1,60 @@
+[gd_scene load_steps=6 format=3 uid="uid://c8kuewso70dyx"]
+
+[ext_resource type="Texture2D" uid="uid://6gtabr7liuob" path="res://Shop/ShopInterior.png" id="1_eeho4"]
+[ext_resource type="Script" uid="uid://qri6qfxmvixl" path="res://Shop/ShopInterior.gd" id="2_shop_script"]
+[ext_resource type="AudioStream" uid="uid://cwn3uur4bgef2" path="res://Sounds/Trinkets.mp3" id="3_vsfgq"]
+[ext_resource type="Texture2D" uid="uid://b04t5rodckxfe" path="res://Shop/Tof.png" id="4_8pyis"]
+[ext_resource type="Texture2D" uid="uid://c38xossm3wigh" path="res://Shop/TofSign.png" id="5_ko7ju"]
+
+[node name="ShopInterior" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("2_shop_script")
+
+[node name="TextureRect" type="TextureRect" parent="."]
+texture_filter = 1
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+scale = Vector2(0.765, 0.765)
+texture = ExtResource("1_eeho4")
+
+[node name="ReturnButton" type="Button" parent="."]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -100.0
+offset_top = -100.0
+offset_right = 100.0
+offset_bottom = -50.0
+grow_horizontal = 2
+grow_vertical = 0
+text = "Return to Course"
+
+[node name="Trinkets" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("3_vsfgq")
+
+[node name="TextureRect2" type="TextureRect" parent="."]
+layout_mode = 0
+offset_left = 533.0
+offset_top = 324.0
+offset_right = 1557.0
+offset_bottom = 1348.0
+scale = Vector2(0.225, 0.225)
+texture = ExtResource("4_8pyis")
+
+[node name="TextureRect3" type="TextureRect" parent="."]
+layout_mode = 0
+offset_left = -8.0
+offset_top = 2.0
+offset_right = 1528.0
+offset_bottom = 1026.0
+scale = Vector2(0.235, 0.235)
+texture = ExtResource("5_ko7ju")

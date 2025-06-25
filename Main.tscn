@@ -1,11 +1,12 @@
-[gd_scene load_steps=8 format=3 uid="uid://wyu3udwngros"]
+[gd_scene load_steps=9 format=3 uid="uid://wyu3udwngros"]
 
 [ext_resource type="Texture2D" uid="uid://cntpxwpa61iaa" path="res://bobby.png" id="1_glv2v"]
 [ext_resource type="Script" uid="uid://ct4bebh7dhisi" path="res://Main.gd" id="1_r0du0"]
 [ext_resource type="Texture2D" uid="uid://ctp0drq17owtd" path="res://report45943284082943370519bf42584-4abe-49aa-92b6-3b791f932737_piclumen_contentRefer_100661_.png" id="2_3dxm6"]
 [ext_resource type="Texture2D" uid="uid://cwaaj26ms2r67" path="res://character2.png" id="3_fos0i"]
 [ext_resource type="Texture2D" uid="uid://ijg1v1gijysb" path="res://character3.png" id="4_3dxm6"]
-[ext_resource type="Texture2D" uid="uid://teiswhfqg2yb" path="res://character1.png" id="5_lgr22"]
+[ext_resource type="Texture2D" uid="uid://dkotgiaft0sh" path="res://Character1.png" id="6_3dxm6"]
+[ext_resource type="Texture2D" uid="uid://cwdlr21pb6ap" path="res://Title.png" id="7_lgr22"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_0e48y"]
 radius = 11.0454
@@ -100,7 +101,16 @@ texture = ExtResource("4_3dxm6")
 [node name="Character1" type="Sprite2D" parent="UI"]
 texture_filter = 1
 position = Vector2(915, 177)
-scale = Vector2(2.43, 2.43)
-texture = ExtResource("5_lgr22")
+scale = Vector2(0.79, 0.79)
+texture = ExtResource("6_3dxm6")
+
+[node name="TextureRect2" type="TextureRect" parent="."]
+layout_mode = 0
+offset_left = 458.77
+offset_top = 289.895
+offset_right = 1482.77
+offset_bottom = 1825.9
+scale = Vector2(0.23, 0.23)
+texture = ExtResource("7_lgr22")
 
 [connection signal="pressed" from="UI/StartRoundButton" to="." method="_on_start_round_button_pressed"]
