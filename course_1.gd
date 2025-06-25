@@ -69,7 +69,6 @@ var hole_score := 0
 var golf_ball: Node2D = null
 var power_meter: Control = null
 var height_meter: Control = null
-var aiming_arrow: Control = null  # New aiming arrow
 var launch_power := 0.0
 var launch_height := 0.0
 var launch_direction := Vector2.ZERO
@@ -94,6 +93,7 @@ var swing_strong_sound: AudioStreamPlayer2D
 var swing_med_sound: AudioStreamPlayer2D
 var swing_soft_sound: AudioStreamPlayer2D
 var water_plunk_sound: AudioStreamPlayer2D
+var sand_thunk_sound: AudioStreamPlayer2D
 
 # Multi-shot golf variables
 var ball_landing_tile: Vector2i = Vector2i.ZERO
@@ -305,10 +305,6 @@ func _process(delta):
 		card_hand_anchor.z_index = 100
 		card_hand_anchor.mouse_filter = Control.MOUSE_FILTER_STOP
 		set_process(false)  # stop checking after setting
-	
-	# Update aiming arrow during launch phase (when not charging)
-	if game_phase == "launch" and not is_charging and not is_charging_height:
-		update_aiming_arrow()
 	
 	# Update aiming circle during aiming phase
 	if is_aiming_phase and aiming_circle:
@@ -671,6 +667,7 @@ func _on_player_input(event: InputEvent) -> void:
 			print("Player clicked but game phase is:", game_phase, "- not in move or launch phase")
 
 func update_player_position() -> void:
+	print("=== UPDATE_PLAYER_POSITION CALLED ===")
 	if not player_node:
 		print("Warning: player_node is null in update_player_position()")
 		return
@@ -683,22 +680,56 @@ func update_player_position() -> void:
 	# Update the player's grid position in the Player.gd script
 	player_node.set_grid_position(player_grid_pos)
 	
-	# --- Y-SORT LOGIC FIXED ---
+	# --- Y-SORT LOGIC FIXED FOR TREE OFFSETS ---
+	print("=== PLAYER Y-SORT DEBUG ===")
+	print("Player grid position:", player_grid_pos)
+	print("Player global position:", player_node.global_position)
+	print("Number of ysort_objects:", ysort_objects.size())
+	
 	var max_object_z = null
 	var min_object_z = null
 	for obj in ysort_objects:
-		if player_grid_pos.y >= obj["grid_pos"].y:
-			if max_object_z == null or obj["node"].z_index > max_object_z:
-				max_object_z = obj["node"].z_index
+		print("Checking object - z_index:", obj["node"].z_index, "grid_pos:", obj["grid_pos"])
+		if obj["node"].z_index == 3:  # Only consider trees
+			var tree_node = obj["node"]
+			var tree_y_sort_point = tree_node.global_position.y
+			if tree_node.has_method("get_y_sort_point"):
+				tree_y_sort_point = tree_node.get_y_sort_point()
+			print("Tree found - grid_pos:", obj["grid_pos"], "y_sort_point:", tree_y_sort_point)
+			var player_world_y = player_node.global_position.y
+			if player_world_y < tree_y_sort_point:
+				print("Player world Y (", player_world_y, ") < tree_y_sort_point (", tree_y_sort_point, ") - player should be BEHIND tree (visually above)")
+				if max_object_z == null or tree_node.z_index > max_object_z:
+					max_object_z = tree_node.z_index
+					print("Updated max_object_z to:", max_object_z)
+			else:
+				print("Player world Y (", player_world_y, ") >= tree_y_sort_point (", tree_y_sort_point, ") - player should be IN FRONT of tree (visually below)")
+				if min_object_z == null or tree_node.z_index < min_object_z:
+					min_object_z = tree_node.z_index
+					print("Updated min_object_z to:", min_object_z)
 		else:
-			if min_object_z == null or obj["node"].z_index < min_object_z:
-				min_object_z = obj["node"].z_index
+			# For non-tree objects, use the original logic
+			print("Non-tree object - z_index:", obj["node"].z_index, "grid_pos:", obj["grid_pos"])
+			if player_grid_pos.y >= obj["grid_pos"].y:
+				if max_object_z == null or obj["node"].z_index > max_object_z:
+					max_object_z = obj["node"].z_index
+			else:
+				if min_object_z == null or obj["node"].z_index < min_object_z:
+					min_object_z = obj["node"].z_index
+	
+	print("Final max_object_z:", max_object_z, "min_object_z:", min_object_z)
+	
 	if max_object_z != null:
 		player_node.z_index = max_object_z + 1
+		print("Player z_index set to:", player_node.z_index, "(behind object)")
 	elif min_object_z != null:
 		player_node.z_index = min_object_z - 1
+		print("Player z_index set to:", player_node.z_index, "(in front of object)")
 	else:
 		player_node.z_index = 1 # Default
+		print("Player z_index set to default:", player_node.z_index)
+	
+	print("=== END PLAYER Y-SORT DEBUG ===")
 	# --- END Y-SORT LOGIC FIXED ---
 	var player_center: Vector2 = player_node.global_position + player_size / 2
 	camera_snap_back_pos = player_center
@@ -825,6 +856,11 @@ func _on_tile_input(event: InputEvent, x: int, y: int) -> void:
 				var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
 				var player_center = player_node.global_position + player_size / 2
 				camera_snap_back_pos = player_center
+				
+				# Play SandThunk sound when player is placed on tee
+				if sand_thunk_sound and sand_thunk_sound.stream:
+					sand_thunk_sound.play()
+				
 				print("Player placed at Tee. Round begins.")
 				start_round_after_tee_selection()
 			else:
@@ -1005,7 +1041,6 @@ func hide_power_meter():
 	if power_meter:
 		power_meter.queue_free()
 		power_meter = null
-	hide_aiming_arrow()  # Hide arrow when power meter is hidden
 
 func show_height_meter():
 	if height_meter:
@@ -1105,81 +1140,6 @@ func hide_height_meter():
 	if height_meter:
 		height_meter.queue_free()
 		height_meter = null
-	hide_aiming_arrow()  # Hide arrow when height meter is hidden
-
-func show_aiming_arrow():
-	if aiming_arrow:
-		aiming_arrow.queue_free()
-	
-	# Create a container for the aiming arrow
-	aiming_arrow = Control.new()
-	aiming_arrow.name = "AimingArrow"
-	aiming_arrow.size = Vector2(200, 50)
-	aiming_arrow.z_index = 200  # Increased from 150 to 200 - above the player
-	camera_container.add_child(aiming_arrow)
-	
-	# Create the arrow visual (a simple triangle)
-	var arrow_polygon = Polygon2D.new()
-	arrow_polygon.polygon = PackedVector2Array([
-		Vector2(0, 0),      # Base of arrow at player center
-		Vector2(-40, -12),  # Top corner
-		Vector2(-40, 12),   # Bottom corner
-	])
-	arrow_polygon.color = Color(1, 0.8, 0.2, 0.8)  # Yellow with transparency
-	aiming_arrow.add_child(arrow_polygon)
-	
-	# Add a line behind the arrow
-	var arrow_line = Line2D.new()
-	arrow_line.points = PackedVector2Array([
-		Vector2(0, 0),      # Start at player center
-		Vector2(-80, 0),    # Extend outward
-	])
-	arrow_line.width = 3
-	arrow_line.default_color = Color(1, 0.8, 0.2, 0.6)  # Slightly more transparent
-	aiming_arrow.add_child(arrow_line)
-	
-	print("Aiming arrow created")
-
-func hide_aiming_arrow():
-	if aiming_arrow:
-		aiming_arrow.queue_free()
-		aiming_arrow = null
-
-func update_aiming_arrow():
-	if not aiming_arrow or not player_node:
-		return
-	
-	# Get player center position
-	var sprite = player_node.get_node_or_null("Sprite2D")
-	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
-	var player_center = player_node.global_position + player_size / 2
-	# Get mouse position
-	var mouse_pos = get_global_mouse_position()
-	# Calculate direction and distance
-	var direction = (mouse_pos - player_center).normalized()
-	var distance = player_center.distance_to(mouse_pos)
-	
-	# Position the arrow at the player center
-	aiming_arrow.global_position = player_center
-	
-	# Update the arrow polygon to point to the mouse
-	var arrow_tip = direction * distance
-	var base_left = direction.rotated(-PI/10) * 30
-	var base_right = direction.rotated(PI/10) * 30
-	var arrow_polygon = aiming_arrow.get_child(0)
-	arrow_polygon.polygon = PackedVector2Array([
-		Vector2(0, 0),
-		base_left,
-		arrow_tip,
-		base_right
-	])
-	
-	# Update the line to point to the mouse
-	var arrow_line = aiming_arrow.get_child(1)
-	arrow_line.points = PackedVector2Array([
-		Vector2(0, 0),
-		arrow_tip
-	])
 
 func show_aiming_circle():
 	if aiming_circle:
@@ -1228,6 +1188,9 @@ func hide_aiming_circle():
 	if aiming_circle:
 		aiming_circle.queue_free()
 		aiming_circle = null
+	
+	# Remove ghost ball when hiding aiming circle
+	remove_ghost_ball()
 
 func update_aiming_circle():
 	if not aiming_circle or not player_node:
@@ -1252,6 +1215,9 @@ func update_aiming_circle():
 	
 	# Store the chosen landing spot
 	chosen_landing_spot = clamped_position
+	
+	# Update ghost ball with new landing spot
+	update_ghost_ball()
 	
 	# Change circle color based on distance vs min distance
 	var circle = aiming_circle.get_node_or_null("CircleVisual")
@@ -1279,7 +1245,6 @@ func update_aiming_circle():
 	var distance_label = aiming_circle.get_node_or_null("DistanceLabel")
 	if distance_label:
 		distance_label.text = str(int(clamped_distance)) + "px"
-	
 
 func launch_golf_ball(direction: Vector2, charged_power: float, height: float):
 	print("LAUNCH_GOLF_BALL FUNCTION CALLED!")
@@ -1404,6 +1369,9 @@ func launch_golf_ball(direction: Vector2, charged_power: float, height: float):
 	print("Golf ball node z_index:", golf_ball.z_index)
 	print("Golf ball visible:", golf_ball.visible)
 	print("Golf ball global position:", golf_ball.global_position)
+	
+	# Update Y-sorting for the ball
+	update_ball_y_sort(golf_ball)
 	
 	# Debug: Check child z_index values
 	var shadow = golf_ball.get_node_or_null("Shadow")
@@ -1725,6 +1693,7 @@ func setup_swing_sounds() -> void:
 	swing_med_sound = $SwingMed
 	swing_soft_sound = $SwingSoft
 	water_plunk_sound = $WaterPlunk
+	sand_thunk_sound = $SandThunk
 	
 	print("Swing sounds setup complete")
 
@@ -1847,6 +1816,9 @@ func enter_launch_phase() -> void:
 	game_phase = "launch"
 	print("Entered launch phase - ready to take shot")
 	
+	# Remove ghost ball when entering launch phase
+	remove_ghost_ball()
+	
 	# Reset charge time
 	charge_time = 0.0
 	
@@ -1877,9 +1849,6 @@ func enter_launch_phase() -> void:
 	# Don't draw cards here - they will be drawn after the drive distance dialog
 	# Cards should only be drawn when the player clicks on themselves after the dialog
 	
-	# Show aiming arrow
-	show_aiming_arrow()
-	
 	# Center camera on player
 	var sprite = player_node.get_node_or_null("Sprite2D")
 	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
@@ -1908,6 +1877,9 @@ func enter_aiming_phase() -> void:
 	
 	# Show the aiming circle
 	show_aiming_circle()
+	
+	# Create ghost ball for aiming preview
+	create_ghost_ball()
 	
 	# Show instruction label
 	show_aiming_instruction()
@@ -1973,6 +1945,10 @@ func draw_cards_for_next_shot() -> void:
 func _on_golf_ball_sand_landing():
 	print("Golf ball landed in sand trap!")
 	
+	# Play sand thunk sound if available
+	if sand_thunk_sound and sand_thunk_sound.stream:
+		sand_thunk_sound.play()
+	
 	# Stop camera following
 	camera_following_ball = false
 	
@@ -2012,6 +1988,11 @@ func _on_draw_cards_pressed() -> void:
 	if game_phase == "draw_cards":
 		# Club selection phase - draw club cards
 		print("Drawing club cards for selection...")
+		# Play CardDraw sound
+		if card_stack_display.has_node("CardDraw"):
+			var card_draw_sound = card_stack_display.get_node("CardDraw")
+			if card_draw_sound and card_draw_sound.stream:
+				card_draw_sound.play()
 		draw_club_cards()
 	else:
 		# Normal movement phase - draw movement cards
@@ -2561,7 +2542,6 @@ func build_map_from_layout(layout: Array) -> void:
 					push_error("❌ Object instantiation failed for '%s' at (%d,%d)" % [code, x, y])
 					continue
 				object.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
-				object.z_index = 0  # Default, will be managed by Y-sort
 				# Don't scale objects - they should be Y-sorted sprites
 				# Objects will handle their own scaling and positioning
 				# Set grid_position if the property exists
@@ -2570,7 +2550,15 @@ func build_map_from_layout(layout: Array) -> void:
 				else:
 					push_warning("⚠️ Object missing 'grid_position'. Type: %s" % object.get_class())
 				# Track for Y-sorting
+				print("=== ADDING OBJECT TO Y-SORT ===")
+				print("Object code:", code, "at position:", pos)
+				print("Object z_index:", object.z_index)
+				print("Object position:", object.position)
+				if code == "T":  # Tree
+					print("Tree instantiated - script:", object.get_script().get_path() if object.get_script() else "No script")
 				ysort_objects.append({"node": object, "grid_pos": pos})
+				print("Total ysort_objects:", ysort_objects.size())
+				print("=== END ADDING OBJECT TO Y-SORT ===")
 				obstacle_layer.add_child(object)
 				# Note: We don't overwrite obstacle_map[pos] since the tile is already there
 				# Objects are separate from the tile system for movement/collision
@@ -2583,3 +2571,160 @@ func focus_camera_on_tee():
 	camera_snap_back_pos = tee_center_global
 	var tween := get_tree().create_tween()
 	tween.tween_property(camera, "position", tee_center_global, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+
+# Ghost ball system variables
+var ghost_ball: Node2D = null
+var ghost_ball_active: bool = false
+
+func create_ghost_ball() -> void:
+	"""Create a ghost ball for aiming preview"""
+	print("=== CREATING GHOST BALL ===")
+	
+	if ghost_ball and is_instance_valid(ghost_ball):
+		print("Removing existing ghost ball")
+		ghost_ball.queue_free()
+	
+	print("Instantiating GhostBall.tscn")
+	ghost_ball = preload("res://GhostBall.tscn").instantiate()
+	
+	# Position the ghost ball at the player's position
+	var sprite = player_node.get_node_or_null("Sprite2D")
+	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
+	var player_center = player_node.global_position + player_size / 2
+	
+	# Convert global position to camera container local position
+	var ball_local_position = player_center - camera_container.global_position
+	ghost_ball.position = ball_local_position
+	
+	print("Ghost ball positioned at:", ball_local_position)
+	print("Player center:", player_center)
+	print("Camera container global position:", camera_container.global_position)
+	
+	# Set up the ghost ball
+	ghost_ball.cell_size = cell_size
+	ghost_ball.map_manager = map_manager
+	
+	# Set the club information for power calculations
+	if selected_club in club_data:
+		ghost_ball.set_club_info(club_data[selected_club])
+		print("Club info set:", selected_club)
+	else:
+		print("No club selected, using default club info")
+	
+	# Add to camera container
+	camera_container.add_child(ghost_ball)
+	ghost_ball_active = true
+	
+	# Update Y-sorting for the ghost ball
+	update_ball_y_sort(ghost_ball)
+	
+	# Set initial landing spot if we have one
+	if chosen_landing_spot != Vector2.ZERO:
+		ghost_ball.set_landing_spot(chosen_landing_spot)
+		print("Initial landing spot set:", chosen_landing_spot)
+	else:
+		print("No initial landing spot set")
+	
+	print("Ghost ball created successfully")
+	print("Ghost ball visible:", ghost_ball.visible)
+	print("Ghost ball position:", ghost_ball.position)
+	print("Ghost ball global position:", ghost_ball.global_position)
+	print("=== END CREATING GHOST BALL ===")
+
+func update_ghost_ball() -> void:
+	"""Update the ghost ball's landing spot and launch it"""
+	if not ghost_ball or not is_instance_valid(ghost_ball):
+		return
+	
+	# Set the landing spot for the ghost ball
+	ghost_ball.set_landing_spot(chosen_landing_spot)
+	
+	# Don't reset the ball - let it continue its trajectory
+	# The ghost ball will automatically relaunch every 2 seconds
+	
+	print("Ghost ball updated with landing spot:", chosen_landing_spot)
+
+func remove_ghost_ball() -> void:
+	"""Remove the ghost ball from the scene"""
+	if ghost_ball and is_instance_valid(ghost_ball):
+		ghost_ball.queue_free()
+		ghost_ball = null
+	ghost_ball_active = false
+	print("Ghost ball removed")
+
+func update_ball_y_sort(ball_node: Node2D) -> void:
+	print("=== UPDATE_BALL_Y_SORT CALLED ===")
+	if not ball_node or not is_instance_valid(ball_node):
+		return
+
+	var ball_global_pos = ball_node.global_position
+	var ball_ground_pos = ball_global_pos
+	if ball_node.has_method("get_ground_position"):
+		ball_ground_pos = ball_node.get_ground_position()
+	else:
+		ball_ground_pos = ball_global_pos
+
+	# Get ball's height (z-coordinate)
+	var ball_height = 0.0
+	if ball_node.has_method("get_height"):
+		ball_height = ball_node.get_height()
+	elif "z" in ball_node:
+		ball_height = ball_node.z
+
+	var ball_sprite = ball_node.get_node_or_null("Sprite2D")
+	if not ball_sprite:
+		return
+
+	# Find the closest tree (by Y distance) for Y-sorting
+	var closest_tree = null
+	var closest_tree_y = 0.0
+	var closest_tree_z = 0
+	var min_y_dist = INF
+	for obj in ysort_objects:
+		if obj["node"].z_index == 3:
+			var tree_node = obj["node"]
+			var tree_y_sort_point = tree_node.global_position.y
+			if tree_node.has_method("get_y_sort_point"):
+				tree_y_sort_point = tree_node.get_y_sort_point()
+			var y_dist = abs(ball_ground_pos.y - tree_y_sort_point)
+			if y_dist < min_y_dist:
+				min_y_dist = y_dist
+				closest_tree = tree_node
+				closest_tree_y = tree_y_sort_point
+				closest_tree_z = tree_node.z_index
+
+	if closest_tree != null:
+		# Set tree height (can be adjusted later for realism)
+		var tree_height = 100.0  # Default tree height in pixels
+		
+		# Check if ball is above the tree height
+		if ball_height >= tree_height:
+			# Ball is above tree height - always in front
+			ball_sprite.z_index = 10
+			print("Ball height (", ball_height, ") >= tree height (", tree_height, ") - z_index:", ball_sprite.z_index, "(above tree)")
+		else:
+			# Ball is below tree height - use Y position for sorting
+			var tree_threshold = closest_tree_y + 50  # 50 pixels higher threshold
+			if ball_ground_pos.y < tree_threshold:
+				ball_sprite.z_index = 1  # Much lower z_index to be clearly behind tree
+				print("Ball ground Y (", ball_ground_pos.y, ") < tree threshold (", tree_threshold, ") - z_index:", ball_sprite.z_index, "(behind tree)")
+			else:
+				ball_sprite.z_index = 10  # Much higher z_index to be clearly in front of tree
+				print("Ball ground Y (", ball_ground_pos.y, ") >= tree threshold (", tree_threshold, ") - z_index:", ball_sprite.z_index, "(in front of tree)")
+		
+		# Debug print for values
+		print("[DEBUG] Ball ground Y:", ball_ground_pos.y, "Ball height:", ball_height, "Tree base Y:", closest_tree_y, "Tree height:", tree_height, "Tree z_index:", closest_tree_z, "Ball z_index:", ball_sprite.z_index)
+	else:
+		# No tree found, use default
+		ball_sprite.z_index = 10  # Default to in front
+		print("Ball sprite z_index set to default:", ball_sprite.z_index)
+
+	# Shadow follows ball sprite z_index
+	var ball_shadow = ball_node.get_node_or_null("Shadow")
+	if ball_shadow:
+		ball_shadow.z_index = ball_sprite.z_index - 1
+		if ball_shadow.z_index <= -5:
+			ball_shadow.z_index = 1
+		print("Ball shadow z_index set to:", ball_shadow.z_index)
+
+	print("=== END BALL Y-SORT DEBUG ===")

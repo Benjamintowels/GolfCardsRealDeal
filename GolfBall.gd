@@ -29,6 +29,21 @@ var roll_friction := 0.98 # Reduced friction when rolling on ground (was 0.96)
 var min_roll_speed := 25.0 # Reduced minimum speed before stopping (was 50.0)
 var is_rolling := false
 
+# Tile-based bounce reduction system
+var bounce_reduction_applied := false  # Track if bounce reduction has been applied
+var bounce_reduction_values = {
+	"Base": 1,  # Base grass - lose 1 bounce
+	"R": 2,     # Rough - lose 2 bounces
+	"F": 0,     # Fairway - no bounce reduction
+	"G": 0,     # Green - no bounce reduction
+	"S": 0,     # Sand - no bounce reduction (handled separately)
+	"W": 0,     # Water - no bounce reduction (handled separately)
+	"T": 0,     # Tee - no bounce reduction
+	"Tee": 0,   # Tee - no bounce reduction
+	"P": 0,     # Pin - no bounce reduction
+	"O": 0      # Obstacle - no bounce reduction
+}
+
 # Height-based rolling mechanics
 var initial_launch_height := 0.0  # Store the original launch height for roll calculations
 var roll_distance_multiplier := 1.0  # Multiplier for roll distance based on height
@@ -42,10 +57,10 @@ var ball_roll_boost := 1.0  # Removed the boost multiplier
 
 # Tile-based friction system - FIXED: Lower values = more friction (ball stops faster)
 var tile_friction_values = {
-	"Base": 0.60,  # Base grass - high friction (was 0.80)
+	"Base": 0.99,  # Base grass - high friction (was 0.80)
 	"F": 0.50,  # Fairway - high friction (was 0.70)
 	"G": 0.40,  # Green - moderate friction (was 0.60)
-	"R": 0.30,  # Rough - very high friction (was 0.40)
+	"R": 0.98,  # Rough - very high friction (was 0.40)
 	"S": 0.15,  # Sand - extremely high friction (was 0.20)
 	"W": 0.08,  # Water - maximum friction (was 0.10)
 	"T": 0.60,  # Tee - high friction (was 0.80)
@@ -132,23 +147,10 @@ func calculate_undercharge_penalty(power_percentage: float) -> float:
 	var forgiveness_factor = 1.0 - trailoff_forgiveness  # 0.0 = most forgiving, 1.0 = least forgiving
 	var effective_distance = chosen_landing_spot.distance_to(global_position) * pow(undercharge_factor, forgiveness_factor * 3.0)  # Increased multiplier for more dramatic shank
 	
-	print("=== UNDERCHARGE CALCULATION ===")
-	print("Power percentage:", power_percentage)
-	print("Undercharge factor:", undercharge_factor)
-	print("Trailoff forgiveness:", trailoff_forgiveness)
-	print("Forgiveness factor (inverted):", forgiveness_factor)
-	print("Effective distance:", effective_distance)
-	print("=== END UNDERCHARGE CALCULATION ===")
-	
 	return effective_distance
 
 # Call this to launch the ball
 func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, spin_strength_category: int = 0):
-	print("LAUNCH FUNCTION CALLED!")
-	print("=== BALL LAUNCH DEBUG ===")
-	print("Ball launched with power:", power, "direction:", direction, "height:", height, "spin:", spin)
-	print("Chosen landing spot:", chosen_landing_spot)
-	
 	# Calculate height percentage for sweet spot check
 	var height_percentage = (height - MIN_LAUNCH_HEIGHT) / (MAX_LAUNCH_HEIGHT - MIN_LAUNCH_HEIGHT)
 	height_percentage = clamp(height_percentage, 0.0, 1.0)
@@ -171,21 +173,13 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 		var max_shot_distance = 2000.0  # Same as in course_1.gd
 		power_scale_factor = distance_to_target / max_shot_distance
 		power_scale_factor = clamp(power_scale_factor, 0.1, 1.0)
-		print("Distance to target:", distance_to_target, "Max shot distance:", max_shot_distance)
-		print("Calculated power scale factor:", power_scale_factor)
-		
 		# Calculate the scaled power range that the player actually sees
 		var scaled_max_power = MAX_LAUNCH_POWER * power_scale_factor
 		var scaled_min_power = MIN_LAUNCH_POWER * power_scale_factor
 		
-		print("Original power range:", MIN_LAUNCH_POWER, "to", MAX_LAUNCH_POWER)
-		print("Scaled power range:", scaled_min_power, "to", scaled_max_power)
-		print("Actual power value:", power)
 		
 		# Scale the power value to match the scaled range
 		scaled_power = power * power_scale_factor
-		print("Scaled power value:", scaled_power)
-		
 		# Calculate power percentage based on the scaled range (what the player sees on the meter)
 		# Use the same calculation as the power meter in course_1.gd
 		# The power meter uses the adjusted scaled max power (500.0 in this case)
@@ -197,14 +191,6 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 		# The scaled range is only for the power meter display
 		var original_power_percentage = (power - MIN_LAUNCH_POWER) / (MAX_LAUNCH_POWER - MIN_LAUNCH_POWER)
 		original_power_percentage = clamp(original_power_percentage, 0.0, 1.0)
-		
-		print("Power percentage calculation (matching power meter):")
-		print("  (power - MIN_LAUNCH_POWER) / (adjusted_scaled_max_power - MIN_LAUNCH_POWER)")
-		print("  (", power, "-", MIN_LAUNCH_POWER, ") / (", adjusted_scaled_max_power, "-", MIN_LAUNCH_POWER, ")")
-		print("  =", power - MIN_LAUNCH_POWER, "/", adjusted_scaled_max_power - MIN_LAUNCH_POWER)
-		print("  =", power_percentage)
-		print("Original power percentage (for sweet spot detection):", original_power_percentage)
-		
 		# Determine if this is a sweet spot shot based on time percentage or power percentage
 		var is_sweet_spot_shot = false
 		var power_in_sweet_spot = false
@@ -279,29 +265,17 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 				var forgiveness_factor = 1.0 - trailoff_forgiveness  # 0.0 = most forgiving, 1.0 = least forgiving
 				final_landing_distance = distance_to_target * pow(undercharge_factor, forgiveness_factor)
 		
-		print("=== FINAL LANDING CALCULATION ===")
-		print("Original power percentage:", original_power_percentage)
-		print("Final landing distance:", final_landing_distance)
-		print("=== END FINAL LANDING CALCULATION ===")
-		
 		# For normal shots, use the original scaled power system
 		# For penalty shots, calculate power based on final landing distance
 		var final_power = scaled_power  # Default to original scaled power
 		
-		print("=== POWER CALCULATION DEBUG ===")
-		print("Initial scaled_power:", scaled_power)
 		var effective_power_percentage = time_percentage if time_percentage >= 0.0 else original_power_percentage
-		print("Effective power percentage:", effective_power_percentage, "(time_percentage:", time_percentage, "original_power_percentage:", original_power_percentage, ")")
-		print("Is sweet spot (65-75%):", effective_power_percentage >= 0.65 and effective_power_percentage <= 0.75)
-		print("Is undercharge (<65%):", effective_power_percentage < 0.65)
-		print("Is overcharge (>75%):", effective_power_percentage > 0.75)
 		
 		if is_penalty_shot:
 			# Calculate power needed for penalty shot landing distance
 			var power_needed = final_landing_distance * 2.0  # Rough conversion factor
 			power_needed = clamp(power_needed, MIN_LAUNCH_POWER, MAX_LAUNCH_POWER)
 			final_power = power_needed
-			print("Penalty shot - calculated power needed:", power_needed)
 		else:
 			# For normal shots, apply a small modifier to the scaled power based on overcharge/undercharge
 			if effective_power_percentage > 0.75:  # Overcharge
@@ -330,8 +304,6 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 		var club_max_distance = club_info.get("max_distance", 1200.0)
 		var club_power_scale = club_max_distance / 1200.0  # Normalize to Driver's max distance
 		
-		print("Club max distance:", club_max_distance, "Club power scale:", club_power_scale)
-		print("Power before club scaling:", final_power)
 		
 		# Only apply club power scaling to non-sweet-spot shots
 		# Sweet spot shots already have the correct power calculated for the target distance
@@ -341,23 +313,10 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 		else:
 			print("Sweet spot shot - no club power scaling applied. Final power:", final_power)
 		
-		print("=== END POWER CALCULATION DEBUG ===")
-		
-		print("Using calculated power for launch:", final_power, "(original was:", power, ")")
-		print("Club max distance:", club_max_distance, "Club power scale:", club_power_scale)
-		print("Original direction:", direction_to_target)
-		print("Final direction:", direction)
-		print("Final power:", final_power)
-		print("Target distance to landing spot:", distance_to_target)
-		print("Final landing distance calculated:", final_landing_distance)
-		print("Power to distance ratio:", final_power / distance_to_target if distance_to_target > 0 else "N/A")
-		
 		# Update the power variable to use the calculated value for physics
 		power = final_power
 	else:
 		print("No landing spot chosen - using normal power/height system")
-	
-	print("=== END BALL LAUNCH DEBUG ===")
 	
 	# Apply the resistance to the final velocity calculation
 	velocity = direction.normalized() * power
@@ -374,15 +333,6 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 	landed_flag = false
 	max_height = 0.0
 	
-	print("=== FINAL LAUNCH PARAMETERS ===")
-	print("Final velocity:", velocity)
-	print("Velocity magnitude:", velocity.length())
-	print("Direction:", direction)
-	print("Power:", power)
-	print("Height:", height)
-	print("Initial vertical velocity (vz):", vz)
-	print("=== END FINAL LAUNCH PARAMETERS ===")
-	
 	# Store initial height and calculate first bounce height
 	initial_height = height
 	initial_launch_height = height  # Store for roll calculations
@@ -395,10 +345,6 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 	# Calculate power percentage for roll distance
 	var power_percentage_for_roll = (power - MIN_LAUNCH_POWER) / (MAX_LAUNCH_POWER - MIN_LAUNCH_POWER)
 	power_percentage_for_roll = clamp(power_percentage_for_roll, 0.0, 1.0)
-	
-	print("=== ROLL DISTANCE CALCULATION ===")
-	print("Height:", height, "Height percentage:", height_percentage_for_roll)
-	print("Power:", power, "Power percentage:", power_percentage_for_roll)
 	
 	# New roll distance curve based on angle specifications
 	var height_multiplier = 1.0
@@ -431,12 +377,6 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 	
 	target_roll_distance = 300.0 * height_multiplier * power_multiplier  # Increased base roll distance from 200 to 300 pixels
 	
-	print("Height multiplier:", height_multiplier)
-	print("Power multiplier:", power_multiplier)
-	print("Target roll distance:", target_roll_distance)
-	print("Dynamic friction:", dynamic_roll_friction)
-	print("=== END ROLL CALCULATION ===")
-	
 	# Reset bounce and roll variables
 	bounce_count = 0
 	is_rolling = false
@@ -445,25 +385,16 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 	sprite = $Sprite2D
 	shadow = $Shadow
 	
-	# Debug prints to check z_index values
-	print("=== GOLF BALL Z_INDEX DEBUG ===")
-	print("GolfBall node z_index:", z_index)
-	print("Shadow z_index:", shadow.z_index if shadow else "No shadow")
-	print("Ball sprite z_index:", sprite.z_index if sprite else "No sprite")
-	print("Shadow visible:", shadow.visible if shadow else "No shadow")
-	print("Ball sprite visible:", sprite.visible if sprite else "No sprite")
-	print("=== END Z_INDEX DEBUG ===")
-	
 	# Set initial shadow position (same as ball but on ground)
 	if shadow:
 		shadow.position = Vector2.ZERO
 		shadow.z_index = -1
 		shadow.modulate = Color(0, 0, 0, 0.3)  # Semi-transparent black
-		print("Shadow z_index set to:", shadow.z_index)
+		
 	
 	if sprite:
 		sprite.z_index = 1
-		print("Ball sprite z_index set to:", sprite.z_index)
+		
 	
 	update_visual_effects()
 	
@@ -471,6 +402,15 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 	self.spin = spin
 	self.spin_strength_category = spin_strength_category
 	spin_progress = 0.0
+	
+	# Reset bounce reduction system for new shot
+	bounce_reduction_applied = false
+	min_bounces = 2  # Reset to default
+	max_bounces = 2  # Reset to default
+	print("=== NEW SHOT BOUNCE SETTINGS ===")
+	print("Initial min_bounces:", min_bounces)
+	print("Initial max_bounces:", max_bounces)
+	print("=== END NEW SHOT BOUNCE SETTINGS ===")
 
 func _process(delta):
 	if landed_flag:
@@ -499,6 +439,9 @@ func _process(delta):
 	
 	# Update position
 	position += velocity * delta
+	
+	# Update Y-sorting based on new position
+	update_y_sort()
 	
 	# Update vertical physics (arc and bounce)
 	if z > 0.0:
@@ -540,8 +483,8 @@ func _process(delta):
 				var progressive_factor = base_progressive_factor * spin_scale_multiplier
 				var spin_force = perp * lerp_spin * 0.15 * progressive_factor * delta
 				velocity += spin_force
-			else:
-				print("Spin stopped: ball has deflected more than 90 degrees (", rad_to_deg(angle_to_original), " degrees)")
+
+				
 		
 		# Check if ball has landed
 		if z <= 0.0:
@@ -562,6 +505,10 @@ func _process(delta):
 				landed_flag = true
 				sand_landing.emit()
 				return
+			
+			# Check for bounce reduction on first landing
+			check_bounce_reduction()
+			
 			# Calculate bounce based on bounce count and initial height
 			var landing_speed = abs(vz)
 			var horizontal_speed = velocity.length()
@@ -570,6 +517,11 @@ func _process(delta):
 			if bounce_count < max_bounces and (bounce_count < min_bounces or landing_speed > 50.0):
 				# Bounce!
 				bounce_count += 1
+				print("=== BOUNCE DECISION ===")
+				print("Ball bouncing! Bounce count:", bounce_count, "/", max_bounces)
+				print("Min bounces required:", min_bounces)
+				print("Landing speed:", landing_speed)
+				print("=== END BOUNCE DECISION ===")
 				# Play ball landing sound on every bounce
 				if ball_land_sound and ball_land_sound.stream:
 					ball_land_sound.play()
@@ -587,6 +539,12 @@ func _process(delta):
 				velocity *= 0.98
 			else:
 				# Start rolling
+				print("=== ROLL DECISION ===")
+				print("Ball going straight to rolling!")
+				print("Bounce count:", bounce_count, "/", max_bounces)
+				print("Min bounces required:", min_bounces)
+				print("Landing speed:", landing_speed)
+				print("=== END ROLL DECISION ===")
 				vz = 0.0
 				is_rolling = true
 				roll_start_position = position  # Record where rolling started
@@ -627,9 +585,6 @@ func _process(delta):
 				var progressive_factor = base_progressive_factor * spin_scale_multiplier
 				var spin_force = perp * lerp_spin * 0.15 * progressive_factor * delta
 				velocity += spin_force
-			else:
-				print("Spin stopped: ball has deflected more than 90 degrees (", rad_to_deg(angle_to_original), " degrees)")
-		
 		# Check if ball has landed again
 		if z <= 0.0:
 			z = 0.0
@@ -870,7 +825,64 @@ func update_tile_friction() -> void:
 		current_tile_friction = 0.60  # Default friction
 		print("Unknown tile type:", tile_type, "at position:", tile_pos, "using default friction")
 
+func check_bounce_reduction() -> void:
+	"""Check if the ball should have its bounces reduced based on the tile it landed on"""
+	if bounce_reduction_applied or map_manager == null:
+		return
+		
+	# Calculate which tile the ball is currently on
+	var tile_pos = Vector2i(floor(position.x / cell_size), floor(position.y / cell_size))
+	
+	# Check if ball is out of bounds
+	if tile_pos.x < 0 or tile_pos.y < 0 or tile_pos.x >= map_manager.grid_width or tile_pos.y >= map_manager.grid_height:
+		return
+	
+	# Get the tile type at this position
+	var tile_type = map_manager.get_tile_type(tile_pos.x, tile_pos.y)
+	
+	# Check if this tile type reduces bounces
+	if bounce_reduction_values.has(tile_type):
+		var reduction = bounce_reduction_values[tile_type]
+		if reduction > 0:
+			# Apply bounce reduction
+			min_bounces = max(0, min_bounces - reduction)
+			max_bounces = max(0, max_bounces - reduction)
+			bounce_reduction_applied = true
+
 func _ready():
 	ball_land_sound = $BallLand
 	ball_stop_sound = $BallStop
 	# ... any other setup you need
+
+func update_y_sort() -> void:
+	"""Update the ball's z_index based on its position relative to Y-sorted objects"""
+	# Get the ball's grid position
+	var ball_global_pos = global_position
+	var ball_grid_pos = Vector2i(floor(ball_global_pos.x / cell_size), floor(ball_global_pos.y / cell_size))
+	
+	# Find the ball's sprite to update its z_index
+	var ball_sprite = $Sprite2D
+	if not ball_sprite:
+		return
+	
+	# Get the course script to access ysort_objects
+	var course_script = get_parent().get_parent()  # camera_container -> course_1
+	if not course_script or not course_script.has_method("update_ball_y_sort"):
+		return
+	
+	# Call the course script's Y-sort function
+	course_script.update_ball_y_sort(self)
+
+func get_ground_position() -> Vector2:
+	"""Return the ball's position on the ground (ignoring height) for Y-sorting"""
+	# The ball's position is already the ground position
+	# The height (z) is only used for visual effects (sprite.position.y = -z)
+	return global_position
+
+func get_velocity() -> Vector2:
+	"""Return the ball's current velocity for collision handling"""
+	return velocity
+
+func set_velocity(new_velocity: Vector2) -> void:
+	"""Set the ball's velocity for collision handling"""
+	velocity = new_velocity

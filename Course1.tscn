@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3 uid="uid://dlq5ygh2wv33m"]
+[gd_scene load_steps=11 format=3 uid="uid://dlq5ygh2wv33m"]
 
 [ext_resource type="Script" uid="uid://d4hrfk75nrm45" path="res://course_1.gd" id="1_pe8tc"]
 [ext_resource type="PackedScene" uid="uid://b63032ekv2fkj" path="res://CardStackDisplay.tscn" id="2_t0oq8"]
@@ -9,6 +9,7 @@
 [ext_resource type="AudioStream" uid="uid://btlp8x1wjnfoc" path="res://Sounds/SwingMed.mp3" id="7_3ubc7"]
 [ext_resource type="AudioStream" uid="uid://dp8fikarw3m2b" path="res://Sounds/SwingStrong.mp3" id="8_uda8g"]
 [ext_resource type="AudioStream" uid="uid://b6akh4wu4kriu" path="res://Sounds/WaterPlunk.mp3" id="9_3ubc7"]
+[ext_resource type="AudioStream" uid="uid://dwr2ykmge3ncb" path="res://Sounds/SandThunk.mp3" id="10_uda8g"]
 
 [node name="Course1" type="Control"]
 layout_mode = 3
@@ -155,3 +156,6 @@ stream = ExtResource("8_uda8g")
 [node name="WaterPlunk" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("9_3ubc7")
 volume_db = 4.223
+
+[node name="SandThunk" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("10_uda8g")

@@ -39,10 +39,6 @@ func end_movement_mode():
 	valid_movement_tiles.clear()
 
 func calculate_valid_movement_tiles():
-	print("=== PLAYER.GD CALCULATE_VALID_MOVEMENT_TILES DEBUG ===")
-	print("Player.gd grid_pos:", grid_pos)
-	print("movement_range:", movement_range)
-	print("base_mobility:", base_mobility)
 	
 	valid_movement_tiles.clear()
 	var total_range = movement_range + base_mobility
@@ -58,7 +54,6 @@ func calculate_valid_movement_tiles():
 						continue
 				valid_movement_tiles.append(pos)
 	
-	print("Player.gd valid_movement_tiles:", valid_movement_tiles)
 	print("=== END PLAYER.GD CALCULATE_VALID_MOVEMENT_TILES DEBUG ===")
 
 func calculate_grid_distance(a: Vector2i, b: Vector2i) -> int:
@@ -68,16 +63,9 @@ func can_move_to(pos: Vector2i) -> bool:
 	return is_movement_mode and pos in valid_movement_tiles
 
 func move_to_grid(pos: Vector2i):
-	print("=== PLAYER.GD MOVE_TO_GRID DEBUG ===")
-	print("move_to_grid called with pos:", pos)
-	print("is_movement_mode:", is_movement_mode)
-	print("pos in valid_movement_tiles:", pos in valid_movement_tiles)
-	print("can_move_to(pos):", can_move_to(pos))
 	
 	if can_move_to(pos):
-		print("Movement is valid - setting grid position")
 		set_grid_position(pos)
-		print("Grid position set, emitting moved_to_tile signal")
 		emit_signal("moved_to_tile", pos)
 		print("Signal emitted, ending movement mode")
 		end_movement_mode()

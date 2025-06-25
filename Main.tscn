@@ -2,7 +2,7 @@
 
 [ext_resource type="Texture2D" uid="uid://cntpxwpa61iaa" path="res://bobby.png" id="1_glv2v"]
 [ext_resource type="Script" uid="uid://ct4bebh7dhisi" path="res://Main.gd" id="1_r0du0"]
-[ext_resource type="Texture2D" uid="uid://ctp0drq17owtd" path="res://report45943284082943370519bf42584-4abe-49aa-92b6-3b791f932737_piclumen_contentRefer_100661_.png" id="2_3dxm6"]
+[ext_resource type="Texture2D" uid="uid://dyd3f17eqkoaw" path="res://Titlescreen.png" id="2_lgr22"]
 [ext_resource type="Texture2D" uid="uid://cwaaj26ms2r67" path="res://character2.png" id="3_fos0i"]
 [ext_resource type="Texture2D" uid="uid://ijg1v1gijysb" path="res://character3.png" id="4_3dxm6"]
 [ext_resource type="Texture2D" uid="uid://dkotgiaft0sh" path="res://Character1.png" id="6_3dxm6"]
@@ -19,10 +19,11 @@ script = ExtResource("1_r0du0")
 [node name="TextureRect" type="TextureRect" parent="."]
 texture_filter = 1
 layout_mode = 0
-offset_left = -99.0
-offset_right = 1117.0
-offset_bottom = 832.0
-texture = ExtResource("2_3dxm6")
+offset_left = -316.0
+offset_top = -226.0
+offset_right = 1220.0
+offset_bottom = 798.0
+texture = ExtResource("2_lgr22")
 
 [node name="Player" type="CharacterBody2D" parent="."]
 
