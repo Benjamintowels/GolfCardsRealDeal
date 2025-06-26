@@ -95,26 +95,21 @@ func _ready():
 	print("=== END GHOST BALL _READY ===")
 
 func _process(delta):
-	print("Ghost ball _process called - delta:", delta, "z:", z, "vz:", vz)  # Track z and vz values
-	
 	# Debug: Check if ball is near any trees
 	var ball_grid_x = int(floor(position.x / cell_size))
 	var ball_grid_y = int(floor(position.y / cell_size))
-	print("Ghost ball grid position:", ball_grid_x, ",", ball_grid_y)
 	
 	# Check if ball is in the area where trees should be
 	if ball_grid_x >= 16 and ball_grid_x <= 18 and ball_grid_y >= 10 and ball_grid_y <= 12:
 		print("*** GHOST BALL IN TREE AREA! Grid:", ball_grid_x, ",", ball_grid_y, "Position:", position, "Global:", global_position)
 	
 	if landed_flag:
-		print("Ghost ball landed, not processing")
 		return
 	
 	# Update launch timer
 	launch_timer += delta
 	if launch_timer >= launch_interval:
 		launch_timer = 0.0
-		print("Ghost ball timer triggered - launching")
 		launch_ghost_ball()
 	
 	# Update position
@@ -124,16 +119,6 @@ func _process(delta):
 	# Update Y-sorting based on new position
 	update_y_sort()
 	
-	# Debug: Show movement
-	if velocity.length() > 0:
-		print("Ghost ball physics - Old pos:", old_position, "New pos:", position, "Velocity:", velocity, "Delta:", delta)
-	else:
-		print("Ghost ball has zero velocity - Position:", position)
-	
-	# Debug: Show position every 0.5 seconds
-	if int(launch_timer * 2) % 2 == 0 and velocity.length() > 0:
-		print("Ghost ball moving - Position:", position, "Velocity:", velocity, "Z:", z, "VZ:", vz)
-	
 	# Update vertical physics (arc and bounce)
 	if z > 0.0:
 		# Ball is in the air
@@ -141,22 +126,17 @@ func _process(delta):
 		vz -= gravity * delta
 		is_rolling = false
 		
-		print("Ghost ball in air - Z:", z, "VZ:", vz, "Position:", position)
-		
 		# Check if ball has landed
 		if z <= 0.0:
 			z = 0.0
-			print("Ghost ball landed from air")
 			# Check for water hazard on any bounce
 			var tile_x = int(floor(position.x / cell_size))
 			var tile_y = int(floor(position.y / cell_size))
 			var tile_type = map_manager.get_tile_type(tile_x, tile_y) if map_manager else ""
-			print("Ghost ball landed on tile type:", tile_type, "at grid pos:", tile_x, ",", tile_y)
 			if tile_type == "W":
 				velocity = Vector2.ZERO
 				vz = 0.0
 				landed_flag = true
-				print("Ghost ball hit water, stopping")
 				ghost_ball_landed.emit(position)
 				# Reset and relaunch instead of destroying
 				launch_timer = launch_interval  # Trigger immediate relaunch
@@ -166,7 +146,6 @@ func _process(delta):
 				velocity = Vector2.ZERO
 				vz = 0.0
 				landed_flag = true
-				print("Ghost ball hit sand, stopping")
 				ghost_ball_landed.emit(position)
 				# Reset and relaunch instead of destroying
 				launch_timer = launch_interval  # Trigger immediate relaunch
@@ -180,7 +159,6 @@ func _process(delta):
 			if bounce_count < max_bounces and (bounce_count < min_bounces or landing_speed > 50.0):
 				# Bounce!
 				bounce_count += 1
-				print("Ghost ball bouncing - Bounce count:", bounce_count)
 				# Calculate bounce height based on bounce count
 				var bounce_height = 0.0
 				if bounce_count == 1:
@@ -191,12 +169,10 @@ func _process(delta):
 				vz = bounce_height
 				# Reduce horizontal velocity slightly on bounce
 				velocity *= 0.98
-				print("Ghost ball bounce - New vz:", vz, "New velocity:", velocity)
 			else:
 				# Start rolling
 				vz = 0.0
 				is_rolling = true
-				print("Ghost ball starting to roll")
 	
 	elif vz > 0.0:
 		# Ball is bouncing up from ground
@@ -239,12 +215,10 @@ func _process(delta):
 			var tile_x = int(floor(position.x / cell_size))
 			var tile_y = int(floor(position.y / cell_size))
 			var tile_type = map_manager.get_tile_type(tile_x, tile_y)
-			print("Ghost ball on ground - tile type:", tile_type, "at grid pos:", tile_x, ",", tile_y, "velocity:", velocity)
 			if tile_type == "W":
 				velocity = Vector2.ZERO
 				vz = 0.0
 				landed_flag = true
-				print("Ghost ball hit water on ground, stopping")
 				ghost_ball_landed.emit(position)
 				# Reset and relaunch instead of destroying
 				launch_timer = launch_interval  # Trigger immediate relaunch
@@ -254,7 +228,6 @@ func _process(delta):
 				velocity = Vector2.ZERO
 				vz = 0.0
 				landed_flag = true
-				print("Ghost ball hit sand on ground, stopping")
 				ghost_ball_landed.emit(position)
 				# Reset and relaunch instead of destroying
 				launch_timer = launch_interval  # Trigger immediate relaunch
@@ -268,7 +241,6 @@ func _process(delta):
 				velocity = Vector2.ZERO
 				vz = 0.0
 				landed_flag = true
-				print("Ghost ball out of bounds, stopping")
 				ghost_ball_landed.emit(position)
 				# Reset and relaunch instead of destroying
 				launch_timer = launch_interval  # Trigger immediate relaunch
@@ -295,7 +267,7 @@ func _process(delta):
 				# Reduce horizontal velocity slightly on bounce
 				velocity *= 0.98
 			else:
-				# Start rolling only after minimum bounces are complete
+				# Start rolling
 				vz = 0.0
 				is_rolling = true
 		
@@ -306,12 +278,10 @@ func _process(delta):
 			var tile_x_roll = int(floor(position.x / cell_size))
 			var tile_y_roll = int(floor(position.y / cell_size))
 			var tile_type_roll = map_manager.get_tile_type(tile_x_roll, tile_y_roll) if map_manager else ""
-			print("Ghost ball rolling - tile type:", tile_type_roll, "at grid pos:", tile_x_roll, ",", tile_y_roll, "velocity:", velocity)
 			if tile_type_roll == "W":
 				velocity = Vector2.ZERO
 				vz = 0.0
 				landed_flag = true
-				print("Ghost ball hit water while rolling, stopping")
 				ghost_ball_landed.emit(position)
 				# Reset and relaunch instead of destroying
 				launch_timer = launch_interval  # Trigger immediate relaunch
@@ -321,7 +291,6 @@ func _process(delta):
 				velocity = Vector2.ZERO
 				vz = 0.0
 				landed_flag = true
-				print("Ghost ball hit sand while rolling, stopping")
 				ghost_ball_landed.emit(position)
 				# Reset and relaunch instead of destroying
 				launch_timer = launch_interval  # Trigger immediate relaunch
@@ -336,7 +305,6 @@ func _process(delta):
 				velocity = Vector2.ZERO
 				vz = 0.0
 				landed_flag = true
-				print("Ghost ball stopped rolling due to low speed")
 				ghost_ball_landed.emit(position)
 				# Reset and relaunch instead of destroying
 				launch_timer = launch_interval  # Trigger immediate relaunch
@@ -502,25 +470,20 @@ func update_y_sort() -> void:
 	# Find the ball's sprite to update its z_index
 	var ball_sprite = $Sprite2D
 	if not ball_sprite:
-		print("Ghost ball update_y_sort: No sprite found")
 		return
 	
 	# Get the course script to access ysort_objects
 	var course_script = get_parent().get_parent()  # camera_container -> course_1
 	if not course_script or not course_script.has_method("update_ball_y_sort"):
-		print("Ghost ball update_y_sort: Course script not found or missing method")
 		return
 	
 	# Call the course script's Y-sort function
 	course_script.update_ball_y_sort(self)
 	
-	print("Ghost ball update_y_sort: Ball sprite z_index after:", ball_sprite.z_index)
-	
 	# Check shadow z_index too
 	var ball_shadow = $Shadow
 	if ball_shadow:
 		ball_shadow.z_index = ball_sprite.z_index - 1
-		print("Ghost ball update_y_sort: Shadow z_index:", ball_shadow.z_index)
 
 func get_ground_position() -> Vector2:
 	"""Return the ball's position on the ground (ignoring height) for Y-sorting"""

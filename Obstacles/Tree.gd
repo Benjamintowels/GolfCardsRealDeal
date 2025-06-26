@@ -262,19 +262,3 @@ func _process(delta):
 							ball.set_meta("last_leaves_rustle_time", current_time)
 						else:
 							print("✗ LeavesRustle sound not found!")
-	
-	# Debug: Check for nearby balls every few frames (existing debug code)
-	if Engine.get_process_frames() % 60 == 0:  # Every 60 frames (about 1 second)
-		var tree_grid_x = int(floor(global_position.x / 48.0))
-		var tree_grid_y = int(floor(global_position.y / 48.0))
-		print("Tree at grid position:", tree_grid_x, ",", tree_grid_y, "checking for nearby balls...")
-		
-		# Look for balls in the scene
-		var debug_balls = get_tree().get_nodes_in_group("balls")  # We'll need to add balls to a group
-		for ball in debug_balls:
-			var ball_grid_x = int(floor(ball.global_position.x / 48.0))
-			var ball_grid_y = int(floor(ball.global_position.y / 48.0))
-			var distance = global_position.distance_to(ball.global_position)
-			print("Found ball at grid:", ball_grid_x, ",", ball_grid_y, "distance:", distance)
-			if distance < 100:  # Within 100 pixels
-				print("*** BALL NEAR TREE! Distance:", distance)

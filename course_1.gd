@@ -1166,7 +1166,6 @@ func update_aiming_circle():
 		else:
 			# Penalty range - red circle
 			circle.color = Color(1, 0, 0, 0.8)  # Red
-		print("Circle color updated - distance:", clamped_distance, "min_distance:", min_distance, "color:", circle.color)
 	
 	# Make camera follow the red circle smoothly
 	var target_camera_pos = clamped_position
