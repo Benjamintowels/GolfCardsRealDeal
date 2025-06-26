@@ -42,7 +42,7 @@ func calculate_valid_movement_tiles():
 	
 	valid_movement_tiles.clear()
 	var total_range = movement_range + base_mobility
-	print("total_range:", total_range)
+	
 	
 	for y in grid_size.y:
 		for x in grid_size.x:
@@ -54,7 +54,7 @@ func calculate_valid_movement_tiles():
 						continue
 				valid_movement_tiles.append(pos)
 	
-	print("=== END PLAYER.GD CALCULATE_VALID_MOVEMENT_TILES DEBUG ===")
+	
 
 func calculate_grid_distance(a: Vector2i, b: Vector2i) -> int:
 	return abs(a.x - b.x) + abs(a.y - b.y)

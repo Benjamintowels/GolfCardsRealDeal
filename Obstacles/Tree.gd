@@ -1,6 +1,7 @@
 extends CharacterBody2D
 
 var blocks_movement := true  # Trees block by default; water might not
+var show_debug_line := true  # Toggle for debug line visibility
 
 func blocks(): 
 	return blocks_movement
@@ -8,47 +9,123 @@ func blocks():
 # Returns the Y-sorting reference point (base of trunk)
 func get_y_sort_point() -> float:
 	# The node's global_position.y is the base of the trunk due to the Y offset
-	return global_position.y
+	return global_position.y - 60.714  # Updated to align with TrunkBase
 
 func _ready():
 	# Connect to Area2D's area_entered signal for collision detection with Area2D balls
-	var area2d = get_node_or_null("Area2D")
-	if area2d:
-		area2d.connect("area_entered", _on_area_entered)
-		print("Tree _ready called - Area2D collision detection set up")
-		print("Tree Area2D found and ready for collision detection")
+	var trunk_base_area = get_node_or_null("TrunkBaseArea")
+	var leaves_area = get_node_or_null("Leaves")
+	
+	print("Tree _ready called at position:", global_position, "grid position:", global_position / 48.0)
+	
+	if trunk_base_area:
+		# Use area_entered for trunk collisions (since golf ball uses Area2D for all collisions)
+		trunk_base_area.connect("area_entered", _on_trunk_area_entered)
+		# Set collision layer to 1 so golf balls can detect it
+		trunk_base_area.collision_layer = 1
+		# Set collision mask to 1 so it can detect golf balls on layer 1
+		trunk_base_area.collision_mask = 1
+		print("TrunkBaseArea connected to area_entered signal")
+		print("TrunkBaseArea collision_layer:", trunk_base_area.collision_layer)
+		print("TrunkBaseArea collision_mask:", trunk_base_area.collision_mask)
+		# Test if Area2D is working by checking if it's monitoring
+		print("TrunkBaseArea monitoring:", trunk_base_area.monitoring)
+		print("TrunkBaseArea monitorable:", trunk_base_area.monitorable)
 	else:
-		print("ERROR: Tree Area2D not found!")
+		print("ERROR: TrunkBaseArea not found!")
+	
+	if leaves_area:
+		# No longer using Area2D for leaves collision - using distance-based detection instead
+		# Set collision layer to 1 so golf balls can detect it (for trunk collisions only)
+		leaves_area.collision_layer = 1
+		# Set collision mask to 1 so it can detect golf balls on layer 1 (for trunk collisions only)
+		leaves_area.collision_mask = 1
+		print("Leaves area collision layers set (for trunk collisions only)")
+		print("Leaves collision_layer:", leaves_area.collision_layer)
+		print("Leaves collision_mask:", leaves_area.collision_mask)
+		# Test if Area2D is working by checking if it's monitoring
+		print("Leaves monitoring:", leaves_area.monitoring)
+		print("Leaves monitorable:", leaves_area.monitorable)
+	else:
+		print("ERROR: Leaves area not found!")
+	
+	if trunk_base_area or leaves_area:
+		print("Tree Area2D nodes found and ready for collision detection")
+	else:
+		print("ERROR: Tree Area2D nodes not found!")
+	
+	# Set high z_index to ensure debug line is visible
+	z_index = 9999
+	# Force redraw to show the debug line after ready
+	call_deferred("queue_redraw")
+	
+	# Deferred call to double-check collision layers after scene is fully set up
+	call_deferred("_verify_collision_setup")
 
-func _on_area_entered(area: Area2D):
-	# Check if the colliding area belongs to a golf ball
-	# Area2D -> Sprite2D -> GolfBall/GhostBall
-	var ball = area.get_parent().get_parent()
-	print("Tree collision detected! Area entered:", area.name)
-	print("Ball node:", ball.name if ball else "No ball found")
+func _verify_collision_setup():
+	"""Verify that collision layers are set correctly after the scene is fully set up"""
+	var trunk_base_area = get_node_or_null("TrunkBaseArea")
+	var leaves_area = get_node_or_null("Leaves")
+	
+	print("=== Tree collision setup verification ===")
+	if trunk_base_area:
+		print("TrunkBaseArea final collision_layer:", trunk_base_area.collision_layer)
+		print("TrunkBaseArea final collision_mask:", trunk_base_area.collision_mask)
+		print("TrunkBaseArea final monitoring:", trunk_base_area.monitoring)
+		print("TrunkBaseArea final monitorable:", trunk_base_area.monitorable)
+		# Verify the collision setup is correct
+		if trunk_base_area.collision_layer == 1 and trunk_base_area.collision_mask == 1:
+			print("✓ TrunkBaseArea collision setup is correct")
+		else:
+			print("✗ TrunkBaseArea collision setup is incorrect!")
+	else:
+		print("ERROR: TrunkBaseArea not found during verification!")
+	
+	if leaves_area:
+		print("Leaves final collision_layer:", leaves_area.collision_layer)
+		print("Leaves final collision_mask:", leaves_area.collision_mask)
+		print("Leaves final monitoring:", leaves_area.monitoring)
+		print("Leaves final monitorable:", leaves_area.monitorable)
+		# Verify the collision setup is correct
+		if leaves_area.collision_layer == 1 and leaves_area.collision_mask == 1:
+			print("✓ Leaves collision setup is correct")
+		else:
+			print("✗ Leaves collision setup is incorrect!")
+	else:
+		print("ERROR: Leaves area not found during verification!")
+	print("=== End collision setup verification ===")
+
+func _on_trunk_area_entered(area: Area2D):
+	"""Handle collisions with the trunk base area (ground-level collision)"""
+	var ball = area.get_parent()
+	print("Tree trunk collision detected! Area:", area.name, "Parent:", ball.name if ball else "No parent")
+	
 	if ball and (ball.name == "GolfBall" or ball.name == "GhostBall"):
-		print("Valid ball collision detected!")
-		_handle_ball_collision(ball)
+		print("Trunk collision with ball:", ball.name)
+		# Handle the collision - always reflect for ground-level trunk collisions
+		_handle_trunk_collision(ball)
 	else:
-		print("Invalid ball collision - ball name:", ball.name if ball else "No ball")
+		print("Trunk collision with non-ball object:", ball.name if ball else "Unknown")
 
-func _handle_ball_collision(ball: Node2D):
-	# Get the ball's height
-	var ball_height = 0.0
-	if ball.has_method("get_height"):
-		ball_height = ball.get_height()
-	elif "z" in ball:
-		ball_height = ball.z
+func _handle_trunk_collision(ball: Node2D):
+	"""Handle trunk base collisions (ground-level) - always reflect"""
+	print("Handling trunk collision - ground-level collision, always reflecting")
 	
-	# Set tree height (same as in Y-sorting)
-	var tree_height = 100.0
+	# Play trunk thunk sound
+	var thunk = get_node_or_null("TrunkThunk")
+	if thunk:
+		thunk.play()
+		print("✓ TrunkThunk sound played")
+	else:
+		print("✗ TrunkThunk sound not found!")
 	
-	# Only reflect if ball is not higher than the tree
-	if ball_height < tree_height:
-		_reflect_ball(ball)
-		print("Tree collision: Ball reflected off tree trunk")
+	# For ground-level trunk collisions, we always reflect
+	# This is the ball's shadow hitting the trunk base
+	print("Ball shadow hit trunk - reflecting")
+	_reflect_ball_pinball(ball)
 
-func _reflect_ball(ball: Node2D):
+func _reflect_ball_pinball(ball: Node2D):
+	"""Special reflection for low-height collisions with trunk base - creates pinball effect"""
 	# Get the ball's current velocity
 	var ball_velocity = Vector2.ZERO
 	if ball.has_method("get_velocity"):
@@ -56,15 +133,127 @@ func _reflect_ball(ball: Node2D):
 	elif "velocity" in ball:
 		ball_velocity = ball.velocity
 	
-	# Calculate reflection direction
-	# For a simple reflection, we'll reverse the velocity
-	# In a more complex system, you might want to calculate the normal vector
-	var reflected_velocity = -ball_velocity * 0.95  # Reduce speed by only 5% to maintain more velocity
+	print("Reflecting ball with velocity:", ball_velocity)
+	
+	var ball_pos = ball.global_position
+	var tree_center = global_position
+	
+	# Calculate the direction from tree center to ball
+	var to_ball_direction = (ball_pos - tree_center).normalized()
+	
+	# Simple reflection: reflect the velocity across the tree center
+	# This creates a more predictable pinball effect
+	var reflected_velocity = ball_velocity - 2 * ball_velocity.dot(to_ball_direction) * to_ball_direction
+	
+	# Reduce speed slightly to prevent infinite bouncing
+	reflected_velocity *= 0.8
+	
+	# Add a small amount of randomness to prevent infinite loops
+	var random_angle = randf_range(-0.1, 0.1)
+	reflected_velocity = reflected_velocity.rotated(random_angle)
+	
+	print("Reflected velocity:", reflected_velocity)
 	
 	# Apply the reflected velocity to the ball
 	if ball.has_method("set_velocity"):
 		ball.set_velocity(reflected_velocity)
 	elif "velocity" in ball:
 		ball.velocity = reflected_velocity
+
+func set_transparent(is_transparent: bool):
+	var sprite = get_node_or_null("Sprite2D")
+	if sprite:
+		if is_transparent:
+			sprite.modulate.a = 0.4
+		else:
+			sprite.modulate.a = 1.0
+
+func _draw():
+	if not show_debug_line:
+		return
 	
-	print("Ball reflected with velocity:", reflected_velocity)
+	# Draw a horizontal red line at the Y-sorting cutoff (tree base)
+	var line_length = 150
+	var color = Color(1, 0, 0, 1)
+	var line_width = 3
+	
+	draw_line(Vector2(-line_length/2, 0), Vector2(line_length/2, 0), color, line_width)
+	var marker_length = 10
+	draw_line(Vector2(-line_length/2, -marker_length/2), Vector2(-line_length/2, marker_length/2), color, line_width)
+	draw_line(Vector2(line_length/2, -marker_length/2), Vector2(line_length/2, marker_length/2), color, line_width)
+
+	# Draw a cross at the origin (0,0) to visualize the node's origin
+	var cross_size = 12
+	var cross_color = Color(0, 1, 1, 1) # Cyan for visibility
+	draw_line(Vector2(-cross_size/2, 0), Vector2(cross_size/2, 0), cross_color, 2)
+	draw_line(Vector2(0, -cross_size/2), Vector2(0, cross_size/2), cross_color, 2)
+
+# Function to toggle debug line visibility
+func toggle_debug_line():
+	show_debug_line = !show_debug_line
+	queue_redraw()  # Force redraw
+	print("Tree debug line toggled: ", show_debug_line)
+
+# Function to set debug line visibility
+func set_debug_line_visible(visible: bool):
+	show_debug_line = visible
+	queue_redraw()  # Force redraw
+	print("Tree debug line visibility set to: ", visible)
+
+func _process(delta):
+	# Check for nearby balls and play leaves rustling sound
+	var balls = get_tree().get_nodes_in_group("balls")
+	for ball in balls:
+		if ball and (ball.name == "GolfBall" or ball.name == "GhostBall"):
+			# Get the ball's ground position (shadow position)
+			var ball_ground_pos = ball.global_position
+			if ball.has_method("get_ground_position"):
+				ball_ground_pos = ball.get_ground_position()
+			
+			# Check if ball's shadow is near the tree trunk
+			var tree_center = global_position
+			var distance_to_trunk = ball_ground_pos.distance_to(tree_center)
+			var trunk_radius = 120.0  # Increased from 60.0 to 120.0 for more forgiveness
+			
+			# Only check if ball is within the trunk radius
+			if distance_to_trunk <= trunk_radius:
+				# Get ball height
+				var ball_height = 0.0
+				if ball.has_method("get_height"):
+					ball_height = ball.get_height()
+				elif "z" in ball:
+					ball_height = ball.z
+				
+				var tree_height = 100.0
+				var min_leaves_height = 60.0  # Increased from 40.0 to 60.0 - slightly higher requirement
+				
+				# Check if ball is at the right height to pass through leaves
+				if ball_height > min_leaves_height and ball_height < tree_height:
+					# Check if we haven't played the sound recently for this ball
+					var ball_id = ball.get_instance_id()
+					var current_time = Time.get_ticks_msec() / 1000.0  # Convert to seconds
+					if not ball.has_meta("last_leaves_rustle_time") or ball.get_meta("last_leaves_rustle_time") + 0.5 < current_time:
+						var rustle = get_node_or_null("LeavesRustle")
+						if rustle:
+							rustle.play()
+							print("✓ LeavesRustle sound played - ball passing through leaves near trunk")
+							# Mark when we last played the sound for this ball
+							ball.set_meta("last_leaves_rustle_time", current_time)
+						else:
+							print("✗ LeavesRustle sound not found!")
+	
+	# Debug: Check for nearby balls every few frames (existing debug code)
+	if Engine.get_process_frames() % 60 == 0:  # Every 60 frames (about 1 second)
+		var tree_grid_x = int(floor(global_position.x / 48.0))
+		var tree_grid_y = int(floor(global_position.y / 48.0))
+		print("Tree at grid position:", tree_grid_x, ",", tree_grid_y, "checking for nearby balls...")
+		
+		# Look for balls in the scene
+		var debug_balls = get_tree().get_nodes_in_group("balls")  # We'll need to add balls to a group
+		for ball in debug_balls:
+			var ball_grid_x = int(floor(ball.global_position.x / 48.0))
+			var ball_grid_y = int(floor(ball.global_position.y / 48.0))
+			var distance = global_position.distance_to(ball.global_position)
+			print("Found ball at grid:", ball_grid_x, ",", ball_grid_y, "distance:", distance)
+			if distance < 100:  # Within 100 pixels
+				print("*** BALL NEAR TREE! Distance:", distance)

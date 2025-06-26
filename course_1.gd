@@ -1349,6 +1349,14 @@ func launch_golf_ball(direction: Vector2, charged_power: float, height: float):
 		golf_ball.queue_free()
 	golf_ball = preload("res://GolfBall.tscn").instantiate()
 	
+	# Ensure collision properties are set correctly
+	var ball_area = golf_ball.get_node_or_null("Area2D")
+	if ball_area:
+		ball_area.collision_layer = 1
+		ball_area.collision_mask = 1  # Collide with layer 1 (trees)
+	
+	# Note: Using Area2D for all collision detection
+	
 	# Calculate ball position relative to camera container
 	var ball_setup_player_sprite = player_node.get_node_or_null("Sprite2D")
 	var ball_setup_player_size = ball_setup_player_sprite.texture.get_size() * ball_setup_player_sprite.scale if ball_setup_player_sprite and ball_setup_player_sprite.texture else Vector2(cell_size, cell_size)
@@ -1365,6 +1373,7 @@ func launch_golf_ball(direction: Vector2, charged_power: float, height: float):
 	
 	# Don't set z_index here - let individual sprites control their own layering
 	camera_container.add_child(golf_ball)  # Add to camera container instead of main scene
+	golf_ball.add_to_group("balls")  # Add to group for collision detection
 	print("Golf ball added to scene at position:", golf_ball.position)
 	print("Golf ball node z_index:", golf_ball.z_index)
 	print("Golf ball visible:", golf_ball.visible)
@@ -2419,6 +2428,18 @@ func restore_game_state():
 			# Create new ball
 			golf_ball = preload("res://GolfBall.tscn").instantiate()
 			
+			# Ensure collision properties are set correctly
+			var ball_area = golf_ball.get_node_or_null("Area2D")
+			if ball_area:
+				ball_area.collision_layer = 1
+				ball_area.collision_mask = 1  # Collide with layer 1 (trees)
+			
+			# Note: CharacterBody2D collision layers removed - using Area2D for all collision detection
+			
+			# Set collision layers for the CharacterBody2D (for trunk collisions)
+			golf_ball.collision_layer = 1
+			golf_ball.collision_mask = 1  # Collide with layer 1 (trees)
+			
 			# Set ball position in camera container coordinates
 			var ball_local_position = Global.saved_ball_position - camera_container.global_position
 			golf_ball.position = ball_local_position
@@ -2427,6 +2448,7 @@ func restore_game_state():
 			golf_ball.cell_size = cell_size
 			golf_ball.map_manager = map_manager
 			camera_container.add_child(golf_ball)
+			golf_ball.add_to_group("balls")  # Add to group for collision detection
 			
 			print("Golf ball restored at position:", golf_ball.global_position)
 		else:
@@ -2550,16 +2572,14 @@ func build_map_from_layout(layout: Array) -> void:
 				else:
 					push_warning("⚠️ Object missing 'grid_position'. Type: %s" % object.get_class())
 				# Track for Y-sorting
-				print("=== ADDING OBJECT TO Y-SORT ===")
-				print("Object code:", code, "at position:", pos)
-				print("Object z_index:", object.z_index)
-				print("Object position:", object.position)
-				if code == "T":  # Tree
-					print("Tree instantiated - script:", object.get_script().get_path() if object.get_script() else "No script")
 				ysort_objects.append({"node": object, "grid_pos": pos})
-				print("Total ysort_objects:", ysort_objects.size())
-				print("=== END ADDING OBJECT TO Y-SORT ===")
 				obstacle_layer.add_child(object)
+				# Debug: Print tree positions
+				if code == "T":
+					print("Tree created at grid position:", pos, "world position:", object.position, "global position:", object.global_position)
+					# Check if this tree should be near the ball's path
+					if pos.x >= 16 and pos.x <= 18 and pos.y >= 10 and pos.y <= 12:
+						print("*** TREE IN BALL PATH! Grid:", pos, "World:", object.position, "Global:", object.global_position)
 				# Note: We don't overwrite obstacle_map[pos] since the tile is already there
 				# Objects are separate from the tile system for movement/collision
 			elif not tile_scene_map.has(code):
@@ -2578,14 +2598,17 @@ var ghost_ball_active: bool = false
 
 func create_ghost_ball() -> void:
 	"""Create a ghost ball for aiming preview"""
-	print("=== CREATING GHOST BALL ===")
 	
 	if ghost_ball and is_instance_valid(ghost_ball):
-		print("Removing existing ghost ball")
 		ghost_ball.queue_free()
 	
-	print("Instantiating GhostBall.tscn")
 	ghost_ball = preload("res://GhostBall.tscn").instantiate()
+	
+	# Ensure collision properties are set correctly
+	var ghost_ball_area = ghost_ball.get_node_or_null("Area2D")
+	if ghost_ball_area:
+		ghost_ball_area.collision_layer = 1
+		ghost_ball_area.collision_mask = 1  # Collide with layer 1 (trees)
 	
 	# Position the ghost ball at the player's position
 	var sprite = player_node.get_node_or_null("Sprite2D")
@@ -2596,10 +2619,6 @@ func create_ghost_ball() -> void:
 	var ball_local_position = player_center - camera_container.global_position
 	ghost_ball.position = ball_local_position
 	
-	print("Ghost ball positioned at:", ball_local_position)
-	print("Player center:", player_center)
-	print("Camera container global position:", camera_container.global_position)
-	
 	# Set up the ghost ball
 	ghost_ball.cell_size = cell_size
 	ghost_ball.map_manager = map_manager
@@ -2607,12 +2626,10 @@ func create_ghost_ball() -> void:
 	# Set the club information for power calculations
 	if selected_club in club_data:
 		ghost_ball.set_club_info(club_data[selected_club])
-		print("Club info set:", selected_club)
-	else:
-		print("No club selected, using default club info")
 	
 	# Add to camera container
 	camera_container.add_child(ghost_ball)
+	ghost_ball.add_to_group("balls")  # Add to group for collision detection
 	ghost_ball_active = true
 	
 	# Update Y-sorting for the ghost ball
@@ -2621,15 +2638,6 @@ func create_ghost_ball() -> void:
 	# Set initial landing spot if we have one
 	if chosen_landing_spot != Vector2.ZERO:
 		ghost_ball.set_landing_spot(chosen_landing_spot)
-		print("Initial landing spot set:", chosen_landing_spot)
-	else:
-		print("No initial landing spot set")
-	
-	print("Ghost ball created successfully")
-	print("Ghost ball visible:", ghost_ball.visible)
-	print("Ghost ball position:", ghost_ball.position)
-	print("Ghost ball global position:", ghost_ball.global_position)
-	print("=== END CREATING GHOST BALL ===")
 
 func update_ghost_ball() -> void:
 	"""Update the ghost ball's landing spot and launch it"""
@@ -2641,8 +2649,6 @@ func update_ghost_ball() -> void:
 	
 	# Don't reset the ball - let it continue its trajectory
 	# The ghost ball will automatically relaunch every 2 seconds
-	
-	print("Ghost ball updated with landing spot:", chosen_landing_spot)
 
 func remove_ghost_ball() -> void:
 	"""Remove the ghost ball from the scene"""
@@ -2650,10 +2656,8 @@ func remove_ghost_ball() -> void:
 		ghost_ball.queue_free()
 		ghost_ball = null
 	ghost_ball_active = false
-	print("Ghost ball removed")
 
 func update_ball_y_sort(ball_node: Node2D) -> void:
-	print("=== UPDATE_BALL_Y_SORT CALLED ===")
 	if not ball_node or not is_instance_valid(ball_node):
 		return
 
@@ -2701,23 +2705,16 @@ func update_ball_y_sort(ball_node: Node2D) -> void:
 		if ball_height >= tree_height:
 			# Ball is above tree height - always in front
 			ball_sprite.z_index = 10
-			print("Ball height (", ball_height, ") >= tree height (", tree_height, ") - z_index:", ball_sprite.z_index, "(above tree)")
 		else:
 			# Ball is below tree height - use Y position for sorting
 			var tree_threshold = closest_tree_y + 50  # 50 pixels higher threshold
 			if ball_ground_pos.y < tree_threshold:
 				ball_sprite.z_index = 1  # Much lower z_index to be clearly behind tree
-				print("Ball ground Y (", ball_ground_pos.y, ") < tree threshold (", tree_threshold, ") - z_index:", ball_sprite.z_index, "(behind tree)")
 			else:
 				ball_sprite.z_index = 10  # Much higher z_index to be clearly in front of tree
-				print("Ball ground Y (", ball_ground_pos.y, ") >= tree threshold (", tree_threshold, ") - z_index:", ball_sprite.z_index, "(in front of tree)")
-		
-		# Debug print for values
-		print("[DEBUG] Ball ground Y:", ball_ground_pos.y, "Ball height:", ball_height, "Tree base Y:", closest_tree_y, "Tree height:", tree_height, "Tree z_index:", closest_tree_z, "Ball z_index:", ball_sprite.z_index)
 	else:
 		# No tree found, use default
 		ball_sprite.z_index = 10  # Default to in front
-		print("Ball sprite z_index set to default:", ball_sprite.z_index)
 
 	# Shadow follows ball sprite z_index
 	var ball_shadow = ball_node.get_node_or_null("Shadow")
@@ -2725,6 +2722,3 @@ func update_ball_y_sort(ball_node: Node2D) -> void:
 		ball_shadow.z_index = ball_sprite.z_index - 1
 		if ball_shadow.z_index <= -5:
 			ball_shadow.z_index = 1
-		print("Ball shadow z_index set to:", ball_shadow.z_index)
-
-	print("=== END BALL Y-SORT DEBUG ===")

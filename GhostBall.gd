@@ -49,6 +49,18 @@ func _ready():
 	sprite = $Sprite2D
 	shadow = $Shadow
 	
+	# Debug collision setup
+	var area2d = get_node_or_null("Area2D")
+	if area2d:
+		print("GhostBall _ready - Area2D found, collision_layer:", area2d.collision_layer, "collision_mask:", area2d.collision_mask)
+		print("GhostBall Area2D monitoring:", area2d.monitoring, "monitorable:", area2d.monitorable)
+		# Connect to area_entered signal for debugging
+		area2d.connect("area_entered", _on_area_entered)
+		area2d.connect("area_exited", _on_area_exited)
+	else:
+		print("GhostBall _ready - ERROR: Area2D not found!")
+	
+	print("GhostBall _ready called at position:", position)
 	
 	# Make the ball transparent
 	if sprite:
@@ -84,6 +96,15 @@ func _ready():
 
 func _process(delta):
 	print("Ghost ball _process called - delta:", delta, "z:", z, "vz:", vz)  # Track z and vz values
+	
+	# Debug: Check if ball is near any trees
+	var ball_grid_x = int(floor(position.x / cell_size))
+	var ball_grid_y = int(floor(position.y / cell_size))
+	print("Ghost ball grid position:", ball_grid_x, ",", ball_grid_y)
+	
+	# Check if ball is in the area where trees should be
+	if ball_grid_x >= 16 and ball_grid_x <= 18 and ball_grid_y >= 10 and ball_grid_y <= 12:
+		print("*** GHOST BALL IN TREE AREA! Grid:", ball_grid_x, ",", ball_grid_y, "Position:", position, "Global:", global_position)
 	
 	if landed_flag:
 		print("Ghost ball landed, not processing")
@@ -330,7 +351,11 @@ func _process(delta):
 	
 	# Update trail
 	if trail and velocity.length() > 0:
-		trail.add_point(position)
+		# Use the ball's global position for the trail (which includes height offset)
+		var ball_global_pos = global_position
+		# Convert global position to trail's local coordinates
+		var trail_local_pos = trail.to_local(ball_global_pos)
+		trail.add_point(trail_local_pos)
 		# Keep only last 20 points to prevent trail from getting too long
 		if trail.get_point_count() > 20:
 			trail.remove_point(0)
@@ -355,11 +380,11 @@ func launch_ghost_ball():
 	var direction: Vector2
 	if chosen_landing_spot != Vector2.ZERO:
 		direction = (chosen_landing_spot - global_position).normalized()
-		print("Using landing spot direction:", direction)
+	
 	else:
 		# Default direction (forward) if no landing spot set
 		direction = Vector2(1, 0)  # Launch to the right
-		print("Using default direction:", direction)
+	
 	
 	# Calculate power using the EXACT same logic as the real ball
 	var power = 0.0
@@ -384,10 +409,6 @@ func launch_ghost_ball():
 		var height_percentage = 0.5  # 50% height (sweet spot)
 		height = 400.0 + (2000.0 - 400.0) * height_percentage  # Same range as real ball: 400-2000
 		
-		print("Ghost ball targeting - Distance to target:", distance_to_target)
-		print("Power needed for target:", power_needed_for_target)
-		print("Final power:", power)
-		print("Height:", height)
 	else:
 		# Default values if no landing spot
 		var max_power = club_info.get("max_distance", 1200.0)
@@ -399,9 +420,6 @@ func launch_ghost_ball():
 	vz = height
 	z = 0.1  # Start slightly above ground to ensure it's in the air
 	
-	print("Ghost ball launched - Power:", power, "Height:", height, "Direction:", direction)
-	print("Initial velocity:", velocity, "Initial vz:", vz, "Initial z:", z)
-	print("=== END LAUNCHING GHOST BALL ===")
 
 func update_visual_effects():
 	if not sprite:
@@ -487,11 +505,6 @@ func update_y_sort() -> void:
 		print("Ghost ball update_y_sort: No sprite found")
 		return
 	
-	print("Ghost ball update_y_sort: Ball local position:", position)
-	print("Ghost ball update_y_sort: Ball global position:", ball_global_pos)
-	print("Ghost ball update_y_sort: Ball sprite z_index before:", ball_sprite.z_index)
-	print("Ghost ball update_y_sort: Ball sprite global position:", ball_sprite.global_position)
-	
 	# Get the course script to access ysort_objects
 	var course_script = get_parent().get_parent()  # camera_container -> course_1
 	if not course_script or not course_script.has_method("update_ball_y_sort"):
@@ -521,4 +534,14 @@ func get_velocity() -> Vector2:
 
 func set_velocity(new_velocity: Vector2) -> void:
 	"""Set the ball's velocity for collision handling"""
-	velocity = new_velocity 
+	velocity = new_velocity
+
+func get_height() -> float:
+	"""Return the ball's current height for collision handling"""
+	return z 
+
+func _on_area_entered(area):
+	print("Ghost ball collision detected with area:", area)
+
+func _on_area_exited(area):
+	print("Ghost ball collision exited with area:", area) 

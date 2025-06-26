@@ -119,14 +119,6 @@ func calculate_overcharge_penalty(power_percentage: float) -> float:
 	var max_penalty_distance = club_info.get("max_distance", 1200.0) * 0.05  # Reduced from 0.25 to 0.05 (5% of max distance)
 	var penalty_distance = (penalty_percentage / 25.0) * max_penalty_distance
 	
-	print("=== OVERCHARGE CALCULATION ===")
-	print("Power percentage:", power_percentage)
-	print("Overcharge amount:", overcharge_amount, "%")
-	print("Penalty percentage:", penalty_percentage, "%")
-	print("Max penalty distance:", max_penalty_distance)
-	print("Final penalty distance:", penalty_distance)
-	print("=== END OVERCHARGE CALCULATION ===")
-	
 	return penalty_distance
 
 # Function to calculate undercharge penalty for penalty shots
@@ -205,22 +197,9 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 		if power_in_sweet_spot:
 			is_sweet_spot_shot = true
 		
-		print("=== SWEET SPOT CHECK ===")
-		print("Height percentage:", height_percentage, "(sweet spot range:", HEIGHT_SWEET_SPOT_MIN, "to", HEIGHT_SWEET_SPOT_MAX, ")")
-		print("Height in sweet spot:", height_percentage >= HEIGHT_SWEET_SPOT_MIN and height_percentage <= HEIGHT_SWEET_SPOT_MAX)
-		if time_percentage >= 0.0:
-			print("Time percentage:", time_percentage, "(sweet spot range: 0.65 to 0.75)")
-		else:
-			print("Original power percentage:", original_power_percentage, "(sweet spot range: 0.65 to 0.75)")
-		print("Power in sweet spot:", power_in_sweet_spot)
-		print("Is sweet spot shot (power only):", is_sweet_spot_shot)
-		print("Power scale factor:", power_scale_factor, "Adjusted scaled max power:", adjusted_scaled_max_power)
-		
 		# Use red circle targeting for ALL shots when a landing spot is chosen (not just sweet spot shots)
-		print("=== LANDING SPOT TARGETING ===")
 		# Calculate the direction to the landing spot using global positions
 		var direction_to_target = (chosen_landing_spot - ball_global_pos).normalized()
-		print("Direction to target:", direction_to_target)
 		
 		# Use the direction to the target instead of the mouse direction
 		direction = direction_to_target
@@ -228,12 +207,6 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 		# Determine if this is a penalty shot (red circle below min distance)
 		var min_distance = club_info.get("min_distance", 300.0)
 		is_penalty_shot = distance_to_target < min_distance
-		
-		print("=== SHOT TYPE DETERMINATION ===")
-		print("Target distance:", distance_to_target)
-		print("Min distance:", min_distance)
-		print("Is penalty shot:", is_penalty_shot)
-		print("=== END SHOT TYPE DETERMINATION ===")
 		
 		# Calculate the final landing distance based on shot type and charge
 		var final_landing_distance = distance_to_target
@@ -850,9 +823,25 @@ func check_bounce_reduction() -> void:
 			bounce_reduction_applied = true
 
 func _ready():
-	ball_land_sound = $BallLand
-	ball_stop_sound = $BallStop
-	# ... any other setup you need
+	# Get references to audio players
+	ball_land_sound = get_node_or_null("BallLand")
+	ball_stop_sound = get_node_or_null("BallStop")
+	
+	# Get references to sprite and shadow
+	sprite = get_node_or_null("Sprite2D")
+	shadow = get_node_or_null("Shadow")
+	
+	# Debug collision setup
+	var area2d = get_node_or_null("Area2D")
+	if area2d:
+		print("GolfBall _ready - Area2D found, collision_layer:", area2d.collision_layer, "collision_mask:", area2d.collision_mask)
+		# Connect to area_entered signal for debugging
+		area2d.connect("area_entered", _on_area_entered)
+		area2d.connect("area_exited", _on_area_exited)
+	else:
+		print("GolfBall _ready - ERROR: Area2D not found!")
+	
+	print("GolfBall _ready called at position:", global_position)
 
 func update_y_sort() -> void:
 	"""Update the ball's z_index based on its position relative to Y-sorted objects"""
@@ -886,3 +875,13 @@ func get_velocity() -> Vector2:
 func set_velocity(new_velocity: Vector2) -> void:
 	"""Set the ball's velocity for collision handling"""
 	velocity = new_velocity
+
+func get_height() -> float:
+	"""Return the ball's current height for collision handling"""
+	return z
+
+func _on_area_entered(area):
+	print("GolfBall _on_area_entered - Area entered:", area)
+
+func _on_area_exited(area):
+	print("GolfBall _on_area_exited - Area exited:", area)

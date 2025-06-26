@@ -16,7 +16,8 @@ modulate = Color(0, 0, 0, 0.3)
 [node name="Sprite2D" type="Sprite2D" parent="."]
 texture = ExtResource("2_ball")
 
-[node name="Area2D" type="Area2D" parent="Sprite2D"]
+[node name="Area2D" type="Area2D" parent="."]
+collision_layer = 1
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Sprite2D/Area2D"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D"]
 shape = SubResource("CircleShape2D_ghost") 
