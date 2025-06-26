@@ -23,9 +23,37 @@ func setup(grid_size_: Vector2i, cell_size_: int, base_mobility_: int, obstacle_
 	base_mobility = base_mobility_
 	obstacle_map = obstacle_map_
 
-func set_grid_position(pos: Vector2i):
+func set_grid_position(pos: Vector2i, ysort_objects: Array = []):
 	grid_pos = pos
 	self.position = Vector2(pos.x, pos.y) * cell_size + Vector2(cell_size / 2, cell_size / 2)
+	if ysort_objects.size() > 0:
+		update_z_index_for_ysort(ysort_objects)
+
+func update_z_index_for_ysort(ysort_objects: Array) -> void:
+	var in_front_zs = []
+	var behind_zs = []
+	print("Player grid_pos.y:", grid_pos.y)
+	for obj in ysort_objects:
+		if not obj.has("grid_pos") or not obj.has("node"):
+			continue
+		var obj_grid_pos = obj["grid_pos"]
+		var obj_node = obj["node"]
+		if abs(obj_grid_pos.x - grid_pos.x) > 1:
+			continue  # Only consider objects in the same or adjacent columns
+		print("Object grid_pos.y:", obj_grid_pos.y, "Object z_index:", obj_node.z_index)
+		if grid_pos.y > obj_grid_pos.y:
+			# Player is at least one row below: in front
+			in_front_zs.append(obj_node.z_index)
+		else:
+			# Player is on the same row or above: behind
+			behind_zs.append(obj_node.z_index)
+	if in_front_zs.size() > 0:
+		z_index = in_front_zs.max() + 100
+	elif behind_zs.size() > 0:
+		z_index = 0  # Always behind when above the object row
+	else:
+		z_index = 0
+	print("Player z_index after update:", z_index)
 
 func start_movement_mode(card, movement_range_: int):
 	selected_card = card

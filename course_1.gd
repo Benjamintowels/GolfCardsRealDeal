@@ -664,11 +664,11 @@ func update_player_position() -> void:
 	# Get the Sprite2D node and its size
 	var sprite = player_node.get_node_or_null("Sprite2D")
 	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
-	
+
 	player_node.position = Vector2(player_grid_pos.x, player_grid_pos.y) * cell_size + Vector2(2, 2)
-	
+
 	# Update the player's grid position in the Player.gd script
-	player_node.set_grid_position(player_grid_pos)
+	player_node.set_grid_position(player_grid_pos, ysort_objects)
 	
 	# --- Y-SORT LOGIC FIXED FOR TREE OFFSETS ---
 	# (debug prints removed)
@@ -2498,6 +2498,9 @@ func build_map_from_layout(layout: Array) -> void:
 				# Track for Y-sorting
 				ysort_objects.append({"node": object, "grid_pos": pos})
 				obstacle_layer.add_child(object)
+				# If this object blocks movement, add it to obstacle_map
+				if object.has_method("blocks") and object.blocks():
+					obstacle_map[pos] = object
 				# Debug: Print tree positions
 				if code == "T":
 					print("Tree created at grid position:", pos, "world position:", object.position, "global position:", object.global_position)
