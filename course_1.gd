@@ -379,12 +379,10 @@ func _ready() -> void:
 
 	# Check if returning from shop FIRST
 	if Global.saved_game_state == "shop_entrance":
-		print("Returning from shop - restoring game state")
 		restore_game_state()
 		return  # Skip tee selection/setup when returning from shop
 
 	# Only do tee selection if NOT returning from shop
-	print("Starting new game - tee selection mode")
 	# Start in tee selection mode
 	is_placing_player = true
 	highlight_tee_tiles()
@@ -472,7 +470,7 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed:
 		var mouse_pos = get_global_mouse_position()
 		var node = get_viewport().gui_get_hovered_control()
-		print("Clicked at:", mouse_pos, "→ Node:", node)
+		# (print removed)
 
 	# Start or stop panning
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_MIDDLE:
@@ -647,29 +645,21 @@ func create_player() -> void:
 	player_node.visible = false
 
 func _on_player_input(event: InputEvent) -> void:
-	print("Player input received:", event)
+	# (print removed)
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		print("Player clicked! Current game phase:", game_phase)
-		
 		# If we're in move phase (after ball lands), start aiming phase
 		if game_phase == "move":
-			print("Starting aiming phase from move phase")
 			enter_aiming_phase()  # Start aiming phase instead of just drawing cards
-		# If we're in launch phase (first shot or ready to take shot), check if we have cards
 		elif game_phase == "launch":
 			if deck_manager.hand.size() == 0:
-				print("No cards in hand - drawing cards for shot")
 				draw_cards_for_next_shot()  # Draw cards for shot
 			else:
-				print("Already have cards in launch phase - ready to take shot")
-				# Do nothing - player should click on cards to take shot
+				pass # Already have cards in launch phase - ready to take shot
 		else:
-			print("Player clicked but game phase is:", game_phase, "- not in move or launch phase")
+			pass # Player clicked but not in move or launch phase
 
 func update_player_position() -> void:
-	print("=== UPDATE_PLAYER_POSITION CALLED ===")
 	if not player_node:
-		print("Warning: player_node is null in update_player_position()")
 		return
 	# Get the Sprite2D node and its size
 	var sprite = player_node.get_node_or_null("Sprite2D")
@@ -681,55 +671,7 @@ func update_player_position() -> void:
 	player_node.set_grid_position(player_grid_pos)
 	
 	# --- Y-SORT LOGIC FIXED FOR TREE OFFSETS ---
-	print("=== PLAYER Y-SORT DEBUG ===")
-	print("Player grid position:", player_grid_pos)
-	print("Player global position:", player_node.global_position)
-	print("Number of ysort_objects:", ysort_objects.size())
-	
-	var max_object_z = null
-	var min_object_z = null
-	for obj in ysort_objects:
-		print("Checking object - z_index:", obj["node"].z_index, "grid_pos:", obj["grid_pos"])
-		if obj["node"].z_index == 3:  # Only consider trees
-			var tree_node = obj["node"]
-			var tree_y_sort_point = tree_node.global_position.y
-			if tree_node.has_method("get_y_sort_point"):
-				tree_y_sort_point = tree_node.get_y_sort_point()
-			print("Tree found - grid_pos:", obj["grid_pos"], "y_sort_point:", tree_y_sort_point)
-			var player_world_y = player_node.global_position.y
-			if player_world_y < tree_y_sort_point:
-				print("Player world Y (", player_world_y, ") < tree_y_sort_point (", tree_y_sort_point, ") - player should be BEHIND tree (visually above)")
-				if max_object_z == null or tree_node.z_index > max_object_z:
-					max_object_z = tree_node.z_index
-					print("Updated max_object_z to:", max_object_z)
-			else:
-				print("Player world Y (", player_world_y, ") >= tree_y_sort_point (", tree_y_sort_point, ") - player should be IN FRONT of tree (visually below)")
-				if min_object_z == null or tree_node.z_index < min_object_z:
-					min_object_z = tree_node.z_index
-					print("Updated min_object_z to:", min_object_z)
-		else:
-			# For non-tree objects, use the original logic
-			print("Non-tree object - z_index:", obj["node"].z_index, "grid_pos:", obj["grid_pos"])
-			if player_grid_pos.y >= obj["grid_pos"].y:
-				if max_object_z == null or obj["node"].z_index > max_object_z:
-					max_object_z = obj["node"].z_index
-			else:
-				if min_object_z == null or obj["node"].z_index < min_object_z:
-					min_object_z = obj["node"].z_index
-	
-	print("Final max_object_z:", max_object_z, "min_object_z:", min_object_z)
-	
-	if max_object_z != null:
-		player_node.z_index = max_object_z + 1
-		print("Player z_index set to:", player_node.z_index, "(behind object)")
-	elif min_object_z != null:
-		player_node.z_index = min_object_z - 1
-		print("Player z_index set to:", player_node.z_index, "(in front of object)")
-	else:
-		player_node.z_index = 1 # Default
-		print("Player z_index set to default:", player_node.z_index)
-	
-	print("=== END PLAYER Y-SORT DEBUG ===")
+	# (debug prints removed)
 	# --- END Y-SORT LOGIC FIXED ---
 	var player_center: Vector2 = player_node.global_position + player_size / 2
 	camera_snap_back_pos = player_center
@@ -793,8 +735,6 @@ func _on_movement_card_pressed(card: CardData, button: TextureButton) -> void:
 	
 	# Get the valid tiles from the player node
 	valid_movement_tiles = player_node.valid_movement_tiles.duplicate()
-	print("Using Player.gd valid tiles:", valid_movement_tiles)
-	
 	show_movement_highlights()
 
 func calculate_valid_movement_tiles() -> void:
@@ -856,15 +796,12 @@ func _on_tile_input(event: InputEvent, x: int, y: int) -> void:
 				var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
 				var player_center = player_node.global_position + player_size / 2
 				camera_snap_back_pos = player_center
-				
 				# Play SandThunk sound when player is placed on tee
 				if sand_thunk_sound and sand_thunk_sound.stream:
 					sand_thunk_sound.play()
-				
-				print("Player placed at Tee. Round begins.")
 				start_round_after_tee_selection()
 			else:
-				print("Please select a Tee Box to start your round.")
+				pass # Please select a Tee Box to start your round.
 		else:
 			# Use player_node to move
 			print("=== MOVEMENT DEBUG ===")
@@ -1247,11 +1184,7 @@ func update_aiming_circle():
 		distance_label.text = str(int(clamped_distance)) + "px"
 
 func launch_golf_ball(direction: Vector2, charged_power: float, height: float):
-	print("LAUNCH_GOLF_BALL FUNCTION CALLED!")
-	print("Launching ball!")
-	print("Direction (input):", direction, "Charge time:", charge_time, "Height:", height)
-	print("Chosen landing spot:", chosen_landing_spot)
-
+	# (debug prints removed)
 	# Get player center using new system
 	var player_sprite = player_node.get_node_or_null("Sprite2D")
 	var player_size = player_sprite.texture.get_size() * player_sprite.scale if player_sprite and player_sprite.texture else Vector2(cell_size, cell_size)
@@ -1361,12 +1294,10 @@ func launch_golf_ball(direction: Vector2, charged_power: float, height: float):
 	var ball_setup_player_sprite = player_node.get_node_or_null("Sprite2D")
 	var ball_setup_player_size = ball_setup_player_sprite.texture.get_size() * ball_setup_player_sprite.scale if ball_setup_player_sprite and ball_setup_player_sprite.texture else Vector2(cell_size, cell_size)
 	var ball_setup_player_center = player_node.global_position + ball_setup_player_size / 2
-	print("Player center position:", ball_setup_player_center)
-	
 	# Convert global position to camera container local position
 	var ball_local_position = ball_setup_player_center - camera_container.global_position
 	golf_ball.position = ball_local_position
-	print("Ball local position in camera container:", ball_local_position)
+	# (debug prints removed)
 	
 	golf_ball.cell_size = cell_size
 	golf_ball.map_manager = map_manager  # Pass map manager reference for tile-based friction
@@ -1385,8 +1316,7 @@ func launch_golf_ball(direction: Vector2, charged_power: float, height: float):
 	# Debug: Check child z_index values
 	var shadow = golf_ball.get_node_or_null("Shadow")
 	var ball_sprite = golf_ball.get_node_or_null("Sprite2D")
-	print("Shadow z_index after adding to scene:", shadow.z_index if shadow else "No shadow")
-	print("Ball sprite z_index after adding to scene:", ball_sprite.z_index if ball_sprite else "No sprite")
+	# (debug prints removed)
 	
 	play_swing_sound(final_power)  # Use final_power for sound
 	
@@ -1401,7 +1331,7 @@ func launch_golf_ball(direction: Vector2, charged_power: float, height: float):
 	golf_ball.landed.connect(_on_golf_ball_landed)
 	golf_ball.out_of_bounds.connect(_on_golf_ball_out_of_bounds)  # Connect out of bounds signal
 	golf_ball.sand_landing.connect(_on_golf_ball_sand_landing)  # Connect sand landing signal
-	print("Ball launched and signal connected!")
+	# (debug prints removed)
 	
 	# Start camera following the ball
 	camera_following_ball = true
@@ -1409,13 +1339,13 @@ func launch_golf_ball(direction: Vector2, charged_power: float, height: float):
 
 func _on_golf_ball_landed(tile: Vector2i):
 	hole_score += 1
+	# (debug prints removed)
+	# Stop camera following
+	camera_following_ball = false
 	print("Golf ball landed on tile:", tile, "Shots so far:", hole_score)
 	print("Ball final position:", golf_ball.position if golf_ball else "No ball")
 	print("Ball final global position:", golf_ball.global_position if golf_ball else "No ball")
 	print("Transitioning from ball_flying to move phase")
-	
-	# Stop camera following
-	camera_following_ball = false
 	
 	# Store ball landing information for multi-shot golf
 	ball_landing_tile = tile
@@ -1434,7 +1364,6 @@ func _on_golf_ball_landed(tile: Vector2i):
 	var dialog_timer = get_tree().create_timer(0.5)  # Reduced from 1.5 to 0.5 second delay
 	dialog_timer.timeout.connect(func():
 		show_drive_distance_dialog()
-		print("Drive distance dialog created and input connected")
 	)
 	
 	# Keep the ball visible on the screen - don't remove it!
@@ -1542,14 +1471,10 @@ func _on_end_turn_pressed() -> void:
 	# Only start the next shot if player is on the ball tile
 	if waiting_for_player_to_reach_ball and player_grid_pos == ball_landing_tile:
 		enter_draw_cards_phase()  # Start with club selection phase
-		print("New Turn and club selection started:", turn_count)
 	else:
-		print("Turn ended. You must be on the ball tile to start the next shot.")
-		# Draw regular movement cards instead of club cards
 		draw_cards_for_shot(3)
 		create_movement_buttons()
 		draw_cards_button.visible = false
-		print("Drew regular movement cards. DrawCards button hidden:", draw_cards_button.visible)
 
 func update_deck_display() -> void:
 	var hud := get_node("UILayer/HUD")
@@ -2711,38 +2636,28 @@ func update_ball_y_sort(ball_node: Node2D) -> void:
 		if min_dist > max_tree_distance:
 			# No close trees found, use default
 			ball_sprite.z_index = 100  # Default to in front
-			print("No close trees found (closest:", min_dist, "pixels) - setting ball z_index to 100 (default)")
 			return
-		
-		# Debug output
-		print("=== BALL Y-SORT DEBUG ===")
-		print("Ball position:", ball_ground_pos)
-		print("Closest tree position:", Vector2(closest_tree.global_position.x, closest_tree_y))
-		print("Distance to closest tree:", min_dist)
-		print("Ball height:", ball_height, "Tree height:", tree_height)
-		print("Ball ground pos Y:", ball_ground_pos.y, "Tree Y sort point:", closest_tree_y)
-		print("Tree threshold:", closest_tree_y + 50)
 		
 		# Check if ball is above the tree height
 		if ball_height >= tree_height:
 			# Ball is above tree height - always in front
 			ball_sprite.z_index = 100  # Much higher z_index to be clearly in front of tree (z_index = 3)
-			print("Ball above tree height - setting z_index to 100 (IN FRONT)")
 		else:
-			# Ball is below tree height - use Y position for sorting
-			var tree_threshold = closest_tree_y + 50  # 50 pixels higher threshold
-			if ball_ground_pos.y > tree_threshold:
-				ball_sprite.z_index = 100  # Much higher z_index to be clearly in front of tree (z_index = 3)
-				print("Ball below tree threshold - setting z_index to 100 (IN FRONT)")
+			# Ball is below tree height - check if it has significant height
+			var significant_height_threshold = 200.0  # If ball is more than 200 pixels high, it should appear in front
+			if ball_height >= significant_height_threshold:
+				# Ball has significant height - appear in front of tree
+				ball_sprite.z_index = 100
 			else:
-				ball_sprite.z_index = 1  # Much lower z_index to be clearly behind tree (z_index = 3)
-				print("Ball above tree threshold - setting z_index to 1 (BEHIND)")
-		print("Final ball z_index:", ball_sprite.z_index)
-		print("=== END BALL Y-SORT DEBUG ===")
+				# Ball is close to ground level - use Y position for sorting
+				var tree_threshold = closest_tree_y + 50  # 50 pixels higher threshold
+				if ball_ground_pos.y > tree_threshold:
+					ball_sprite.z_index = 100  # Much higher z_index to be clearly in front of tree (z_index = 3)
+				else:
+					ball_sprite.z_index = 1  # Much lower z_index to be clearly behind tree (z_index = 3)
 	else:
 		# No tree found, use default
 		ball_sprite.z_index = 100  # Default to in front
-		print("No tree found - setting ball z_index to 100 (default)")
 
 	# Shadow follows ball sprite z_index
 	var ball_shadow = ball_node.get_node_or_null("Shadow")
