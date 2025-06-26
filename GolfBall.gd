@@ -365,10 +365,6 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 		shadow.modulate = Color(0, 0, 0, 0.3)  # Semi-transparent black
 		
 	
-	if sprite:
-		sprite.z_index = 1
-		
-	
 	update_visual_effects()
 	
 	# Store spin

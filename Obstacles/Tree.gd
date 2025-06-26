@@ -8,8 +8,8 @@ func blocks():
 
 # Returns the Y-sorting reference point (base of trunk)
 func get_y_sort_point() -> float:
-	# The node's global_position.y is the base of the trunk due to the Y offset
-	return global_position.y - 60.714  # Updated to align with TrunkBase
+	# Use the tree's global position Y for Y-sorting
+	return global_position.y
 
 func _ready():
 	# Connect to Area2D's area_entered signal for collision detection with Area2D balls
@@ -54,12 +54,10 @@ func _ready():
 	else:
 		print("ERROR: Tree Area2D nodes not found!")
 	
-	# Set high z_index to ensure debug line is visible
-	z_index = 9999
 	# Force redraw to show the debug line after ready
 	call_deferred("queue_redraw")
 	
-	# Deferred call to double-check collision layers after scene is fully set up
+	# Deferred call to double-check collision layers after the scene is fully set up
 	call_deferred("_verify_collision_setup")
 
 func _verify_collision_setup():
@@ -224,7 +222,7 @@ func _process(delta):
 				elif "z" in ball:
 					ball_height = ball.z
 				
-				var tree_height = 100.0
+				var tree_height = 1500.0  # Updated from 100.0 to 1500.0 to match max ball height of 2000
 				var min_leaves_height = 60.0  # Increased from 40.0 to 60.0 - slightly higher requirement
 				
 				# Check if ball is at the right height to pass through leaves

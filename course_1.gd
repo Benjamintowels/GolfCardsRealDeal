@@ -2679,42 +2679,70 @@ func update_ball_y_sort(ball_node: Node2D) -> void:
 	if not ball_sprite:
 		return
 
-	# Find the closest tree (by Y distance) for Y-sorting
+	# Find the closest tree (by 2D distance) for Y-sorting
 	var closest_tree = null
 	var closest_tree_y = 0.0
 	var closest_tree_z = 0
-	var min_y_dist = INF
+	var min_dist = INF
 	for obj in ysort_objects:
 		if obj["node"].z_index == 3:
 			var tree_node = obj["node"]
 			var tree_y_sort_point = tree_node.global_position.y
 			if tree_node.has_method("get_y_sort_point"):
 				tree_y_sort_point = tree_node.get_y_sort_point()
-			var y_dist = abs(ball_ground_pos.y - tree_y_sort_point)
-			if y_dist < min_y_dist:
-				min_y_dist = y_dist
+			
+			# Calculate 2D distance from ball to tree (considering both X and Y)
+			var tree_pos_2d = Vector2(tree_node.global_position.x, tree_y_sort_point)
+			var ball_pos_2d = Vector2(ball_ground_pos.x, ball_ground_pos.y)
+			var dist = ball_pos_2d.distance_to(tree_pos_2d)
+			
+			if dist < min_dist:
+				min_dist = dist
 				closest_tree = tree_node
 				closest_tree_y = tree_y_sort_point
 				closest_tree_z = tree_node.z_index
 
 	if closest_tree != null:
 		# Set tree height (can be adjusted later for realism)
-		var tree_height = 100.0  # Default tree height in pixels
+		var tree_height = 1500.0  # Updated from 100.0 to 1500.0 to match max ball height of 2000
+		
+		# Only consider trees that are close enough to affect visibility
+		var max_tree_distance = 200.0  # Only consider trees within 200 pixels
+		if min_dist > max_tree_distance:
+			# No close trees found, use default
+			ball_sprite.z_index = 100  # Default to in front
+			print("No close trees found (closest:", min_dist, "pixels) - setting ball z_index to 100 (default)")
+			return
+		
+		# Debug output
+		print("=== BALL Y-SORT DEBUG ===")
+		print("Ball position:", ball_ground_pos)
+		print("Closest tree position:", Vector2(closest_tree.global_position.x, closest_tree_y))
+		print("Distance to closest tree:", min_dist)
+		print("Ball height:", ball_height, "Tree height:", tree_height)
+		print("Ball ground pos Y:", ball_ground_pos.y, "Tree Y sort point:", closest_tree_y)
+		print("Tree threshold:", closest_tree_y + 50)
 		
 		# Check if ball is above the tree height
 		if ball_height >= tree_height:
 			# Ball is above tree height - always in front
-			ball_sprite.z_index = 10
+			ball_sprite.z_index = 100  # Much higher z_index to be clearly in front of tree (z_index = 3)
+			print("Ball above tree height - setting z_index to 100 (IN FRONT)")
 		else:
 			# Ball is below tree height - use Y position for sorting
 			var tree_threshold = closest_tree_y + 50  # 50 pixels higher threshold
-			if ball_ground_pos.y < tree_threshold:
-				ball_sprite.z_index = 1  # Much lower z_index to be clearly behind tree
+			if ball_ground_pos.y > tree_threshold:
+				ball_sprite.z_index = 100  # Much higher z_index to be clearly in front of tree (z_index = 3)
+				print("Ball below tree threshold - setting z_index to 100 (IN FRONT)")
 			else:
-				ball_sprite.z_index = 10  # Much higher z_index to be clearly in front of tree
+				ball_sprite.z_index = 1  # Much lower z_index to be clearly behind tree (z_index = 3)
+				print("Ball above tree threshold - setting z_index to 1 (BEHIND)")
+		print("Final ball z_index:", ball_sprite.z_index)
+		print("=== END BALL Y-SORT DEBUG ===")
 	else:
 		# No tree found, use default
-		ball_sprite.z_index = 10  # Default to in front
+		ball_sprite.z_index = 100  # Default to in front
+		print("No tree found - setting ball z_index to 100 (default)")
 
 	# Shadow follows ball sprite z_index
 	var ball_shadow = ball_node.get_node_or_null("Shadow")
