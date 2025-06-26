@@ -96,31 +96,54 @@ func _verify_collision_setup():
 func _on_trunk_area_entered(area: Area2D):
 	"""Handle collisions with the trunk base area (ground-level collision)"""
 	var ball = area.get_parent()
-	print("Tree trunk collision detected! Area:", area.name, "Parent:", ball.name if ball else "No parent")
+	print("=== TREE TRUNK COLLISION DETECTED ===")
+	print("Area name:", area.name)
+	print("Ball parent:", ball.name if ball else "No parent")
+	print("Ball type:", ball.get_class() if ball else "Unknown")
+	print("Ball position:", ball.global_position if ball else "Unknown")
 	
 	if ball and (ball.name == "GolfBall" or ball.name == "GhostBall"):
-		print("Trunk collision with ball:", ball.name)
+		print("Valid ball detected:", ball.name)
 		# Handle the collision - always reflect for ground-level trunk collisions
 		_handle_trunk_collision(ball)
 	else:
-		print("Trunk collision with non-ball object:", ball.name if ball else "Unknown")
+		print("Invalid ball or non-ball object:", ball.name if ball else "Unknown")
+	print("=== END TREE TRUNK COLLISION ===")
 
 func _handle_trunk_collision(ball: Node2D):
-	"""Handle trunk base collisions (ground-level) - always reflect"""
-	print("Handling trunk collision - ground-level collision, always reflecting")
+	"""Handle trunk base collisions - check height to determine if ball should pass through"""
+	print("Handling trunk collision - checking ball height")
 	
-	# Play trunk thunk sound
-	var thunk = get_node_or_null("TrunkThunk")
-	if thunk:
-		thunk.play()
-		print("✓ TrunkThunk sound played")
+	# Get ball height
+	var ball_height = 0.0
+	if ball.has_method("get_height"):
+		ball_height = ball.get_height()
+	elif "z" in ball:
+		ball_height = ball.z
+	
+	print("Ball height:", ball_height)
+	
+	# Define tree height - ball must be above this to pass through
+	var tree_height = 400.0  # If ball shadow hits trunk base and ball is over 400 pixels high, pass through
+	
+	if ball_height > tree_height:
+		# Ball is above the tree entirely - let it pass through
+		print("Ball is above tree entirely (height:", ball_height, "> tree_height:", tree_height, ") - passing through")
+		return
 	else:
-		print("✗ TrunkThunk sound not found!")
-	
-	# For ground-level trunk collisions, we always reflect
-	# This is the ball's shadow hitting the trunk base
-	print("Ball shadow hit trunk - reflecting")
-	_reflect_ball_pinball(ball)
+		# Ball is within or below tree height - reflect it off the trunk
+		print("Ball is within tree height (height:", ball_height, "<= tree_height:", tree_height, ") - reflecting")
+		
+		# Play trunk thunk sound
+		var thunk = get_node_or_null("TrunkThunk")
+		if thunk:
+			thunk.play()
+			print("✓ TrunkThunk sound played")
+		else:
+			print("✗ TrunkThunk sound not found!")
+		
+		# Reflect the ball
+		_reflect_ball_pinball(ball)
 
 func _reflect_ball_pinball(ball: Node2D):
 	"""Special reflection for low-height collisions with trunk base - creates pinball effect"""

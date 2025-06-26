@@ -1,23 +1,23 @@
 [gd_scene load_steps=4 format=3 uid="uid://bq8x7y203w4v5"]
 
-[ext_resource type="Script" path="res://GhostBall.gd" id="1_ghost"]
-[ext_resource type="Texture2D" path="res://GolfBall.png" id="2_ball"]
+[ext_resource type="Script" uid="uid://b06de20303qlw" path="res://GhostBall.gd" id="1_ghost"]
+[ext_resource type="Texture2D" uid="uid://b714hho7b4xqc" path="res://GolfBall.png" id="2_ball"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_ghost"]
 radius = 37.0135
 
 [node name="GhostBall" type="Node2D"]
+scale = Vector2(0.665, 0.665)
 script = ExtResource("1_ghost")
 
 [node name="Shadow" type="Sprite2D" parent="."]
-texture = ExtResource("2_ball")
 modulate = Color(0, 0, 0, 0.3)
+texture = ExtResource("2_ball")
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 texture = ExtResource("2_ball")
 
 [node name="Area2D" type="Area2D" parent="."]
-collision_layer = 1
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D"]
-shape = SubResource("CircleShape2D_ghost") 
+shape = SubResource("CircleShape2D_ghost")

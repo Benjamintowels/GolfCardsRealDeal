@@ -541,7 +541,9 @@ func get_height() -> float:
 	return z 
 
 func _on_area_entered(area):
-	print("Ghost ball collision detected with area:", area)
+	print("Ghost ball collision detected with area:", area.name, "Parent:", area.get_parent().name if area.get_parent() else "No parent")
+	print("Ghost ball position:", global_position, "Height:", z)
+	print("Area position:", area.global_position)
 
 func _on_area_exited(area):
-	print("Ghost ball collision exited with area:", area) 
+	print("Ghost ball collision exited with area:", area.name, "Parent:", area.get_parent().name if area.get_parent() else "No parent") 
