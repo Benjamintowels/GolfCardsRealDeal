@@ -2,6 +2,7 @@ extends Node
 
 # Global variables
 var selected_character = 1  # Default to character 1
+var putt_putt_mode = false  # Flag for putt putt mode (only putters)
 
 var CHARACTER_STATS = {
 	1: { "name": "Layla", "base_mobility": 3 },

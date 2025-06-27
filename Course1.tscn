@@ -56,10 +56,10 @@ text = "End Round"
 
 [node name="EndTurnButton" type="Button" parent="UILayer"]
 texture_filter = 1
-offset_left = 140.0
-offset_top = 406.0
-offset_right = 218.0
-offset_bottom = 437.0
+offset_left = 219.0
+offset_top = 416.0
+offset_right = 297.0
+offset_bottom = 447.0
 scale = Vector2(1.39, 1.39)
 text = "End Turn"
 
@@ -82,10 +82,10 @@ offset_bottom = 23.0
 [node name="CharacterImage" type="TextureRect" parent="UILayer"]
 z_index = 6
 texture_filter = 1
-offset_left = 13.0
-offset_top = 352.0
-offset_right = 53.0
-offset_bottom = 392.0
+offset_left = -9.0
+offset_top = 271.0
+offset_right = 31.0
+offset_bottom = 311.0
 
 [node name="CardAnchor" type="Marker2D" parent="UILayer"]
 position = Vector2(250, 284)

@@ -4,6 +4,7 @@ extends Control
 @onready var character2_button = $UI/Character2Button  
 @onready var character3_button = $UI/Character3Button
 @onready var start_round_button = $UI/StartRoundButton
+@onready var start_putt_putt_button = $UI/StartPuttPutt
 
 var selected_character = 1  # Default to character 1
 
@@ -22,6 +23,7 @@ func _ready():
 	character2_button.pressed.connect(_on_character2_selected)
 	character3_button.pressed.connect(_on_character3_selected)
 	start_round_button.pressed.connect(_on_start_round_pressed)
+	start_putt_putt_button.pressed.connect(_on_start_putt_putt_button_pressed)
 	
 	print("Buttons connected successfully")
 
@@ -40,7 +42,17 @@ func _on_character3_selected():
 func _on_start_round_pressed():
 	# Store the selected character in a global variable
 	Global.selected_character = selected_character
-	print("Selected character: ", selected_character)
+	Global.putt_putt_mode = false  # Ensure normal mode for regular rounds
+	print("Selected character: ", selected_character, " - Starting normal round")
+	
+	# Change scene on next frame
+	call_deferred("_change_scene")
+
+func _on_start_putt_putt_button_pressed():
+	# Store the selected character in a global variable
+	Global.selected_character = selected_character
+	Global.putt_putt_mode = true  # Enable putt putt mode
+	print("Selected character: ", selected_character, " - Starting Putt Putt mode")
 	
 	# Change scene on next frame
 	call_deferred("_change_scene")

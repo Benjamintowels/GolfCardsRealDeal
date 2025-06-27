@@ -13,6 +13,58 @@ var obstacle_map = {}
 var grid_size: Vector2i
 var cell_size: int = 48
 
+# Highlight effect variables
+var character_sprite: Sprite2D = null
+var highlight_tween: Tween = null
+
+func _ready():
+	# Recursively search for the first Sprite2D in any child Node2D
+	for child in get_children():
+		if child is Node2D:
+			for grandchild in child.get_children():
+				if grandchild is Sprite2D:
+					character_sprite = grandchild
+					print("[Player.gd] Found character sprite for highlight:", character_sprite, "Initial modulate:", character_sprite.modulate)
+					return
+	print("[Player.gd] No character sprite found in Node2D child!")
+
+func get_character_sprite() -> Sprite2D:
+	for child in get_children():
+		if child is Node2D:
+			for grandchild in child.get_children():
+				if grandchild is Sprite2D:
+					return grandchild
+	return null
+
+func show_highlight():
+	var sprite = get_character_sprite()
+	if not sprite:
+		print("[Player.gd] show_highlight: No character sprite for highlight!")
+		return
+	if highlight_tween:
+		highlight_tween.kill()
+	highlight_tween = create_tween()
+	highlight_tween.tween_property(sprite, "modulate", Color(1, 1, 0, 0.6), 0.3)
+
+func hide_highlight():
+	var sprite = get_character_sprite()
+	if not sprite:
+		print("[Player.gd] hide_highlight: No character sprite for highlight!")
+		return
+	if highlight_tween:
+		highlight_tween.kill()
+	highlight_tween = create_tween()
+	highlight_tween.tween_property(sprite, "modulate", Color(1, 1, 1, 1), 0.3)
+
+func force_reset_highlight():
+	var sprite = get_character_sprite()
+	if sprite:
+		sprite.modulate = Color(1, 1, 1, 1)
+		if highlight_tween:
+			highlight_tween.kill()
+	else:
+		print("[Player.gd] force_reset_highlight: No character sprite to reset!")
+
 func _input_event(viewport, event, shape_idx):
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		emit_signal("player_clicked")
@@ -22,6 +74,10 @@ func setup(grid_size_: Vector2i, cell_size_: int, base_mobility_: int, obstacle_
 	cell_size = cell_size_
 	base_mobility = base_mobility_
 	obstacle_map = obstacle_map_
+	
+	# Create highlight sprite after setup is complete
+	print("Setup complete, deferring highlight sprite creation...")
+	call_deferred("create_highlight_sprite")
 
 func set_grid_position(pos: Vector2i, ysort_objects: Array = []):
 	grid_pos = pos
@@ -38,8 +94,10 @@ func update_z_index_for_ysort(ysort_objects: Array) -> void:
 			continue
 		var obj_grid_pos = obj["grid_pos"]
 		var obj_node = obj["node"]
-		if abs(obj_grid_pos.x - grid_pos.x) > 1:
-			continue  # Only consider objects in the same or adjacent columns
+		var is_shop = obj_node.name == "Shop" or obj_node.get_class() == "Shop"
+		var x_range = 3 if is_shop else 1
+		if abs(obj_grid_pos.x - grid_pos.x) > x_range:
+			continue  # Only consider objects in the same or adjacent (or wider for Shop) columns
 		print("Object grid_pos.y:", obj_grid_pos.y, "Object z_index:", obj_node.z_index)
 		if grid_pos.y > obj_grid_pos.y:
 			# Player is at least one row below: in front

@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cdk7unpk6hoph"
-path="res://.godot/imported/Character2.png-a36aacc217c33d90680c23a701a850a7.ctex"
+uid="uid://bx3gjncti5wbb"
+path="res://.godot/imported/PitchingWedge.png-83885fe0452af49550522979f207de12.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Character2.png"
-dest_files=["res://.godot/imported/Character2.png-a36aacc217c33d90680c23a701a850a7.ctex"]
+source_file="res://Cards/PitchingWedge.png"
+dest_files=["res://.godot/imported/PitchingWedge.png-83885fe0452af49550522979f207de12.ctex"]
 
 [params]
 

@@ -1,0 +1,121 @@
+extends BaseObstacle
+
+signal hole_in_one(score: int)
+
+func _ready():
+	# Connect to the Area2D's area_entered signal
+	var area2d = $Area2D
+	if area2d:
+		# Set collision layer to 1 so golf balls can detect it
+		area2d.collision_layer = 1
+		# Set collision mask to 1 so it can detect golf balls on layer 1
+		area2d.collision_mask = 1
+		
+		area2d.connect("area_entered", _on_area_entered)
+		print("Pin Area2D connected to area_entered signal")
+		print("Pin collision layer:", area2d.collision_layer, "collision mask:", area2d.collision_mask)
+		print("Pin global position:", global_position)
+		
+		# Check collision shape
+		var collision_shape = area2d.get_node_or_null("CollisionShape2D")
+		if collision_shape:
+			print("Pin collision shape found, position:", collision_shape.position, "scale:", collision_shape.scale)
+			if collision_shape.shape:
+				print("Pin collision shape radius:", collision_shape.shape.radius)
+		else:
+			print("Pin ERROR: CollisionShape2D not found!")
+	else:
+		print("Pin ERROR: Area2D not found!")
+	
+	print("Pin _ready complete at position:", global_position)
+
+func _process(delta):
+	# Debug: Check for overlapping areas more frequently
+	if Engine.get_process_frames() % 60 == 0:  # Every 1 second at 60fps
+		var area2d = $Area2D
+		if area2d:
+			var overlapping_areas = area2d.get_overlapping_areas()
+			if overlapping_areas.size() > 0:
+				print("Pin detected overlapping areas:", overlapping_areas.size())
+				for area in overlapping_areas:
+					print("  - Area:", area, "Parent:", area.get_parent().name if area.get_parent() else "No parent")
+					if area.get_parent() and area.get_parent().has_method("get_height"):
+						var ball_height = area.get_parent().get_height()
+						print("    Ball height:", ball_height)
+
+
+func _on_area_entered(area: Area2D):
+	print("Pin _on_area_entered called with area:", area)
+	print("Area parent:", area.get_parent())
+	
+	# Check if the area belongs to a golf ball
+	if area.get_parent() and area.get_parent().has_method("get_height"):
+		var golf_ball = area.get_parent()
+		var ball_height = golf_ball.get_height()
+		
+		# Check if this is a ghost ball (ghost balls have is_ghost property set to true)
+		if "is_ghost" in golf_ball and golf_ball.is_ghost:
+			print("Pin detected ghost ball collision - ignoring")
+			return
+		
+		print("Pin detected real ball collision. Ball height:", ball_height)
+		
+		# Check if the ball is in the hole-in height range (0-5) for all shots
+		if ball_height >= 0.0 and ball_height <= 5.0:
+			print("Hole in one! Ball height is in range 0-5, triggering hole completion")
+			
+			# Emit signal for hole completion
+			hole_in_one.emit(0)  # 0 indicates hole completion, score will be calculated by course
+			
+			# Queue free the ball
+			golf_ball.queue_free()
+			
+			# Show hole completion dialog
+			show_hole_completion_dialog()
+		else:
+			print("Ball collision detected but height not in range 0-5:", ball_height)
+	else:
+		print("Area entered but parent doesn't have get_height method or is not a golf ball")
+
+func show_hole_completion_dialog():
+	# Get the course node to access the hole_score
+	var course = get_tree().get_first_node_in_group("course")
+	if not course:
+		# Try to find the course by looking for the course_1 script
+		for node in get_tree().get_nodes_in_group(""):
+			if node.has_method("show_drive_distance_dialog"):
+				course = node
+				break
+	
+	if course and course.has_method("show_hole_completion_dialog"):
+		course.show_hole_completion_dialog()
+	else:
+		# Fallback: create a simple dialog
+		show_simple_hole_dialog()
+
+func show_simple_hole_dialog():
+	# Create a simple dialog to inform the player
+	var dialog = AcceptDialog.new()
+	dialog.title = "Hole Complete!"
+	dialog.dialog_text = "Congratulations! You've completed the hole!\n\nClick to continue."
+	dialog.add_theme_font_size_override("font_size", 18)
+	dialog.add_theme_color_override("font_color", Color.GREEN)
+	
+	# Position the dialog in the center of the screen
+	dialog.position = Vector2(400, 300)
+	
+	# Add to the UI layer
+	var ui_layer = get_tree().get_first_node_in_group("ui_layer")
+	if ui_layer:
+		ui_layer.add_child(dialog)
+	else:
+		get_tree().current_scene.add_child(dialog)
+	
+	# Show the dialog
+	dialog.popup_centered()
+	
+	# Connect the confirmed signal to remove the dialog
+	dialog.confirmed.connect(func():
+		dialog.queue_free()
+		print("Hole completion dialog dismissed")
+	) 

@@ -101,45 +101,10 @@ var time_percentage: float = -1.0  # -1 means not set, use power percentage inst
 # Progressive overcharge system variables
 var club_info: Dictionary = {}  # Will be set by the course script
 var is_penalty_shot: bool = false  # True if red circle is below min distance
+var is_putting: bool = false  # Flag for putter-only rolling mechanics
 
-# Function to calculate progressive overcharge penalty
-func calculate_overcharge_penalty(power_percentage: float) -> float:
-	"""
-	Calculate the progressive overcharge penalty based on charge percentage.
-	Returns the penalty distance to add to the landing position.
-	"""
-	if power_percentage <= 0.75:  # Sweet spot or undercharge
-		return 0.0
-	
-	# Calculate how far past the sweet spot (75%) the charge went
-	var overcharge_amount = (power_percentage - 0.75) * 100  # Convert to percentage (0-25)
-	var penalty_percentage = overcharge_amount  # 1:1 ratio (25% max penalty for 25% overcharge)
-	
-	# Convert penalty percentage to actual distance - REDUCED EFFECT
-	var max_penalty_distance = club_info.get("max_distance", 1200.0) * 0.05  # Reduced from 0.25 to 0.05 (5% of max distance)
-	var penalty_distance = (penalty_percentage / 25.0) * max_penalty_distance
-	
-	return penalty_distance
-
-# Function to calculate undercharge penalty for penalty shots
-func calculate_undercharge_penalty(power_percentage: float) -> float:
-	"""
-	Calculate undercharge penalty for penalty shots (red circle below min distance).
-	Returns the effective landing distance.
-	"""
-	if power_percentage >= 0.65:  # Sweet spot or overcharge
-		return chosen_landing_spot.distance_to(global_position)
-	
-	# Exponential falloff for undercharge - make shank more dramatic
-	var undercharge_factor = power_percentage / 0.65  # 0.0 to 1.0
-	var trailoff_forgiveness = club_info.get("trailoff_forgiveness", 0.5)
-	
-	# Apply exponential falloff based on club forgiveness - make shank more severe
-	# FIXED: Invert the forgiveness logic so lower values = more severe penalty
-	var forgiveness_factor = 1.0 - trailoff_forgiveness  # 0.0 = most forgiving, 1.0 = least forgiving
-	var effective_distance = chosen_landing_spot.distance_to(global_position) * pow(undercharge_factor, forgiveness_factor * 3.0)  # Increased multiplier for more dramatic shank
-	
-	return effective_distance
+# Special handling for putters - start rolling immediately
+var putt_start_time := 0.0  # Record when putt started
 
 # Call this to launch the ball
 func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, spin_strength_category: int = 0):
@@ -172,6 +137,12 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 		
 		# Scale the power value to match the scaled range
 		scaled_power = power * power_scale_factor
+		
+		# For putters, don't apply distance-based power scaling
+		if is_putting:
+			scaled_power = power  # Use full power for putters
+			print("Putter detected - skipping distance-based power scaling. Using full power:", power)
+		
 		# Calculate power percentage based on the scaled range (what the player sees on the meter)
 		# Use the same calculation as the power meter in course_1.gd
 		# The power meter uses the adjusted scaled max power (500.0 in this case)
@@ -211,33 +182,6 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 		# Calculate the final landing distance based on shot type and charge
 		var final_landing_distance = distance_to_target
 		
-		if is_penalty_shot:
-			# Penalty shot logic
-			var effective_power_percentage = time_percentage if time_percentage >= 0.0 else original_power_percentage
-			if effective_power_percentage >= 0.65:  # Sweet spot or overcharge
-				# Sweet spot: land on red circle
-				# Overcharge: land at red circle + min distance + overcharge penalty
-				var overcharge_penalty = calculate_overcharge_penalty(effective_power_percentage)
-				final_landing_distance = distance_to_target + min_distance + overcharge_penalty
-			else:
-				# Undercharge: shank (barely move)
-				final_landing_distance = calculate_undercharge_penalty(effective_power_percentage)
-		else:
-			# Normal shot logic - use original targeting system
-			var effective_power_percentage = time_percentage if time_percentage >= 0.0 else original_power_percentage
-			if effective_power_percentage >= 0.65 and effective_power_percentage <= 0.75:  # Sweet spot
-				final_landing_distance = distance_to_target
-			elif effective_power_percentage > 0.75:  # Overcharge
-				var overcharge_penalty = calculate_overcharge_penalty(effective_power_percentage)
-				final_landing_distance = distance_to_target + overcharge_penalty
-			else:  # Undercharge
-				# Exponential falloff based on club forgiveness
-				var undercharge_factor = effective_power_percentage / 0.65
-				var trailoff_forgiveness = club_info.get("trailoff_forgiveness", 0.5)
-				# FIXED: Invert the forgiveness logic so lower values = more severe penalty
-				var forgiveness_factor = 1.0 - trailoff_forgiveness  # 0.0 = most forgiving, 1.0 = least forgiving
-				final_landing_distance = distance_to_target * pow(undercharge_factor, forgiveness_factor)
-		
 		# For normal shots, use the original scaled power system
 		# For penalty shots, calculate power based on final landing distance
 		var final_power = scaled_power  # Default to original scaled power
@@ -250,41 +194,20 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 			power_needed = clamp(power_needed, MIN_LAUNCH_POWER, MAX_LAUNCH_POWER)
 			final_power = power_needed
 		else:
-			# For normal shots, apply a small modifier to the scaled power based on overcharge/undercharge
-			if effective_power_percentage > 0.75:  # Overcharge
-				var overcharge_penalty = calculate_overcharge_penalty(effective_power_percentage)
-				var power_modifier = overcharge_penalty / 100.0  # Small power increase
-				final_power = scaled_power * (1.0 + power_modifier)
-				print("Overcharge - power modifier:", power_modifier, "final_power:", final_power)
-			elif effective_power_percentage < 0.65:  # Undercharge
-				var undercharge_factor = effective_power_percentage / 0.65
-				var trailoff_forgiveness = club_info.get("trailoff_forgiveness", 0.5)
-				# FIXED: Invert the forgiveness logic so lower values = more severe penalty
-				var forgiveness_factor = 1.0 - trailoff_forgiveness  # 0.0 = most forgiving, 1.0 = least forgiving
-				var power_modifier = pow(undercharge_factor, forgiveness_factor)
-				final_power = scaled_power * power_modifier
-				print("Undercharge - undercharge_factor:", undercharge_factor, "forgiveness_factor:", forgiveness_factor, "power_modifier:", power_modifier, "final_power:", final_power)
-			else:
-				# Sweet spot shots (65-75%) - calculate power needed to reach the actual target distance
-				# Don't use scaled_power since that's scaled down by distance factor
-				var power_needed_for_target = distance_to_target * 0.8  # Reduced from 2.0 to 0.8
-				power_needed_for_target = clamp(power_needed_for_target, MIN_LAUNCH_POWER, MAX_LAUNCH_POWER)
-				final_power = power_needed_for_target
-				print("Sweet spot shot - calculated power needed for target distance:", power_needed_for_target, "target distance:", distance_to_target)
+			# Use the power passed from the course instead of recalculating
+			final_power = scaled_power  # Use the power that was passed to the ball
+			print("Shot - using passed power:", scaled_power, "target distance:", distance_to_target)
 		
 		# Scale the final power based on the club's max distance to ensure proper range
-		# BUT: Only apply this scaling to non-sweet-spot shots to avoid making sweet spot shots go too far
 		var club_max_distance = club_info.get("max_distance", 1200.0)
 		var club_power_scale = club_max_distance / 1200.0  # Normalize to Driver's max distance
 		
-		
-		# Only apply club power scaling to non-sweet-spot shots
-		# Sweet spot shots already have the correct power calculated for the target distance
-		if effective_power_percentage < 0.65 or effective_power_percentage > 0.75:  # Undercharge or overcharge
+		# Don't apply club power scaling for putters - they should use full power
+		if not is_putting:
 			final_power = final_power * club_power_scale
-			print("Applied club power scaling:", club_power_scale, "for non-sweet-spot shot. Final power:", final_power)
+			print("Applied club power scaling:", club_power_scale, "Final power:", final_power)
 		else:
-			print("Sweet spot shot - no club power scaling applied. Final power:", final_power)
+			print("Putter detected - skipping club power scaling. Final power:", final_power)
 		
 		# Update the power variable to use the calculated value for physics
 		power = final_power
@@ -305,6 +228,16 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 	vz = height  # Use the height parameter directly for vertical velocity
 	landed_flag = false
 	max_height = 0.0
+	
+	# Reset bounce and roll variables
+	bounce_count = 0
+	is_rolling = false
+	
+	# Special handling for putters - start rolling immediately
+	if is_putting:
+		is_rolling = true
+		roll_start_position = position
+		putt_start_time = Time.get_ticks_msec()  # Record when putt started in milliseconds
 	
 	# Store initial height and calculate first bounce height
 	initial_height = height
@@ -350,10 +283,6 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 	
 	target_roll_distance = 300.0 * height_multiplier * power_multiplier  # Increased base roll distance from 200 to 300 pixels
 	
-	# Reset bounce and roll variables
-	bounce_count = 0
-	is_rolling = false
-	
 	# Get references to sprite and shadow
 	sprite = $Sprite2D
 	shadow = $Shadow
@@ -371,6 +300,15 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 	self.spin = spin
 	self.spin_strength_category = spin_strength_category
 	spin_progress = 0.0
+	
+	print("=== BALL LAUNCH DEBUG ===")
+	print("Ball is_putting flag:", is_putting)
+	print("Club info:", club_info)
+	print("Launch power:", power)
+	print("Launch height:", height)
+	print("Initial velocity length:", velocity.length())
+	print("Velocity vector:", velocity)
+	print("=== END BALL LAUNCH DEBUG ===")
 	
 	# Reset bounce reduction system for new shot
 	bounce_reduction_applied = false
@@ -417,7 +355,8 @@ func _process(delta):
 		# Ball is in the air
 		z += vz * delta
 		vz -= gravity * delta
-		is_rolling = false
+		if is_rolling:
+			is_rolling = false
 		
 		# Track maximum height for scaling reference
 		max_height = max(max_height, z)
@@ -486,11 +425,6 @@ func _process(delta):
 			if bounce_count < max_bounces and (bounce_count < min_bounces or landing_speed > 50.0):
 				# Bounce!
 				bounce_count += 1
-				print("=== BOUNCE DECISION ===")
-				print("Ball bouncing! Bounce count:", bounce_count, "/", max_bounces)
-				print("Min bounces required:", min_bounces)
-				print("Landing speed:", landing_speed)
-				print("=== END BOUNCE DECISION ===")
 				# Play ball landing sound on every bounce
 				if ball_land_sound and ball_land_sound.stream:
 					ball_land_sound.play()
@@ -508,12 +442,6 @@ func _process(delta):
 				velocity *= 0.98
 			else:
 				# Start rolling
-				print("=== ROLL DECISION ===")
-				print("Ball going straight to rolling!")
-				print("Bounce count:", bounce_count, "/", max_bounces)
-				print("Min bounces required:", min_bounces)
-				print("Landing speed:", landing_speed)
-				print("=== END ROLL DECISION ===")
 				vz = 0.0
 				is_rolling = true
 				roll_start_position = position  # Record where rolling started
@@ -522,7 +450,8 @@ func _process(delta):
 		# Ball is bouncing up from ground
 		z += vz * delta
 		vz -= gravity * delta
-		is_rolling = false
+		if is_rolling:
+			is_rolling = false
 		
 		# Apply progressive spin effect during bounces (still in air)
 		if spin != 0.0 and velocity.length() > 0.1:
@@ -681,6 +610,19 @@ func _process(delta):
 			var tile_friction = current_tile_friction
 			var combined_friction = tile_friction * ball_roll_factor * ball_roll_boost
 			
+			# Special handling for putters - much higher friction
+			if is_putting:
+				# Check if we're in the first 1 second of the putt
+				var current_time = Time.get_ticks_msec()
+				var putt_duration = current_time - putt_start_time
+				
+				if putt_duration < 1000:  # 1000 milliseconds = 1 second
+					# First 1 second: NO friction for natural roll
+					combined_friction = 0.0  # No friction at all
+				else:
+					# After 1 second: increased putter friction
+					combined_friction = combined_friction * 0.3  # Increased from 0.1 to 0.3 for more friction
+			
 			# MUCH MORE AGGRESSIVE FRICTION: Lose a fixed percentage per frame
 			# Higher friction values = more velocity reduction per frame
 			var friction_per_frame = combined_friction * 0.02  # Reduced from 0.1 to 0.02 - ball loses much less velocity per frame
@@ -691,8 +633,6 @@ func _process(delta):
 				velocity = Vector2.ZERO
 				vz = 0.0
 				landed_flag = true
-				print("Ball stopped rolling. Rolled distance:", current_roll_distance, "Target:", target_roll_distance)
-				print("Stopped due to:speed too low")
 				# Only play ball stop sound if on fairway tile
 				if map_manager != null:
 					var tile_x = int(floor(position.x / cell_size))
@@ -831,6 +771,7 @@ func _ready():
 	var area2d = get_node_or_null("Area2D")
 	if area2d:
 		print("GolfBall _ready - Area2D found, collision_layer:", area2d.collision_layer, "collision_mask:", area2d.collision_mask)
+		print("GolfBall Area2D - monitoring:", area2d.monitoring, "monitorable:", area2d.monitorable)
 		# Connect to area_entered signal for debugging
 		area2d.connect("area_entered", _on_area_entered)
 		area2d.connect("area_exited", _on_area_exited)
@@ -838,6 +779,7 @@ func _ready():
 		print("GolfBall _ready - ERROR: Area2D not found!")
 	
 	print("GolfBall _ready called at position:", global_position)
+	print("GolfBall is_ghost property:", "is_ghost" in self, "value:", get("is_ghost") if "is_ghost" in self else "N/A")
 
 func update_y_sort() -> void:
 	"""Update the ball's z_index based on its position relative to Y-sorted objects"""
@@ -878,6 +820,21 @@ func get_height() -> float:
 
 func _on_area_entered(area):
 	print("GolfBall _on_area_entered - Area entered:", area)
+	print("Area parent:", area.get_parent())
+	print("Area parent name:", area.get_parent().name if area.get_parent() else "No parent")
+	print("Ball position:", global_position, "Ball height:", z)
+	print("Area position:", area.global_position)
+	
+	# Check if this is a Pin collision
+	if area.get_parent() and area.get_parent().name == "Pin":
+		print("*** PIN COLLISION DETECTED! ***")
+		print("Ball height at collision:", z)
+		if z <= 0.0:
+			print("*** BALL SHOULD TRIGGER HOLE COMPLETION! ***")
+			# Add a simple debug print to confirm the collision is working
+			print("PIN COLLISION: Ball at ground level - hole completion should trigger")
 
 func _on_area_exited(area):
 	print("GolfBall _on_area_exited - Area exited:", area)
+	print("Area parent:", area.get_parent())
+	print("Area parent name:", area.get_parent().name if area.get_parent() else "No parent")

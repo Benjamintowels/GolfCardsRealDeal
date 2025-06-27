@@ -112,6 +112,7 @@ var original_aim_mouse_pos: Vector2 = Vector2.ZERO
 var launch_spin: float = 0.0
 var current_charge_mouse_pos: Vector2 = Vector2.ZERO
 var spin_indicator: Line2D = null
+var is_putting: bool = false  # Flag for putter-only rolling mechanics
 
 # Club selection variables
 var selected_club: String = ""
@@ -121,7 +122,8 @@ var club_max_distances = {
 	"Wood": 800.0,           # Slightly more than Iron
 	"Iron": 600.0,           # Medium distance
 	"Wooden": 350.0,         # Slightly better than Putter
-	"Putter": 200.0          # Shortest distance
+	"Putter": 200.0,         # Shortest distance (now rolling only)
+	"PitchingWedge": 200.0   # Same as old Putter settings
 }
 
 # New club data with min distances and trailoff stats
@@ -154,7 +156,13 @@ var club_data = {
 	"Putter": {
 		"max_distance": 200.0,
 		"min_distance": 100.0,    # Smallest gap (100)
-		"trailoff_forgiveness": 0.2  # Least forgiving (most severe undercharge penalty)
+		"trailoff_forgiveness": 0.2,  # Least forgiving (most severe undercharge penalty)
+		"is_putter": true  # Flag to identify this as a putter
+	},
+	"PitchingWedge": {
+		"max_distance": 200.0,
+		"min_distance": 100.0,    # Same as old Putter settings
+		"trailoff_forgiveness": 0.2  # Same as old Putter settings
 	}
 }
 
@@ -165,7 +173,8 @@ var bag_pile: Array[CardData] = [
 	preload("res://Cards/Wood.tres"),
 	preload("res://Cards/Iron.tres"),
 	preload("res://Cards/Wooden.tres"),
-	preload("res://Cards/Putter.tres")
+	preload("res://Cards/Putter.tres"),
+	preload("res://Cards/PitchingWedge.tres")
 ]
 
 # --- 1. Add these variables at the top (after var launch_power, etc.) ---
@@ -202,6 +211,7 @@ var object_scene_map := {
 	"T": preload("res://Obstacles/Tree.tscn"),
 	"P": preload("res://Obstacles/Pin.tscn"),
 	"SHOP": preload("res://Shop/ShopExterior.tscn"),
+	"BLOCK": preload("res://Obstacles/InvisibleBlocker.tscn"),
 }
 
 var object_to_tile_mapping := {
@@ -263,8 +273,14 @@ func _process(delta):
 				# Sweet spot is always 65-75%
 				if time_percent >= 0.65 and time_percent <= 0.75:
 					meter_fill.color = Color(0, 1, 0, 0.8)
+					# Show player highlight when in sweet spot
+					if player_node and player_node.has_method("show_highlight"):
+						player_node.show_highlight()
 				else:
 					meter_fill.color = Color(1, 0.8, 0.2, 0.8)
+					# Hide player highlight when not in sweet spot
+					if player_node and player_node.has_method("hide_highlight"):
+						player_node.hide_highlight()
 			if value_label:
 				value_label.text = str(int(time_percent * 100)) + "%"
 	
@@ -318,6 +334,21 @@ func _process(delta):
 		spin_indicator.visible = false
 
 func _ready() -> void:
+	# Add this course to a group so other nodes can find it
+	add_to_group("course")
+	
+	# Debug output for putt putt mode
+	if Global.putt_putt_mode:
+		print("=== PUTT PUTT MODE ENABLED ===")
+		print("Only putters will be available for club selection")
+		print("Available putters:", bag_pile.filter(func(card): 
+			var club_info = club_data.get(card.name, {})
+			return club_info.get("is_putter", false)
+		).map(func(card): return card.name))
+		print("=== END PUTT PUTT MODE INFO ===")
+	else:
+		print("Normal mode - all clubs available")
+	
 	call_deferred("fix_ui_layers")
 	display_selected_character()
 	if end_round_button:
@@ -418,18 +449,37 @@ func _input(event: InputEvent) -> void:
 					# Start charging power
 					is_charging = true
 					charge_time = 0.0  # Reset charge time
+					
+					# Force reset highlight state when starting to charge
+					if player_node and player_node.has_method("force_reset_highlight"):
+						print("Force resetting highlight state for new charge")
+						player_node.force_reset_highlight()
+					
 					# Direction: from player to chosen landing spot
 					var input_start_sprite = player_node.get_node_or_null("Sprite2D")
 					var input_start_player_size = input_start_sprite.texture.get_size() * input_start_sprite.scale if input_start_sprite and input_start_sprite.texture else Vector2(cell_size, cell_size)
 					var input_start_player_center = player_node.global_position + input_start_player_size / 2
 					launch_direction = (chosen_landing_spot - input_start_player_center).normalized()
 				elif not event.pressed and is_charging:
-					# Stop charging power, start charging height
+					# Stop charging power
 					is_charging = false
-					is_charging_height = true
-					launch_height = MIN_LAUNCH_HEIGHT
+					
+					# Hide player highlight when charging stops
+					if player_node and player_node.has_method("hide_highlight"):
+						player_node.hide_highlight()
+					
+					# For putters, go directly to launch (no height charging)
+					if is_putting:
+						print("Putter: Skipping height charge, launching directly")
+						launch_golf_ball(launch_direction, 0.0, launch_height)  # Pass 0.0 since we calculate power from charge_time
+						hide_power_meter()
+						game_phase = "ball_flying"
+					else:
+						# For non-putter clubs, start charging height
+						is_charging_height = true
+						launch_height = MIN_LAUNCH_HEIGHT
 				elif not event.pressed and is_charging_height:
-					# Launch!
+					# Launch! (only for non-putter clubs)
 					is_charging_height = false
 					launch_golf_ball(launch_direction, 0.0, launch_height)  # Pass 0.0 since we calculate power from charge_time
 					hide_power_meter()
@@ -441,8 +491,14 @@ func _input(event: InputEvent) -> void:
 					is_charging = false
 					is_charging_height = false
 					charge_time = 0.0  # Reset charge time
+					
+					# Hide player highlight when charging is cancelled
+					if player_node and player_node.has_method("hide_highlight"):
+						player_node.hide_highlight()
+					
 					hide_power_meter()
-					hide_height_meter()
+					if not is_putting:
+						hide_height_meter()
 		elif event is InputEventMouseMotion and (is_charging or is_charging_height):
 			# Update direction while charging (but keep the same landing spot)
 			var input_motion_sprite = player_node.get_node_or_null("Sprite2D")
@@ -1212,11 +1268,29 @@ func launch_golf_ball(direction: Vector2, charged_power: float, height: float):
 		var power_for_target = distance_to_target * base_power_per_distance * ball_physics_factor
 
 		# Calculate power based on time percentage
-		if time_percent <= 0.75:
-			# 0-75% time = 0-100% of target power
+		if is_putting:
+			# For putters: simple linear power based on charge time, no penalties
+			var base_putter_power = 300.0  # Base power for putters
+			actual_power = time_percent * base_putter_power
+			print("Putter power calculation - time_percent:", time_percent, "final_power:", actual_power)
+		elif time_percent <= 0.75:
+			# 0-75% time = 0-100% of target power (for non-putters)
 			actual_power = (time_percent / 0.75) * power_for_target
+			
+			# Apply trailoff effects for undercharged shots
+			var trailoff_forgiveness = club_data[selected_club].get("trailoff_forgiveness", 0.5) if selected_club in club_data else 0.5
+			
+			# Calculate how much undercharged the shot is (0.0 = sweet spot, 1.0 = minimum charge)
+			var undercharge_factor = 1.0 - (time_percent / 0.75)  # 0.0 to 1.0
+			
+			# Apply trailoff penalty based on forgiveness
+			# Lower forgiveness = more severe penalty for undercharging
+			var trailoff_penalty = undercharge_factor * (1.0 - trailoff_forgiveness)
+			actual_power = actual_power * (1.0 - trailoff_penalty)
+			
+			print("Trailoff calculation - time_percent:", time_percent, "undercharge_factor:", undercharge_factor, "trailoff_forgiveness:", trailoff_forgiveness, "trailoff_penalty:", trailoff_penalty, "final_power:", actual_power)
 		else:
-			# 75-100% time = target power + overcharge bonus
+			# 75-100% time = target power + overcharge bonus (for non-putters)
 			var club_max = club_data[selected_club]["max_distance"] if selected_club in club_data else MAX_LAUNCH_POWER
 			var overcharge_bonus = ((time_percent - 0.75) / 0.25) * (0.25 * club_max)
 			actual_power = power_for_target + overcharge_bonus
@@ -1225,7 +1299,16 @@ func launch_golf_ball(direction: Vector2, charged_power: float, height: float):
 		actual_power = time_percent * MAX_LAUNCH_POWER
 
 	print("Time percent:", time_percent, "Actual power for launch:", actual_power)
-
+	
+	# Debug the final power calculation
+	print("=== FINAL POWER CALCULATION DEBUG ===")
+	print("Selected club:", selected_club)
+	print("Is putting:", is_putting)
+	print("Time percent:", time_percent)
+	print("Target power needed:", power_for_target)
+	print("Final actual power:", actual_power)
+	print("=== END FINAL POWER CALCULATION DEBUG ===")
+	
 	# Store the shot start position for out of bounds handling
 	shot_start_grid_pos = player_grid_pos
 
@@ -1293,6 +1376,11 @@ func launch_golf_ball(direction: Vector2, charged_power: float, height: float):
 	var ball_setup_player_sprite = player_node.get_node_or_null("Sprite2D")
 	var ball_setup_player_size = ball_setup_player_sprite.texture.get_size() * ball_setup_player_sprite.scale if ball_setup_player_sprite and ball_setup_player_sprite.texture else Vector2(cell_size, cell_size)
 	var ball_setup_player_center = player_node.global_position + ball_setup_player_size / 2
+
+	# Add vertical offset for all shots to make ball appear from middle of tile
+	var ball_position_offset = Vector2(0, -cell_size * 0.5)
+	ball_setup_player_center += ball_position_offset
+
 	# Convert global position to camera container local position
 	var ball_local_position = ball_setup_player_center - camera_container.global_position
 	golf_ball.position = ball_local_position
@@ -1323,10 +1411,18 @@ func launch_golf_ball(direction: Vector2, charged_power: float, height: float):
 	golf_ball.chosen_landing_spot = chosen_landing_spot
 	# Pass the club information to the ball for progressive overcharge system
 	golf_ball.club_info = club_data[selected_club] if selected_club in club_data else {}
+	# Set the putting mode flag on the ball
+	golf_ball.is_putting = is_putting
+	print("=== PUTTING DEBUG ===")
+	print("Selected club:", selected_club)
+	print("Is putting mode:", is_putting)
+	print("Club info:", club_data[selected_club] if selected_club in club_data else "No club data")
+	print("Ball is_putting set to:", golf_ball.is_putting)
+	print("=== END PUTTING DEBUG ===")
 	# Pass the time percentage information for proper sweet spot detection
 	golf_ball.time_percentage = time_percent
 	# Pass the spin value to the ball
-	golf_ball.launch(direction, final_power, height, launch_spin, spin_strength_category)  # Pass spin strength category
+	golf_ball.launch(launch_direction, final_power, height, launch_spin, spin_strength_category)  # Pass spin strength category
 	golf_ball.landed.connect(_on_golf_ball_landed)
 	golf_ball.out_of_bounds.connect(_on_golf_ball_out_of_bounds)  # Connect out of bounds signal
 	golf_ball.sand_landing.connect(_on_golf_ball_sand_landing)  # Connect sand landing signal
@@ -1513,6 +1609,8 @@ func _on_end_round_pressed() -> void:
 	call_deferred("_change_to_main")
 
 func _change_to_main() -> void:
+	# Reset putt putt mode when returning to main menu
+	Global.putt_putt_mode = false
 	get_tree().change_scene_to_file("res://Main.tscn")
 
 func show_tee_selection_instruction() -> void:
@@ -1748,6 +1846,7 @@ func enter_launch_phase() -> void:
 	"""Enter the launch phase for taking a shot"""
 	game_phase = "launch"
 	print("Entered launch phase - ready to take shot")
+	print("Putting mode:", is_putting)
 	
 	# Remove ghost ball when entering launch phase
 	remove_ghost_ball()
@@ -1759,9 +1858,18 @@ func enter_launch_phase() -> void:
 	original_aim_mouse_pos = get_global_mouse_position()
 	print("Original aim mouse position:", original_aim_mouse_pos)
 	
-	# Show power and height meters first to get the scaled values
+	# Show power meter (always show for all clubs)
 	show_power_meter()
-	show_height_meter()
+	
+	# Only show height meter for non-putter clubs
+	if not is_putting:
+		show_height_meter()
+		# Initialize height to minimum for non-putter clubs
+		launch_height = MIN_LAUNCH_HEIGHT
+	else:
+		# For putters, set height to 0 (no arc, just rolling)
+		launch_height = 0.0
+		# print("Putter selected - height set to 0 for rolling only")
 	
 	# Initialize power to the scaled minimum
 	var scaled_min_power = power_meter.get_meta("scaled_min_power", MIN_LAUNCH_POWER)
@@ -1769,6 +1877,7 @@ func enter_launch_phase() -> void:
 	
 	print("=== LAUNCH PHASE INITIALIZATION ===")
 	print("Initial power:", launch_power)
+	print("Initial height:", launch_height)
 	print("Scaled min power:", scaled_min_power)
 	print("Chosen landing spot:", chosen_landing_spot)
 	if chosen_landing_spot != Vector2.ZERO:
@@ -1789,16 +1898,21 @@ func enter_launch_phase() -> void:
 	var tween := get_tree().create_tween()
 	tween.tween_property(camera, "position", player_center, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	
-	# Create or show spin indicator
-	if not spin_indicator:
-		spin_indicator = Line2D.new()
-		spin_indicator.width = 12 # Make it thick for testing
-		spin_indicator.default_color = Color(1, 1, 0, 1) # Bright yellow for testing
+	# Create or show spin indicator (only for non-putter clubs)
+	if not is_putting:
+		if not spin_indicator:
+			spin_indicator = Line2D.new()
+			spin_indicator.width = 12 # Make it thick for testing
+			spin_indicator.default_color = Color(1, 1, 0, 1) # Bright yellow for testing
+			spin_indicator.z_index = 999
+			camera_container.add_child(spin_indicator)
 		spin_indicator.z_index = 999
-		camera_container.add_child(spin_indicator)
-	spin_indicator.z_index = 999
-	spin_indicator.visible = true
-	update_spin_indicator()
+		spin_indicator.visible = true
+		update_spin_indicator()
+	else:
+		# Hide spin indicator for putters
+		if spin_indicator:
+			spin_indicator.visible = false
 	
 	print("Launch phase ready!")
 
@@ -1835,7 +1949,13 @@ func show_aiming_instruction() -> void:
 	# Create instruction label
 	var instruction_label := Label.new()
 	instruction_label.name = "AimingInstructionLabel"
-	instruction_label.text = "Move mouse to set landing spot\nLeft click to confirm, Right click to cancel"
+	
+	# Different instructions for putters vs other clubs
+	if is_putting:
+		instruction_label.text = "Move mouse to set landing spot\nLeft click to confirm, Right click to cancel\n(Putter: Power only, no height)"
+	else:
+		instruction_label.text = "Move mouse to set landing spot\nLeft click to confirm, Right click to cancel"
+	
 	instruction_label.add_theme_font_size_override("font_size", 18)
 	instruction_label.add_theme_color_override("font_color", Color.YELLOW)
 	instruction_label.add_theme_constant_override("outline_size", 2)
@@ -1916,6 +2036,64 @@ func show_sand_landing_dialog():
 		print("Sand landing dialog dismissed")
 		print("Move your character to the ball position to take your next shot!")
 	)
+
+func show_hole_completion_dialog():
+	"""Show dialog when the ball goes in the hole"""
+	# Create a dialog to inform the player
+	var dialog = AcceptDialog.new()
+	dialog.title = "Hole Complete!"
+	
+	# Create the dialog text with the score
+	var score_text = "Congratulations! You've completed the hole!\n\n"
+	score_text += "Final Score: %d strokes\n\n" % hole_score
+	score_text += "Click to continue to the next hole."
+	
+	dialog.dialog_text = score_text
+	dialog.add_theme_font_size_override("font_size", 18)
+	dialog.add_theme_color_override("font_color", Color.GREEN)
+	
+	# Position the dialog in the center of the screen
+	dialog.position = Vector2(400, 300)
+	
+	# Add to UI layer
+	$UILayer.add_child(dialog)
+	
+	# Show the dialog
+	dialog.popup_centered()
+	
+	# Connect the confirmed signal to remove the dialog and reset for next hole
+	dialog.confirmed.connect(func():
+		dialog.queue_free()
+		print("Hole completion dialog dismissed")
+		# Reset for next hole
+		reset_for_next_hole()
+	)
+
+func reset_for_next_hole():
+	"""Reset the game state for the next hole"""
+	print("Resetting for next hole...")
+	
+	# Reset hole score
+	hole_score = 0
+	
+	# Reset game phase
+	game_phase = "tee_select"
+	
+	# Reset putting flag
+	is_putting = false
+	
+	# Reset player to tee
+	reset_player_to_tee()
+	
+	# Reset any other game state as needed
+	chosen_landing_spot = Vector2.ZERO
+	selected_club = ""
+	
+	# Update HUD
+	if hud:
+		hud.get_node("ShotLabel").text = "Shots: %d" % hole_score
+	
+	print("Reset complete. Ready for next hole!")
 
 func _on_draw_cards_pressed() -> void:
 	if game_phase == "draw_cards":
@@ -2029,9 +2207,19 @@ func draw_club_cards() -> void:
 	
 	# Create a copy of the bag pile to draw from
 	var available_clubs = bag_pile.duplicate()
+	
+	# Check for putt putt mode - only use putters
+	if Global.putt_putt_mode:
+		print("Putt Putt mode enabled - filtering for putters only")
+		available_clubs = available_clubs.filter(func(card): 
+			var club_info = club_data.get(card.name, {})
+			return club_info.get("is_putter", false)
+		)
+		print("Available putters:", available_clubs.map(func(card): return card.name))
+	
 	var selected_clubs: Array[CardData] = []
 	
-	# Randomly select 2 clubs from the bag pile
+	# Randomly select 2 clubs from the available clubs
 	if available_clubs.size() >= 2:
 		selected_clubs.append(available_clubs[randi() % available_clubs.size()])
 		available_clubs.erase(selected_clubs[0])
@@ -2088,6 +2276,10 @@ func _on_club_card_pressed(club_name: String, club_info: Dictionary, button: Tex
 	selected_club = club_name
 	max_shot_distance = club_info["max_distance"]
 	
+	# Set putting flag if this is a putter
+	is_putting = club_info.get("is_putter", false)
+	print("Putting mode:", is_putting)
+	
 	# Play card click sound
 	card_click_sound.play()
 	
@@ -2099,7 +2291,7 @@ func _on_club_card_pressed(club_name: String, club_info: Dictionary, button: Tex
 	# Transition to aiming phase
 	enter_aiming_phase()
 	
-	print("Club selection complete. Entering aiming phase with", club_name, "max distance:", max_shot_distance)
+	print("Club selection complete. Entering aiming phase with", club_name, "max distance:", max_shot_distance, "putting:", is_putting)
 
 func _on_player_moved_to_tile(new_grid_pos: Vector2i) -> void:
 	print("=== PLAYER MOVED DEBUG ===")
@@ -2507,6 +2699,18 @@ func build_map_from_layout(layout: Array) -> void:
 					# Check if this tree should be near the ball's path
 					if pos.x >= 16 and pos.x <= 18 and pos.y >= 10 and pos.y <= 12:
 						print("*** TREE IN BALL PATH! Grid:", pos, "World:", object.position, "Global:", object.global_position)
+				
+				# Special case: Place invisible blocker to the right of Shop
+				if code == "SHOP":
+					var right_of_shop_pos = pos + Vector2i(2, 0)
+					var blocker_scene = preload("res://Obstacles/InvisibleBlocker.tscn")
+					var blocker = blocker_scene.instantiate()
+					var blocker_world_pos = Vector2(right_of_shop_pos.x, right_of_shop_pos.y) * cell_size
+					blocker.position = blocker_world_pos + Vector2(cell_size / 2, cell_size / 2)
+					obstacle_layer.add_child(blocker)
+					obstacle_map[right_of_shop_pos] = blocker
+					print("Placed invisible blocker to the right of Shop at:", right_of_shop_pos)
+				
 				# Note: We don't overwrite obstacle_map[pos] since the tile is already there
 				# Objects are separate from the tile system for movement/collision
 			elif not tile_scene_map.has(code):
@@ -2542,6 +2746,9 @@ func create_ghost_ball() -> void:
 	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
 	var player_center = player_node.global_position + player_size / 2
 	
+	# Add vertical offset for all shots to match the real ball positioning
+	player_center += Vector2(0, -cell_size * 0.5)
+
 	# Convert global position to camera container local position
 	var ball_local_position = player_center - camera_container.global_position
 	ghost_ball.position = ball_local_position
@@ -2553,6 +2760,9 @@ func create_ghost_ball() -> void:
 	# Set the club information for power calculations
 	if selected_club in club_data:
 		ghost_ball.set_club_info(club_data[selected_club])
+	
+	# Set the putting flag for the ghost ball
+	ghost_ball.set_putting_mode(is_putting)
 	
 	# Add to camera container
 	camera_container.add_child(ghost_ball)

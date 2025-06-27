@@ -6,6 +6,7 @@ var cell_size: int = 48
 var map_manager: Node = null
 var chosen_landing_spot: Vector2 = Vector2.ZERO
 var club_info: Dictionary = {}
+var is_putting: bool = false  # Flag for putter-only rolling mechanics
 
 var velocity := Vector2.ZERO
 var gravity := 2000.0
@@ -152,27 +153,32 @@ func _process(delta):
 				landed_flag = false  # Reset so _process continues
 				return
 			
-			# Calculate bounce based on bounce count
-			var landing_speed = abs(vz)
-			
-			# Determine if we should bounce or start rolling
-			if bounce_count < max_bounces and (bounce_count < min_bounces or landing_speed > 50.0):
-				# Bounce!
-				bounce_count += 1
-				# Calculate bounce height based on bounce count
-				var bounce_height = 0.0
-				if bounce_count == 1:
-					bounce_height = 400.0  # First bounce height
-				else:
-					bounce_height = 400.0 * pow(bounce_factor, bounce_count - 1)
-				# Set vertical velocity for the bounce
-				vz = bounce_height
-				# Reduce horizontal velocity slightly on bounce
-				velocity *= 0.98
-			else:
-				# Start rolling
+			# For putters, go directly to rolling (no bounces)
+			if is_putting:
 				vz = 0.0
 				is_rolling = true
+			else:
+				# Calculate bounce based on bounce count
+				var landing_speed = abs(vz)
+				
+				# Determine if we should bounce or start rolling
+				if bounce_count < max_bounces and (bounce_count < min_bounces or landing_speed > 50.0):
+					# Bounce!
+					bounce_count += 1
+					# Calculate bounce height based on bounce count
+					var bounce_height = 0.0
+					if bounce_count == 1:
+						bounce_height = 400.0  # First bounce height
+					else:
+						bounce_height = 400.0 * pow(bounce_factor, bounce_count - 1)
+					# Set vertical velocity for the bounce
+					vz = bounce_height
+					# Reduce horizontal velocity slightly on bounce
+					velocity *= 0.98
+				else:
+					# Start rolling
+					vz = 0.0
+					is_rolling = true
 	
 	elif vz > 0.0:
 		# Ball is bouncing up from ground
@@ -184,27 +190,32 @@ func _process(delta):
 		if z <= 0.0:
 			z = 0.0
 			
-			# Calculate bounce based on bounce count
-			var landing_speed = abs(vz)
-			
-			# Determine if we should bounce or start rolling
-			if bounce_count < max_bounces and (bounce_count < min_bounces or landing_speed > 50.0):
-				# Bounce!
-				bounce_count += 1
-				# Calculate bounce height based on bounce count
-				var bounce_height = 0.0
-				if bounce_count == 1:
-					bounce_height = 400.0  # First bounce height
-				else:
-					bounce_height = 400.0 * pow(bounce_factor, bounce_count - 1)
-				# Set vertical velocity for the bounce
-				vz = bounce_height
-				# Reduce horizontal velocity slightly on bounce
-				velocity *= 0.98
-			else:
-				# Start rolling
+			# For putters, go directly to rolling (no bounces)
+			if is_putting:
 				vz = 0.0
 				is_rolling = true
+			else:
+				# Calculate bounce based on bounce count
+				var landing_speed = abs(vz)
+				
+				# Determine if we should bounce or start rolling
+				if bounce_count < max_bounces and (bounce_count < min_bounces or landing_speed > 50.0):
+					# Bounce!
+					bounce_count += 1
+					# Calculate bounce height based on bounce count
+					var bounce_height = 0.0
+					if bounce_count == 1:
+						bounce_height = 400.0  # First bounce height
+					else:
+						bounce_height = 400.0 * pow(bounce_factor, bounce_count - 1)
+					# Set vertical velocity for the bounce
+					vz = bounce_height
+					# Reduce horizontal velocity slightly on bounce
+					velocity *= 0.98
+				else:
+					# Start rolling
+					vz = 0.0
+					is_rolling = true
 	
 	else:
 		# Ball is on the ground (z = 0, vz <= 0)
@@ -249,27 +260,32 @@ func _process(delta):
 		
 		# If we have negative vz but we're on the ground, check if we should bounce
 		if vz < 0.0 and not is_rolling:
-			# Check if we should bounce or start rolling
-			var landing_speed = abs(vz)
-			
-			# Only bounce if we haven't reached max bounces AND we haven't completed minimum bounces
-			if bounce_count < max_bounces and bounce_count < min_bounces:
-				# Bounce!
-				bounce_count += 1
-				# Calculate bounce height based on bounce count
-				var bounce_height = 0.0
-				if bounce_count == 1:
-					bounce_height = 400.0  # First bounce height
-				else:
-					bounce_height = 400.0 * pow(bounce_factor, bounce_count - 1)
-				# Set vertical velocity for the bounce
-				vz = bounce_height
-				# Reduce horizontal velocity slightly on bounce
-				velocity *= 0.98
-			else:
-				# Start rolling
+			# For putters, go directly to rolling (no bounces)
+			if is_putting:
 				vz = 0.0
 				is_rolling = true
+			else:
+				# Check if we should bounce or start rolling
+				var landing_speed = abs(vz)
+				
+				# Only bounce if we haven't reached max bounces AND we haven't completed minimum bounces
+				if bounce_count < max_bounces and bounce_count < min_bounces:
+					# Bounce!
+					bounce_count += 1
+					# Calculate bounce height based on bounce count
+					var bounce_height = 0.0
+					if bounce_count == 1:
+						bounce_height = 400.0  # First bounce height
+					else:
+						bounce_height = 400.0 * pow(bounce_factor, bounce_count - 1)
+					# Set vertical velocity for the bounce
+					vz = bounce_height
+					# Reduce horizontal velocity slightly on bounce
+					velocity *= 0.98
+				else:
+					# Start rolling
+					vz = 0.0
+					is_rolling = true
 		
 		if is_rolling:
 			# Ball is rolling on the ground
@@ -331,6 +347,7 @@ func _process(delta):
 func launch_ghost_ball():
 	"""Launch the ghost ball at 75% power"""
 	print("=== LAUNCHING GHOST BALL ===")
+	print("Ghost ball putting mode:", is_putting)
 	
 	# Reset ball state
 	landed_flag = false
@@ -373,21 +390,37 @@ func launch_ghost_ball():
 		# For sweet spot shots (75%), use the calculated power needed for the target distance
 		power = power_needed_for_target
 		
-		# Calculate height at 50% (sweet spot height) - use same range as real ball
-		var height_percentage = 0.5  # 50% height (sweet spot)
-		height = 400.0 + (2000.0 - 400.0) * height_percentage  # Same range as real ball: 400-2000
+		# Calculate height based on putting mode
+		if is_putting:
+			# For putters, set height to 0 (no arc, just rolling)
+			height = 0.0
+			print("Ghost ball: Putter mode - height set to 0")
+		else:
+			# Calculate height at 50% (sweet spot height) - use same range as real ball
+			var height_percentage = 0.5  # 50% height (sweet spot)
+			height = 400.0 + (2000.0 - 400.0) * height_percentage  # Same range as real ball: 400-2000
 		
 	else:
 		# Default values if no landing spot
 		var max_power = club_info.get("max_distance", 1200.0)
 		power = max_power * power_percentage
-		height = 400.0 + (2000.0 - 400.0) * 0.5  # 50% height with same range as real ball
+		
+		# Set height based on putting mode
+		if is_putting:
+			height = 0.0
+		else:
+			height = 400.0 + (2000.0 - 400.0) * 0.5  # 50% height with same range as real ball
 	
 	# Set initial velocity and ensure ball starts in the air
 	velocity = direction * power
 	vz = height
-	z = 0.1  # Start slightly above ground to ensure it's in the air
 	
+	# For putters, start on the ground (z = 0)
+	# For other clubs, start slightly above ground
+	if is_putting:
+		z = 0.0
+	else:
+		z = 0.1  # Start slightly above ground to ensure it's in the air
 
 func update_visual_effects():
 	if not sprite:
@@ -436,6 +469,11 @@ func set_club_info(club_data: Dictionary):
 	"""Set the club information for power calculations"""
 	club_info = club_data
 
+func set_putting_mode(putting: bool):
+	"""Set the putting mode for the ghost ball"""
+	is_putting = putting
+	print("Ghost ball putting mode set to:", is_putting)
+
 func reset_ball():
 	"""Reset the ghost ball to its starting position"""
 	velocity = Vector2.ZERO
@@ -459,7 +497,7 @@ func reset_ball():
 		sprite.scale = base_scale
 	if shadow:
 		shadow.scale = base_scale
-		shadow.modulate = Color(0, 0, 0, opacity * 0.3) 
+		shadow.modulate = Color(0, 0, 0, opacity * 0.3)
 
 func update_y_sort() -> void:
 	"""Update the ball's z_index based on its position relative to Y-sorted objects"""

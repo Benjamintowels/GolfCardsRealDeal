@@ -16,8 +16,6 @@ func _ready():
 	var trunk_base_area = get_node_or_null("TrunkBaseArea")
 	var leaves_area = get_node_or_null("Leaves")
 	
-	print("Tree _ready called at position:", global_position, "grid position:", global_position / 48.0)
-	
 	if trunk_base_area:
 		# Use area_entered for trunk collisions (since golf ball uses Area2D for all collisions)
 		trunk_base_area.connect("area_entered", _on_trunk_area_entered)
@@ -25,12 +23,6 @@ func _ready():
 		trunk_base_area.collision_layer = 1
 		# Set collision mask to 1 so it can detect golf balls on layer 1
 		trunk_base_area.collision_mask = 1
-		print("TrunkBaseArea connected to area_entered signal")
-		print("TrunkBaseArea collision_layer:", trunk_base_area.collision_layer)
-		print("TrunkBaseArea collision_mask:", trunk_base_area.collision_mask)
-		# Test if Area2D is working by checking if it's monitoring
-		print("TrunkBaseArea monitoring:", trunk_base_area.monitoring)
-		print("TrunkBaseArea monitorable:", trunk_base_area.monitorable)
 	else:
 		print("ERROR: TrunkBaseArea not found!")
 	
@@ -40,12 +32,6 @@ func _ready():
 		leaves_area.collision_layer = 1
 		# Set collision mask to 1 so it can detect golf balls on layer 1 (for trunk collisions only)
 		leaves_area.collision_mask = 1
-		print("Leaves area collision layers set (for trunk collisions only)")
-		print("Leaves collision_layer:", leaves_area.collision_layer)
-		print("Leaves collision_mask:", leaves_area.collision_mask)
-		# Test if Area2D is working by checking if it's monitoring
-		print("Leaves monitoring:", leaves_area.monitoring)
-		print("Leaves monitorable:", leaves_area.monitorable)
 	else:
 		print("ERROR: Leaves area not found!")
 	
