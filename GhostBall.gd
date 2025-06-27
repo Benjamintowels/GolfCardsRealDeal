@@ -384,11 +384,25 @@ func launch_ghost_ball():
 		var power_percentage = 0.75
 		
 		# Use the EXACT same power calculation as the real ball
-		var power_needed_for_target = distance_to_target * 0.8  # Same conversion factor as real ball
-		power_needed_for_target = clamp(power_needed_for_target, 300.0, 1200.0)  # Same min/max as real ball
+		# Calculate base power needed for the distance (same as course_1.gd)
+		var reference_distance = 1200.0  # Driver's max distance as reference
+		var distance_factor = distance_to_target / reference_distance
+		var ball_physics_factor = 0.8 + (distance_factor * 0.4)
+		var base_power_per_distance = 0.6 + (distance_factor * 0.2)
+		var base_power_for_target = distance_to_target * base_power_per_distance * ball_physics_factor
+		
+		# Apply club-specific power scaling (same as course_1.gd)
+		var club_efficiency = 1.0
+		if club_info.has("max_distance"):
+			var club_max = club_info["max_distance"]
+			var efficiency_factor = 1200.0 / club_max
+			club_efficiency = sqrt(efficiency_factor)
+			club_efficiency = clamp(club_efficiency, 0.7, 1.5)
+		
+		var power_for_target = base_power_for_target * club_efficiency
 		
 		# For sweet spot shots (75%), use the calculated power needed for the target distance
-		power = power_needed_for_target
+		power = power_for_target
 		
 		# Calculate height based on putting mode
 		if is_putting:

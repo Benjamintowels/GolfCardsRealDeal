@@ -195,7 +195,7 @@ var shop_grid_pos := Vector2i(2, 6)  # Position of shop from map layout
 
 var has_started := false
 
-# Move these variable declarations to just before build_map_from_layout
+# Move these variable declarations to just before build_map_from_layout_with_randomization
 var tile_scene_map := {
 	"W": preload("res://Obstacles/WaterHazard.tscn"),
 	"F": preload("res://Obstacles/Fairway.tscn"),
@@ -231,16 +231,17 @@ func clear_existing_objects() -> void:
 	
 	var objects_removed = 0
 	
-	# Remove objects from obstacle_layer (but not Pin)
+	# Remove objects from obstacle_layer (including Pin now)
 	for child in obstacle_layer.get_children():
-		if child.name == "Tree" or child.name == "Shop" or child.name == "ShopExterior":
+		if child.name == "Tree" or child.name == "Shop" or child.name == "ShopExterior" or child.name == "Pin":
+			var child_name = child.name  # Store before freeing
 			child.queue_free()
 			objects_removed += 1
-			print("Removed object:", child.name)
+			print("Removed object:", child_name)
 	
 	print("Removed", objects_removed, "objects from obstacle_layer")
 	
-	# Clear obstacle_map entries for objects (but not Pin)
+	# Clear obstacle_map entries for objects (including Pin now)
 	var keys_to_remove: Array[Vector2i] = []
 	for pos in obstacle_map.keys():
 		var obstacle = obstacle_map[pos]
@@ -256,7 +257,7 @@ func clear_existing_objects() -> void:
 	var ysort_count = ysort_objects.size()
 	var pin_objects = []
 	for obj in ysort_objects:
-		if obj.has("node") and obj.node and obj.node.name == "Pin":
+		if obj.has("node") and obj.node and is_instance_valid(obj.node) and obj.node.name == "Pin":
 			pin_objects.append(obj)
 	
 	ysort_objects.clear()
@@ -283,10 +284,10 @@ func is_valid_position_for_object(pos: Vector2i, layout: Array) -> bool:
 	if tile_type in ["W", "S", "P"]:
 		return false
 	
-	# Check 6x6 grid spacing rule with other placed objects
+	# Check 8x8 grid spacing rule with other placed objects (increased from 6x6)
 	for placed_pos in placed_objects:
 		var distance = max(abs(pos.x - placed_pos.x), abs(pos.y - placed_pos.y))
-		if distance < 6:
+		if distance < 8:
 			return false
 	
 	return true
@@ -332,7 +333,7 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 		var valid = true
 		for placed_pos in placed_objects:
 			var distance = max(abs(tree_pos.x - placed_pos.x), abs(tree_pos.y - placed_pos.y))
-			if distance < 6:
+			if distance < 8:
 				valid = false
 				break
 		
@@ -413,38 +414,49 @@ func build_map_from_layout_base(layout: Array) -> void:
 			else:
 				print("ℹ️ Skipping unmapped tile code '%s' at (%d,%d)" % [tile_code, x, y])
 	
-	# Place Pin in its fixed position from the layout
+	# --- Pin randomization on Green (not on edge) ---
+	var green_positions: Array = []
+	var green_inner_positions: Array = []
+	# First, collect all green tile positions
 	for y in layout.size():
 		for x in layout[y].size():
-			var code: String = layout[y][x]
-			if code == "P":
-				var pos: Vector2i = Vector2i(x, y)
-				var world_pos: Vector2 = Vector2(x, y) * cell_size
-				
-				var scene: PackedScene = object_scene_map["P"]
-				if scene == null:
-					push_error("🚫 Pin scene is null")
+			if layout[y][x] == "G":
+				green_positions.append(Vector2i(x, y))
+	# Now, filter out edge green tiles
+	for pos in green_positions:
+		var x = pos.x
+		var y = pos.y
+		var is_edge = false
+		for dy in range(-1, 2):
+			for dx in range(-1, 2):
+				if dx == 0 and dy == 0:
 					continue
-				
-				var pin: Node2D = scene.instantiate() as Node2D
-				if pin == null:
-					push_error("❌ Pin instantiation failed at (%d,%d)" % [x, y])
-					continue
-				
-				pin.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
-				
-				# Set grid_position if the property exists
-				if pin.has_meta("grid_position") or "grid_position" in pin:
-					pin.set("grid_position", pos)
-				else:
-					push_warning("⚠️ Pin missing 'grid_position'. Type: %s" % pin.get_class())
-				
-				# Track for Y-sorting
-				ysort_objects.append({"node": pin, "grid_pos": pos})
-				obstacle_layer.add_child(pin)
-				
-				print("Pin placed at fixed position:", pos)
-				break  # Only one pin per hole
+				var nx = x + dx
+				var ny = y + dy
+				if nx < 0 or ny < 0 or ny >= layout.size() or nx >= layout[ny].size():
+					is_edge = true
+				elif layout[ny][nx] != "G":
+					is_edge = true
+		if not is_edge:
+			green_inner_positions.append(pos)
+	# Pick a random inner green tile for the Pin
+	var pin_pos = Vector2i.ZERO
+	if green_inner_positions.size() > 0:
+		pin_pos = green_inner_positions[randi() % green_inner_positions.size()]
+	elif green_positions.size() > 0:
+		pin_pos = green_positions[randi() % green_positions.size()]
+	# Place the Pin at the chosen position
+	if pin_pos != Vector2i.ZERO:
+		var world_pos: Vector2 = Vector2(pin_pos.x, pin_pos.y) * cell_size
+		var scene: PackedScene = object_scene_map["P"]
+		if scene != null:
+			var pin: Node2D = scene.instantiate() as Node2D
+			pin.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
+			if pin.has_meta("grid_position") or "grid_position" in pin:
+				pin.set("grid_position", pin_pos)
+			ysort_objects.append({"node": pin, "grid_pos": pin_pos})
+			obstacle_layer.add_child(pin)
+			print("Pin placed at random green position:", pin_pos)
 
 func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> void:
 	"""Place objects at the specified positions"""
@@ -464,6 +476,9 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		
 		var world_pos: Vector2 = Vector2(tree_pos.x, tree_pos.y) * cell_size
 		tree.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
+		
+		# Set z_index for correct Y-sorting (higher Y = in front)
+		tree.z_index = int(tree.position.y)
 		
 		# Set grid_position if the property exists
 		if tree.has_meta("grid_position") or "grid_position" in tree:
@@ -1596,8 +1611,28 @@ func launch_golf_ball(direction: Vector2, charged_power: float, height: float):
 		var distance_factor = distance_to_target / reference_distance
 		var ball_physics_factor = 0.8 + (distance_factor * 0.4)  # Reduced from 1.2 to 0.4 (0.8 to 1.2)
 		var base_power_per_distance = 0.6 + (distance_factor * 0.2)  # Reduced from 0.8 to 0.2 (0.6 to 0.8)
-		var power_for_target = distance_to_target * base_power_per_distance * ball_physics_factor
-
+		
+		# Calculate base power needed for the distance
+		var base_power_for_target = distance_to_target * base_power_per_distance * ball_physics_factor
+		
+		# Apply club-specific power scaling based on club efficiency
+		# Lower power clubs need more power to reach the same distance
+		var club_efficiency = 1.0
+		if selected_club in club_data:
+			var club_max = club_data[selected_club]["max_distance"]
+			# Calculate efficiency: Driver (1200) = 1.0, lower clubs need more power
+			# Use a more gradual scaling to keep clubs closer in power
+			var efficiency_factor = 1200.0 / club_max
+			# Apply a square root to make the differences more gradual
+			# This reduces the extreme differences between clubs
+			club_efficiency = sqrt(efficiency_factor)
+			# Clamp efficiency to reasonable range (0.7 to 1.5)
+			club_efficiency = clamp(club_efficiency, 0.7, 1.5)
+		
+		var power_for_target = base_power_for_target * club_efficiency
+		
+		print("Club power calculation - club:", selected_club, "efficiency:", club_efficiency, "base_power:", base_power_for_target, "final_power:", power_for_target)
+		
 		# Calculate power based on time percentage
 		if is_putting:
 			# For putters: simple linear power based on charge time, no penalties
@@ -3175,6 +3210,8 @@ func update_ball_y_sort(ball_node: Node2D) -> void:
 	var closest_tree_z = 0
 	var min_dist = INF
 	for obj in ysort_objects:
+		if not obj.has("node") or not obj["node"] or not is_instance_valid(obj["node"]):
+			continue
 		if obj["node"].z_index == 3:
 			var tree_node = obj["node"]
 			var tree_y_sort_point = tree_node.global_position.y

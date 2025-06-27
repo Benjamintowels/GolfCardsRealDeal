@@ -94,6 +94,11 @@ func update_z_index_for_ysort(ysort_objects: Array) -> void:
 			continue
 		var obj_grid_pos = obj["grid_pos"]
 		var obj_node = obj["node"]
+		
+		# Check if the node is still valid and not freed
+		if not obj_node or not is_instance_valid(obj_node):
+			continue
+			
 		var is_shop = obj_node.name == "Shop" or obj_node.get_class() == "Shop"
 		var x_range = 3 if is_shop else 1
 		if abs(obj_grid_pos.x - grid_pos.x) > x_range:

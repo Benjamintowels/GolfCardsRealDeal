@@ -127,31 +127,23 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 		# Calculate the distance to the landing spot
 		var ball_global_pos = global_position
 		var distance_to_target = ball_global_pos.distance_to(chosen_landing_spot)
-		var max_shot_distance = 2000.0  # Same as in course_1.gd
-		power_scale_factor = distance_to_target / max_shot_distance
-		power_scale_factor = clamp(power_scale_factor, 0.1, 1.0)
-		# Calculate the scaled power range that the player actually sees
-		var scaled_max_power = MAX_LAUNCH_POWER * power_scale_factor
-		var scaled_min_power = MIN_LAUNCH_POWER * power_scale_factor
 		
-		
-		# Scale the power value to match the scaled range
-		scaled_power = power * power_scale_factor
+		# Use the power directly as passed from the course
+		scaled_power = power
 		
 		# For putters, don't apply distance-based power scaling
 		if is_putting:
 			scaled_power = power  # Use full power for putters
-			print("Putter detected - skipping distance-based power scaling. Using full power:", power)
+			print("Putter detected - using full power:", power)
 		
 		# Calculate power percentage based on the scaled range (what the player sees on the meter)
 		# Use the same calculation as the power meter in course_1.gd
 		# The power meter uses the adjusted scaled max power (500.0 in this case)
-		adjusted_scaled_max_power = max(scaled_max_power, MIN_LAUNCH_POWER + 200.0)  # Same logic as course_1.gd
+		adjusted_scaled_max_power = max(scaled_power, MIN_LAUNCH_POWER + 200.0)  # Same logic as course_1.gd
 		var power_percentage = (power - MIN_LAUNCH_POWER) / (adjusted_scaled_max_power - MIN_LAUNCH_POWER)
 		power_percentage = clamp(power_percentage, 0.0, 1.0)
 		
-		# FIXED: For sweet spot detection, use the original power range, not the scaled range
-		# The scaled range is only for the power meter display
+		# Simplified: For sweet spot detection, use the original power range
 		var original_power_percentage = (power - MIN_LAUNCH_POWER) / (MAX_LAUNCH_POWER - MIN_LAUNCH_POWER)
 		original_power_percentage = clamp(original_power_percentage, 0.0, 1.0)
 		# Determine if this is a sweet spot shot based on time percentage or power percentage
@@ -194,20 +186,12 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 			power_needed = clamp(power_needed, MIN_LAUNCH_POWER, MAX_LAUNCH_POWER)
 			final_power = power_needed
 		else:
-			# Use the power passed from the course instead of recalculating
-			final_power = scaled_power  # Use the power that was passed to the ball
-			print("Shot - using passed power:", scaled_power, "target distance:", distance_to_target)
+			# Use the power passed from the course directly
+			final_power = power  # Use the power that was passed to the ball
+			print("Shot - using passed power:", power, "target distance:", distance_to_target)
 		
-		# Scale the final power based on the club's max distance to ensure proper range
-		var club_max_distance = club_info.get("max_distance", 1200.0)
-		var club_power_scale = club_max_distance / 1200.0  # Normalize to Driver's max distance
-		
-		# Don't apply club power scaling for putters - they should use full power
-		if not is_putting:
-			final_power = final_power * club_power_scale
-			print("Applied club power scaling:", club_power_scale, "Final power:", final_power)
-		else:
-			print("Putter detected - skipping club power scaling. Final power:", final_power)
+		# The course now properly calculates club-specific power, so no additional scaling needed
+		# The power passed from the course already accounts for club efficiency
 		
 		# Update the power variable to use the calculated value for physics
 		power = final_power
