@@ -66,6 +66,11 @@ var CHARACTER_STATS = {
 
 var game_phase := "tee_select" # Possible: tee_select, draw_cards, aiming, launch, ball_flying, move, etc.
 var hole_score := 0
+
+# Multi-hole game loop variables
+var round_scores := []  # Array to store scores for each hole
+var round_complete := false  # Flag to track if front 9 is complete
+
 var golf_ball: Node2D = null
 var power_meter: Control = null
 var height_meter: Control = null
@@ -241,9 +246,9 @@ func clear_existing_objects() -> void:
 	print("Removed", objects_removed, "objects from obstacle_layer")
 	
 	# Debug: Show what objects remain in obstacle_layer
-	print("Remaining objects in obstacle_layer after clearing:")
-	for child in obstacle_layer.get_children():
-		print("  -", child.name, "Type:", child.get_class())
+	# print("Remaining objects in obstacle_layer after clearing:")
+	# for child in obstacle_layer.get_children():
+	#     print("  -", child.name, "Type:", child.get_class())
 	
 	# Clear obstacle_map entries for objects (including Pin now)
 	var keys_to_remove: Array[Vector2i] = []
@@ -733,7 +738,7 @@ func _ready() -> void:
 		obstacle_layer.get_parent().remove_child(obstacle_layer)
 	camera_container.add_child(obstacle_layer)
 
-	# Load map data first
+	# Load map data first - use LEVEL_LAYOUT instead of the non-existent LAYOUT
 	map_manager.load_map_data(GolfCourseLayout.LEVEL_LAYOUT)
 	# Remove this redundant call - we'll load the specific hole layout below
 	# build_map_from_layout_with_randomization(map_manager.level_layout)
@@ -2507,18 +2512,51 @@ func show_sand_landing_dialog():
 
 func show_hole_completion_dialog():
 	"""Show dialog when the ball goes in the hole"""
-	# Add hole_score to total_score
-	total_score += hole_score
+	# Store the hole score in round_scores array
+	round_scores.append(hole_score)
+	
+	# Calculate par for this hole
+	var hole_par = GolfCourseLayout.get_hole_par(current_hole)
+	var score_vs_par = hole_score - hole_par
+	
+	# Create score text with par information
+	var score_text = "Hole %d Complete!\n\n" % (current_hole + 1)
+	score_text += "Hole Score: %d strokes\n" % hole_score
+	score_text += "Par: %d\n" % hole_par
+	
+	# Add par-based score display
+	if score_vs_par == 0:
+		score_text += "Score: Par ✓\n"
+	elif score_vs_par == 1:
+		score_text += "Score: Bogey (+1)\n"
+	elif score_vs_par == 2:
+		score_text += "Score: Double Bogey (+2)\n"
+	elif score_vs_par == -1:
+		score_text += "Score: Birdie (-1) ✓\n"
+	elif score_vs_par == -2:
+		score_text += "Score: Eagle (-2) ✓\n"
+	else:
+		score_text += "Score: %+d\n" % score_vs_par
+	
+	# Show round progress
+	var total_round_score = 0
+	for score in round_scores:
+		total_round_score += score
+	
+	var total_par = GolfCourseLayout.get_front_nine_par()
+	var round_vs_par = total_round_score - total_par
+	
+	score_text += "\nRound Progress: %d/%d holes\n" % [current_hole + 1, NUM_HOLES]
+	score_text += "Round Score: %d\n" % total_round_score
+	score_text += "Round vs Par: %+d\n" % round_vs_par
+	
+	if current_hole < NUM_HOLES - 1:
+		score_text += "\nClick to continue to the next hole."
+	else:
+		score_text += "\nClick to see your final round score!"
+	
 	var dialog = AcceptDialog.new()
 	dialog.title = "Hole Complete!"
-	var score_text = "Congratulations! You've completed the hole!\n\n"
-	score_text += "Hole Score: %d strokes\n" % hole_score
-	score_text += "Total Score: %d\n" % total_score
-	score_text += "Hole %d of %d\n\n" % [current_hole+1, NUM_HOLES]
-	if current_hole < NUM_HOLES - 1:
-		score_text += "Click to continue to the next hole."
-	else:
-		score_text += "Click to see your final score!"
 	dialog.dialog_text = score_text
 	dialog.add_theme_font_size_override("font_size", 18)
 	dialog.add_theme_color_override("font_color", Color.GREEN)
@@ -2531,7 +2569,7 @@ func show_hole_completion_dialog():
 		if current_hole < NUM_HOLES - 1:
 			reset_for_next_hole()
 		else:
-			show_course_complete_dialog()
+			show_front_nine_complete_dialog()
 	)
 
 func reset_for_next_hole():
@@ -2586,6 +2624,65 @@ func show_course_complete_dialog():
 		get_tree().reload_current_scene()
 	)
 
+func show_front_nine_complete_dialog():
+	"""Show final round score dialog for front 9 completion"""
+	var total_round_score = 0
+	for score in round_scores:
+		total_round_score += score
+	
+	var total_par = GolfCourseLayout.get_front_nine_par()
+	var round_vs_par = total_round_score - total_par
+	
+	# Create detailed score breakdown
+	var score_text = "Front 9 Complete!\n\n"
+	score_text += "Hole-by-Hole Scores:\n"
+	
+	for i in range(round_scores.size()):
+		var hole_score = round_scores[i]
+		var hole_par = GolfCourseLayout.get_hole_par(i)
+		var hole_vs_par = hole_score - hole_par
+		
+		score_text += "Hole %d: %d strokes" % [i + 1, hole_score]
+		if hole_vs_par == 0:
+			score_text += " (Par)"
+		elif hole_vs_par == 1:
+			score_text += " (+1)"
+		elif hole_vs_par == 2:
+			score_text += " (+2)"
+		elif hole_vs_par == -1:
+			score_text += " (-1)"
+		elif hole_vs_par == -2:
+			score_text += " (-2)"
+		else:
+			score_text += " (%+d)" % hole_vs_par
+		score_text += "\n"
+	
+	score_text += "\nFinal Round Score: %d strokes\n" % total_round_score
+	score_text += "Course Par: %d\n" % total_par
+	
+	# Final score vs par
+	if round_vs_par == 0:
+		score_text += "Final Result: Even Par ✓\n"
+	elif round_vs_par > 0:
+		score_text += "Final Result: %+d (Over Par)\n" % round_vs_par
+	else:
+		score_text += "Final Result: %+d (Under Par) ✓\n" % round_vs_par
+	
+	score_text += "\nClick to return to main menu."
+	
+	var dialog = AcceptDialog.new()
+	dialog.title = "Front 9 Complete!"
+	dialog.dialog_text = score_text
+	dialog.add_theme_font_size_override("font_size", 16)
+	dialog.add_theme_color_override("font_color", Color.CYAN)
+	dialog.position = Vector2(400, 300)
+	$UILayer.add_child(dialog)
+	dialog.popup_centered()
+	dialog.confirmed.connect(func():
+		dialog.queue_free()
+		get_tree().reload_current_scene()
+	)
+
 func update_hole_and_score_display():
 	if hud:
 		var label = hud.get_node_or_null("HoleLabel")
@@ -2593,7 +2690,20 @@ func update_hole_and_score_display():
 			label = Label.new()
 			label.name = "HoleLabel"
 			hud.add_child(label)
-		label.text = "Hole: %d/%d    Total: %d" % [current_hole+1, NUM_HOLES, total_score]
+		
+		# Calculate current round score
+		var current_round_score = 0
+		for score in round_scores:
+			current_round_score += score
+		current_round_score += hole_score  # Include current hole score
+		
+		# Calculate vs par
+		var total_par_so_far = 0
+		for i in range(current_hole + 1):
+			total_par_so_far += GolfCourseLayout.get_hole_par(i)
+		var round_vs_par = current_round_score - total_par_so_far
+		
+		label.text = "Hole: %d/%d    Round: %d (%+d)" % [current_hole+1, NUM_HOLES, current_round_score, round_vs_par]
 		label.position = Vector2(10, 10)
 		label.z_index = 200
 
@@ -3464,9 +3574,9 @@ func update_ball_y_sort(ball_node: Node2D) -> void:
 		if ball_shadow.z_index <= -5:
 			ball_shadow.z_index = 1
 
-var current_hole := 0
+var current_hole := 0  # 0-based hole index (0-8 for front 9)
 var total_score := 0
-const NUM_HOLES := 3
+const NUM_HOLES := 9  # Front 9 holes
 var is_in_pin_transition := false
 
 # Add this function after the other randomization functions
