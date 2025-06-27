@@ -233,11 +233,23 @@ func clear_existing_objects() -> void:
 	
 	# Remove objects from obstacle_layer (including Pin now)
 	for child in obstacle_layer.get_children():
-		if child.name == "Tree" or child.name == "Shop" or child.name == "ShopExterior" or child.name == "Pin":
+		# Check for trees by name or method
+		var is_tree = child.name == "Tree" or child.has_method("_on_area_entered") and "Tree" in str(child.get_script())
+		# Check for shop by name
+		var is_shop = child.name == "Shop" or child.name == "ShopExterior"
+		# Check for pin by multiple methods
+		var is_pin = false
+		if child.has_method("_on_area_entered"):
+			var script_path = str(child.get_script())
+			is_pin = "Pin" in script_path or child.name == "Pin" or "Pin.gd" in script_path
+			# Also check if it has the hole_in_one signal (pin-specific)
+			if child.has_signal("hole_in_one"):
+				is_pin = true
+		
+		if is_tree or is_shop or is_pin:
 			var child_name = child.name  # Store before freeing
 			child.queue_free()
 			objects_removed += 1
-			print("Removed object:", child_name)
 	
 	print("Removed", objects_removed, "objects from obstacle_layer")
 	
@@ -245,26 +257,34 @@ func clear_existing_objects() -> void:
 	var keys_to_remove: Array[Vector2i] = []
 	for pos in obstacle_map.keys():
 		var obstacle = obstacle_map[pos]
-		if obstacle and (obstacle.name == "Tree" or obstacle.name == "Shop" or obstacle.name == "ShopExterior"):
-			keys_to_remove.append(pos)
+		if obstacle:
+			# Check for trees by name or method
+			var is_tree = obstacle.name == "Tree" or obstacle.has_method("_on_area_entered") and "Tree" in str(obstacle.get_script())
+			# Check for shop by name
+			var is_shop = obstacle.name == "Shop" or obstacle.name == "ShopExterior"
+			# Check for pin by multiple methods
+			var is_pin = false
+			if obstacle.has_method("_on_area_entered"):
+				var script_path = str(obstacle.get_script())
+				is_pin = "Pin" in script_path or obstacle.name == "Pin" or "Pin.gd" in script_path
+				# Also check if it has the hole_in_one signal (pin-specific)
+				if obstacle.has_signal("hole_in_one"):
+					is_pin = true
+			
+			if is_tree or is_shop or is_pin:
+				keys_to_remove.append(pos)
 	
 	for pos in keys_to_remove:
 		obstacle_map.erase(pos)
 	
 	print("Removed", keys_to_remove.size(), "object entries from obstacle_map")
 	
-	# Clear ysort_objects (but keep Pin)
+	# Clear ysort_objects (including Pin now)
 	var ysort_count = ysort_objects.size()
-	var pin_objects = []
-	for obj in ysort_objects:
-		if obj.has("node") and obj.node and is_instance_valid(obj.node) and obj.node.name == "Pin":
-			pin_objects.append(obj)
-	
 	ysort_objects.clear()
-	ysort_objects.append_array(pin_objects)  # Keep pin objects
 	placed_objects.clear()
 	
-	print("Cleared", ysort_count - pin_objects.size(), "ysort objects, kept", pin_objects.size(), "pin objects")
+	print("Cleared", ysort_count, "ysort objects")
 	print("Objects cleared. Remaining obstacles:", obstacle_map.size())
 
 func is_valid_position_for_object(pos: Vector2i, layout: Array) -> bool:
@@ -363,6 +383,9 @@ func build_map_from_layout_with_randomization(layout: Array) -> void:
 	
 	# Place objects at random positions
 	place_objects_at_positions(object_positions, layout)
+	
+	# Position camera on pin immediately after map is built
+	position_camera_on_pin()
 
 func build_map_from_layout_base(layout: Array) -> void:
 	"""Build only the base tiles without objects"""
@@ -456,7 +479,11 @@ func build_map_from_layout_base(layout: Array) -> void:
 				pin.set("grid_position", pin_pos)
 			ysort_objects.append({"node": pin, "grid_pos": pin_pos})
 			obstacle_layer.add_child(pin)
-			print("Pin placed at random green position:", pin_pos)
+			print("Pin placed at random green position:", pin_pos, "world position:", world_pos, "pin name:", pin.name)
+		else:
+			print("ERROR: Pin scene is null!")
+	else:
+		print("ERROR: No valid pin position found!")
 
 func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> void:
 	"""Place objects at the specified positions"""
@@ -682,7 +709,8 @@ func _ready() -> void:
 
 	# Load map data first
 	map_manager.load_map_data(GolfCourseLayout.LEVEL_LAYOUT)
-	build_map_from_layout_with_randomization(map_manager.level_layout)
+	# Remove this redundant call - we'll load the specific hole layout below
+	# build_map_from_layout_with_randomization(map_manager.level_layout)
 
 	deck_manager = DeckManager.new()
 	add_child(deck_manager)
@@ -736,18 +764,20 @@ func _ready() -> void:
 	is_placing_player = true
 	highlight_tee_tiles()
 
-	# Focus camera on the tee area initially
-	focus_camera_on_tee()
+	# Load map data for the first hole
+	current_hole = 0
+	print("=== INITIALIZATION DEBUG ===")
+	print("Loading map data for hole:", current_hole + 1)
+	map_manager.load_map_data(GolfCourseLayout.get_hole_layout(current_hole))
+	print("Map data loaded, building map...")
+	build_map_from_layout_with_randomization(map_manager.level_layout)
+	print("Map built, camera should be positioned on pin")
+	print("=== END INITIALIZATION DEBUG ===")
+
+	update_hole_and_score_display()
 
 	# Show instruction to player
 	show_tee_selection_instruction()
-
-	# Load map data for the first hole
-	current_hole = 0
-	map_manager.load_map_data(GolfCourseLayout.get_hole_layout(current_hole))
-	build_map_from_layout_with_randomization(map_manager.level_layout)
-
-	update_hole_and_score_display()
 
 	# Add Complete Hole test button
 	var complete_hole_btn := Button.new()
@@ -766,6 +796,15 @@ func _ready() -> void:
 	test_random_btn.z_index = 999
 	$UILayer.add_child(test_random_btn)
 	test_random_btn.pressed.connect(test_randomization)
+
+	# Add Pin-to-Tee Test button
+	var test_pin_tee_btn := Button.new()
+	test_pin_tee_btn.name = "TestPinTeeButton"
+	test_pin_tee_btn.text = "Test Pin-to-Tee"
+	test_pin_tee_btn.position = Vector2(400, 150)
+	test_pin_tee_btn.z_index = 999
+	$UILayer.add_child(test_pin_tee_btn)
+	test_pin_tee_btn.pressed.connect(start_hole_with_pin_transition)
 
 func _on_complete_hole_pressed():
 	show_hole_completion_dialog()
@@ -991,11 +1030,18 @@ func _draw_tile(drawer: Control, x: int, y: int) -> void:
 		drawer.draw_rect(Rect2(Vector2.ZERO, drawer.size), Color(0.5, 0.5, 0.5, alpha * 0.8), false, 1.0)
 
 func create_player() -> void:
-	# Remove old player node if it exists
+	# Reuse existing player if it exists and is valid
 	if player_node and is_instance_valid(player_node):
-		player_node.queue_free()
+		print("Reusing existing player")
+		# Just update the player's position and make it visible
+		player_node.position = Vector2(player_grid_pos.x, player_grid_pos.y) * cell_size + Vector2(2, 2)
+		player_node.set_grid_position(player_grid_pos)
+		player_node.visible = true
+		update_player_position()
+		return
 
-	# Instance the Player.tscn container
+	# Create new player only if one doesn't exist
+	print("Creating new player")
 	var player_scene = preload("res://Characters/Player1.tscn")
 	player_node = player_scene.instantiate()
 	player_node.name = "Player"
@@ -1044,7 +1090,8 @@ func create_player() -> void:
 	player_node.moved_to_tile.connect(_on_player_moved_to_tile)
 
 	update_player_position()
-	player_node.visible = false
+	if player_node:
+		player_node.visible = false
 
 func _on_player_input(event: InputEvent) -> void:
 	# (print removed)
@@ -1077,8 +1124,15 @@ func update_player_position() -> void:
 	# --- END Y-SORT LOGIC FIXED ---
 	var player_center: Vector2 = player_node.global_position + player_size / 2
 	camera_snap_back_pos = player_center
-	var tween = get_tree().create_tween()
-	tween.tween_property(camera, "position", player_center, 0.5).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	
+	# Don't move camera during pin-to-tee transition (when we're in tee selection phase)
+	if not is_placing_player:
+		print("=== CAMERA MOVEMENT DEBUG ===")
+		print("update_player_position moving camera from", camera.position, "to", player_center)
+		print("player_node.visible:", player_node.visible, "is_placing_player:", is_placing_player)
+		var tween = get_tree().create_tween()
+		tween.tween_property(camera, "position", player_center, 0.5).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		print("=== END CAMERA MOVEMENT DEBUG ===")
 
 func create_movement_buttons() -> void:
 	# 1. Clear old buttons
@@ -1191,8 +1245,7 @@ func _on_tile_input(event: InputEvent, x: int, y: int) -> void:
 		if is_placing_player:
 			if map_manager.get_tile_type(x, y) == "Tee":
 				player_grid_pos = clicked
-				update_player_position()
-				player_node.visible = true
+				create_player()  # This will reuse existing player or create new one
 				is_placing_player = false
 				var sprite = player_node.get_node_or_null("Sprite2D")
 				var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
@@ -2439,9 +2492,16 @@ func reset_for_next_hole():
 	current_hole += 1
 	if current_hole >= NUM_HOLES:
 		return
+	
+	# Hide existing player instead of removing it
+	if player_node and is_instance_valid(player_node):
+		player_node.visible = false
+		print("Hidden existing player for new hole")
+	
 	# Load the next hole layout
 	map_manager.load_map_data(GolfCourseLayout.get_hole_layout(current_hole))
 	build_map_from_layout_with_randomization(map_manager.level_layout)
+	
 	# Reset hole score
 	hole_score = 0
 	game_phase = "tee_select"
@@ -2451,11 +2511,11 @@ func reset_for_next_hole():
 	update_hole_and_score_display()
 	if hud:
 		hud.get_node("ShotLabel").text = "Shots: %d" % hole_score
+	
 	# Start tee placement phase for new hole
 	is_placing_player = true
 	highlight_tee_tiles()
 	show_tee_selection_instruction()
-	focus_camera_on_tee()
 	print("Reset complete. Ready for next hole!")
 
 func show_course_complete_dialog():
@@ -2912,7 +2972,8 @@ func restore_game_state():
 		update_player_position()
 		
 		# Make player visible (important!)
-		player_node.visible = true
+		if player_node:
+			player_node.visible = true
 		
 		# IMPORTANT: Set is_placing_player to false so movement works
 		is_placing_player = false
@@ -3271,6 +3332,7 @@ func update_ball_y_sort(ball_node: Node2D) -> void:
 var current_hole := 0
 var total_score := 0
 const NUM_HOLES := 3
+var is_in_pin_transition := false
 
 # Add this function after the other randomization functions
 func test_randomization() -> void:
@@ -3303,3 +3365,156 @@ func test_randomization() -> void:
 		print("Shop at", positions.shop, "valid:", valid)
 	
 	print("=== RANDOMIZATION TEST COMPLETE ===")
+
+# Add these functions after the existing helper functions and before _process
+
+func find_pin_position() -> Vector2:
+	"""Find the position of the pin in the current hole"""
+	print("Searching for pin in ysort_objects (size:", ysort_objects.size(), ")")
+	
+	# First try to find by name in ysort_objects
+	for obj in ysort_objects:
+		if obj.has("node") and obj.node and is_instance_valid(obj.node):
+			# Check if this is the pin by name or by checking if it has the pin script
+			if obj.node.name == "Pin" or "Pin" in obj.node.name or obj.node.has_method("_on_area_entered"):
+				print("Found pin in ysort_objects at:", obj.node.global_position, "name:", obj.node.name)
+				return obj.node.global_position
+	
+	# If not found in ysort_objects, search in obstacle_layer
+	print("Pin not found in ysort_objects, searching obstacle_layer...")
+	
+	# Search for any object with "Pin" in the name or pin script
+	for child in obstacle_layer.get_children():
+		if "Pin" in child.name or child.has_method("_on_area_entered"):
+			print("Found pin in obstacle_layer at:", child.global_position, "name:", child.name)
+			return child.global_position
+	
+	# Search recursively in all children of obstacle_layer
+	print("Searching recursively in obstacle_layer...")
+	for child in obstacle_layer.get_children():
+		if child.has_method("get_children"):
+			for grandchild in child.get_children():
+				if "Pin" in grandchild.name or grandchild.has_method("_on_area_entered"):
+					print("Found pin as grandchild at:", grandchild.global_position, "name:", grandchild.name)
+					return grandchild.global_position
+	
+	# Search in the entire scene tree
+	print("Searching entire scene tree for pin...")
+	var pin_node = find_child_by_name_recursive(self, "Pin")
+	if pin_node:
+		print("Found pin in scene tree at:", pin_node.global_position)
+		return pin_node.global_position
+	
+	print("No pin found anywhere!")
+	return Vector2.ZERO
+
+func find_child_by_name_recursive(node: Node, name: String) -> Node:
+	"""Recursively search for a child node by name"""
+	if node.name == name:
+		return node
+	
+	for child in node.get_children():
+		var result = find_child_by_name_recursive(child, name)
+		if result:
+			return result
+	
+	return null
+
+func start_hole_with_pin_transition():
+	"""Start a new hole with a pin-to-tee transition"""
+	print("Starting hole with pin-to-tee transition...")
+	print("Current camera position:", camera.position)
+	
+	# Add a small delay to ensure the map is fully built
+	await get_tree().process_frame
+	
+	# Find pin position
+	var pin_position = find_pin_position()
+	if pin_position == Vector2.ZERO:
+		print("Warning: No pin found, skipping transition")
+		focus_camera_on_tee()
+		return
+	
+	print("Pin found at:", pin_position)
+	print("Camera position before setting to pin:", camera.position)
+	
+	# Start with camera at pin position
+	camera.position = pin_position
+	camera_snap_back_pos = pin_position
+	print("Camera position after setting to pin:", camera.position)
+	
+	# Create a sequence: show pin for 2 seconds, then tween to tee
+	var tween = get_tree().create_tween()
+	tween.set_parallel(false)  # Sequential tweens
+	
+	# Wait 2 seconds at pin
+	print("Waiting 2 seconds at pin...")
+	tween.tween_interval(2.0)
+	
+	# Tween to tee area
+	var tee_center = _get_tee_area_center()
+	var tee_center_global = camera_container.position + tee_center
+	print("Tweening from pin at", pin_position, "to tee at", tee_center_global)
+	print("Camera position before tween:", camera.position)
+	tween.tween_property(camera, "position", tee_center_global, 2.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	
+	# Update camera snap back position
+	tween.tween_callback(func(): 
+		camera_snap_back_pos = tee_center_global
+		print("Pin-to-tee transition complete")
+		print("Final camera position:", camera.position)
+	)
+
+func position_camera_on_pin():
+	"""Position camera on pin immediately after map building"""
+	print("=== POSITION CAMERA ON PIN DEBUG ===")
+	print("Positioning camera on pin...")
+	
+	# Add a small delay to ensure everything is properly added to the scene
+	await get_tree().process_frame
+	
+	# Find pin position
+	var pin_position = find_pin_position()
+	if pin_position == Vector2.ZERO:
+		print("Warning: No pin found, positioning camera at center")
+		camera.position = Vector2(0, 0)
+		return
+	
+	print("Pin found at:", pin_position)
+	
+	# Position camera directly on pin (no tween - immediate positioning)
+	camera.position = pin_position
+	camera_snap_back_pos = pin_position
+	print("Camera positioned on pin at:", camera.position)
+	
+	# Start the transition to tee after a delay
+	print("Starting pin-to-tee transition...")
+	start_pin_to_tee_transition()
+	print("=== END POSITION CAMERA ON PIN DEBUG ===")
+
+func start_pin_to_tee_transition():
+	"""Start the pin-to-tee transition after the fade-in"""
+	print("=== START PIN TO TEE TRANSITION DEBUG ===")
+	print("Starting pin-to-tee transition...")
+	print("Current camera position:", camera.position)
+	
+	# Wait 1.5 seconds at pin (as requested)
+	var tween = get_tree().create_tween()
+	tween.set_parallel(false)  # Sequential tweens
+	
+	# Wait 1.5 seconds at pin
+	print("Waiting 1.5 seconds at pin...")
+	tween.tween_interval(1.5)
+	
+	# Tween to tee area
+	var tee_center = _get_tee_area_center()
+	var tee_center_global = camera_container.position + tee_center
+	print("Tweening from pin to tee at", tee_center_global)
+	tween.tween_property(camera, "position", tee_center_global, 2.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	
+	# Update camera snap back position
+	tween.tween_callback(func(): 
+		camera_snap_back_pos = tee_center_global
+		print("Pin-to-tee transition complete")
+	)
+	print("=== END START PIN TO TEE TRANSITION DEBUG ===")
