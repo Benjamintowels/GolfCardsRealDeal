@@ -5,9 +5,9 @@ var selected_character = 1  # Default to character 1
 var putt_putt_mode = false  # Flag for putt putt mode (only putters)
 
 var CHARACTER_STATS = {
-	1: { "name": "Layla", "base_mobility": 3 },
-	2: { "name": "Benny", "base_mobility": 2 },
-	3: { "name": "Clark", "base_mobility": 1 }
+	1: { "name": "Layla", "base_mobility": 3, "strength": -1, "card_draw": -1 },
+	2: { "name": "Benny", "base_mobility": 2, "strength": 0, "card_draw": 0 },
+	3: { "name": "Clark", "base_mobility": 1, "strength": 2, "card_draw": 1 }
 }
 
 # Shop state saving variables

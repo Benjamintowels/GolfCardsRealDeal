@@ -1,8 +1,9 @@
-[gd_scene load_steps=5 format=3 uid="uid://sblupej8nqta"]
+[gd_scene load_steps=6 format=3 uid="uid://sblupej8nqta"]
 
 [ext_resource type="Texture2D" uid="uid://crwn4in1hrdek" path="res://Obstacles/Pin.png" id="1_d4e4i"]
 [ext_resource type="Script" uid="uid://bwf6bw8ok5ff0" path="res://Obstacles/Pin.gd" id="1_ttkiq"]
 [ext_resource type="AudioStream" uid="uid://dfrtmllm00d87" path="res://Sounds/HoleIn.mp3" id="3_3su5t"]
+[ext_resource type="AudioStream" uid="uid://tu1sai3fw4ju" path="res://Sounds/HitFlag.mp3" id="4_sfb8c"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_ttkiq"]
 radius = 15.0
@@ -27,3 +28,6 @@ shape = SubResource("CircleShape2D_ttkiq")
 
 [node name="HoleIn" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("3_3su5t")
+
+[node name="HitFlag" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("4_sfb8c")

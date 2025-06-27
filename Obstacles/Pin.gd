@@ -1,6 +1,11 @@
 extends BaseObstacle
 
 signal hole_in_one(score: int)
+signal pin_flag_hit(ball: Node2D)  # New signal for pin flag hits
+
+# Pin flag reflection settings
+const HOLE_IN_HEIGHT_MAX = 5.0  # Maximum height for hole-in
+const PIN_FLAG_HEIGHT_MAX = 200.0  # Maximum height for pin flag reflection (increased from 100.0)
 
 func _ready():
 	# Connect to the Area2D's area_entered signal
@@ -47,7 +52,7 @@ func _on_area_entered(area: Area2D):
 		print("Pin detected real ball collision. Ball height:", ball_height)
 		
 		# Check if the ball is in the hole-in height range (0-5) for all shots
-		if ball_height >= 0.0 and ball_height <= 5.0:
+		if ball_height >= 0.0 and ball_height <= HOLE_IN_HEIGHT_MAX:
 			print("Hole in one! Ball height is in range 0-5, triggering hole completion")
 			
 			# Play the hole-in sound
@@ -63,8 +68,28 @@ func _on_area_entered(area: Area2D):
 			
 			# Show hole completion dialog
 			show_hole_completion_dialog()
+		elif ball_height > HOLE_IN_HEIGHT_MAX and ball_height <= PIN_FLAG_HEIGHT_MAX:
+			# Ball hit the pin flag - apply reflection effect
+			print("Pin flag hit! Ball height:", ball_height, "applying 75% velocity reduction")
+			
+			# Play the pin flag hit sound
+			var hit_flag_audio = get_node_or_null("HitFlag")
+			if hit_flag_audio:
+				hit_flag_audio.play()
+			
+			# Emit signal for pin flag hit
+			pin_flag_hit.emit(golf_ball)
+			
+			# Apply velocity reduction (75% reduction = 25% of original velocity)
+			if golf_ball.has_method("set_velocity"):
+				var current_velocity = golf_ball.get_velocity()
+				var reduced_velocity = current_velocity * 0.25  # 25% of original velocity
+				golf_ball.set_velocity(reduced_velocity)
+				print("Pin flag reflection applied - velocity reduced from", current_velocity.length(), "to", reduced_velocity.length())
+			else:
+				print("Warning: Golf ball doesn't have set_velocity method")
 		else:
-			print("Ball collision detected but height not in range 0-5:", ball_height)
+			print("Ball collision detected but height not in range for hole-in or pin flag reflection:", ball_height)
 	else:
 		print("Area entered but parent doesn't have get_height method or is not a golf ball")
 

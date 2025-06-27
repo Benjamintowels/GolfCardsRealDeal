@@ -1565,17 +1565,23 @@ func show_aiming_circle():
 	if aiming_circle:
 		aiming_circle.queue_free()
 	
+	# Calculate circle size based on character strength modifier
+	var base_circle_size = 50.0
+	var strength_modifier = player_stats.get("strength", 0)
+	var strength_multiplier = 1.0 + (strength_modifier * 0.15)  # +15% size per strength point
+	var adjusted_circle_size = base_circle_size * strength_multiplier
+	
 	# Create a container for the aiming circle
 	aiming_circle = Control.new()
 	aiming_circle.name = "AimingCircle"
-	aiming_circle.size = Vector2(50, 50)
+	aiming_circle.size = Vector2(adjusted_circle_size, adjusted_circle_size)
 	aiming_circle.z_index = 150  # Above the player but below UI
 	camera_container.add_child(aiming_circle)
 	
 	# Create the red circle visual
 	var circle = ColorRect.new()
 	circle.name = "CircleVisual"
-	circle.size = Vector2(50, 50)
+	circle.size = Vector2(adjusted_circle_size, adjusted_circle_size)
 	circle.color = Color(1, 0, 0, 0.6)  # Red with transparency
 	circle.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	aiming_circle.add_child(circle)
@@ -1591,11 +1597,11 @@ func show_aiming_circle():
 	distance_label.add_theme_color_override("font_color", Color.WHITE)
 	distance_label.add_theme_constant_override("outline_size", 1)
 	distance_label.add_theme_color_override("font_outline_color", Color.BLACK)
-	distance_label.position = Vector2(60, 20)
+	distance_label.position = Vector2(adjusted_circle_size + 10, adjusted_circle_size / 2 - 10)
 	distance_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	aiming_circle.add_child(distance_label)
 	
-	print("Aiming circle created")
+	print("Aiming circle created with size:", adjusted_circle_size, "(base:", base_circle_size, "strength modifier:", strength_modifier, ")")
 
 func _draw_circle(circle: ColorRect):
 	# Draw a red circle
@@ -1738,8 +1744,7 @@ func launch_golf_ball(direction: Vector2, charged_power: float, height: float):
 			print("Trailoff calculation - time_percent:", time_percent, "undercharge_factor:", undercharge_factor, "trailoff_forgiveness:", trailoff_forgiveness, "trailoff_penalty:", trailoff_penalty, "final_power:", actual_power)
 		else:
 			# 75-100% time = target power + overcharge bonus (for non-putters)
-			var club_max = club_data[selected_club]["max_distance"] if selected_club in club_data else MAX_LAUNCH_POWER
-			var overcharge_bonus = ((time_percent - 0.75) / 0.25) * (0.25 * club_max)
+			var overcharge_bonus = ((time_percent - 0.75) / 0.25) * (0.25 * max_shot_distance)
 			actual_power = power_for_target + overcharge_bonus
 	else:
 		# No target - use time percentage of max power
@@ -1795,6 +1800,15 @@ func launch_golf_ball(direction: Vector2, charged_power: float, height: float):
 
 	# Apply height resistance to final power
 	var final_power = actual_power * height_resistance_multiplier
+	
+	# Apply character strength modifier
+	var strength_modifier = player_stats.get("strength", 0)
+	if strength_modifier != 0:
+		# Strength modifier affects power by a percentage
+		# +1 strength = +10% power, -1 strength = -10% power
+		var strength_multiplier = 1.0 + (strength_modifier * 0.1)
+		final_power *= strength_multiplier
+		print("Character strength modifier applied: +", strength_modifier, " (", (strength_modifier * 10), "% power)")
 
 	# Focused debug print for power calculation
 	print("=== POWER DEBUG ===")
@@ -2423,8 +2437,14 @@ func hide_aiming_instruction() -> void:
 
 func draw_cards_for_shot(card_count: int = 3) -> void:
 	"""Draw cards for the current shot"""
-	print("Drawing", card_count, "cards for shot...")
-	deck_manager.draw_cards(card_count)
+	# Apply character card draw modifier
+	var card_draw_modifier = player_stats.get("card_draw", 0)
+	var final_card_count = card_count + card_draw_modifier
+	# Ensure we don't draw negative cards
+	final_card_count = max(1, final_card_count)
+	
+	print("Drawing", final_card_count, "cards for shot... (base:", card_count, "modifier:", card_draw_modifier, ")")
+	deck_manager.draw_cards(final_card_count)
 	print("Cards drawn. Hand size:", deck_manager.hand.size())
 
 func start_shot_sequence() -> void:
@@ -2439,7 +2459,7 @@ func draw_cards_for_next_shot() -> void:
 		var card_draw_sound = card_stack_display.get_node("CardDraw")
 		if card_draw_sound and card_draw_sound.stream:
 			card_draw_sound.play()
-	draw_cards_for_shot(3)
+	draw_cards_for_shot(3)  # This now includes character modifiers
 	create_movement_buttons()
 	print("Cards drawn and movement buttons created for next shot")
 
@@ -2699,15 +2719,23 @@ func draw_club_cards() -> void:
 		)
 		print("Available putters:", available_clubs.map(func(card): return card.name))
 	
+	# Apply character card draw modifier to club selection
+	var base_club_count = 2  # Default number of clubs to show
+	var card_draw_modifier = player_stats.get("card_draw", 0)
+	var final_club_count = base_club_count + card_draw_modifier
+	# Ensure we don't show negative clubs and cap at available clubs
+	final_club_count = max(1, min(final_club_count, available_clubs.size()))
+	
+	print("Selecting", final_club_count, "clubs for selection... (base:", base_club_count, "modifier:", card_draw_modifier, ")")
+	
 	var selected_clubs: Array[CardData] = []
 	
-	# Randomly select 2 clubs from the available clubs
-	if available_clubs.size() >= 2:
-		selected_clubs.append(available_clubs[randi() % available_clubs.size()])
-		available_clubs.erase(selected_clubs[0])
-		selected_clubs.append(available_clubs[randi() % available_clubs.size()])
-	elif available_clubs.size() == 1:
-		selected_clubs.append(available_clubs[0])
+	# Randomly select clubs from the available clubs
+	for i in range(final_club_count):
+		if available_clubs.size() > 0:
+			var random_index = randi() % available_clubs.size()
+			selected_clubs.append(available_clubs[random_index])
+			available_clubs.remove_at(random_index)
 	
 	print("Selected clubs to draw:", selected_clubs.map(func(card): return card.name))
 	
@@ -2756,7 +2784,14 @@ func _on_club_card_pressed(club_name: String, club_info: Dictionary, button: Tex
 	
 	# Store the selected club and its data
 	selected_club = club_name
-	max_shot_distance = club_info["max_distance"]
+	
+	# Apply character strength modifier to max shot distance
+	var base_max_distance = club_info["max_distance"]
+	var strength_modifier = player_stats.get("strength", 0)
+	var strength_multiplier = 1.0 + (strength_modifier * 0.1)  # Same multiplier as power calculation
+	max_shot_distance = base_max_distance * strength_multiplier
+	
+	print("Max distance calculation - base:", base_max_distance, "strength modifier:", strength_modifier, "final:", max_shot_distance)
 	
 	# Set putting flag if this is a putter
 	is_putting = club_info.get("is_putter", false)
@@ -3232,6 +3267,13 @@ func build_map_from_layout(layout: Array) -> void:
 				# Track for Y-sorting
 				ysort_objects.append({"node": object, "grid_pos": pos})
 				obstacle_layer.add_child(object)
+				
+				# Connect pin signals if this is a pin
+				if object.has_signal("hole_in_one"):
+					object.hole_in_one.connect(_on_hole_in_one)
+				if object.has_signal("pin_flag_hit"):
+					object.pin_flag_hit.connect(_on_pin_flag_hit)
+				
 				# If this object blocks movement, add it to obstacle_map
 				if object.has_method("blocks") and object.blocks():
 					obstacle_map[pos] = object
@@ -3683,3 +3725,14 @@ func update_all_ysort_z_indices():
 			node.z_index = base_z + 3  # Shop should be higher than most objects
 		else:
 			node.z_index = base_z
+
+func _on_hole_in_one(score: int):
+	"""Handle hole completion when ball goes in the hole"""
+	print("Hole in one! Score:", score)
+	show_hole_completion_dialog()
+
+func _on_pin_flag_hit(ball: Node2D):
+	"""Handle pin flag hit - ball velocity has already been reduced by the pin"""
+	print("Pin flag hit detected for ball:", ball)
+	# The pin has already applied the velocity reduction
+	# We could add additional effects here if needed (sound, visual feedback, etc.)
