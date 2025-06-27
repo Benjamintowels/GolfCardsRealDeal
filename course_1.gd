@@ -2952,7 +2952,28 @@ func draw_club_cards() -> void:
 	
 	var selected_clubs: Array[CardData] = []
 	
-	# Randomly select clubs from the available clubs
+	# First, ensure we always get at least one putter (unless in putt putt mode where all are putters)
+	if not Global.putt_putt_mode:
+		# Find all putters in available clubs
+		var putters = available_clubs.filter(func(card): 
+			var club_info = club_data.get(card.name, {})
+			return club_info.get("is_putter", false)
+		)
+		
+		if putters.size() > 0:
+			# Randomly select one putter
+			var random_putter_index = randi() % putters.size()
+			var selected_putter = putters[random_putter_index]
+			selected_clubs.append(selected_putter)
+			
+			# Remove the selected putter from available clubs
+			available_clubs.erase(selected_putter)
+			print("Guaranteed putter selected:", selected_putter.name)
+			
+			# Adjust final club count since we already selected one
+			final_club_count -= 1
+	
+	# Randomly select remaining clubs from the available clubs
 	for i in range(final_club_count):
 		if available_clubs.size() > 0:
 			var random_index = randi() % available_clubs.size()

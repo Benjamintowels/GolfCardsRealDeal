@@ -37,7 +37,6 @@ var is_rolling := false
 var sprite: Sprite2D
 var shadow: Sprite2D
 var base_scale := Vector2.ONE
-var trail: Line2D
 
 # Height and power constants (matching GolfBall.gd)
 const MAX_LAUNCH_HEIGHT := 2000.0
@@ -78,13 +77,6 @@ func _ready():
 	
 	# Start the launch timer
 	launch_timer = 0.0
-	
-	# Create trail for visibility
-	trail = Line2D.new()
-	trail.width = 6  # Increased from 3 to 6 for better visibility
-	trail.default_color = Color(0.5, 0.8, 1.0, 0.6)  # Increased alpha from 0.4 to 0.6
-	trail.z_index = 0
-	add_child(trail)
 	
 	# Launch immediately if we have a landing spot
 	if chosen_landing_spot != Vector2.ZERO:
@@ -332,17 +324,6 @@ func _process(delta):
 	
 	# Update Y-sorting after visual effects to ensure z_index is maintained
 	update_y_sort()
-	
-	# Update trail
-	if trail and velocity.length() > 0:
-		# Use the ball's global position for the trail (which includes height offset)
-		var ball_global_pos = global_position
-		# Convert global position to trail's local coordinates
-		var trail_local_pos = trail.to_local(ball_global_pos)
-		trail.add_point(trail_local_pos)
-		# Keep only last 20 points to prevent trail from getting too long
-		if trail.get_point_count() > 20:
-			trail.remove_point(0)
 
 func launch_ghost_ball():
 	"""Launch the ghost ball at 75% power"""
@@ -356,10 +337,6 @@ func launch_ghost_ball():
 	
 	# Reset to original position
 	position = original_position
-	
-	# Clear the trail
-	if trail:
-		trail.clear_points()
 	
 	# Calculate direction to landing spot or use default direction
 	var direction: Vector2
@@ -500,10 +477,6 @@ func reset_ball():
 	
 	# Reset to original position
 	position = original_position
-	
-	# Clear trail
-	if trail:
-		trail.clear_points()
 	
 	# Reset visual effects
 	if sprite:

@@ -1,6 +1,7 @@
-[gd_scene load_steps=12 format=3 uid="uid://dlq5ygh2wv33m"]
+[gd_scene load_steps=13 format=3 uid="uid://dlq5ygh2wv33m"]
 
 [ext_resource type="Script" uid="uid://d4hrfk75nrm45" path="res://course_1.gd" id="1_pe8tc"]
+[ext_resource type="Texture2D" uid="uid://cpe67sk2vh8me" path="res://EDGE.png" id="2_eymfu"]
 [ext_resource type="PackedScene" uid="uid://b63032ekv2fkj" path="res://CardStackDisplay.tscn" id="2_t0oq8"]
 [ext_resource type="AudioStream" uid="uid://bgo3uwe4u826s" path="res://CardTouch.mp3" id="3_5p0cn"]
 [ext_resource type="AudioStream" uid="uid://c48v687edetup" path="res://CardPlaySound.mp3" id="4_oep1l"]
@@ -146,6 +147,10 @@ offset_right = 254.0
 offset_bottom = 213.0
 text = "Draw Cards"
 
+[node name="TextureButton" type="TextureButton" parent="UILayer"]
+offset_right = 40.0
+offset_bottom = 40.0
+
 [node name="SwingSoft" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("6_6eaol")
 
@@ -161,3 +166,12 @@ volume_db = 4.223
 
 [node name="SandThunk" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("10_uda8g")
+
+[node name="Ocean" type="TextureRect" parent="."]
+z_index = -111
+layout_mode = 0
+offset_left = -3072.0
+offset_top = -2598.0
+offset_right = 3084.0
+offset_bottom = 2651.0
+texture = ExtResource("2_eymfu")
