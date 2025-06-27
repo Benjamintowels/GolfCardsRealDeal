@@ -790,13 +790,25 @@ func _ready() -> void:
 		restore_game_state()
 		return  # Skip tee selection/setup when returning from shop
 
+	# Check if starting back 9
+	if Global.starting_back_9:
+		print("=== STARTING BACK 9 MODE ===")
+		is_back_9_mode = true
+		current_hole = back_9_start_hole  # Start at hole 10 (index 9)
+		Global.starting_back_9 = false  # Reset the flag
+		print("Back 9 mode initialized, starting at hole:", current_hole + 1)
+	else:
+		print("=== STARTING FRONT 9 MODE ===")
+		is_back_9_mode = false
+		current_hole = 0  # Start at hole 1 (index 0)
+		print("Front 9 mode initialized, starting at hole:", current_hole + 1)
+
 	# Only do tee selection if NOT returning from shop
 	# Start in tee selection mode
 	is_placing_player = true
 	highlight_tee_tiles()
 
-	# Load map data for the first hole
-	current_hole = 0
+	# Load map data for the starting hole
 	print("=== INITIALIZATION DEBUG ===")
 	print("Loading map data for hole:", current_hole + 1)
 	map_manager.load_map_data(GolfCourseLayout.get_hole_layout(current_hole))
@@ -2543,14 +2555,25 @@ func show_hole_completion_dialog():
 	for score in round_scores:
 		total_round_score += score
 	
-	var total_par = GolfCourseLayout.get_front_nine_par()
+	var total_par = 0
+	if is_back_9_mode:
+		total_par = GolfCourseLayout.get_back_nine_par()
+	else:
+		total_par = GolfCourseLayout.get_front_nine_par()
 	var round_vs_par = total_round_score - total_par
 	
 	score_text += "\nRound Progress: %d/%d holes\n" % [current_hole + 1, NUM_HOLES]
 	score_text += "Round Score: %d\n" % total_round_score
 	score_text += "Round vs Par: %+d\n" % round_vs_par
 	
-	if current_hole < NUM_HOLES - 1:
+	# Check if this is the last hole of the current round
+	var round_end_hole = 0
+	if is_back_9_mode:
+		round_end_hole = back_9_start_hole + NUM_HOLES - 1  # Hole 18 (index 17)
+	else:
+		round_end_hole = NUM_HOLES - 1  # Hole 9 (index 8)
+	
+	if current_hole < round_end_hole:
 		score_text += "\nClick to continue to the next hole."
 	else:
 		score_text += "\nClick to see your final round score!"
@@ -2566,10 +2589,13 @@ func show_hole_completion_dialog():
 	dialog.confirmed.connect(func():
 		dialog.queue_free()
 		print("Hole completion dialog dismissed")
-		if current_hole < NUM_HOLES - 1:
+		if current_hole < round_end_hole:
 			reset_for_next_hole()
 		else:
-			show_front_nine_complete_dialog()
+			if is_back_9_mode:
+				show_back_nine_complete_dialog()
+			else:
+				show_front_nine_complete_dialog()
 	)
 
 func reset_for_next_hole():
@@ -2578,8 +2604,16 @@ func reset_for_next_hole():
 	print("Current hole before increment:", current_hole)
 	current_hole += 1
 	print("Current hole after increment:", current_hole)
-	if current_hole >= NUM_HOLES:
-		print("Current hole >= NUM_HOLES, returning early")
+	
+	# Check if we've completed the current round (front 9 or back 9)
+	var round_end_hole = 0
+	if is_back_9_mode:
+		round_end_hole = back_9_start_hole + NUM_HOLES - 1  # Hole 18 (index 17)
+	else:
+		round_end_hole = NUM_HOLES - 1  # Hole 9 (index 8)
+	
+	if current_hole > round_end_hole:
+		print("Current hole > round end hole, returning early")
 		return
 	
 	# Hide existing player instead of removing it
@@ -2683,6 +2717,78 @@ func show_front_nine_complete_dialog():
 		get_tree().reload_current_scene()
 	)
 
+func show_back_nine_complete_dialog():
+	"""Show final round score dialog for back 9 completion"""
+	var total_round_score = 0
+	for score in round_scores:
+		total_round_score += score
+	
+	var total_par = GolfCourseLayout.get_back_nine_par()
+	var round_vs_par = total_round_score - total_par
+	
+	# Check if this is the 18th hole (hole 18, index 17)
+	if current_hole == 17:  # 18th hole completed
+		# For now, we'll use the back 9 score as the total score
+		# In a full implementation, this would include front 9 score
+		var total_18_hole_score = total_round_score
+		
+		# Store the final score in Global
+		Global.final_18_hole_score = total_18_hole_score
+		
+		# Transition to end scene
+		FadeManager.fade_to_black(func(): get_tree().change_scene_to_file("res://EndScene.tscn"), 0.5)
+		return
+	
+	# Create detailed score breakdown for back 9 only
+	var score_text = "Back 9 Complete!\n\n"
+	score_text += "Hole-by-Hole Scores:\n"
+	
+	for i in range(round_scores.size()):
+		var hole_score = round_scores[i]
+		var hole_par = GolfCourseLayout.get_hole_par(back_9_start_hole + i)
+		var hole_vs_par = hole_score - hole_par
+		
+		score_text += "Hole %d: %d strokes" % [back_9_start_hole + i + 1, hole_score]
+		if hole_vs_par == 0:
+			score_text += " (Par)"
+		elif hole_vs_par == 1:
+			score_text += " (+1)"
+		elif hole_vs_par == 2:
+			score_text += " (+2)"
+		elif hole_vs_par == -1:
+			score_text += " (-1)"
+		elif hole_vs_par == -2:
+			score_text += " (-2)"
+		else:
+			score_text += " (%+d)" % hole_vs_par
+		score_text += "\n"
+	
+	score_text += "\nFinal Round Score: %d strokes\n" % total_round_score
+	score_text += "Course Par: %d\n" % total_par
+	
+	# Final score vs par
+	if round_vs_par == 0:
+		score_text += "Final Result: Even Par ✓\n"
+	elif round_vs_par > 0:
+		score_text += "Final Result: %+d (Over Par)\n" % round_vs_par
+	else:
+		score_text += "Final Result: %+d (Under Par) ✓\n" % round_vs_par
+	
+	score_text += "\nClick to return to main menu."
+	
+	var dialog = AcceptDialog.new()
+	dialog.title = "Back 9 Complete!"
+	dialog.dialog_text = score_text
+	dialog.add_theme_font_size_override("font_size", 16)
+	dialog.add_theme_color_override("font_color", Color.CYAN)
+	dialog.position = Vector2(400, 300)
+	$UILayer.add_child(dialog)
+	dialog.popup_centered()
+	dialog.confirmed.connect(func():
+		dialog.queue_free()
+		get_tree().reload_current_scene()
+	)
+
 func update_hole_and_score_display():
 	if hud:
 		var label = hud.get_node_or_null("HoleLabel")
@@ -2697,10 +2803,16 @@ func update_hole_and_score_display():
 			current_round_score += score
 		current_round_score += hole_score  # Include current hole score
 		
-		# Calculate vs par
+		# Calculate vs par based on mode
 		var total_par_so_far = 0
-		for i in range(current_hole + 1):
-			total_par_so_far += GolfCourseLayout.get_hole_par(i)
+		if is_back_9_mode:
+			# For back 9, calculate par from hole 10 onwards
+			for i in range(back_9_start_hole, current_hole + 1):
+				total_par_so_far += GolfCourseLayout.get_hole_par(i)
+		else:
+			# For front 9, calculate par from hole 1 onwards
+			for i in range(current_hole + 1):
+				total_par_so_far += GolfCourseLayout.get_hole_par(i)
 		var round_vs_par = current_round_score - total_par_so_far
 		
 		label.text = "Hole: %d/%d    Round: %d (%+d)" % [current_hole+1, NUM_HOLES, current_round_score, round_vs_par]
@@ -3574,10 +3686,12 @@ func update_ball_y_sort(ball_node: Node2D) -> void:
 		if ball_shadow.z_index <= -5:
 			ball_shadow.z_index = 1
 
-var current_hole := 0  # 0-based hole index (0-8 for front 9)
+var current_hole := 0  # 0-based hole index (0-8 for front 9, 9-17 for back 9)
 var total_score := 0
-const NUM_HOLES := 9  # Front 9 holes
+const NUM_HOLES := 9  # Number of holes per round (9 for front 9, 9 for back 9)
 var is_in_pin_transition := false
+var is_back_9_mode := false  # Flag to track if we're playing back 9
+var back_9_start_hole := 9  # Starting hole for back 9 (hole 10, index 9)
 
 # Add this function after the other randomization functions
 func test_randomization() -> void:

@@ -3,6 +3,9 @@ extends Node
 # Global variables
 var selected_character = 1  # Default to character 1
 var putt_putt_mode = false  # Flag for putt putt mode (only putters)
+var starting_back_9 = false  # Flag for starting back 9 holes
+var final_18_hole_score = 0  # Final score for 18-hole game
+var front_9_score = 0  # Score from front 9 holes
 
 var CHARACTER_STATS = {
 	1: { "name": "Layla", "base_mobility": 3, "strength": -1, "card_draw": -1 },

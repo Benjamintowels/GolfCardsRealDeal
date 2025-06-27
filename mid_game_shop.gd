@@ -40,6 +40,9 @@ func _get_character_texture(character_number: int) -> Texture2D:
 func _on_start_back_9_pressed():
 	# Handle starting the back 9 holes
 	print("Starting Back 9...")
-	# Add your logic here to transition to the back 9 holes
-	# For example:
-	# get_tree().change_scene_to_file("res://path_to_back_9_scene.tscn")
+	
+	# Set a flag to indicate we're starting back 9
+	Global.starting_back_9 = true
+	
+	# Use FadeManager for smooth transition to course
+	FadeManager.fade_to_black(func(): get_tree().change_scene_to_file("res://Course1.tscn"), 0.5)
