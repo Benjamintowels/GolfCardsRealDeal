@@ -220,6 +220,309 @@ var object_to_tile_mapping := {
 	"SHOP": "Base",
 }
 
+# Add these variables after the existing object_scene_map and object_to_tile_mapping
+var random_seed_value: int = 0
+var placed_objects: Array[Vector2i] = []  # Track placed objects for spacing rules
+
+# Add these functions before build_map_from_layout_with_randomization
+func clear_existing_objects() -> void:
+	"""Clear all existing objects (trees, shop, etc.) from the map"""
+	print("Clearing existing objects...")
+	
+	var objects_removed = 0
+	
+	# Remove objects from obstacle_layer (but not Pin)
+	for child in obstacle_layer.get_children():
+		if child.name == "Tree" or child.name == "Shop" or child.name == "ShopExterior":
+			child.queue_free()
+			objects_removed += 1
+			print("Removed object:", child.name)
+	
+	print("Removed", objects_removed, "objects from obstacle_layer")
+	
+	# Clear obstacle_map entries for objects (but not Pin)
+	var keys_to_remove: Array[Vector2i] = []
+	for pos in obstacle_map.keys():
+		var obstacle = obstacle_map[pos]
+		if obstacle and (obstacle.name == "Tree" or obstacle.name == "Shop" or obstacle.name == "ShopExterior"):
+			keys_to_remove.append(pos)
+	
+	for pos in keys_to_remove:
+		obstacle_map.erase(pos)
+	
+	print("Removed", keys_to_remove.size(), "object entries from obstacle_map")
+	
+	# Clear ysort_objects (but keep Pin)
+	var ysort_count = ysort_objects.size()
+	var pin_objects = []
+	for obj in ysort_objects:
+		if obj.has("node") and obj.node and obj.node.name == "Pin":
+			pin_objects.append(obj)
+	
+	ysort_objects.clear()
+	ysort_objects.append_array(pin_objects)  # Keep pin objects
+	placed_objects.clear()
+	
+	print("Cleared", ysort_count - pin_objects.size(), "ysort objects, kept", pin_objects.size(), "pin objects")
+	print("Objects cleared. Remaining obstacles:", obstacle_map.size())
+
+func is_valid_position_for_object(pos: Vector2i, layout: Array) -> bool:
+	"""Check if a position is valid for placing trees or shop"""
+	# Check bounds
+	if pos.y < 0 or pos.y >= layout.size() or pos.x < 0 or pos.x >= layout[0].size():
+		return false
+	
+	# Get tile type at position
+	var tile_type = layout[pos.y][pos.x]
+	
+	# Don't place on restricted areas
+	if tile_type in ["F", "Tee", "G", "W", "S", "P"]:
+		return false
+	
+	# Don't place on water, sand, or pin
+	if tile_type in ["W", "S", "P"]:
+		return false
+	
+	# Check 6x6 grid spacing rule with other placed objects
+	for placed_pos in placed_objects:
+		var distance = max(abs(pos.x - placed_pos.x), abs(pos.y - placed_pos.y))
+		if distance < 6:
+			return false
+	
+	return true
+
+func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include_shop: bool = true) -> Dictionary:
+	"""Generate random positions for trees and shop"""
+	var positions = {
+		"trees": [],
+		"shop": Vector2i.ZERO
+	}
+	
+	# Set random seed based on current hole for consistent placement
+	random_seed_value = current_hole * 1000 + randi()
+	seed(random_seed_value)
+	print("Random seed for hole", current_hole + 1, ":", random_seed_value)
+	
+	var valid_positions: Array[Vector2i] = []
+	
+	# Find all valid positions
+	for y in layout.size():
+		for x in layout[y].size():
+			var pos = Vector2i(x, y)
+			if is_valid_position_for_object(pos, layout):
+				valid_positions.append(pos)
+	
+	print("Found", valid_positions.size(), "valid positions for objects")
+	
+	# Place shop first (if needed)
+	if include_shop and valid_positions.size() > 0:
+		var shop_index = randi() % valid_positions.size()
+		positions.shop = valid_positions[shop_index]
+		placed_objects.append(positions.shop)
+		valid_positions.remove_at(shop_index)
+		print("Shop placed at:", positions.shop)
+	
+	# Place trees
+	var trees_placed = 0
+	while trees_placed < num_trees and valid_positions.size() > 0:
+		var tree_index = randi() % valid_positions.size()
+		var tree_pos = valid_positions[tree_index]
+		
+		# Double-check spacing rule
+		var valid = true
+		for placed_pos in placed_objects:
+			var distance = max(abs(tree_pos.x - placed_pos.x), abs(tree_pos.y - placed_pos.y))
+			if distance < 6:
+				valid = false
+				break
+		
+		if valid:
+			positions.trees.append(tree_pos)
+			placed_objects.append(tree_pos)
+			trees_placed += 1
+			print("Tree placed at:", tree_pos)
+		
+		valid_positions.remove_at(tree_index)
+	
+	print("Placed", positions.trees.size(), "trees and shop at", positions.shop)
+	return positions
+
+func build_map_from_layout_with_randomization(layout: Array) -> void:
+	"""Build map with randomized object placement"""
+	print("Building map with randomization for hole", current_hole + 1)
+	
+	# Clear existing objects first
+	clear_existing_objects()
+	
+	# Build the base map (tiles only)
+	build_map_from_layout_base(layout)
+	
+	# Generate random positions for objects
+	var object_positions = get_random_positions_for_objects(layout, 8, true)
+	
+	# Place objects at random positions
+	place_objects_at_positions(object_positions, layout)
+
+func build_map_from_layout_base(layout: Array) -> void:
+	"""Build only the base tiles without objects"""
+	obstacle_map.clear()
+	
+	# Place all tiles (ground only)
+	for y in layout.size():
+		for x in layout[y].size():
+			var code: String = layout[y][x]
+			var pos: Vector2i = Vector2i(x, y)
+			var world_pos: Vector2 = Vector2(x, y) * cell_size
+
+			# Only place tiles, skip objects for now (except Pin which should be placed in fixed position)
+			var tile_code: String = code
+			if object_scene_map.has(code) and code != "P":
+				# This is an object, place the appropriate tile underneath
+				tile_code = object_to_tile_mapping[code]
+			
+			# Place the tile
+			if tile_scene_map.has(tile_code):
+				var scene: PackedScene = tile_scene_map[tile_code]
+				if scene == null:
+					push_error("🚫 Tile scene for code '%s' is null at (%d,%d)" % [tile_code, x, y])
+					continue
+				var tile: Node2D = scene.instantiate() as Node2D
+				if tile == null:
+					push_error("❌ Tile instantiation failed for '%s' at (%d,%d)" % [tile_code, x, y])
+					continue
+				tile.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
+				tile.z_index = -5  # Ensure tiles are behind player & UI
+				
+				# Scale tiles to match grid size
+				var sprite: Sprite2D = tile.get_node_or_null("Sprite2D")
+				if sprite and sprite.texture:
+					var texture_size: Vector2 = sprite.texture.get_size()
+					if texture_size.x > 0 and texture_size.y > 0:
+						var scale_x = cell_size / texture_size.x
+						var scale_y = cell_size / texture_size.y
+						sprite.scale = Vector2(scale_x, scale_y)
+				
+				# Set grid_position if the property exists
+				if tile.has_meta("grid_position") or "grid_position" in tile:
+					tile.set("grid_position", pos)
+				else:
+					push_warning("⚠️ Tile missing 'grid_position'. Type: %s" % tile.get_class())
+				
+				obstacle_layer.add_child(tile)
+				obstacle_map[pos] = tile
+			else:
+				print("ℹ️ Skipping unmapped tile code '%s' at (%d,%d)" % [tile_code, x, y])
+	
+	# Place Pin in its fixed position from the layout
+	for y in layout.size():
+		for x in layout[y].size():
+			var code: String = layout[y][x]
+			if code == "P":
+				var pos: Vector2i = Vector2i(x, y)
+				var world_pos: Vector2 = Vector2(x, y) * cell_size
+				
+				var scene: PackedScene = object_scene_map["P"]
+				if scene == null:
+					push_error("🚫 Pin scene is null")
+					continue
+				
+				var pin: Node2D = scene.instantiate() as Node2D
+				if pin == null:
+					push_error("❌ Pin instantiation failed at (%d,%d)" % [x, y])
+					continue
+				
+				pin.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
+				
+				# Set grid_position if the property exists
+				if pin.has_meta("grid_position") or "grid_position" in pin:
+					pin.set("grid_position", pos)
+				else:
+					push_warning("⚠️ Pin missing 'grid_position'. Type: %s" % pin.get_class())
+				
+				# Track for Y-sorting
+				ysort_objects.append({"node": pin, "grid_pos": pos})
+				obstacle_layer.add_child(pin)
+				
+				print("Pin placed at fixed position:", pos)
+				break  # Only one pin per hole
+
+func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> void:
+	"""Place objects at the specified positions"""
+	print("Placing objects at positions:", object_positions)
+	
+	# Place trees
+	for tree_pos in object_positions.trees:
+		var scene: PackedScene = object_scene_map["T"]
+		if scene == null:
+			push_error("🚫 Tree scene is null")
+			continue
+		
+		var tree: Node2D = scene.instantiate() as Node2D
+		if tree == null:
+			push_error("❌ Tree instantiation failed at (%d,%d)" % [tree_pos.x, tree_pos.y])
+			continue
+		
+		var world_pos: Vector2 = Vector2(tree_pos.x, tree_pos.y) * cell_size
+		tree.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
+		
+		# Set grid_position if the property exists
+		if tree.has_meta("grid_position") or "grid_position" in tree:
+			tree.set("grid_position", tree_pos)
+		else:
+			push_warning("⚠️ Tree missing 'grid_position'. Type: %s" % tree.get_class())
+		
+		# Track for Y-sorting
+		ysort_objects.append({"node": tree, "grid_pos": tree_pos})
+		obstacle_layer.add_child(tree)
+		
+		# Add to obstacle map if it blocks movement
+		if tree.has_method("blocks") and tree.blocks():
+			obstacle_map[tree_pos] = tree
+		
+		print("Random tree placed at grid position:", tree_pos)
+	
+	print("Placed", object_positions.trees.size(), "trees")
+	
+	# Place shop
+	if object_positions.shop != Vector2i.ZERO:
+		var scene: PackedScene = object_scene_map["SHOP"]
+		if scene == null:
+			push_error("🚫 Shop scene is null")
+		else:
+			var shop: Node2D = scene.instantiate() as Node2D
+			if shop == null:
+				push_error("❌ Shop instantiation failed at (%d,%d)" % [object_positions.shop.x, object_positions.shop.y])
+			else:
+				var world_pos: Vector2 = Vector2(object_positions.shop.x, object_positions.shop.y) * cell_size
+				shop.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
+				
+				# Set grid_position if the property exists
+				if shop.has_meta("grid_position") or "grid_position" in shop:
+					shop.set("grid_position", object_positions.shop)
+				else:
+					push_warning("⚠️ Shop missing 'grid_position'. Type: %s" % shop.get_class())
+				
+				# Track for Y-sorting
+				ysort_objects.append({"node": shop, "grid_pos": object_positions.shop})
+				obstacle_layer.add_child(shop)
+				
+				# Update shop grid position for interaction
+				shop_grid_pos = object_positions.shop
+				
+				# Place invisible blocker to the right of Shop
+				var right_of_shop_pos = object_positions.shop + Vector2i(2, 0)
+				var blocker_scene = preload("res://Obstacles/InvisibleBlocker.tscn")
+				var blocker = blocker_scene.instantiate()
+				var blocker_world_pos = Vector2(right_of_shop_pos.x, right_of_shop_pos.y) * cell_size
+				blocker.position = blocker_world_pos + Vector2(cell_size / 2, cell_size / 2)
+				obstacle_layer.add_child(blocker)
+				obstacle_map[right_of_shop_pos] = blocker
+				
+				print("Random shop placed at grid position:", object_positions.shop)
+				print("Invisible blocker placed at:", right_of_shop_pos)
+	
+	print("Object placement complete. Total ysort objects:", ysort_objects.size())
+
 # Move this function above focus_camera_on_tee
 func _get_tee_area_center() -> Vector2:
 	var tee_positions: Array[Vector2i] = []
@@ -364,7 +667,7 @@ func _ready() -> void:
 
 	# Load map data first
 	map_manager.load_map_data(GolfCourseLayout.LEVEL_LAYOUT)
-	build_map_from_layout(map_manager.level_layout)
+	build_map_from_layout_with_randomization(map_manager.level_layout)
 
 	deck_manager = DeckManager.new()
 	add_child(deck_manager)
@@ -423,6 +726,34 @@ func _ready() -> void:
 
 	# Show instruction to player
 	show_tee_selection_instruction()
+
+	# Load map data for the first hole
+	current_hole = 0
+	map_manager.load_map_data(GolfCourseLayout.get_hole_layout(current_hole))
+	build_map_from_layout_with_randomization(map_manager.level_layout)
+
+	update_hole_and_score_display()
+
+	# Add Complete Hole test button
+	var complete_hole_btn := Button.new()
+	complete_hole_btn.name = "CompleteHoleButton"
+	complete_hole_btn.text = "Complete Hole"
+	complete_hole_btn.position = Vector2(400, 50)
+	complete_hole_btn.z_index = 999
+	$UILayer.add_child(complete_hole_btn)
+	complete_hole_btn.pressed.connect(_on_complete_hole_pressed)
+
+	# Add Randomization Test button
+	var test_random_btn := Button.new()
+	test_random_btn.name = "TestRandomButton"
+	test_random_btn.text = "Test Randomization"
+	test_random_btn.position = Vector2(400, 100)
+	test_random_btn.z_index = 999
+	$UILayer.add_child(test_random_btn)
+	test_random_btn.pressed.connect(test_randomization)
+
+func _on_complete_hole_pressed():
+	show_hole_completion_dialog()
 
 func _input(event: InputEvent) -> void:
 	if game_phase == "aiming":
@@ -1611,7 +1942,8 @@ func _on_end_round_pressed() -> void:
 func _change_to_main() -> void:
 	# Reset putt putt mode when returning to main menu
 	Global.putt_putt_mode = false
-	get_tree().change_scene_to_file("res://Main.tscn")
+	# Use FadeManager for smooth transition
+	FadeManager.fade_to_black(func(): get_tree().change_scene_to_file("res://Main.tscn"), 0.5)
 
 func show_tee_selection_instruction() -> void:
 	# Create a temporary instruction label
@@ -2039,61 +2371,82 @@ func show_sand_landing_dialog():
 
 func show_hole_completion_dialog():
 	"""Show dialog when the ball goes in the hole"""
-	# Create a dialog to inform the player
+	# Add hole_score to total_score
+	total_score += hole_score
 	var dialog = AcceptDialog.new()
 	dialog.title = "Hole Complete!"
-	
-	# Create the dialog text with the score
 	var score_text = "Congratulations! You've completed the hole!\n\n"
-	score_text += "Final Score: %d strokes\n\n" % hole_score
-	score_text += "Click to continue to the next hole."
-	
+	score_text += "Hole Score: %d strokes\n" % hole_score
+	score_text += "Total Score: %d\n" % total_score
+	score_text += "Hole %d of %d\n\n" % [current_hole+1, NUM_HOLES]
+	if current_hole < NUM_HOLES - 1:
+		score_text += "Click to continue to the next hole."
+	else:
+		score_text += "Click to see your final score!"
 	dialog.dialog_text = score_text
 	dialog.add_theme_font_size_override("font_size", 18)
 	dialog.add_theme_color_override("font_color", Color.GREEN)
-	
-	# Position the dialog in the center of the screen
 	dialog.position = Vector2(400, 300)
-	
-	# Add to UI layer
 	$UILayer.add_child(dialog)
-	
-	# Show the dialog
 	dialog.popup_centered()
-	
-	# Connect the confirmed signal to remove the dialog and reset for next hole
 	dialog.confirmed.connect(func():
 		dialog.queue_free()
 		print("Hole completion dialog dismissed")
-		# Reset for next hole
-		reset_for_next_hole()
+		if current_hole < NUM_HOLES - 1:
+			reset_for_next_hole()
+		else:
+			show_course_complete_dialog()
 	)
 
 func reset_for_next_hole():
 	"""Reset the game state for the next hole"""
 	print("Resetting for next hole...")
-	
+	current_hole += 1
+	if current_hole >= NUM_HOLES:
+		return
+	# Load the next hole layout
+	map_manager.load_map_data(GolfCourseLayout.get_hole_layout(current_hole))
+	build_map_from_layout_with_randomization(map_manager.level_layout)
 	# Reset hole score
 	hole_score = 0
-	
-	# Reset game phase
 	game_phase = "tee_select"
-	
-	# Reset putting flag
 	is_putting = false
-	
-	# Reset player to tee
-	reset_player_to_tee()
-	
-	# Reset any other game state as needed
 	chosen_landing_spot = Vector2.ZERO
 	selected_club = ""
-	
-	# Update HUD
+	update_hole_and_score_display()
 	if hud:
 		hud.get_node("ShotLabel").text = "Shots: %d" % hole_score
-	
+	# Start tee placement phase for new hole
+	is_placing_player = true
+	highlight_tee_tiles()
+	show_tee_selection_instruction()
+	focus_camera_on_tee()
 	print("Reset complete. Ready for next hole!")
+
+func show_course_complete_dialog():
+	var dialog = AcceptDialog.new()
+	dialog.title = "Course Complete!"
+	dialog.dialog_text = "Congratulations! You've finished all holes!\n\nTotal Score: %d strokes\n" % total_score
+	dialog.add_theme_font_size_override("font_size", 20)
+	dialog.add_theme_color_override("font_color", Color.CYAN)
+	dialog.position = Vector2(400, 300)
+	$UILayer.add_child(dialog)
+	dialog.popup_centered()
+	dialog.confirmed.connect(func():
+		dialog.queue_free()
+		get_tree().reload_current_scene()
+	)
+
+func update_hole_and_score_display():
+	if hud:
+		var label = hud.get_node_or_null("HoleLabel")
+		if not label:
+			label = Label.new()
+			label.name = "HoleLabel"
+			hud.add_child(label)
+		label.text = "Hole: %d/%d    Total: %d" % [current_hole+1, NUM_HOLES, total_score]
+		label.position = Vector2(10, 10)
+		label.z_index = 200
 
 func _on_draw_cards_pressed() -> void:
 	if game_phase == "draw_cards":
@@ -2391,8 +2744,8 @@ func _on_shop_enter_yes():
 	# Save current game state
 	save_game_state()
 	
-	# Transition to shop interior scene
-	get_tree().change_scene_to_file("res://Shop/ShopInterior.tscn")
+	# Use FadeManager for smooth transition
+	FadeManager.fade_to_black(func(): get_tree().change_scene_to_file("res://Shop/ShopInterior.tscn"), 0.5)
 
 func _on_shop_enter_no():
 	"""Player chose not to enter the shop"""
@@ -2877,3 +3230,39 @@ func update_ball_y_sort(ball_node: Node2D) -> void:
 		ball_shadow.z_index = ball_sprite.z_index - 1
 		if ball_shadow.z_index <= -5:
 			ball_shadow.z_index = 1
+
+var current_hole := 0
+var total_score := 0
+const NUM_HOLES := 3
+
+# Add this function after the other randomization functions
+func test_randomization() -> void:
+	"""Test function to verify randomization is working"""
+	print("=== TESTING RANDOMIZATION ===")
+	
+	# Test with a simple layout
+	var test_layout = [
+		["Base", "Base", "Base", "Base", "Base"],
+		["Base", "F", "F", "F", "Base"],
+		["Base", "F", "G", "F", "Base"],
+		["Base", "F", "F", "F", "Base"],
+		["Base", "Base", "Base", "Base", "Base"]
+	]
+	
+	print("Test layout:")
+	for row in test_layout:
+		print(row)
+	
+	var positions = get_random_positions_for_objects(test_layout, 3, true)
+	print("Random positions result:", positions)
+	
+	# Test validity of positions
+	for tree_pos in positions.trees:
+		var valid = is_valid_position_for_object(tree_pos, test_layout)
+		print("Tree at", tree_pos, "valid:", valid)
+	
+	if positions.shop != Vector2i.ZERO:
+		var valid = is_valid_position_for_object(positions.shop, test_layout)
+		print("Shop at", positions.shop, "valid:", valid)
+	
+	print("=== RANDOMIZATION TEST COMPLETE ===")

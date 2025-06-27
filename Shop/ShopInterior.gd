@@ -26,5 +26,5 @@ func _on_return_button_pressed():
 		trinkets_sound.stop()
 		print("Stopped shop trinkets sound")
 	
-	# Change scene back to Course1
-	get_tree().change_scene_to_file("res://Course1.tscn") 
+	# Use FadeManager for smooth transition
+	FadeManager.fade_to_black(func(): get_tree().change_scene_to_file("res://Course1.tscn"), 0.5) 

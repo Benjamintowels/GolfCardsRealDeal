@@ -1,28 +1,20 @@
 extends Node
 class_name GolfCourseLayout
 
-const LEVEL_LAYOUT := [
-	["W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W"],
-	["Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "T", "T", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base"],
-	["Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "W", "W", "Base", "W", "W", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "W", "W", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "T"],
-	["Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "W", "W", "Base", "W", "W", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "T", "Base", "Base", "W", "W", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base"],
-	["Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "T", "Base", "Base", "Base", "Base", "Base", "Base", "T", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "T", "Base", "Base", "T", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "T", "G", "G", "G", "G", "Base", "Base", "Base"],
-	["Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "T", "Base", "Base", "Base", "Base", "Base", "T", "Base", "Base", "T", "Base", "Base", "Base", "Base", "G", "G", "G", "G", "Base", "Base", "Base"],
-	["Base", "SHOP", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "S", "S", "Base", "Base", "Base", "W", "W", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "G", "G", "G", "G", "Base", "Base", "Base"],
-	["Base", "Base", "Base", "Base", "R", "R", "Base", "Base", "Base", "R", "S", "S", "R", "R", "R", "W", "W", "Base", "Base", "S", "S", "R", "R", "S", "S", "Base", "Base", "R", "Base", "Base", "R", "R", "Base", "Base", "R", "Base", "R", "Base", "Base", "Base", "S", "S", "S", "R", "Base", "Base", "Base", "Base", "Base", "Base"],
-	["Base", "Base", "Base", "Base", "Base", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "S", "S", "R", "R", "S", "S", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "S", "S", "S", "R", "Base", "Base", "Base", "Base", "Base", "Base"],
-	["Base", "Base", "Base", "Base", "Base", "R", "R", "R", "R", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "R", "R", "R", "R", "Base", "Base", "Base", "T", "Base", "Base"],
-	["Base", "Base", "Tee", "Tee", "Tee", "F", "F", "F", "F", "F", "F", "F", "P", "F", "F", "F", "T", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "R", "R", "R", "Base", "Base", "Base", "Base", "Base", "Base"],
-	["Base", "Base", "Tee", "Tee", "Tee", "R", "R", "F", "S", "S", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "R", "R", "Base", "Base", "Base", "Base", "Base", "Base"],
-	["Base", "Base", "Tee", "Tee", "Tee", "R", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "R", "Base", "Base", "Base", "Base", "Base", "Base"],
-	["Base", "Base", "Base", "Base", "Base", "R", "R", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "R", "R", "Base", "Base", "Base", "Base", "Base", "Base"],
-	["Base", "Base", "Base", "Base", "R", "R", "R", "R", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "R", "R", "R", "Base", "Base", "Base", "Base", "Base", "Base"],
-	["Base", "Base", "Base", "Base", "Base", "R", "R", "R", "R", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "R", "R", "R", "R", "R", "Base", "Base", "Base", "Base", "Base"],
-	["Base", "Base", "Base", "Base", "Base", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "S", "S", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "Base", "Base", "Base", "Base", "Base"],
-	["Base", "Base", "Base", "Base", "Base", "T", "R", "Base", "R", "Base", "Base", "Base", "Base", "Base", "R", "R", "Base", "Base", "R", "Base", "Base", "R", "Base", "Base", "R", "Base", "Base", "R", "Base", "Base", "Base", "S", "S", "Base", "R", "Base", "Base", "Base", "Base", "R", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base"],
-	["Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base"],
-	["Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base"],
-	["Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base"],
-	["Base", "Base", "Base", "Base", "Base", "T", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base"],
-	["W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W"],
+const Hole1Layout = preload("res://Maps/Hole1Layout.gd")
+const Hole2Layout = preload("res://Maps/Hole2Layout.gd")
+const Hole3Layout = preload("res://Maps/Hole3Layout.gd")
+
+const HOLE_LAYOUTS := [
+	Hole1Layout.LAYOUT,
+	Hole2Layout.LAYOUT,
+	Hole3Layout.LAYOUT,
 ]
+
+const LEVEL_LAYOUT := HOLE_LAYOUTS[0]
+
+# Returns the layout for the given hole index (0-based)
+static func get_hole_layout(hole_index: int) -> Array:
+	if hole_index >= 0 and hole_index < HOLE_LAYOUTS.size():
+		return HOLE_LAYOUTS[hole_index]
+	return HOLE_LAYOUTS[0] # fallback to first hole

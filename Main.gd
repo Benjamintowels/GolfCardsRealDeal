@@ -58,4 +58,5 @@ func _on_start_putt_putt_button_pressed():
 	call_deferred("_change_scene")
 
 func _change_scene():
-	get_tree().change_scene_to_file("res://Course1.tscn")
+	# Use FadeManager for smooth transition
+	FadeManager.fade_to_black(func(): get_tree().change_scene_to_file("res://Course1.tscn"), 0.5)

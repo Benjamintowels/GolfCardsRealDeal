@@ -19,6 +19,7 @@ config/icon="res://icon.svg"
 
 Global="*res://Global.gd"
 Deck="*res://DeckManager.gd"
+FadeManager="*res://FadeManager.gd"
 
 [input]
 
