@@ -89,6 +89,30 @@ func update_z_index_for_ysort(ysort_objects: Array) -> void:
 	var in_front_zs = []
 	var behind_zs = []
 	print("Player grid_pos.y:", grid_pos.y)
+	
+	# Special case: If player is on shop entrance, always appear in front
+	var is_on_shop_entrance = false
+	for obj in ysort_objects:
+		if not obj.has("grid_pos") or not obj.has("node"):
+			continue
+		var obj_grid_pos = obj["grid_pos"]
+		var obj_node = obj["node"]
+		
+		# Check if the node is still valid and not freed
+		if not obj_node or not is_instance_valid(obj_node):
+			continue
+			
+		var is_shop = obj_node.name == "Shop" or obj_node.get_class() == "Shop"
+		if is_shop and grid_pos == obj_grid_pos:
+			is_on_shop_entrance = true
+			break
+	
+	# If on shop entrance, always appear in front
+	if is_on_shop_entrance:
+		z_index = 1000  # Very high z-index to ensure player is always in front
+		print("Player on shop entrance - setting z_index to 1000")
+		return
+	
 	for obj in ysort_objects:
 		if not obj.has("grid_pos") or not obj.has("node"):
 			continue

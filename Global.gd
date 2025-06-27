@@ -28,5 +28,10 @@ var saved_ball_landing_position := Vector2.ZERO
 var saved_waiting_for_player_to_reach_ball := false
 var saved_ball_exists := false
 
+# Course object positions (trees, pin, and shop)
+var saved_tree_positions := []
+var saved_pin_position := Vector2i.ZERO
+var saved_shop_position := Vector2i.ZERO
+
 func _ready():
 	print("Global script loaded, selected_character = ", selected_character)

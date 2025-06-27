@@ -12,22 +12,6 @@ func _ready():
 		area2d.collision_mask = 1
 		
 		area2d.connect("area_entered", _on_area_entered)
-		print("Pin Area2D connected to area_entered signal")
-		print("Pin collision layer:", area2d.collision_layer, "collision mask:", area2d.collision_mask)
-		print("Pin global position:", global_position)
-		
-		# Check collision shape
-		var collision_shape = area2d.get_node_or_null("CollisionShape2D")
-		if collision_shape:
-			print("Pin collision shape found, position:", collision_shape.position, "scale:", collision_shape.scale)
-			if collision_shape.shape:
-				print("Pin collision shape radius:", collision_shape.shape.radius)
-		else:
-			print("Pin ERROR: CollisionShape2D not found!")
-	else:
-		print("Pin ERROR: Area2D not found!")
-	
-	print("Pin _ready complete at position:", global_position)
 
 func _process(delta):
 	# Debug: Check for overlapping areas more frequently
@@ -42,7 +26,9 @@ func _process(delta):
 					if area.get_parent() and area.get_parent().has_method("get_height"):
 						var ball_height = area.get_parent().get_height()
 						print("    Ball height:", ball_height)
-
+	
+	# Y-sort: set z_index based on global y position, but ensure it's above ground
+	# REMOVED: z_index = int(global_position.y) + 10  # This was overriding the fixed z_index = 1000
 
 func _on_area_entered(area: Area2D):
 	print("Pin _on_area_entered called with area:", area)
@@ -63,6 +49,11 @@ func _on_area_entered(area: Area2D):
 		# Check if the ball is in the hole-in height range (0-5) for all shots
 		if ball_height >= 0.0 and ball_height <= 5.0:
 			print("Hole in one! Ball height is in range 0-5, triggering hole completion")
+			
+			# Play the hole-in sound
+			var hole_in_audio = get_node_or_null("HoleIn")
+			if hole_in_audio:
+				hole_in_audio.play()
 			
 			# Emit signal for hole completion
 			hole_in_one.emit(0)  # 0 indicates hole completion, score will be calculated by course
