@@ -77,6 +77,7 @@ var hole_score := 0
 
 # StickyShot and card modification variables
 var sticky_shot_active := false  # Track if StickyShot effect is active
+var bouncey_shot_active := false  # Track if Bouncey effect is active
 var next_shot_modifier := ""  # Track what modifier to apply to next shot
 
 # Multi-hole game loop variables
@@ -1288,6 +1289,21 @@ func handle_modify_next_card(card: CardData) -> void:
 		else:
 			print("Error: StickyShot card not found in hand")
 	
+	elif card.name == "Bouncey":
+		# Apply Bouncey effect to next shot
+		bouncey_shot_active = true
+		next_shot_modifier = "bouncey_shot"
+		print("Bouncey effect applied to next shot")
+		
+		# Discard the card after use
+		if deck_manager.hand.has(card):
+			deck_manager.discard(card)
+			card_stack_display.animate_card_discard(card.name)
+			update_deck_display()
+			create_movement_buttons()  # Refresh the card display
+		else:
+			print("Error: Bouncey card not found in hand")
+	
 	# Add more ModifyNext card types here as needed
 
 func calculate_valid_movement_tiles() -> void:
@@ -1960,6 +1976,15 @@ func launch_golf_ball(direction: Vector2, charged_power: float, height: float):
 		sticky_shot_active = false
 		next_shot_modifier = ""
 		print("StickyShot effect cleared after application")
+	
+	# Apply Bouncey effect if active
+	if bouncey_shot_active and next_shot_modifier == "bouncey_shot":
+		print("Applying Bouncey effect to ball")
+		golf_ball.bouncey_shot_active = true
+		# Clear the effect after applying it
+		bouncey_shot_active = false
+		next_shot_modifier = ""
+		print("Bouncey effect cleared after application")
 	
 	# Pass the spin value to the ball
 	golf_ball.launch(launch_direction, final_power, height, launch_spin, spin_strength_category)  # Pass spin strength category

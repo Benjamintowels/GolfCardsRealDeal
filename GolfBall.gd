@@ -100,6 +100,7 @@ var time_percentage: float = -1.0  # -1 means not set, use power percentage inst
 
 # StickyShot effect variables
 var sticky_shot_active: bool = false  # Track if StickyShot effect is active
+var bouncey_shot_active: bool = false  # Track if Bouncey effect is active
 
 # Progressive overcharge system variables
 var club_info: Dictionary = {}  # Will be set by the course script
@@ -231,6 +232,11 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 	initial_launch_height = height  # Store for roll calculations
 	first_bounce_height = height * 0.6  # First bounce is 60% of initial height (increased from 40%)
 	
+	# Apply Bouncey effect to increase bounce height if active
+	if bouncey_shot_active:
+		first_bounce_height = height * 1.2  # Bouncey effect: 120% of initial height for much higher bounces
+		print("Bouncey effect: Increased bounce height to", first_bounce_height, "(120% of initial height)")
+	
 	# Calculate roll distance based on height (higher shots roll less, lower shots roll more)
 	var height_percentage_for_roll = (height - MIN_LAUNCH_HEIGHT) / (MAX_LAUNCH_HEIGHT - MIN_LAUNCH_HEIGHT)
 	height_percentage_for_roll = clamp(height_percentage_for_roll, 0.0, 1.0)
@@ -301,9 +307,17 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 	bounce_reduction_applied = false
 	min_bounces = 2  # Reset to default
 	max_bounces = 2  # Reset to default
+	
+	# Apply Bouncey effect if active
+	if bouncey_shot_active:
+		min_bounces = 4  # Double the minimum bounces
+		max_bounces = 4  # Double the maximum bounces
+		print("Bouncey effect: Doubling bounces to", min_bounces, "minimum and", max_bounces, "maximum")
+	
 	print("=== NEW SHOT BOUNCE SETTINGS ===")
 	print("Initial min_bounces:", min_bounces)
 	print("Initial max_bounces:", max_bounces)
+	print("Bouncey effect active:", bouncey_shot_active)
 	print("=== END NEW SHOT BOUNCE SETTINGS ===")
 
 func _process(delta):
@@ -392,12 +406,14 @@ func _process(delta):
 				velocity = Vector2.ZERO
 				vz = 0.0
 				landed_flag = true
+				reset_shot_effects()
 				out_of_bounds.emit()
 				return
 			elif tile_type == "S":  # Sand trap
 				velocity = Vector2.ZERO
 				vz = 0.0
 				landed_flag = true
+				reset_shot_effects()
 				sand_landing.emit()
 				return
 			
@@ -532,12 +548,14 @@ func _process(delta):
 				velocity = Vector2.ZERO
 				vz = 0.0
 				landed_flag = true
+				reset_shot_effects()
 				out_of_bounds.emit()
 				return
 			elif tile_type == "S":  # Sand trap
 				velocity = Vector2.ZERO
 				vz = 0.0
 				landed_flag = true
+				reset_shot_effects()
 				sand_landing.emit()
 				return
 
@@ -549,6 +567,7 @@ func _process(delta):
 				velocity = Vector2.ZERO
 				vz = 0.0
 				landed_flag = true
+				reset_shot_effects()
 				out_of_bounds.emit()
 				return
 		
@@ -602,12 +621,14 @@ func _process(delta):
 				velocity = Vector2.ZERO
 				vz = 0.0
 				landed_flag = true
+				reset_shot_effects()
 				out_of_bounds.emit()
 				return
 			elif tile_type_roll == "S":  # Sand trap
 				velocity = Vector2.ZERO
 				vz = 0.0
 				landed_flag = true
+				reset_shot_effects()
 				sand_landing.emit()
 				return
 			
@@ -645,9 +666,13 @@ func _process(delta):
 				if map_manager != null:
 					var final_tile = Vector2i(floor(position.x / cell_size), floor(position.y / cell_size))
 					print("Ball landed on tile:", final_tile)
+					# Reset shot effects after the ball has landed
+					reset_shot_effects()
 					landed.emit(final_tile)
 				else:
 					print("Map manager is null, can't determine final tile")
+					# Reset shot effects even if map manager is null
+					reset_shot_effects()
 				return
 			
 			# MUCH MORE AGGRESSIVE FRICTION: Lose a fixed percentage per frame
@@ -672,9 +697,13 @@ func _process(delta):
 				if map_manager != null:
 					var final_tile = Vector2i(floor(position.x / cell_size), floor(position.y / cell_size))
 					print("Ball landed on tile:", final_tile)
+					# Reset shot effects after the ball has landed
+					reset_shot_effects()
 					landed.emit(final_tile)
 				else:
 					print("Map manager is null, can't determine final tile")
+					# Reset shot effects even if map manager is null
+					reset_shot_effects()
 				return
 	
 	# Update visual effects
@@ -865,3 +894,9 @@ func _on_area_exited(area):
 	print("GolfBall _on_area_exited - Area exited:", area)
 	print("Area parent:", area.get_parent())
 	print("Area parent name:", area.get_parent().name if area.get_parent() else "No parent")
+
+func reset_shot_effects() -> void:
+	"""Reset all shot modification effects after the ball has landed"""
+	sticky_shot_active = false
+	bouncey_shot_active = false
+	print("Shot effects reset: sticky_shot_active =", sticky_shot_active, "bouncey_shot_active =", bouncey_shot_active)
