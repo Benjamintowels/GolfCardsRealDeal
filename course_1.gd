@@ -16,6 +16,9 @@ extends Control
 @onready var camera := $GameCamera
 @onready var map_manager := $MapManager
 @onready var draw_cards_button: Button = $UILayer/DrawCards
+@onready var mod_shot_room_button: Button
+@onready var bag: Control = $UILayer/Bag
+@onready var inventory_dialog: Control = $UILayer/InventoryDialog
 const GolfCourseLayout := preload("res://Maps/GolfCourseLayout.gd")
 
 var is_placing_player := true
@@ -56,6 +59,11 @@ var selected_card_label: String = ""
 
 var deck_manager: DeckManager
 
+# Inventory system for ModifyNext cards
+var club_inventory: Array[CardData] = []
+var movement_inventory: Array[CardData] = []
+var pending_inventory_card: CardData = null
+
 var player_stats = {} # Will be set after character selection
 
 var CHARACTER_STATS = {
@@ -66,6 +74,10 @@ var CHARACTER_STATS = {
 
 var game_phase := "tee_select" # Possible: tee_select, draw_cards, aiming, launch, ball_flying, move, etc.
 var hole_score := 0
+
+# StickyShot and card modification variables
+var sticky_shot_active := false  # Track if StickyShot effect is active
+var next_shot_modifier := ""  # Track what modifier to apply to next shot
 
 # Multi-hole game loop variables
 var round_scores := []  # Array to store scores for each hole
@@ -784,6 +796,15 @@ func _ready() -> void:
 
 	draw_cards_button.visible = false
 	draw_cards_button.pressed.connect(_on_draw_cards_pressed)
+	
+	# Connect ModShotRoom button
+	mod_shot_room_button = $UILayer/ModShotRoom
+	mod_shot_room_button.pressed.connect(_on_mod_shot_room_pressed)
+	mod_shot_room_button.visible = false  # Start hidden
+	print("ModShotRoom button connected successfully")
+
+	# Set up bag and inventory system
+	setup_bag_and_inventory()
 
 	# Check if returning from shop FIRST
 	if Global.saved_game_state == "shop_entrance":
@@ -1215,6 +1236,9 @@ func create_movement_buttons() -> void:
 
 		movement_buttons_container.add_child(btn)
 		movement_buttons.append(btn)
+	
+	# Update ModShotRoom button visibility when cards are available
+	update_mod_shot_room_visibility()
 
 func _on_movement_card_pressed(card: CardData, button: TextureButton) -> void:
 	if selected_card == card:
@@ -1223,6 +1247,13 @@ func _on_movement_card_pressed(card: CardData, button: TextureButton) -> void:
 	hide_all_movement_highlights()
 	valid_movement_tiles.clear()
 
+	# Handle different effect types
+	if card.effect_type == "ModifyNext":
+		# Handle StickyShot and other modification cards
+		handle_modify_next_card(card)
+		return
+	
+	# Default movement card handling
 	is_movement_mode = true
 	active_button = button
 	selected_card = card
@@ -1237,6 +1268,27 @@ func _on_movement_card_pressed(card: CardData, button: TextureButton) -> void:
 	# Get the valid tiles from the player node
 	valid_movement_tiles = player_node.valid_movement_tiles.duplicate()
 	show_movement_highlights()
+
+func handle_modify_next_card(card: CardData) -> void:
+	"""Handle cards with ModifyNext effect type"""
+	print("Handling ModifyNext card:", card.name)
+	
+	if card.name == "Sticky Shot":
+		# Apply StickyShot effect to next shot
+		sticky_shot_active = true
+		next_shot_modifier = "sticky_shot"
+		print("StickyShot effect applied to next shot")
+		
+		# Discard the card after use
+		if deck_manager.hand.has(card):
+			deck_manager.discard(card)
+			card_stack_display.animate_card_discard(card.name)
+			update_deck_display()
+			create_movement_buttons()  # Refresh the card display
+		else:
+			print("Error: StickyShot card not found in hand")
+	
+	# Add more ModifyNext card types here as needed
 
 func calculate_valid_movement_tiles() -> void:
 	valid_movement_tiles.clear()
@@ -1899,6 +1951,16 @@ func launch_golf_ball(direction: Vector2, charged_power: float, height: float):
 	print("=== END PUTTING DEBUG ===")
 	# Pass the time percentage information for proper sweet spot detection
 	golf_ball.time_percentage = time_percent
+	
+	# Apply StickyShot effect if active
+	if sticky_shot_active and next_shot_modifier == "sticky_shot":
+		print("Applying StickyShot effect to ball")
+		golf_ball.sticky_shot_active = true
+		# Clear the effect after applying it
+		sticky_shot_active = false
+		next_shot_modifier = ""
+		print("StickyShot effect cleared after application")
+	
 	# Pass the spin value to the ball
 	golf_ball.launch(launch_direction, final_power, height, launch_spin, spin_strength_category)  # Pass spin strength category
 	golf_ball.landed.connect(_on_golf_ball_landed)
@@ -1947,6 +2009,9 @@ func _on_golf_ball_landed(tile: Vector2i):
 	# For now, just transition to movement phase
 	game_phase = "move"
 	print("Game phase set to:", game_phase)
+	
+	# Update ModShotRoom button visibility
+	update_mod_shot_room_visibility()
 	
 	# Don't draw cards here - they will be drawn when starting the next shot
 	# print("Drawing cards from deck...")
@@ -2060,14 +2125,14 @@ func update_deck_display() -> void:
 
 func display_selected_character() -> void:
 	print("Selected character: ", Global.selected_character)
+	var character_name = ""
 	if character_label:
-		var name = ""
 		match Global.selected_character:
-			1: name = "Layla"
-			2: name = "Benny"
-			3: name = "Clark"
-			_: name = "Unknown"
-		character_label.text = name
+			1: character_name = "Layla"
+			2: character_name = "Benny"
+			3: character_name = "Clark"
+			_: character_name = "Unknown"
+		character_label.text = character_name
 	if character_image:
 		match Global.selected_character:
 			1: 
@@ -2080,6 +2145,11 @@ func display_selected_character() -> void:
 			3: 
 				character_image.texture = load("res://character3.png")
 				# Don't change scale or position - keep original
+	
+	# Set the bag character to match the selected character
+	if bag and bag.has_method("set_character"):
+		bag.set_character(character_name)
+		print("Bag character set to:", character_name)
 
 func _on_end_round_pressed() -> void:
 	if is_movement_mode:
@@ -2183,6 +2253,9 @@ func _on_drive_distance_dialog_input(event: InputEvent) -> void:
 		# Go to move phase so player can move to the ball
 		print("Going to move phase after drive distance dialog")
 		game_phase = "move"
+		
+		# Update ModShotRoom button visibility
+		update_mod_shot_room_visibility()
 		
 		# Show the draw cards button for movement cards
 		draw_cards_button.visible = true
@@ -2400,6 +2473,9 @@ func enter_aiming_phase() -> void:
 	game_phase = "aiming"
 	is_aiming_phase = true
 	print("Entered aiming phase - move mouse to set landing spot")
+	
+	# Update ModShotRoom button visibility
+	update_mod_shot_room_visibility()
 	
 	# Show the aiming circle
 	show_aiming_circle()
@@ -2911,6 +2987,9 @@ func enter_draw_cards_phase() -> void:
 	draw_cards_button.visible = true
 	draw_cards_button.text = "Draw Club Cards"
 	
+	# Update ModShotRoom button visibility
+	update_mod_shot_room_visibility()
+	
 	# Center camera on player
 	var sprite = player_node.get_node_or_null("Sprite2D")
 	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
@@ -2921,7 +3000,7 @@ func enter_draw_cards_phase() -> void:
 	print("Draw cards phase ready! Click 'Draw Club Cards' to select your club")
 
 func draw_club_cards() -> void:
-	"""Draw club cards for selection (Driver, Iron, Putter)"""
+	"""Draw club cards for selection (Driver, Iron, Putter) and allow bonus cards like StickyShot to appear as extras."""
 	print("Drawing club cards from bag pile...")
 	
 	# Clear any existing movement buttons
@@ -2951,6 +3030,7 @@ func draw_club_cards() -> void:
 	print("Selecting", final_club_count, "clubs for selection... (base:", base_club_count, "modifier:", card_draw_modifier, ")")
 	
 	var selected_clubs: Array[CardData] = []
+	var bonus_cards: Array[CardData] = []
 	
 	# First, ensure we always get at least one putter (unless in putt putt mode where all are putters)
 	if not Global.putt_putt_mode:
@@ -2973,21 +3053,42 @@ func draw_club_cards() -> void:
 			# Adjust final club count since we already selected one
 			final_club_count -= 1
 	
-	# Randomly select remaining clubs from the available clubs
+	# Randomly select remaining clubs from the available clubs, skipping ModifyNext cards
+	var club_candidates = available_clubs.filter(func(card): return card.effect_type != "ModifyNext")
 	for i in range(final_club_count):
-		if available_clubs.size() > 0:
-			var random_index = randi() % available_clubs.size()
-			selected_clubs.append(available_clubs[random_index])
-			available_clubs.remove_at(random_index)
+		if club_candidates.size() > 0:
+			var random_index = randi() % club_candidates.size()
+			selected_clubs.append(club_candidates[random_index])
+			club_candidates.remove_at(random_index)
+	
+	# Now, check for any ModifyNext (e.g., StickyShot) cards in the bag pile and randomly add one as a bonus (with a chance)
+	var modify_next_candidates = available_clubs.filter(func(card): return card.effect_type == "ModifyNext")
+	if force_stickyshot_bonus:
+		# Always add StickyShot as a bonus if forced
+		for card in modify_next_candidates:
+			if card.name == "Sticky Shot":
+				bonus_cards.append(card)
+				print("StickyShot forced as bonus card")
+				break
+		force_stickyshot_bonus = false
+	elif modify_next_candidates.size() > 0:
+		# 50% chance to add a bonus ModifyNext card (or always, if you want)
+		if randi() % 2 == 0:
+			var random_index = randi() % modify_next_candidates.size()
+			bonus_cards.append(modify_next_candidates[random_index])
+			print("Bonus card added:", modify_next_candidates[random_index].name)
 	
 	print("Selected clubs to draw:", selected_clubs.map(func(card): return card.name))
+	if bonus_cards.size() > 0:
+		print("Bonus cards:", bonus_cards.map(func(card): return card.name))
 	
 	# Create club card buttons using actual card data
-	for i in selected_clubs.size():
-		var club_card = selected_clubs[i]
+	var all_cards = selected_clubs + bonus_cards
+	for i in all_cards.size():
+		var club_card = all_cards[i]
 		var club_name = club_card.name
-		var club_info = club_data[club_name]
-		var max_distance = club_info["max_distance"]
+		var club_info = club_data.get(club_name, {})
+		var max_distance = club_info.get("max_distance", 0)
 		
 		var btn := TextureButton.new()
 		btn.name = "ClubButton%d" % i
@@ -3011,7 +3112,10 @@ func draw_club_cards() -> void:
 		btn.mouse_entered.connect(func(): overlay.visible = true)
 		btn.mouse_exited.connect(func(): overlay.visible = false)
 		
-		btn.pressed.connect(func(): _on_club_card_pressed(club_name, club_info, btn))
+		if club_card.effect_type == "ModifyNext":
+			btn.pressed.connect(func(): handle_modify_next_card(club_card))
+		else:
+			btn.pressed.connect(func(): _on_club_card_pressed(club_name, club_info, btn))
 		
 		movement_buttons_container.add_child(btn)
 		movement_buttons.append(btn)
@@ -3981,3 +4085,91 @@ func _on_pin_flag_hit(ball: Node2D):
 	print("Pin flag hit detected for ball:", ball)
 	# The pin has already applied the velocity reduction
 	# We could add additional effects here if needed (sound, visual feedback, etc.)
+
+var force_stickyshot_bonus := false
+
+func _on_mod_shot_room_pressed():
+	print("ModShotRoom button pressed")
+	var sticky_shot_card = preload("res://Cards/StickyShot.tres")
+	pending_inventory_card = sticky_shot_card
+	show_inventory_choice(sticky_shot_card)
+
+func show_inventory_choice(card: CardData):
+	print("Attempting to show inventory choice dialog for card:", card.name)
+	var parent = $UILayer if has_node("UILayer") else self
+	var existing = parent.get_node_or_null("InventoryChoiceDialog")
+	if existing:
+		existing.queue_free()
+
+	var dialog = AcceptDialog.new()
+	dialog.name = "InventoryChoiceDialog"
+	dialog.dialog_text = "Where would you like to put this card?"
+	dialog.add_button("Add to Club Pile", true, "club")
+	dialog.add_button("Add to Movement Pile", true, "move")
+	dialog.connect("custom_action", Callable(self, "_on_inventory_choice"))
+	parent.add_child(dialog)
+	dialog.popup_centered()
+	print("Inventory choice dialog should now be visible.")
+
+func _on_inventory_choice(action: String):
+	if pending_inventory_card == null:
+		return
+	if action == "club":
+		club_inventory.append(pending_inventory_card)
+		print("Added", pending_inventory_card.name, "to club inventory. Total:", club_inventory.size())
+	elif action == "move":
+		movement_inventory.append(pending_inventory_card)
+		print("Added", pending_inventory_card.name, "to movement inventory. Total:", movement_inventory.size())
+	pending_inventory_card = null
+	# Remove dialog
+	var dialog = $UILayer.get_node_or_null("InventoryChoiceDialog")
+	if dialog:
+		dialog.queue_free()
+
+func update_mod_shot_room_visibility() -> void:
+	"""Update ModShotRoom button visibility based on game phase"""
+	if mod_shot_room_button:
+		# Show button during card phases (draw_cards, move when cards are available)
+		var should_show = (game_phase == "draw_cards" or 
+						  (game_phase == "move" and deck_manager and deck_manager.hand.size() > 0))
+		mod_shot_room_button.visible = should_show
+		print("ModShotRoom button visibility:", should_show, "for game phase:", game_phase, "hand size:", deck_manager.hand.size() if deck_manager else "no deck manager")
+	else:
+		print("ModShotRoom button not found!")
+
+func setup_bag_and_inventory() -> void:
+	# Connect bag click signal
+	if bag and bag.has_signal("bag_clicked"):
+		bag.bag_clicked.connect(_on_bag_clicked)
+		print("Bag click signal connected")
+	
+	# Set up inventory dialog
+	if inventory_dialog:
+		# Set the callable functions for getting cards
+		inventory_dialog.get_movement_cards = get_movement_cards_for_inventory
+		inventory_dialog.get_club_cards = get_club_cards_for_inventory
+		inventory_dialog.inventory_closed.connect(_on_inventory_closed)
+		print("Inventory dialog setup complete")
+	
+	# Initialize bag with level 1 for the selected character
+	if bag and bag.has_method("set_bag_level"):
+		bag.set_bag_level(1)  # Always start with level 1
+		print("Bag initialized with level 1")
+
+func _on_bag_clicked() -> void:
+	print("Bag clicked - opening inventory")
+	if inventory_dialog:
+		inventory_dialog.show_inventory()
+
+func _on_inventory_closed() -> void:
+	print("Inventory closed")
+
+func get_movement_cards_for_inventory() -> Array[CardData]:
+	# Return movement cards from the deck manager
+	if deck_manager:
+		return deck_manager.hand.filter(func(card): return card.effect_type == "movement")
+	return []
+
+func get_club_cards_for_inventory() -> Array[CardData]:
+	# Return club cards from the bag pile
+	return bag_pile.duplicate()

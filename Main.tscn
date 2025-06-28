@@ -101,6 +101,11 @@ offset_right = 435.0
 offset_bottom = 594.0
 text = "Start Back 9"
 
+[node name="ModShotRoom" type="Button" parent="UI"]
+offset_right = 8.0
+offset_bottom = 8.0
+text = "ModShotRoom"
+
 [node name="TextureRect2" type="TextureRect" parent="."]
 layout_mode = 0
 offset_left = 458.77

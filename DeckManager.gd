@@ -12,9 +12,11 @@ var starter_deck: Array[CardData] = [
 	preload("res://Cards/Move1.tres"),
 	preload("res://Cards/Move2.tres"),
 	preload("res://Cards/Move3.tres"),
+	preload("res://Cards/StickyShot.tres"),
 	preload("res://Cards/Move1.tres"),
 	preload("res://Cards/Move2.tres"),
 	preload("res://Cards/Move3.tres"),
+	preload("res://Cards/StickyShot.tres"),
 	preload("res://Cards/Move1.tres"),
 	preload("res://Cards/Move2.tres"),
 	preload("res://Cards/Move3.tres")

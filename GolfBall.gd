@@ -98,6 +98,9 @@ var original_launch_direction: Vector2 = Vector2.ZERO  # Track original directio
 var spin_strength_category: int = 0  # 0=green, 1=yellow, 2=red - for scaling spin effect
 var time_percentage: float = -1.0  # -1 means not set, use power percentage instead
 
+# StickyShot effect variables
+var sticky_shot_active: bool = false  # Track if StickyShot effect is active
+
 # Progressive overcharge system variables
 var club_info: Dictionary = {}  # Will be set by the course script
 var is_penalty_shot: bool = false  # True if red circle is below min distance
@@ -407,23 +410,31 @@ func _process(delta):
 			
 			# Determine if we should bounce or start rolling
 			if bounce_count < max_bounces and (bounce_count < min_bounces or landing_speed > 50.0):
-				# Bounce!
-				bounce_count += 1
-				# Play ball landing sound on every bounce
-				if ball_land_sound and ball_land_sound.stream:
-					ball_land_sound.play()
-				# Calculate bounce height based on bounce count
-				var bounce_height = 0.0
-				if bounce_count == 1:
-					# First bounce: use calculated first bounce height
-					bounce_height = first_bounce_height
+				# Check for StickyShot effect
+				if sticky_shot_active and not is_putting:
+					# StickyShot active and not putting - skip bounces and go straight to rolling
+					print("StickyShot effect: Skipping bounces for normal shot")
+					vz = 0.0
+					is_rolling = true
+					roll_start_position = position  # Record where rolling started
 				else:
-					# Subsequent bounces: reduce by bounce factor each time
-					bounce_height = first_bounce_height * pow(bounce_factor, bounce_count - 1)
-				# Set vertical velocity for the bounce
-				vz = bounce_height
-				# Reduce horizontal velocity slightly on bounce
-				velocity *= 0.98
+					# Normal bounce logic
+					bounce_count += 1
+					# Play ball landing sound on every bounce
+					if ball_land_sound and ball_land_sound.stream:
+						ball_land_sound.play()
+					# Calculate bounce height based on bounce count
+					var bounce_height = 0.0
+					if bounce_count == 1:
+						# First bounce: use calculated first bounce height
+						bounce_height = first_bounce_height
+					else:
+						# Subsequent bounces: reduce by bounce factor each time
+						bounce_height = first_bounce_height * pow(bounce_factor, bounce_count - 1)
+					# Set vertical velocity for the bounce
+					vz = bounce_height
+					# Reduce horizontal velocity slightly on bounce
+					velocity *= 0.98
 			else:
 				# Start rolling
 				vz = 0.0
@@ -477,25 +488,33 @@ func _process(delta):
 			
 			# Determine if we should bounce or start rolling
 			if bounce_count < max_bounces and (bounce_count < min_bounces or landing_speed > 50.0):
-				# Bounce!
-				bounce_count += 1
-				# Play ball landing sound on every bounce
-				if ball_land_sound and ball_land_sound.stream:
-					ball_land_sound.play()
-				# Calculate bounce height based on bounce count
-				var bounce_height = 0.0
-				if bounce_count == 1:
-					# First bounce: use calculated first bounce height
-					bounce_height = first_bounce_height
+				# Check for StickyShot effect
+				if sticky_shot_active and not is_putting:
+					# StickyShot active and not putting - skip bounces and go straight to rolling
+					print("StickyShot effect: Skipping bounces for normal shot")
+					vz = 0.0
+					is_rolling = true
+					roll_start_position = position  # Record where rolling started
 				else:
-					# Subsequent bounces: reduce by bounce factor each time
-					bounce_height = first_bounce_height * pow(bounce_factor, bounce_count - 1)
-				# Set vertical velocity for the bounce
-				vz = bounce_height
-				# Reduce horizontal velocity slightly on bounce
-				velocity *= 0.98
+					# Normal bounce logic
+					bounce_count += 1
+					# Play ball landing sound on every bounce
+					if ball_land_sound and ball_land_sound.stream:
+						ball_land_sound.play()
+					# Calculate bounce height based on bounce count
+					var bounce_height = 0.0
+					if bounce_count == 1:
+						# First bounce: use calculated first bounce height
+						bounce_height = first_bounce_height
+					else:
+						# Subsequent bounces: reduce by bounce factor each time
+						bounce_height = first_bounce_height * pow(bounce_factor, bounce_count - 1)
+					# Set vertical velocity for the bounce
+					vz = bounce_height
+					# Reduce horizontal velocity slightly on bounce
+					velocity *= 0.98
 			else:
-				# Start rolling
+				# Start rolling only after minimum bounces are complete
 				vz = 0.0
 				is_rolling = true
 				roll_start_position = position  # Record where rolling started
@@ -541,23 +560,31 @@ func _process(delta):
 			
 			# Only bounce if we haven't reached max bounces AND we haven't completed minimum bounces
 			if bounce_count < max_bounces and bounce_count < min_bounces:
-				# Bounce!
-				bounce_count += 1
-				# Play ball landing sound on every bounce
-				if ball_land_sound and ball_land_sound.stream:
-					ball_land_sound.play()
-				# Calculate bounce height based on bounce count
-				var bounce_height = 0.0
-				if bounce_count == 1:
-					# First bounce: use calculated first bounce height
-					bounce_height = first_bounce_height
+				# Check for StickyShot effect
+				if sticky_shot_active and not is_putting:
+					# StickyShot active and not putting - skip bounces and go straight to rolling
+					print("StickyShot effect: Skipping bounces for normal shot")
+					vz = 0.0
+					is_rolling = true
+					roll_start_position = position  # Record where rolling started
 				else:
-					# Subsequent bounces: reduce by bounce factor each time
-					bounce_height = first_bounce_height * pow(bounce_factor, bounce_count - 1)
-				# Set vertical velocity for the bounce
-				vz = bounce_height
-				# Reduce horizontal velocity slightly on bounce
-				velocity *= 0.98
+					# Normal bounce logic
+					bounce_count += 1
+					# Play ball landing sound on every bounce
+					if ball_land_sound and ball_land_sound.stream:
+						ball_land_sound.play()
+					# Calculate bounce height based on bounce count
+					var bounce_height = 0.0
+					if bounce_count == 1:
+						# First bounce: use calculated first bounce height
+						bounce_height = first_bounce_height
+					else:
+						# Subsequent bounces: reduce by bounce factor each time
+						bounce_height = first_bounce_height * pow(bounce_factor, bounce_count - 1)
+					# Set vertical velocity for the bounce
+					vz = bounce_height
+					# Reduce horizontal velocity slightly on bounce
+					velocity *= 0.98
 			else:
 				# Start rolling only after minimum bounces are complete
 				vz = 0.0
@@ -606,6 +633,22 @@ func _process(delta):
 				else:
 					# After 1 second: increased putter friction
 					combined_friction = combined_friction * 0.3  # Increased from 0.1 to 0.3 for more friction
+			
+			# StickyShot effect: Remove rolling for normal shots (but maintain for putting)
+			if sticky_shot_active and not is_putting:
+				# StickyShot active and not putting - stop the ball immediately
+				print("StickyShot effect: Stopping ball immediately (no rolling for normal shots)")
+				velocity = Vector2.ZERO
+				vz = 0.0
+				landed_flag = true
+				# Emit landed signal with final tile position
+				if map_manager != null:
+					var final_tile = Vector2i(floor(position.x / cell_size), floor(position.y / cell_size))
+					print("Ball landed on tile:", final_tile)
+					landed.emit(final_tile)
+				else:
+					print("Map manager is null, can't determine final tile")
+				return
 			
 			# MUCH MORE AGGRESSIVE FRICTION: Lose a fixed percentage per frame
 			# Higher friction values = more velocity reduction per frame

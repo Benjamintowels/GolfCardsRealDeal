@@ -1,0 +1,18 @@
+[gd_scene load_steps=2 format=3 uid="uid://dna6q0m23qdsl"]
+
+[ext_resource type="Script" uid="uid://c3aglsvm80xd0" path="res://Bags/Bag.gd" id="1_bag"]
+
+[node name="Bag" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 60.0
+offset_bottom = 60.0
+script = ExtResource("1_bag")
+
+[node name="TextureRect" type="TextureRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2

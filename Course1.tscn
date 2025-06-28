@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3 uid="uid://dlq5ygh2wv33m"]
+[gd_scene load_steps=15 format=3 uid="uid://dlq5ygh2wv33m"]
 
 [ext_resource type="Script" uid="uid://d4hrfk75nrm45" path="res://course_1.gd" id="1_pe8tc"]
 [ext_resource type="Texture2D" uid="uid://cpe67sk2vh8me" path="res://EDGE.png" id="2_eymfu"]
@@ -12,6 +12,8 @@
 [ext_resource type="AudioStream" uid="uid://b6akh4wu4kriu" path="res://Sounds/WaterPlunk.mp3" id="9_3ubc7"]
 [ext_resource type="AudioStream" uid="uid://dwr2ykmge3ncb" path="res://Sounds/SandThunk.mp3" id="10_uda8g"]
 [ext_resource type="Script" uid="uid://bwql8y8wd3qbr" path="res://CameraZoom.gd" id="11_zoom"]
+[ext_resource type="PackedScene" uid="uid://dna6q0m23qdsl" path="res://Bags/Bag.tscn" id="12_bag"]
+[ext_resource type="PackedScene" path="res://InventoryDialog.tscn" id="13_inventory"]
 
 [node name="Course1" type="Control"]
 layout_mode = 3
@@ -49,6 +51,11 @@ script = ExtResource("5_p65p8")
 
 [node name="UILayer" type="CanvasLayer" parent="."]
 
+[node name="ModShotRoom" type="Button" parent="UILayer"]
+offset_right = 123.0
+offset_bottom = 31.0
+text = "ModShot"
+
 [node name="EndRoundButton" type="Button" parent="UILayer"]
 z_index = 5
 offset_left = 1050.0
@@ -85,19 +92,22 @@ offset_bottom = 23.0
 [node name="CharacterImage" type="TextureRect" parent="UILayer"]
 z_index = 6
 texture_filter = 1
-offset_left = -9.0
-offset_top = 271.0
-offset_right = 31.0
-offset_bottom = 311.0
+offset_left = -12.0
+offset_top = 462.0
+offset_right = 28.0
+offset_bottom = 502.0
 
 [node name="CardAnchor" type="Marker2D" parent="UILayer"]
 position = Vector2(250, 284)
 
 [node name="HUD" type="VBoxContainer" parent="UILayer"]
-offset_left = 387.0
-offset_top = 498.0
-offset_right = 427.0
-offset_bottom = 575.0
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -160.0
+offset_top = 20.0
+offset_right = -20.0
+offset_bottom = 200.0
 
 [node name="TurnLabel" type="Label" parent="UILayer/HUD"]
 layout_mode = 2
@@ -151,6 +161,17 @@ text = "Draw Cards"
 offset_right = 40.0
 offset_bottom = 40.0
 
+[node name="Bag" parent="UILayer" instance=ExtResource("12_bag")]
+z_index = 10
+offset_left = 51.0
+offset_top = 93.0
+offset_right = 111.0
+offset_bottom = 153.0
+
+[node name="InventoryDialog" parent="UILayer" instance=ExtResource("13_inventory")]
+visible = false
+z_index = 100
+
 [node name="SwingSoft" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("6_6eaol")
 
@@ -168,10 +189,11 @@ volume_db = 4.223
 stream = ExtResource("10_uda8g")
 
 [node name="Ocean" type="TextureRect" parent="."]
+visible = false
 z_index = -111
 layout_mode = 0
-offset_left = -3072.0
+offset_left = -2895.0
 offset_top = -2598.0
-offset_right = 3084.0
+offset_right = 3261.0
 offset_bottom = 2651.0
 texture = ExtResource("2_eymfu")
