@@ -342,9 +342,14 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 	}
 	
 	# Set random seed based on current hole for consistent placement
+	randomize()  # Ensure proper randomization
 	random_seed_value = current_hole * 1000 + randi()
 	seed(random_seed_value)
+	print("=== RANDOMIZATION DEBUG ===")
 	print("Random seed for hole", current_hole + 1, ":", random_seed_value)
+	print("Current hole:", current_hole)
+	print("Target trees:", num_trees)
+	print("Include shop:", include_shop)
 	
 	var valid_positions: Array[Vector2i] = []
 	
@@ -388,6 +393,7 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 		valid_positions.remove_at(tree_index)
 	
 	print("Placed", positions.trees.size(), "trees and shop at", positions.shop)
+	print("=== END RANDOMIZATION DEBUG ===")
 	return positions
 
 func build_map_from_layout_with_randomization(layout: Array) -> void:
@@ -396,6 +402,9 @@ func build_map_from_layout_with_randomization(layout: Array) -> void:
 	print("Building map with randomization for hole", current_hole + 1)
 	print("Current hole variable:", current_hole)
 	print("Layout size:", layout.size(), "x", layout[0].size() if layout.size() > 0 else "empty")
+	
+	# Ensure proper randomization for this map build
+	randomize()
 	
 	# Clear existing objects first
 	print("About to clear existing objects...")
@@ -476,6 +485,8 @@ func build_map_from_layout_base(layout: Array, place_pin: bool = true) -> void:
 	# --- Pin randomization on Green (not on edge) ---
 	if place_pin:
 		# Set the same random seed used for other object placement
+		randomize()  # Ensure proper randomization
+		random_seed_value = current_hole * 1000 + randi()
 		seed(random_seed_value)
 		
 		var green_positions: Array = []
@@ -527,10 +538,17 @@ func build_map_from_layout_base(layout: Array, place_pin: bool = true) -> void:
 				var pin: Node2D = scene.instantiate() as Node2D
 				pin.name = "Pin"
 				pin.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
+				pin.z_index = 1000  # Set high Z-index to ensure pin is always visible
 				if pin.has_meta("grid_position") or "grid_position" in pin:
 					pin.set("grid_position", pin_pos)
-				
+			
 				obstacle_layer.add_child(pin)
+				
+				# Connect pin signals if this is a pin
+				if pin.has_signal("hole_in_one"):
+					pin.hole_in_one.connect(_on_hole_in_one)
+				if pin.has_signal("pin_flag_hit"):
+					pin.pin_flag_hit.connect(_on_pin_flag_hit)
 				
 				# DEBUG: Add pin to ysort_objects for proper layering
 				ysort_objects.append({"node": pin, "grid_pos": pin_pos})
@@ -555,7 +573,7 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 			continue
 		var world_pos: Vector2 = Vector2(tree_pos.x, tree_pos.y) * cell_size
 		tree.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
-		tree.z_index = int(tree.position.y)
+		# Don't set z_index here - let update_all_ysort_z_indices handle it
 		if tree.has_meta("grid_position") or "grid_position" in tree:
 			tree.set("grid_position", tree_pos)
 		else:
@@ -3816,8 +3834,13 @@ func update_ball_y_sort(ball_node: Node2D) -> void:
 	for obj in ysort_objects:
 		if not obj.has("node") or not obj["node"] or not is_instance_valid(obj["node"]):
 			continue
-		if obj["node"].z_index == 3:
-			var tree_node = obj["node"]
+		
+		# Check if this is a tree by name or script
+		var node = obj["node"]
+		var is_tree = node.name == "Tree" or (node.get_script() and "Tree.gd" in str(node.get_script().get_path()))
+		
+		if is_tree:
+			var tree_node = node
 			var tree_y_sort_point = tree_node.global_position.y
 			if tree_node.has_method("get_y_sort_point"):
 				tree_y_sort_point = tree_node.get_y_sort_point()
@@ -3847,20 +3870,20 @@ func update_ball_y_sort(ball_node: Node2D) -> void:
 		# Check if ball is above the tree height
 		if ball_height >= tree_height:
 			# Ball is above tree height - always in front
-			ball_sprite.z_index = 100  # Much higher z_index to be clearly in front of tree (z_index = 3)
+			ball_sprite.z_index = closest_tree_z + 10  # Higher than tree z_index
 		else:
 			# Ball is below tree height - check if it has significant height
 			var significant_height_threshold = 200.0  # If ball is more than 200 pixels high, it should appear in front
 			if ball_height >= significant_height_threshold:
 				# Ball has significant height - appear in front of tree
-				ball_sprite.z_index = 100
+				ball_sprite.z_index = closest_tree_z + 10
 			else:
 				# Ball is close to ground level - use Y position for sorting
 				var tree_threshold = closest_tree_y + 50  # 50 pixels higher threshold
 				if ball_ground_pos.y > tree_threshold:
-					ball_sprite.z_index = 100  # Much higher z_index to be clearly in front of tree (z_index = 3)
+					ball_sprite.z_index = closest_tree_z + 10  # Higher than tree z_index
 				else:
-					ball_sprite.z_index = 1  # Much lower z_index to be clearly behind tree (z_index = 3)
+					ball_sprite.z_index = closest_tree_z - 10  # Lower than tree z_index to appear behind
 	else:
 		# No tree found, use default
 		ball_sprite.z_index = 100  # Default to in front
@@ -4096,8 +4119,16 @@ func build_map_from_layout_with_saved_positions(layout: Array) -> void:
 			var pin_id = randi()  # Generate unique ID for this pin
 			pin.name = "Pin"
 			pin.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
+			pin.z_index = 1000  # Set high Z-index to ensure pin is always visible
 			if pin.has_meta("grid_position") or "grid_position" in pin:
 				pin.set("grid_position", Global.saved_pin_position)
+			
+			# Connect pin signals if this is a pin
+			if pin.has_signal("hole_in_one"):
+				pin.hole_in_one.connect(_on_hole_in_one)
+			if pin.has_signal("pin_flag_hit"):
+				pin.pin_flag_hit.connect(_on_pin_flag_hit)
+			
 			ysort_objects.append({"node": pin, "grid_pos": Global.saved_pin_position})
 			obstacle_layer.add_child(pin)
 			print("Pin placed at saved position:", Global.saved_pin_position, "pin ID:", pin_id, "pin name:", pin.name)
@@ -4124,6 +4155,9 @@ func update_all_ysort_z_indices():
 		if not node or not is_instance_valid(node):
 			continue
 		
+		# Check if this is a tree by name or script
+		var is_tree = node.name == "Tree" or (node.get_script() and "Tree.gd" in str(node.get_script().get_path()))
+		
 		# Base z_index on Y position (lower Y = higher z_index)
 		var base_z = 10 + (sorted_objects.size() - i) * 10
 		
@@ -4133,6 +4167,9 @@ func update_all_ysort_z_indices():
 			continue
 		elif node.name == "Shop":
 			node.z_index = base_z + 3  # Shop should be higher than most objects
+		elif is_tree:
+			# Trees get a special z_index that's higher than other objects but lower than pins
+			node.z_index = base_z + 5  # Trees should be higher than most objects
 		else:
 			node.z_index = base_z
 
@@ -4254,3 +4291,20 @@ func handle_modify_next_card_card(card: CardData) -> void:
 			print("Error: Dub card not found in hand")
 	
 	# Add more ModifyNextCard types here as needed
+
+func fix_ui_layers() -> void:
+	"""Fix UI layer z-indices and mouse filtering"""
+	# Ensure UI elements are properly layered
+	if card_hand_anchor:
+		card_hand_anchor.z_index = 100
+		card_hand_anchor.mouse_filter = Control.MOUSE_FILTER_STOP
+	
+	if hud:
+		hud.z_index = 101
+		hud.mouse_filter = Control.MOUSE_FILTER_STOP
+	
+	if end_turn_button:
+		end_turn_button.z_index = 102
+		end_turn_button.mouse_filter = Control.MOUSE_FILTER_STOP
+	
+	print("UI layers fixed")

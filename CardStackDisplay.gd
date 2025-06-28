@@ -16,9 +16,6 @@ func update_draw_stack(count: int) -> void:
 		var card := card_scene.instantiate()
 		card.position = Vector2(0, -i * 2)
 		card.modulate = Color(1, 1, 1, 0.3 + 0.15 * i)
-		var label = card.get_node_or_null("Label")
-		if label:
-			label.text = ""
 		draw_stack.add_child(card)
 
 func update_discard_stack(count: int) -> void:
@@ -27,9 +24,6 @@ func update_discard_stack(count: int) -> void:
 		var card := card_scene.instantiate()
 		card.position = Vector2(0, -i * 2)
 		card.modulate = Color(0.7, 0.3, 0.3, 0.3 + 0.15 * i)
-		var label = card.get_node_or_null("Label")
-		if label:
-			label.text = ""
 		discard_stack.add_child(card)
 
 func animate_card_discard(card_label: String) -> void:
