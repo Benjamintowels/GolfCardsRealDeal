@@ -1160,6 +1160,17 @@ func create_player() -> void:
 	if player_node:
 		player_node.visible = false
 
+func update_player_stats_from_equipment() -> void:
+	"""Update player stats to reflect equipment buffs"""
+	# Get updated stats from Global (which includes equipment buffs)
+	player_stats = Global.CHARACTER_STATS.get(Global.selected_character, {})
+	
+	# Update player mobility if player exists
+	if player_node and is_instance_valid(player_node):
+		var base_mobility = player_stats.get("base_mobility", 0)
+		player_node.setup(grid_size, cell_size, base_mobility, obstacle_map)
+		print("Updated player stats with equipment buffs:", player_stats)
+
 func _on_player_input(event: InputEvent) -> void:
 	# (print removed)
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
@@ -3547,15 +3558,18 @@ func restore_game_state():
 		# Update UI
 		update_deck_display()
 		
+		# Apply equipment buffs when returning from shop
+		update_player_stats_from_equipment()
+		
 		# Focus camera on the player at shop position
 		var sprite = player_node.get_node_or_null("Sprite2D")
 		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
 		var player_center = player_node.global_position + player_size / 2
 		camera_snap_back_pos = player_center
 		
-		# No camera transition when exiting shop - stay focused on player
-		# var tween := get_tree().create_tween()
-		# tween.tween_property(camera, "position", player_center, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		# Add camera transition to player position when returning from shop
+		var tween := get_tree().create_tween()
+		tween.tween_property(camera, "position", player_center, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 		
 		print("Game state restored from Global - player at shop position, game phase:", game_phase, "is_placing_player:", is_placing_player, "ball exists:", golf_ball != null)
 		print("Restored", Global.saved_tree_positions.size(), "trees, pin at", Global.saved_pin_position, "and shop at", Global.saved_shop_position)

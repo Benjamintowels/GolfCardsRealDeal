@@ -59,3 +59,30 @@ offset_right = 1526.0
 offset_bottom = 1047.0
 scale = Vector2(0.235, 0.235)
 texture = ExtResource("5_ko7ju")
+
+[node name="ShopItems" type="Control" parent="."]
+z_index = 11
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="ItemContainer1" type="Panel" parent="ShopItems"]
+layout_mode = 0
+offset_left = 200.0
+offset_top = 300.0
+offset_right = 400.0
+offset_bottom = 550.0
+scale = Vector2(0.59, 0.59)
+mouse_filter = 2
+
+[node name="ItemContainer2" type="Panel" parent="ShopItems"]
+layout_mode = 0
+offset_left = 830.0
+offset_top = 304.0
+offset_right = 1030.0
+offset_bottom = 554.0
+scale = Vector2(0.6, 0.6)
+mouse_filter = 2

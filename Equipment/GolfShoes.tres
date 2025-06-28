@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="EquipmentData" load_steps=3 format=3 uid="uid://bqx8y7n2k3m4p"]
+
+[ext_resource type="Script" uid="uid://cf85ta7k8ivt1" path="res://Equipment/EquipmentData.gd" id="1_equipment_script"]
+
+[sub_resource type="CompressedTexture2D" id="CompressedTexture2D_7rag7"]
+load_path = "res://.godot/imported/GolfShoes.png-54f0cc836dd340a24a35e4c07a2aed77.ctex"
+
+[resource]
+script = ExtResource("1_equipment_script")
+name = "Golf Shoes"
+image = SubResource("CompressedTexture2D_7rag7")
+description = "Comfortable golf shoes that increase your mobility on the course."
+buff_type = "mobility"
+buff_value = 1
+price = 150

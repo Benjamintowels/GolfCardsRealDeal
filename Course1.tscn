@@ -52,6 +52,7 @@ script = ExtResource("5_p65p8")
 [node name="UILayer" type="CanvasLayer" parent="."]
 
 [node name="ModShotRoom" type="Button" parent="UILayer"]
+visible = false
 offset_right = 123.0
 offset_bottom = 31.0
 text = "ModShot"
@@ -163,10 +164,10 @@ offset_bottom = 40.0
 
 [node name="Bag" parent="UILayer" instance=ExtResource("12_bag")]
 z_index = 10
-offset_left = 51.0
-offset_top = 93.0
-offset_right = 111.0
-offset_bottom = 153.0
+offset_left = 53.0
+offset_top = 90.0
+offset_right = 113.0
+offset_bottom = 150.0
 
 [node name="InventoryDialog" parent="UILayer" instance=ExtResource("13_inventory")]
 visible = false
@@ -187,13 +188,13 @@ volume_db = 4.223
 
 [node name="SandThunk" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("10_uda8g")
+volume_db = -6.335
 
 [node name="Ocean" type="TextureRect" parent="."]
-visible = false
 z_index = -111
 layout_mode = 0
-offset_left = -2895.0
-offset_top = -2598.0
-offset_right = 3261.0
-offset_bottom = 2651.0
+offset_left = -2873.0
+offset_top = -2597.0
+offset_right = 3283.0
+offset_bottom = 2652.0
 texture = ExtResource("2_eymfu")
