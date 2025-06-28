@@ -19,6 +19,8 @@ extends Control
 @onready var mod_shot_room_button: Button
 @onready var bag: Control = $UILayer/Bag
 @onready var inventory_dialog: Control = $UILayer/InventoryDialog
+@onready var current_hole := 0  # 0-based hole index (0-8 for front 9, 9-17 for back 9)
+@onready var total_score := 0
 const GolfCourseLayout := preload("res://Maps/GolfCourseLayout.gd")
 
 var is_placing_player := true
@@ -85,6 +87,7 @@ var next_card_doubled := false  # Track if the next card should have its effect 
 var round_scores := []  # Array to store scores for each hole
 var round_complete := false  # Flag to track if front 9 is complete
 
+# Add current_hole variable declaration here
 var golf_ball: Node2D = null
 var power_meter: Control = null
 var height_meter: Control = null
@@ -3895,8 +3898,7 @@ func update_ball_y_sort(ball_node: Node2D) -> void:
 		if ball_shadow.z_index <= -5:
 			ball_shadow.z_index = 1
 
-var current_hole := 0  # 0-based hole index (0-8 for front 9, 9-17 for back 9)
-var total_score := 0
+
 const NUM_HOLES := 9  # Number of holes per round (9 for front 9, 9 for back 9)
 var is_in_pin_transition := false
 var is_back_9_mode := false  # Flag to track if we're playing back 9
