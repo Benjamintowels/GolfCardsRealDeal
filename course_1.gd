@@ -79,6 +79,7 @@ var hole_score := 0
 var sticky_shot_active := false  # Track if StickyShot effect is active
 var bouncey_shot_active := false  # Track if Bouncey effect is active
 var next_shot_modifier := ""  # Track what modifier to apply to next shot
+var next_card_doubled := false  # Track if the next card should have its effect doubled
 
 # Multi-hole game loop variables
 var round_scores := []  # Array to store scores for each hole
@@ -1264,6 +1265,10 @@ func _on_movement_card_pressed(card: CardData, button: TextureButton) -> void:
 		# Handle StickyShot and other modification cards
 		handle_modify_next_card(card)
 		return
+	elif card.effect_type == "ModifyNextCard":
+		# Handle Dub and other card modification cards
+		handle_modify_next_card_card(card)
+		return
 	
 	# Default movement card handling
 	is_movement_mode = true
@@ -1271,6 +1276,11 @@ func _on_movement_card_pressed(card: CardData, button: TextureButton) -> void:
 	selected_card = card
 	selected_card_label = card.name
 	movement_range = card.effect_strength
+
+	# Apply card doubling effect if active
+	if next_card_doubled:
+		movement_range *= 2
+		print("Card effect doubled! New range:", movement_range)
 
 	print("Card selected:", card.name, "Range:", movement_range)
 
@@ -2088,6 +2098,11 @@ func exit_movement_mode() -> void:
 				print("Discarding selected card:", selected_card.name)
 				deck_manager.discard(selected_card)
 				card_discarded = true
+				
+				# Reset card doubling effect after the card is actually played
+				if next_card_doubled:
+					next_card_doubled = false
+					print("Card doubling effect consumed and reset")
 			else:
 				print("Card not in hand:", selected_card.name)
 
@@ -2144,6 +2159,10 @@ func _on_end_turn_pressed() -> void:
 
 	# Only start the next shot if player is on the ball tile
 	if waiting_for_player_to_reach_ball and player_grid_pos == ball_landing_tile:
+		# Remove the ball landing highlight when player reaches the ball
+		if golf_ball and is_instance_valid(golf_ball) and golf_ball.has_method("remove_landing_highlight"):
+			golf_ball.remove_landing_highlight()
+		
 		enter_draw_cards_phase()  # Start with club selection phase
 	else:
 		draw_cards_for_shot(3)
@@ -3090,7 +3109,7 @@ func draw_club_cards() -> void:
 			final_club_count -= 1
 	
 	# Randomly select remaining clubs from the available clubs, skipping ModifyNext cards
-	var club_candidates = available_clubs.filter(func(card): return card.effect_type != "ModifyNext")
+	var club_candidates = available_clubs.filter(func(card): return card.effect_type != "ModifyNext" and card.effect_type != "ModifyNextCard")
 	for i in range(final_club_count):
 		if club_candidates.size() > 0:
 			var random_index = randi() % club_candidates.size()
@@ -3150,6 +3169,9 @@ func draw_club_cards() -> void:
 		
 		if club_card.effect_type == "ModifyNext":
 			btn.pressed.connect(func(): handle_modify_next_card(club_card))
+		elif club_card.effect_type == "ModifyNextCard":
+			# Handle Dub and other card modification cards
+			btn.pressed.connect(func(): handle_modify_next_card_card(club_card))
 		else:
 			btn.pressed.connect(func(): _on_club_card_pressed(club_name, club_info, btn))
 		
@@ -4212,3 +4234,23 @@ func get_movement_cards_for_inventory() -> Array[CardData]:
 func get_club_cards_for_inventory() -> Array[CardData]:
 	# Return club cards from the bag pile
 	return bag_pile.duplicate()
+
+func handle_modify_next_card_card(card: CardData) -> void:
+	"""Handle cards with ModifyNextCard effect type"""
+	print("Handling ModifyNextCard card:", card.name)
+	
+	if card.name == "Dub":
+		# Apply Dub effect to next card
+		next_card_doubled = true
+		print("Dub effect applied - next card will be doubled")
+		
+		# Discard the card after use
+		if deck_manager.hand.has(card):
+			deck_manager.discard(card)
+			card_stack_display.animate_card_discard(card.name)
+			update_deck_display()
+			create_movement_buttons()  # Refresh the card display
+		else:
+			print("Error: Dub card not found in hand")
+	
+	# Add more ModifyNextCard types here as needed

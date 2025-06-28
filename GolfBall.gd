@@ -102,6 +102,11 @@ var time_percentage: float = -1.0  # -1 means not set, use power percentage inst
 var sticky_shot_active: bool = false  # Track if StickyShot effect is active
 var bouncey_shot_active: bool = false  # Track if Bouncey effect is active
 
+# Ball landing highlight system
+var final_landing_tile: Vector2i = Vector2i.ZERO  # Track the final tile where ball stopped
+var landing_highlight: ColorRect = null  # Visual highlight for the final landing tile
+var has_emitted_landed_signal: bool = false  # Track if we've already emitted the landed signal
+
 # Progressive overcharge system variables
 var club_info: Dictionary = {}  # Will be set by the course script
 var is_penalty_shot: bool = false  # True if red circle is below min distance
@@ -112,6 +117,11 @@ var putt_start_time := 0.0  # Record when putt started
 
 # Call this to launch the ball
 func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, spin_strength_category: int = 0):
+	# Reset landing highlight and signal flag for new shot
+	remove_landing_highlight()
+	has_emitted_landed_signal = false
+	final_landing_tile = Vector2i.ZERO
+	
 	# Calculate height percentage for sweet spot check
 	var height_percentage = (height - MIN_LAUNCH_HEIGHT) / (MAX_LAUNCH_HEIGHT - MIN_LAUNCH_HEIGHT)
 	height_percentage = clamp(height_percentage, 0.0, 1.0)
@@ -406,6 +416,7 @@ func _process(delta):
 				velocity = Vector2.ZERO
 				vz = 0.0
 				landed_flag = true
+				remove_landing_highlight()  # Remove highlight if it exists
 				reset_shot_effects()
 				out_of_bounds.emit()
 				return
@@ -413,6 +424,7 @@ func _process(delta):
 				velocity = Vector2.ZERO
 				vz = 0.0
 				landed_flag = true
+				remove_landing_highlight()  # Remove highlight if it exists
 				reset_shot_effects()
 				sand_landing.emit()
 				return
@@ -548,6 +560,7 @@ func _process(delta):
 				velocity = Vector2.ZERO
 				vz = 0.0
 				landed_flag = true
+				remove_landing_highlight()  # Remove highlight if it exists
 				reset_shot_effects()
 				out_of_bounds.emit()
 				return
@@ -555,6 +568,7 @@ func _process(delta):
 				velocity = Vector2.ZERO
 				vz = 0.0
 				landed_flag = true
+				remove_landing_highlight()  # Remove highlight if it exists
 				reset_shot_effects()
 				sand_landing.emit()
 				return
@@ -567,6 +581,7 @@ func _process(delta):
 				velocity = Vector2.ZERO
 				vz = 0.0
 				landed_flag = true
+				remove_landing_highlight()  # Remove highlight if it exists
 				reset_shot_effects()
 				out_of_bounds.emit()
 				return
@@ -621,6 +636,7 @@ func _process(delta):
 				velocity = Vector2.ZERO
 				vz = 0.0
 				landed_flag = true
+				remove_landing_highlight()  # Remove highlight if it exists
 				reset_shot_effects()
 				out_of_bounds.emit()
 				return
@@ -628,6 +644,7 @@ func _process(delta):
 				velocity = Vector2.ZERO
 				vz = 0.0
 				landed_flag = true
+				remove_landing_highlight()  # Remove highlight if it exists
 				reset_shot_effects()
 				sand_landing.emit()
 				return
@@ -662,13 +679,28 @@ func _process(delta):
 				velocity = Vector2.ZERO
 				vz = 0.0
 				landed_flag = true
-				# Emit landed signal with final tile position
+				
+				# Calculate final landing tile
 				if map_manager != null:
-					var final_tile = Vector2i(floor(position.x / cell_size), floor(position.y / cell_size))
-					print("Ball landed on tile:", final_tile)
-					# Reset shot effects after the ball has landed
-					reset_shot_effects()
-					landed.emit(final_tile)
+					final_landing_tile = Vector2i(floor(position.x / cell_size), floor(position.y / cell_size))
+					print("Ball finally stopped on tile:", final_landing_tile)
+					
+					# Create landing highlight for the final tile
+					create_landing_highlight(final_landing_tile)
+					
+					# Only play ball stop sound if on fairway tile
+					var tile_type = map_manager.get_tile_type(final_landing_tile.x, final_landing_tile.y)
+					if tile_type == "F":
+						if ball_stop_sound and ball_stop_sound.stream:
+							ball_stop_sound.play()
+					
+					# Emit landed signal with final tile position (only once)
+					if not has_emitted_landed_signal:
+						has_emitted_landed_signal = true
+						print("Ball landed on final tile:", final_landing_tile)
+						# Reset shot effects after the ball has landed
+						reset_shot_effects()
+						landed.emit(final_landing_tile)
 				else:
 					print("Map manager is null, can't determine final tile")
 					# Reset shot effects even if map manager is null
@@ -685,21 +717,28 @@ func _process(delta):
 				velocity = Vector2.ZERO
 				vz = 0.0
 				landed_flag = true
-				# Only play ball stop sound if on fairway tile
+				
+				# Calculate final landing tile
 				if map_manager != null:
-					var tile_x = int(floor(position.x / cell_size))
-					var tile_y = int(floor(position.y / cell_size))
-					var tile_type = map_manager.get_tile_type(tile_x, tile_y)
+					final_landing_tile = Vector2i(floor(position.x / cell_size), floor(position.y / cell_size))
+					print("Ball finally stopped on tile:", final_landing_tile)
+					
+					# Create landing highlight for the final tile
+					create_landing_highlight(final_landing_tile)
+					
+					# Only play ball stop sound if on fairway tile
+					var tile_type = map_manager.get_tile_type(final_landing_tile.x, final_landing_tile.y)
 					if tile_type == "F":
 						if ball_stop_sound and ball_stop_sound.stream:
 							ball_stop_sound.play()
-				# Emit landed signal with final tile position
-				if map_manager != null:
-					var final_tile = Vector2i(floor(position.x / cell_size), floor(position.y / cell_size))
-					print("Ball landed on tile:", final_tile)
-					# Reset shot effects after the ball has landed
-					reset_shot_effects()
-					landed.emit(final_tile)
+					
+					# Emit landed signal with final tile position (only once)
+					if not has_emitted_landed_signal:
+						has_emitted_landed_signal = true
+						print("Ball landed on final tile:", final_landing_tile)
+						# Reset shot effects after the ball has landed
+						reset_shot_effects()
+						landed.emit(final_landing_tile)
 				else:
 					print("Map manager is null, can't determine final tile")
 					# Reset shot effects even if map manager is null
@@ -900,3 +939,74 @@ func reset_shot_effects() -> void:
 	sticky_shot_active = false
 	bouncey_shot_active = false
 	print("Shot effects reset: sticky_shot_active =", sticky_shot_active, "bouncey_shot_active =", bouncey_shot_active)
+
+func create_landing_highlight(tile_pos: Vector2i) -> void:
+	"""Create a bright highlight effect for the final landing tile"""
+	print("=== CREATING LANDING HIGHLIGHT DEBUG ===")
+	print("Tile position:", tile_pos)
+	print("Cell size:", cell_size)
+	
+	# Remove any existing highlight
+	if landing_highlight and landing_highlight.is_inside_tree():
+		landing_highlight.queue_free()
+		landing_highlight = null
+	
+	# Create new highlight
+	landing_highlight = ColorRect.new()
+	landing_highlight.name = "LandingHighlight"
+	landing_highlight.size = Vector2(cell_size, cell_size)
+	
+	# Position relative to the course scene (world coordinates), not camera
+	var course_script = get_parent().get_parent()  # camera_container -> course_1
+	print("Course script found:", course_script != null)
+	
+	if course_script:
+		print("Course script children:")
+		for child in course_script.get_children():
+			print("  -", child.name, "Type:", child.get_class())
+	
+	# Try to add to CameraContainer first (which contains the GridContainer)
+	if course_script and course_script.has_node("CameraContainer"):
+		var camera_container = course_script.get_node("CameraContainer")
+		print("CameraContainer found:", camera_container != null)
+		print("CameraContainer position:", camera_container.position)
+		print("CameraContainer size:", camera_container.size)
+		
+		# Position relative to the camera container (which contains the grid)
+		landing_highlight.position = Vector2(tile_pos.x * cell_size, tile_pos.y * cell_size)
+		landing_highlight.z_index = 50  # Above tiles (-5) and trees (3), but below ball (100) and player (1000)
+		landing_highlight.color = Color(1.0, 1.0, 0.0, 0.6)  # Bright yellow with 60% opacity
+		
+		print("Highlight position:", landing_highlight.position)
+		print("Highlight size:", landing_highlight.size)
+		print("Highlight color:", landing_highlight.color)
+		print("Highlight z_index:", landing_highlight.z_index)
+		
+		# Add a pulsing animation effect
+		var tween = create_tween()
+		tween.set_loops()  # Loop forever
+		tween.tween_property(landing_highlight, "color:a", 0.3, 0.8)  # Fade to 30% opacity
+		tween.tween_property(landing_highlight, "color:a", 0.6, 0.8)  # Fade back to 60% opacity
+		
+		# Add the highlight to the camera container so it moves with the world
+		camera_container.add_child(landing_highlight)
+		print("Highlight added to CameraContainer")
+		print("CameraContainer children count:", camera_container.get_child_count())
+		print("Created landing highlight at tile:", tile_pos, "world position:", landing_highlight.position)
+	else:
+		print("ERROR: Could not find CameraContainer to add landing highlight")
+		if course_script:
+			print("Available nodes in course script:")
+			for child in course_script.get_children():
+				print("  -", child.name)
+		landing_highlight.queue_free()
+		landing_highlight = null
+	
+	print("=== END LANDING HIGHLIGHT DEBUG ===")
+
+func remove_landing_highlight() -> void:
+	"""Remove the landing highlight effect"""
+	if landing_highlight and landing_highlight.is_inside_tree():
+		landing_highlight.queue_free()
+		landing_highlight = null
+		print("Removed landing highlight")
