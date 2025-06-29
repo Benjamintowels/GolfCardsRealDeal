@@ -1,0 +1,5 @@
+[gd_scene format=3 uid="uid://bkfq4oghrm67y"]
+
+[node name="RealCourse" type="Control"]
+layout_mode = 3
+anchors_preset = 0

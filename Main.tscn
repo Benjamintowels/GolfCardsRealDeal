@@ -63,10 +63,10 @@ text = "Clark"
 
 [node name="StartRoundButton" type="Button" parent="UI"]
 texture_filter = 1
-offset_left = 467.0
-offset_top = 554.0
-offset_right = 677.0
-offset_bottom = 597.0
+offset_left = 702.0
+offset_top = 555.0
+offset_right = 912.0
+offset_bottom = 598.0
 text = "Start Round"
 
 [node name="Character2" type="Sprite2D" parent="UI"]
@@ -106,7 +106,15 @@ offset_right = 8.0
 offset_bottom = 8.0
 text = "ModShotRoom"
 
+[node name="RealCourse" type="Button" parent="UI"]
+offset_left = 496.0
+offset_top = 542.0
+offset_right = 646.0
+offset_bottom = 595.0
+text = "Real Course"
+
 [node name="TextureRect2" type="TextureRect" parent="."]
+visible = false
 layout_mode = 0
 offset_left = 458.77
 offset_top = 289.895

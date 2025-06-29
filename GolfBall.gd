@@ -57,10 +57,10 @@ var ball_roll_boost := 1.0  # Removed the boost multiplier
 
 # Tile-based friction system - FIXED: Lower values = more friction (ball stops faster)
 var tile_friction_values = {
-	"Base": 0.99,  # Base grass - high friction (was 0.80)
-	"F": 0.50,  # Fairway - high friction (was 0.70)
-	"G": 0.40,  # Green - moderate friction (was 0.60)
-	"R": 0.98,  # Rough - very high friction (was 0.40)
+	"Base": 1.99,  # Base grass - high friction (was 0.80)
+	"F": 0.80,  # Fairway - high friction (was 0.70)
+	"G": 0.30,  # Green - moderate friction (was 0.60)
+	"R": 2.98,  # Rough - very high friction (was 0.40)
 	"S": 0.15,  # Sand - extremely high friction (was 0.20)
 	"W": 0.08,  # Water - maximum friction (was 0.10)
 	"T": 0.60,  # Tee - high friction (was 0.80)
@@ -955,6 +955,7 @@ func create_landing_highlight(tile_pos: Vector2i) -> void:
 	landing_highlight = ColorRect.new()
 	landing_highlight.name = "LandingHighlight"
 	landing_highlight.size = Vector2(cell_size, cell_size)
+	landing_highlight.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Ignore mouse input
 	
 	# Position relative to the course scene (world coordinates), not camera
 	var course_script = get_parent().get_parent()  # camera_container -> course_1
@@ -974,7 +975,7 @@ func create_landing_highlight(tile_pos: Vector2i) -> void:
 		
 		# Position relative to the camera container (which contains the grid)
 		landing_highlight.position = Vector2(tile_pos.x * cell_size, tile_pos.y * cell_size)
-		landing_highlight.z_index = 50  # Above tiles (-5) and trees (3), but below ball (100) and player (1000)
+		landing_highlight.z_index = -3  # Keep in highlight tiles range
 		landing_highlight.color = Color(1.0, 1.0, 0.0, 0.6)  # Bright yellow with 60% opacity
 		
 		print("Highlight position:", landing_highlight.position)

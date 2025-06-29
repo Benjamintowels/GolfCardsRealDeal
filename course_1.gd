@@ -1056,6 +1056,7 @@ func create_grid() -> void:
 
 	grid_container = Control.new()
 	grid_container.name = "GridContainer"
+	grid_container.z_index = -1  # Set grid overlay to appear behind other elements
 	camera_container.add_child(grid_container)
 
 	var total_size := Vector2(grid_size.x, grid_size.y) * cell_size
@@ -1076,6 +1077,7 @@ func create_grid_tile(x: int, y: int) -> Control:
 	tile.position = Vector2(x, y) * cell_size
 	tile.size = Vector2(cell_size, cell_size)
 	tile.mouse_filter = Control.MOUSE_FILTER_PASS
+	tile.z_index = -100  # Set tiles to appear behind highlights but above ground
 
 	var drawer := Control.new()
 	drawer.name = "TileDrawer"
@@ -1090,6 +1092,7 @@ func create_grid_tile(x: int, y: int) -> Control:
 	red.color = Color(1, 0, 0, 0.3)
 	red.visible = false
 	red.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	red.z_index = 100  # High z_index to appear above land tiles
 	tile.add_child(red)
 
 	var green := ColorRect.new()
@@ -1098,6 +1101,7 @@ func create_grid_tile(x: int, y: int) -> Control:
 	green.color = Color(0, 1, 0, 0.4)
 	green.visible = false
 	green.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	green.z_index = 100  # High z_index to appear above land tiles
 	tile.add_child(green)
 
 	tile.mouse_entered.connect(_on_tile_mouse_entered.bind(x, y))
