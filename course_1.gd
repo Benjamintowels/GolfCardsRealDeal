@@ -652,95 +652,113 @@ func _get_tee_area_center() -> Vector2:
 	var center_world_pos = (center_grid_pos + Vector2(0.5, 0.5)) * cell_size
 	return center_world_pos
 
-func _process(delta):
-	# Handle power charging during launch phase
-	if is_charging and game_phase == "launch":
-		# Calculate max charge time based on target distance
-		max_charge_time = 3.0  # Default for close shots
-		if chosen_landing_spot != Vector2.ZERO:
-			var sprite = player_node.get_node_or_null("Sprite2D")
-			var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
-			var player_center = player_node.global_position + player_size / 2
-			var distance_to_target = player_center.distance_to(chosen_landing_spot)
-			var distance_factor = distance_to_target / max_shot_distance
-			# Far shots = less time (1 second), close shots = more time (3 seconds)
-			max_charge_time = 3.0 - (distance_factor * 2.0)  # 3.0 to 1.0 seconds
-			max_charge_time = clamp(max_charge_time, 1.0, 3.0)
-		
-		# Charge time at a constant rate
-		charge_time = min(charge_time + delta, max_charge_time)
-		
-		# UI update - show time as percentage
-		if power_meter:
-			var meter_fill = power_meter.get_node_or_null("MeterFill")
-			var value_label = power_meter.get_node_or_null("PowerValue")
-			var time_percent = charge_time / max_charge_time
-			time_percent = clamp(time_percent, 0.0, 1.0)
-			
-			if meter_fill:
-				meter_fill.size.x = 300 * time_percent
-				# Sweet spot is always 65-75%
-				if time_percent >= 0.65 and time_percent <= 0.75:
-					meter_fill.color = Color(0, 1, 0, 0.8)
-					# Show player highlight when in sweet spot
-					if player_node and player_node.has_method("show_highlight"):
-						player_node.show_highlight()
-				else:
-					meter_fill.color = Color(1, 0.8, 0.2, 0.8)
-					# Hide player highlight when not in sweet spot
-					if player_node and player_node.has_method("hide_highlight"):
-						player_node.hide_highlight()
-			if value_label:
-				value_label.text = str(int(time_percent * 100)) + "%"
+func _process(delta: float) -> void:
+	# Monitor camera position during tee selection phase
+	if is_placing_player:
+		print("CAMERA MONITOR: pos=", camera.position, " snap_back=", camera_snap_back_pos)
 	
-	# Handle height charging during launch phase
-	if is_charging_height and game_phase == "launch":
-		# Charge height
-		launch_height = min(launch_height + HEIGHT_CHARGE_RATE * delta, MAX_LAUNCH_HEIGHT)
-		if height_meter:
-			var meter_fill = height_meter.get_node_or_null("MeterFill")
-			var value_label = height_meter.get_node_or_null("HeightValue")
-			if meter_fill:
+	# Continue monitoring for a short period after tee selection to catch glitches
+	if not is_placing_player and game_phase == "draw_cards":
+		print("POST-TEE MONITOR: pos=", camera.position, " snap_back=", camera_snap_back_pos)
+		# Add debug info to track what might be moving the camera
+		if camera_following_ball:
+			print("DEBUG: camera_following_ball is TRUE")
+		if is_aiming_phase:
+			print("DEBUG: is_aiming_phase is TRUE")
+		if aiming_circle:
+			print("DEBUG: aiming_circle exists")
+	
+	# Update power meter if it exists
+	if power_meter and power_meter.has_node("MeterFill"):
+		# Handle power charging during launch phase
+		if is_charging and game_phase == "launch":
+			# Calculate max charge time based on target distance
+			max_charge_time = 3.0  # Default for close shots
+			if chosen_landing_spot != Vector2.ZERO:
+				var sprite = player_node.get_node_or_null("Sprite2D")
+				var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
+				var player_center = player_node.global_position + player_size / 2
+				var distance_to_target = player_center.distance_to(chosen_landing_spot)
+				var distance_factor = distance_to_target / max_shot_distance
+				# Far shots = less time (1 second), close shots = more time (3 seconds)
+				max_charge_time = 3.0 - (distance_factor * 2.0)  # 3.0 to 1.0 seconds
+				max_charge_time = clamp(max_charge_time, 1.0, 3.0)
+			
+			# Charge time at a constant rate
+			charge_time = min(charge_time + delta, max_charge_time)
+			
+			# UI update - show time as percentage
+			if power_meter:
+				var meter_fill = power_meter.get_node_or_null("MeterFill")
+				var value_label = power_meter.get_node_or_null("PowerValue")
+				var time_percent = charge_time / max_charge_time
+				time_percent = clamp(time_percent, 0.0, 1.0)
+				
+				if meter_fill:
+					meter_fill.size.x = 300 * time_percent
+					# Sweet spot is always 65-75%
+					if time_percent >= 0.65 and time_percent <= 0.75:
+						meter_fill.color = Color(0, 1, 0, 0.8)
+						# Show player highlight when in sweet spot
+						if player_node and player_node.has_method("show_highlight"):
+							player_node.show_highlight()
+					else:
+						meter_fill.color = Color(1, 0.8, 0.2, 0.8)
+						# Hide player highlight when not in sweet spot
+						if player_node and player_node.has_method("hide_highlight"):
+							player_node.hide_highlight()
+				if value_label:
+					value_label.text = str(int(time_percent * 100)) + "%"
+		
+		# Handle height charging during launch phase
+		if is_charging_height and game_phase == "launch":
+			# Charge height
+			launch_height = min(launch_height + HEIGHT_CHARGE_RATE * delta, MAX_LAUNCH_HEIGHT)
+			if height_meter:
+				var meter_fill = height_meter.get_node_or_null("MeterFill")
+				var value_label = height_meter.get_node_or_null("HeightValue")
+				if meter_fill:
+					var height_percentage = (launch_height - MIN_LAUNCH_HEIGHT) / (MAX_LAUNCH_HEIGHT - MIN_LAUNCH_HEIGHT)
+					meter_fill.size.y = 300 * height_percentage
+					meter_fill.position.y = 330 - meter_fill.size.y  # Start from bottom
+				if value_label:
+					value_label.text = str(int(launch_height))
+				
+				# Change color based on sweet spot
 				var height_percentage = (launch_height - MIN_LAUNCH_HEIGHT) / (MAX_LAUNCH_HEIGHT - MIN_LAUNCH_HEIGHT)
-				meter_fill.size.y = 300 * height_percentage
-				meter_fill.position.y = 330 - meter_fill.size.y  # Start from bottom
-			if value_label:
-				value_label.text = str(int(launch_height))
-			
-			# Change color based on sweet spot
-			var height_percentage = (launch_height - MIN_LAUNCH_HEIGHT) / (MAX_LAUNCH_HEIGHT - MIN_LAUNCH_HEIGHT)
-			if meter_fill:
-				if height_percentage >= HEIGHT_SWEET_SPOT_MIN and height_percentage <= HEIGHT_SWEET_SPOT_MAX:
-					meter_fill.color = Color(0, 1, 0, 0.8)  # Green for sweet spot
-				else:
-					meter_fill.color = Color(1, 0.8, 0.2, 0.8)  # Yellow for other areas
-	
-	# Track mouse position during charging for spin
-	if game_phase == "launch" and (is_charging or is_charging_height):
-		current_charge_mouse_pos = get_global_mouse_position()
-	
-	# Handle camera following the ball
-	if camera_following_ball and golf_ball and is_instance_valid(golf_ball):
-		var ball_center = golf_ball.global_position
-		var tween := get_tree().create_tween()
-		tween.tween_property(camera, "position", ball_center, 0.1).set_trans(Tween.TRANS_LINEAR)
-	
-	# Handle UI layer fixes
-	if card_hand_anchor and card_hand_anchor.z_index != 100:
-		card_hand_anchor.z_index = 100
-		card_hand_anchor.mouse_filter = Control.MOUSE_FILTER_STOP
-		set_process(false)  # stop checking after setting
-	
-	# Update aiming circle during aiming phase
-	if is_aiming_phase and aiming_circle:
-		update_aiming_circle()
-	
-	# Update spin indicator during launch phase before charging
-	if game_phase == "launch" and not is_charging and not is_charging_height and spin_indicator and spin_indicator.visible:
-		update_spin_indicator()
-	# Hide spin indicator when charging starts
-	if (is_charging or is_charging_height) and spin_indicator and spin_indicator.visible:
-		spin_indicator.visible = false
+				if meter_fill:
+					if height_percentage >= HEIGHT_SWEET_SPOT_MIN and height_percentage <= HEIGHT_SWEET_SPOT_MAX:
+						meter_fill.color = Color(0, 1, 0, 0.8)  # Green for sweet spot
+					else:
+						meter_fill.color = Color(1, 0.8, 0.2, 0.8)  # Yellow for other areas
+		
+		# Track mouse position during charging for spin
+		if game_phase == "launch" and (is_charging or is_charging_height):
+			current_charge_mouse_pos = get_global_mouse_position()
+		
+		# Handle camera following the ball
+		if camera_following_ball and golf_ball and is_instance_valid(golf_ball):
+			var ball_center = golf_ball.global_position
+			print("DEBUG: Creating camera tween to follow ball at", ball_center)
+			var tween := get_tree().create_tween()
+			tween.tween_property(camera, "position", ball_center, 0.1).set_trans(Tween.TRANS_LINEAR)
+		
+		# Handle UI layer fixes
+		if card_hand_anchor and card_hand_anchor.z_index != 100:
+			card_hand_anchor.z_index = 100
+			card_hand_anchor.mouse_filter = Control.MOUSE_FILTER_STOP
+			set_process(false)  # stop checking after setting
+		
+		# Update aiming circle during aiming phase
+		if is_aiming_phase and aiming_circle:
+			update_aiming_circle()
+		
+		# Update spin indicator during launch phase before charging
+		if game_phase == "launch" and not is_charging and not is_charging_height and spin_indicator and spin_indicator.visible:
+			update_spin_indicator()
+		# Hide spin indicator when charging starts
+		if (is_charging or is_charging_height) and spin_indicator and spin_indicator.visible:
+			spin_indicator.visible = false
 
 func _ready() -> void:
 	# Add this course to a group so other nodes can find it
@@ -1210,6 +1228,7 @@ func _on_player_input(event: InputEvent) -> void:
 			pass # Player clicked but not in move or launch phase
 
 func update_player_position() -> void:
+	print("update_player_position called. game_phase:", game_phase, " is_placing_player:", is_placing_player, " camera.position:", camera.position)
 	if not player_node:
 		return
 	# Get the Sprite2D node and its size
@@ -1228,7 +1247,9 @@ func update_player_position() -> void:
 	camera_snap_back_pos = player_center
 	
 	# Don't move camera during pin-to-tee transition (when we're in tee selection phase)
-	if not is_placing_player:
+	# Also prevent immediate camera movement after pin-to-tee transition completes
+	if not is_placing_player and game_phase != "draw_cards":
+		print("Tweening camera to player_center:", player_center)
 		print("=== CAMERA MOVEMENT DEBUG ===")
 		print("update_player_position moving camera from", camera.position, "to", player_center)
 		print("player_node.visible:", player_node.visible, "is_placing_player:", is_placing_player)
@@ -1401,6 +1422,15 @@ func _on_tile_input(event: InputEvent, x: int, y: int) -> void:
 		var clicked := Vector2i(x, y)
 		if is_placing_player:
 			if map_manager.get_tile_type(x, y) == "Tee":
+				print("=== TEE SELECTION: Player placed at", clicked, "===")
+				print("Camera position before tee selection:", camera.position)
+				
+				# Stop the pin-to-tee transition if it's still running
+				if pin_to_tee_tween and pin_to_tee_tween.is_valid():
+					print("Stopping pin-to-tee transition tween")
+					pin_to_tee_tween.kill()
+					pin_to_tee_tween = null
+				
 				player_grid_pos = clicked
 				create_player()  # This will reuse existing player or create new one
 				is_placing_player = false
@@ -1408,6 +1438,7 @@ func _on_tile_input(event: InputEvent, x: int, y: int) -> void:
 				var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
 				var player_center = player_node.global_position + player_size / 2
 				camera_snap_back_pos = player_center
+				print("Camera snap back position set to:", camera_snap_back_pos)
 				
 				# Play SandThunk sound when player is placed on tee
 				if sand_thunk_sound and sand_thunk_sound.stream:
@@ -1793,6 +1824,7 @@ func update_aiming_circle():
 	
 	# Smoothly move camera toward the red circle
 	var new_camera_pos = current_camera_pos.lerp(target_camera_pos, camera_speed * get_process_delta_time())
+	print("DEBUG: update_aiming_circle setting camera to", new_camera_pos, "from", current_camera_pos, "target:", target_camera_pos)
 	camera.position = new_camera_pos
 	
 	
@@ -4060,9 +4092,9 @@ func start_hole_with_pin_transition():
 	
 	# Update camera snap back position
 	tween.tween_callback(func(): 
-		camera_snap_back_pos = tee_center_global
 		print("Pin-to-tee transition complete")
-		print("Final camera position:", camera.position)
+		print("=== PIN-TO-TEE COMPLETE: Camera at", camera.position, "===")
+		print("Camera snap back position at end:", camera_snap_back_pos)
 	)
 
 func position_camera_on_pin(start_transition: bool = true):
@@ -4100,25 +4132,32 @@ func start_pin_to_tee_transition():
 	print("=== START PIN TO TEE TRANSITION DEBUG ===")
 	print("Starting pin-to-tee transition...")
 	print("Current camera position:", camera.position)
+	print("Camera snap back position at start:", camera_snap_back_pos)
+	
+	# Stop any existing pin-to-tee tween
+	if pin_to_tee_tween and pin_to_tee_tween.is_valid():
+		pin_to_tee_tween.kill()
 	
 	# Wait 1.5 seconds at pin (as requested)
-	var tween = get_tree().create_tween()
-	tween.set_parallel(false)  # Sequential tweens
+	pin_to_tee_tween = get_tree().create_tween()
+	pin_to_tee_tween.set_parallel(false)  # Sequential tweens
 	
 	# Wait 1.5 seconds at pin
 	print("Waiting 1.5 seconds at pin...")
-	tween.tween_interval(1.5)
+	pin_to_tee_tween.tween_interval(1.5)
 	
 	# Tween to tee area
 	var tee_center = _get_tee_area_center()
 	var tee_center_global = camera_container.position + tee_center
 	print("Tweening from pin to tee at", tee_center_global)
-	tween.tween_property(camera, "position", tee_center_global, 2.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	pin_to_tee_tween.tween_property(camera, "position", tee_center_global, 2.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	
 	# Update camera snap back position
-	tween.tween_callback(func(): 
-		camera_snap_back_pos = tee_center_global
+	pin_to_tee_tween.tween_callback(func(): 
 		print("Pin-to-tee transition complete")
+		print("=== PIN-TO-TEE COMPLETE: Camera at", camera.position, "===")
+		print("Camera snap back position at end:", camera_snap_back_pos)
+		pin_to_tee_tween = null  # Clear the tween reference
 	)
 	print("=== END START PIN TO TEE TRANSITION DEBUG ===")
 
