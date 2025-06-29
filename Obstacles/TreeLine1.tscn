@@ -1,0 +1,11 @@
+[gd_scene load_steps=2 format=3 uid="uid://dcc0daxwuklev"]
+
+[ext_resource type="Texture2D" uid="uid://dcbkl3e6mtvch" path="res://Obstacles/Treeline1.png" id="1_blo82"]
+
+[node name="TreeLine1" type="Node2D"]
+
+[node name="TextureRect" type="TextureRect" parent="."]
+offset_top = -136.69
+offset_right = 600.0
+offset_bottom = 0.309998
+texture = ExtResource("1_blo82")
