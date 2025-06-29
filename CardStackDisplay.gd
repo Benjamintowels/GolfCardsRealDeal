@@ -16,6 +16,9 @@ func update_draw_stack(count: int) -> void:
 		var card := card_scene.instantiate()
 		card.position = Vector2(0, -i * 2)
 		card.modulate = Color(1, 1, 1, 0.3 + 0.15 * i)
+		# Hide the label on stack cards
+		if card.has_node("Label"):
+			card.get_node("Label").visible = false
 		draw_stack.add_child(card)
 
 func update_discard_stack(count: int) -> void:
@@ -24,11 +27,16 @@ func update_discard_stack(count: int) -> void:
 		var card := card_scene.instantiate()
 		card.position = Vector2(0, -i * 2)
 		card.modulate = Color(0.7, 0.3, 0.3, 0.3 + 0.15 * i)
+		# Hide the label on stack cards
+		if card.has_node("Label"):
+			card.get_node("Label").visible = false
 		discard_stack.add_child(card)
 
 func animate_card_discard(card_label: String) -> void:
 	var card := card_scene.instantiate()
-	card.get_node("Label").text = card_label
+	# Hide the label on animated cards
+	if card.has_node("Label"):
+		card.get_node("Label").visible = false
 	card.position = draw_stack.global_position
 	add_child(card)
 	
@@ -49,7 +57,9 @@ func animate_card_recycle(count: int) -> void:
 		
 	for i in range(cards_to_animate):
 		var card: Control = card_scene.instantiate()
-		card.get_node("Label").text = "🔄"
+		# Hide the label on animated cards
+		if card.has_node("Label"):
+			card.get_node("Label").visible = false
 		card.position = discard_stack.global_position
 		add_child(card)
 		card.move_to_front()
