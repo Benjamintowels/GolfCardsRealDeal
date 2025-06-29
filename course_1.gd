@@ -132,6 +132,7 @@ var launch_spin: float = 0.0
 var current_charge_mouse_pos: Vector2 = Vector2.ZERO
 var spin_indicator: Line2D = null
 var is_putting: bool = false  # Flag for putter-only rolling mechanics
+var pin_to_tee_tween: Tween = null  # Track the pin-to-tee transition tween
 
 # Club selection variables
 var selected_club: String = ""
@@ -1407,6 +1408,7 @@ func _on_tile_input(event: InputEvent, x: int, y: int) -> void:
 				var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
 				var player_center = player_node.global_position + player_size / 2
 				camera_snap_back_pos = player_center
+				
 				# Play SandThunk sound when player is placed on tee
 				if sand_thunk_sound and sand_thunk_sound.stream:
 					sand_thunk_sound.play()
@@ -3860,6 +3862,24 @@ func update_ball_y_sort(ball_node: Node2D) -> void:
 				closest_tree_y = tree_y_sort_point
 				closest_tree_z = tree_node.z_index
 
+	# Check if ball is near the pin and should appear in front of it
+	var pin_z_index = 1000  # Pin's fixed z-index
+	var ball_near_pin = false
+	var pin_position = Vector2.ZERO
+	
+	# Find pin position
+	for obj in ysort_objects:
+		if not obj.has("node") or not obj["node"] or not is_instance_valid(obj["node"]):
+			continue
+		
+		var node = obj["node"]
+		if node.name == "Pin" or "Pin" in node.name:
+			pin_position = node.global_position
+			var dist_to_pin = ball_ground_pos.distance_to(pin_position)
+			if dist_to_pin < 100.0:  # If ball is within 100 pixels of pin
+				ball_near_pin = true
+				break
+
 	if closest_tree != null:
 		# Set tree height (can be adjusted later for realism)
 		var tree_height = 1500.0  # Updated from 100.0 to 1500.0 to match max ball height of 2000
@@ -3867,8 +3887,12 @@ func update_ball_y_sort(ball_node: Node2D) -> void:
 		# Only consider trees that are close enough to affect visibility
 		var max_tree_distance = 200.0  # Only consider trees within 200 pixels
 		if min_dist > max_tree_distance:
-			# No close trees found, use default
-			ball_sprite.z_index = 100  # Default to in front
+			# No close trees found, check pin proximity
+			if ball_near_pin and ball_height > 0.0:
+				# Ball is near pin and in the air - should appear in front of pin
+				ball_sprite.z_index = pin_z_index + 10
+			else:
+				ball_sprite.z_index = 100  # Default to in front
 			return
 		
 		# Check if ball is above the tree height
@@ -3889,8 +3913,12 @@ func update_ball_y_sort(ball_node: Node2D) -> void:
 				else:
 					ball_sprite.z_index = closest_tree_z - 10  # Lower than tree z_index to appear behind
 	else:
-		# No tree found, use default
-		ball_sprite.z_index = 100  # Default to in front
+		# No tree found, check pin proximity
+		if ball_near_pin and ball_height > 0.0:
+			# Ball is near pin and in the air - should appear in front of pin
+			ball_sprite.z_index = pin_z_index + 10
+		else:
+			ball_sprite.z_index = 100  # Default to in front
 
 	# Shadow follows ball sprite z_index
 	var ball_shadow = ball_node.get_node_or_null("Shadow")
