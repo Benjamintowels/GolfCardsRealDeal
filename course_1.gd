@@ -894,7 +894,8 @@ func _ready() -> void:
 	test_pin_tee_btn.pressed.connect(start_hole_with_pin_transition)
 
 func _on_complete_hole_pressed():
-	show_hole_completion_dialog()
+	# Pin.gd already handles the hole completion dialog, so we don't need to call show_hole_completion_dialog() here
+	print("Complete hole button pressed - Pin.gd handles the dialog")
 
 func _input(event: InputEvent) -> void:
 	if game_phase == "aiming":
@@ -4178,7 +4179,7 @@ func update_all_ysort_z_indices():
 func _on_hole_in_one(score: int):
 	"""Handle hole completion when ball goes in the hole"""
 	print("Hole in one! Score:", score)
-	show_hole_completion_dialog()
+	# Pin.gd already handles the hole completion dialog, so we don't need to call show_hole_completion_dialog() here
 
 func _on_pin_flag_hit(ball: Node2D):
 	"""Handle pin flag hit - ball velocity has already been reduced by the pin"""
