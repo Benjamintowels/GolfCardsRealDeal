@@ -66,8 +66,8 @@ func _on_area_entered(area: Area2D):
 			# Queue free the ball
 			golf_ball.queue_free()
 			
-			# Show hole completion dialog
-			show_hole_completion_dialog()
+			# Note: Removed direct call to show_hole_completion_dialog() 
+			# The course will handle this through the signal connection
 		elif ball_height > HOLE_IN_HEIGHT_MAX and ball_height <= PIN_FLAG_HEIGHT_MAX:
 			# Ball hit the pin flag - apply reflection effect
 			print("Pin flag hit! Ball height:", ball_height, "applying 75% velocity reduction")
@@ -91,47 +91,4 @@ func _on_area_entered(area: Area2D):
 		else:
 			print("Ball collision detected but height not in range for hole-in or pin flag reflection:", ball_height)
 	else:
-		print("Area entered but parent doesn't have get_height method or is not a golf ball")
-
-func show_hole_completion_dialog():
-	# Get the course node to access the hole_score
-	var course = get_tree().get_first_node_in_group("course")
-	if not course:
-		# Try to find the course by looking for the course_1 script
-		for node in get_tree().get_nodes_in_group(""):
-			if node.has_method("show_drive_distance_dialog"):
-				course = node
-				break
-	
-	if course and course.has_method("show_hole_completion_dialog"):
-		course.show_hole_completion_dialog()
-	else:
-		# Fallback: create a simple dialog
-		show_simple_hole_dialog()
-
-func show_simple_hole_dialog():
-	# Create a simple dialog to inform the player
-	var dialog = AcceptDialog.new()
-	dialog.title = "Hole Complete!"
-	dialog.dialog_text = "Congratulations! You've completed the hole!\n\nClick to continue."
-	dialog.add_theme_font_size_override("font_size", 18)
-	dialog.add_theme_color_override("font_color", Color.GREEN)
-	
-	# Position the dialog in the center of the screen
-	dialog.position = Vector2(400, 300)
-	
-	# Add to the UI layer
-	var ui_layer = get_tree().get_first_node_in_group("ui_layer")
-	if ui_layer:
-		ui_layer.add_child(dialog)
-	else:
-		get_tree().current_scene.add_child(dialog)
-	
-	# Show the dialog
-	dialog.popup_centered()
-	
-	# Connect the confirmed signal to remove the dialog
-	dialog.confirmed.connect(func():
-		dialog.queue_free()
-		print("Hole completion dialog dismissed")
-	) 
+		print("Area entered but parent doesn't have get_height method or is not a golf ball") 
