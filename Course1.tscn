@@ -11,7 +11,7 @@
 [ext_resource type="AudioStream" uid="uid://dp8fikarw3m2b" path="res://Sounds/SwingStrong.mp3" id="8_uda8g"]
 [ext_resource type="AudioStream" uid="uid://b6akh4wu4kriu" path="res://Sounds/WaterPlunk.mp3" id="9_3ubc7"]
 [ext_resource type="AudioStream" uid="uid://dwr2ykmge3ncb" path="res://Sounds/SandThunk.mp3" id="10_uda8g"]
-[ext_resource type="Script" path="res://CameraZoom.gd" id="11_zoom"]
+[ext_resource type="Script" uid="uid://bwql8y8wd3qbr" path="res://CameraZoom.gd" id="11_zoom"]
 [ext_resource type="PackedScene" uid="uid://dna6q0m23qdsl" path="res://Bags/Bag.tscn" id="12_bag"]
 [ext_resource type="PackedScene" path="res://InventoryDialog.tscn" id="13_inventory"]
 
