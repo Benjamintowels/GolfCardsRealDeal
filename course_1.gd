@@ -409,28 +409,16 @@ func build_map_from_layout_with_randomization(layout: Array) -> void:
 	# Clear existing objects first
 	print("About to clear existing objects...")
 	clear_existing_objects()
-	print("Existing objects cleared")
 	
 	# Build the base map (tiles only)
-	print("About to call build_map_from_layout_base...")
 	build_map_from_layout_base(layout)
-	print("build_map_from_layout_base completed")
 	
 	# Generate random positions for objects
-	print("About to generate random positions for objects...")
 	var object_positions = get_random_positions_for_objects(layout, 8, true)
-	print("Random positions generated")
 	
 	# Place objects at random positions
-	print("About to place objects at positions...")
 	place_objects_at_positions(object_positions, layout)
-	print("Objects placed")
-	
-	# Position camera on pin immediately after map is built
-	print("About to position camera on pin...")
 	position_camera_on_pin()
-	print("Camera positioned on pin")
-	print("=== END BUILD MAP WITH RANDOMIZATION DEBUG ===")
 
 func build_map_from_layout_base(layout: Array, place_pin: bool = true) -> void:
 	"""Build only the base tiles without objects"""
@@ -775,11 +763,6 @@ func _ready() -> void:
 	draw_cards_button.visible = false
 	draw_cards_button.pressed.connect(_on_draw_cards_pressed)
 	
-	mod_shot_room_button = $UILayer/ModShotRoom
-	mod_shot_room_button.pressed.connect(_on_mod_shot_room_pressed)
-	mod_shot_room_button.visible = false  # Start hidden
-	print("ModShotRoom button connected successfully")
-
 	setup_bag_and_inventory()
 
 	if Global.saved_game_state == "shop_entrance":
@@ -1131,6 +1114,14 @@ func update_player_position() -> void:
 		print("=== CAMERA MOVEMENT DEBUG ===")
 		print("update_player_position moving camera from", camera.position, "to", player_center)
 		print("player_node.visible:", player_node.visible, "is_placing_player:", is_placing_player)
+		
+		# Check if there's an ongoing pin-to-tee transition
+		var ongoing_tween = get_meta("pin_to_tee_tween", null)
+		if ongoing_tween and ongoing_tween.is_valid():
+			print("Cancelling ongoing pin-to-tee transition for player placement")
+			ongoing_tween.kill()
+			remove_meta("pin_to_tee_tween")
+		
 		var tween = get_tree().create_tween()
 		tween.tween_property(camera, "position", player_center, 0.5).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 		print("=== END CAMERA MOVEMENT DEBUG ===")
@@ -1168,7 +1159,6 @@ func create_movement_buttons() -> void:
 		movement_buttons_container.add_child(btn)
 		movement_buttons.append(btn)
 	
-	update_mod_shot_room_visibility()
 
 func _on_movement_card_pressed(card: CardData, button: TextureButton) -> void:
 	if selected_card == card:
@@ -1284,6 +1274,13 @@ func _on_tile_input(event: InputEvent, x: int, y: int) -> void:
 		var clicked := Vector2i(x, y)
 		if is_placing_player:
 			if map_manager.get_tile_type(x, y) == "Tee":
+				# Cancel any ongoing pin-to-tee transition
+				var ongoing_tween = get_meta("pin_to_tee_tween", null)
+				if ongoing_tween and ongoing_tween.is_valid():
+					print("Cancelling ongoing pin-to-tee transition due to early player placement")
+					ongoing_tween.kill()
+					remove_meta("pin_to_tee_tween")
+				
 				player_grid_pos = clicked
 				create_player()  # This will reuse existing player or create new one
 				is_placing_player = false
@@ -1846,7 +1843,6 @@ func _on_golf_ball_landed(tile: Vector2i):
 		show_drive_distance_dialog()
 	)
 	game_phase = "move"
-	update_mod_shot_room_visibility()
 	
 func highlight_tee_tiles():
 	for y in grid_size.y:
@@ -2042,7 +2038,6 @@ func _on_drive_distance_dialog_input(event: InputEvent) -> void:
 			drive_distance_dialog = null
 		
 		game_phase = "move"
-		update_mod_shot_room_visibility()
 		draw_cards_button.visible = true
 		draw_cards_button.text = "Draw Cards"
 		var dialog_player_sprite = player_node.get_node_or_null("Sprite2D")
@@ -2166,7 +2161,6 @@ func enter_launch_phase() -> void:
 func enter_aiming_phase() -> void:
 	game_phase = "aiming"
 	is_aiming_phase = true
-	update_mod_shot_room_visibility()
 	show_aiming_circle()
 	create_ghost_ball()
 	show_aiming_instruction()
@@ -2567,7 +2561,6 @@ func enter_draw_cards_phase() -> void:
 	draw_cards_button.visible = true
 	draw_cards_button.text = "Draw Club Cards"
 	
-	update_mod_shot_room_visibility()
 	
 	var sprite = player_node.get_node_or_null("Sprite2D")
 	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
@@ -3286,29 +3279,40 @@ func position_camera_on_pin(start_transition: bool = true):
 
 func start_pin_to_tee_transition():
 	"""Start the pin-to-tee transition after the fade-in"""
-	print("=== START PIN TO TEE TRANSITION DEBUG ===")
-	print("Starting pin-to-tee transition...")
 	print("Current camera position:", camera.position)
 	
-	# Wait 1.5 seconds at pin (as requested)
-	var tween = get_tree().create_tween()
-	tween.set_parallel(false)  # Sequential tweens
+	# Store the tween reference so we can cancel it if needed
+	var pin_to_tee_tween = get_tree().create_tween()
+	pin_to_tee_tween.set_parallel(false)  # Sequential tweens
 	
-	# Wait 1.5 seconds at pin
+	# Wait 1.5 seconds at pin (as requested)
 	print("Waiting 1.5 seconds at pin...")
-	tween.tween_interval(1.5)
+	pin_to_tee_tween.tween_interval(1.5)
 	
 	# Tween to tee area
 	var tee_center = _get_tee_area_center()
 	var tee_center_global = camera_container.position + tee_center
 	print("Tweening from pin to tee at", tee_center_global)
-	tween.tween_property(camera, "position", tee_center_global, 2.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	pin_to_tee_tween.tween_property(camera, "position", tee_center_global, 2.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	
-	# Update camera snap back position
-	tween.tween_callback(func(): 
-		camera_snap_back_pos = tee_center_global
-		print("Pin-to-tee transition complete")
+	# Update camera snap back position only if player hasn't been placed yet
+	pin_to_tee_tween.tween_callback(func(): 
+		if is_placing_player:
+			camera_snap_back_pos = tee_center_global
+			print("Pin-to-tee transition complete - set snap back to tee center")
+		else:
+			print("Pin-to-tee transition complete - player already placed, keeping current snap back")
 	)
+	
+	# Store the tween reference so we can cancel it if player places early
+	set_meta("pin_to_tee_tween", pin_to_tee_tween)
+	
+	# Clean up the tween reference when it completes
+	pin_to_tee_tween.finished.connect(func():
+		if has_meta("pin_to_tee_tween"):
+			remove_meta("pin_to_tee_tween")
+	)
+	
 	print("=== END START PIN TO TEE TRANSITION DEBUG ===")
 
 func build_map_from_layout_with_saved_positions(layout: Array) -> void:
@@ -3404,12 +3408,6 @@ func _on_pin_flag_hit(ball: Node2D):
 
 var force_stickyshot_bonus := false
 
-func _on_mod_shot_room_pressed():
-	print("ModShotRoom button pressed")
-	var sticky_shot_card = preload("res://Cards/StickyShot.tres")
-	pending_inventory_card = sticky_shot_card
-	show_inventory_choice(sticky_shot_card)
-
 func show_inventory_choice(card: CardData):
 	print("Attempting to show inventory choice dialog for card:", card.name)
 	var parent = $UILayer if has_node("UILayer") else self
@@ -3441,35 +3439,21 @@ func _on_inventory_choice(action: String):
 	if dialog:
 		dialog.queue_free()
 
-func update_mod_shot_room_visibility() -> void:
-	"""Update ModShotRoom button visibility based on game phase"""
-	if mod_shot_room_button:
-		# Show button during card phases (draw_cards, move when cards are available)
-		var should_show = (game_phase == "draw_cards" or 
-						  (game_phase == "move" and deck_manager and deck_manager.hand.size() > 0))
-		mod_shot_room_button.visible = should_show
-		print("ModShotRoom button visibility:", should_show, "for game phase:", game_phase, "hand size:", deck_manager.hand.size() if deck_manager else "no deck manager")
-	else:
-		print("ModShotRoom button not found!")
-
 func setup_bag_and_inventory() -> void:
 	# Connect bag click signal
 	if bag and bag.has_signal("bag_clicked"):
 		bag.bag_clicked.connect(_on_bag_clicked)
-		print("Bag click signal connected")
 	
 	if inventory_dialog:
 		inventory_dialog.get_movement_cards = get_movement_cards_for_inventory
 		inventory_dialog.get_club_cards = get_club_cards_for_inventory
 		inventory_dialog.inventory_closed.connect(_on_inventory_closed)
-		print("Inventory dialog setup complete")
 	
 	if bag and bag.has_method("set_bag_level"):
 		bag.set_bag_level(1)  # Always start with level 1
 		print("Bag initialized with level 1")
 
 func _on_bag_clicked() -> void:
-	print("Bag clicked - opening inventory")
 	if inventory_dialog:
 		inventory_dialog.show_inventory()
 
@@ -3514,12 +3498,9 @@ func fix_ui_layers() -> void:
 # Add this variable declaration after the existing card modification variables (around line 75)
 var card_effect_handler: Node = null
 
-# ... existing code ...
-
 # Add this function at the end of the file, before the final closing brace
 func _on_scramble_complete(closest_ball_position: Vector2, closest_ball_tile: Vector2i):
 	"""Handle completion of Florida Scramble effect"""
-	print("Scramble effect completed, handling result...")
 	
 	# Update course state
 	ball_landing_tile = closest_ball_tile
@@ -3527,8 +3508,6 @@ func _on_scramble_complete(closest_ball_position: Vector2, closest_ball_tile: Ve
 	waiting_for_player_to_reach_ball = true
 	
 	# Note: golf_ball is already set to the closest scramble ball in CardEffectHandler
-	# No need to clear it since it's now the active ball for the next shot
-	
 	# Show drive distance dialog for the scramble result (same as normal shots)
 	var sprite = player_node.get_node_or_null("Sprite2D")
 	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
@@ -3541,4 +3520,3 @@ func _on_scramble_complete(closest_ball_position: Vector2, closest_ball_tile: Ve
 	)
 	
 	game_phase = "move"
-	update_mod_shot_room_visibility()
