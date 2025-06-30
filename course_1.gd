@@ -15,6 +15,7 @@ extends Control
 @onready var end_turn_button: Button = $UILayer/EndTurnButton
 @onready var camera := $GameCamera
 @onready var map_manager := $MapManager
+@onready var build_map := $BuildMap
 @onready var draw_cards_button: Button = $UILayer/DrawCards
 @onready var mod_shot_room_button: Button
 @onready var bag: Control = $UILayer/Bag
@@ -295,310 +296,6 @@ func clear_existing_objects() -> void:
 	print("Cleared", ysort_count, "ysort objects")
 	print("Objects cleared. Remaining obstacles:", obstacle_map.size())
 
-func is_valid_position_for_object(pos: Vector2i, layout: Array) -> bool:
-	"""Check if a position is valid for placing trees or shop"""
-	# Check bounds
-	if pos.y < 0 or pos.y >= layout.size() or pos.x < 0 or pos.x >= layout[0].size():
-		return false
-	
-	# Get tile type at position
-	var tile_type = layout[pos.y][pos.x]
-	
-	# Don't place on restricted areas
-	if tile_type in ["F", "Tee", "G", "W", "S", "P"]:
-		return false
-	
-	# Don't place on water, sand, or pin
-	if tile_type in ["W", "S", "P"]:
-		return false
-	
-	# NEW RULE: Don't place trees within 2 tiles of the edge of the Green
-	# Check if position is within 2 tiles of any Green tile
-	for dy in range(-2, 3):  # Check 2 tiles in each direction
-		for dx in range(-2, 3):
-			var check_x = pos.x + dx
-			var check_y = pos.y + dy
-			# Check bounds for the position we're checking
-			if check_x >= 0 and check_y >= 0 and check_y < layout.size() and check_x < layout[check_y].size():
-				if layout[check_y][check_x] == "G":
-					return false  # Too close to Green
-	
-	# Check 8x8 grid spacing rule with other placed objects (increased from 6x6)
-	for placed_pos in placed_objects:
-		var distance = max(abs(pos.x - placed_pos.x), abs(pos.y - placed_pos.y))
-		if distance < 8:
-			return false
-	
-	return true
-
-func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include_shop: bool = true) -> Dictionary:
-	"""Generate random positions for trees and shop"""
-	var positions = {
-		"trees": [],
-		"shop": Vector2i.ZERO
-	}
-	
-	# Set random seed based on current hole for consistent placement
-	randomize()  # Ensure proper randomization
-	random_seed_value = current_hole * 1000 + randi()
-	seed(random_seed_value)
-	print("=== RANDOMIZATION DEBUG ===")
-	print("Random seed for hole", current_hole + 1, ":", random_seed_value)
-	print("Current hole:", current_hole)
-	print("Target trees:", num_trees)
-	print("Include shop:", include_shop)
-	
-	var valid_positions: Array[Vector2i] = []
-	
-	# Find all valid positions
-	for y in layout.size():
-		for x in layout[y].size():
-			var pos = Vector2i(x, y)
-			if is_valid_position_for_object(pos, layout):
-				valid_positions.append(pos)
-	
-	print("Found", valid_positions.size(), "valid positions for objects")
-	
-	# Place shop first (if needed)
-	if include_shop and valid_positions.size() > 0:
-		var shop_index = randi() % valid_positions.size()
-		positions.shop = valid_positions[shop_index]
-		placed_objects.append(positions.shop)
-		valid_positions.remove_at(shop_index)
-		print("Shop placed at:", positions.shop)
-	
-	# Place trees
-	var trees_placed = 0
-	while trees_placed < num_trees and valid_positions.size() > 0:
-		var tree_index = randi() % valid_positions.size()
-		var tree_pos = valid_positions[tree_index]
-		
-		# Double-check spacing rule
-		var valid = true
-		for placed_pos in placed_objects:
-			var distance = max(abs(tree_pos.x - placed_pos.x), abs(tree_pos.y - placed_pos.y))
-			if distance < 8:
-				valid = false
-				break
-		
-		if valid:
-			positions.trees.append(tree_pos)
-			placed_objects.append(tree_pos)
-			trees_placed += 1
-			print("Tree placed at:", tree_pos)
-		
-		valid_positions.remove_at(tree_index)
-	
-	print("Placed", positions.trees.size(), "trees and shop at", positions.shop)
-	print("=== END RANDOMIZATION DEBUG ===")
-	return positions
-
-func build_map_from_layout_with_randomization(layout: Array) -> void:
-	"""Build map with randomized object placement"""
-	print("=== BUILD MAP WITH RANDOMIZATION DEBUG ===")
-	print("Building map with randomization for hole", current_hole + 1)
-	print("Current hole variable:", current_hole)
-	print("Layout size:", layout.size(), "x", layout[0].size() if layout.size() > 0 else "empty")
-	
-	# Ensure proper randomization for this map build
-	randomize()
-	
-	# Clear existing objects first
-	print("About to clear existing objects...")
-	clear_existing_objects()
-	
-	# Build the base map (tiles only)
-	build_map_from_layout_base(layout)
-	
-	# Generate random positions for objects
-	var object_positions = get_random_positions_for_objects(layout, 8, true)
-	
-	# Place objects at random positions
-	place_objects_at_positions(object_positions, layout)
-	position_camera_on_pin()
-
-func build_map_from_layout_base(layout: Array, place_pin: bool = true) -> void:
-	"""Build only the base tiles without objects"""
-	obstacle_map.clear()
-	
-	# Place all tiles (ground only)
-	for y in layout.size():
-		for x in layout[y].size():
-			var code: String = layout[y][x]
-			var pos: Vector2i = Vector2i(x, y)
-			var world_pos: Vector2 = Vector2(x, y) * cell_size
-
-			# Only place tiles, skip objects for now (except Pin which should be placed in fixed position)
-			var tile_code: String = code
-			if object_scene_map.has(code) and code != "P":
-				# This is an object, place the appropriate tile underneath
-				tile_code = object_to_tile_mapping[code]
-			
-			# Place the tile
-			if tile_scene_map.has(tile_code):
-				var scene: PackedScene = tile_scene_map[tile_code]
-				if scene == null:
-					push_error("🚫 Tile scene for code '%s' is null at (%d,%d)" % [tile_code, x, y])
-					continue
-				var tile: Node2D = scene.instantiate() as Node2D
-				if tile == null:
-					push_error("❌ Tile instantiation failed for '%s' at (%d,%d)" % [tile_code, x, y])
-					continue
-				tile.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
-				tile.z_index = -5  # Ensure tiles are behind player & UI
-				
-				# Scale tiles to match grid size
-				var sprite: Sprite2D = tile.get_node_or_null("Sprite2D")
-				if sprite and sprite.texture:
-					var texture_size: Vector2 = sprite.texture.get_size()
-					if texture_size.x > 0 and texture_size.y > 0:
-						var scale_x = cell_size / texture_size.x
-						var scale_y = cell_size / texture_size.y
-						sprite.scale = Vector2(scale_x, scale_y)
-				
-				# Set grid_position if the property exists
-				if tile.has_meta("grid_position") or "grid_position" in tile:
-					tile.set("grid_position", pos)
-				else:
-					push_warning("⚠️ Tile missing 'grid_position'. Type: %s" % tile.get_class())
-				
-				obstacle_layer.add_child(tile)
-				obstacle_map[pos] = tile
-			else:
-				print("ℹ️ Skipping unmapped tile code '%s' at (%d,%d)" % [tile_code, x, y])
-	
-	# --- Pin randomization on Green (not on edge) ---
-	if place_pin:
-		# Set the same random seed used for other object placement
-		randomize()  # Ensure proper randomization
-		random_seed_value = current_hole * 1000 + randi()
-		seed(random_seed_value)
-		
-		var green_positions: Array = []
-		var green_inner_positions: Array = []
-		# First, collect all green tile positions
-		for y in layout.size():
-			for x in layout[y].size():
-				if layout[y][x] == "G":
-					green_positions.append(Vector2i(x, y))
-		# Now, filter out edge green tiles
-		for pos in green_positions:
-			var x = pos.x
-			var y = pos.y
-			var is_edge = false
-			for dy in range(-1, 2):
-				for dx in range(-1, 2):
-					if dx == 0 and dy == 0:
-						continue
-					var nx = x + dx
-					var ny = y + dy
-					if nx < 0 or ny < 0 or ny >= layout.size() or nx >= layout[ny].size():
-						is_edge = true
-					elif layout[ny][nx] != "G":
-						is_edge = true
-			if not is_edge:
-				green_inner_positions.append(pos)
-		
-		# Pick a random inner green tile for the Pin
-		var pin_pos = Vector2i.ZERO
-		if green_inner_positions.size() > 0:
-			pin_pos = green_inner_positions[randi() % green_inner_positions.size()]
-		elif green_positions.size() > 0:
-			pin_pos = green_positions[randi() % green_positions.size()]
-		else:
-			# Fallback: try to find ANY green tile in the layout
-			for y in layout.size():
-				for x in layout[y].size():
-					if layout[y][x] == "G":
-						pin_pos = Vector2i(x, y)
-						break
-				if pin_pos != Vector2i.ZERO:
-					break
-		
-		# Place the Pin at the chosen position
-		if pin_pos != Vector2i.ZERO:
-			var world_pos: Vector2 = Vector2(pin_pos.x, pin_pos.y) * cell_size
-			var scene: PackedScene = object_scene_map["P"]
-			if scene != null:
-				var pin: Node2D = scene.instantiate() as Node2D
-				pin.name = "Pin"
-				pin.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
-				pin.z_index = 1000  # Set high Z-index to ensure pin is always visible
-				if pin.has_meta("grid_position") or "grid_position" in pin:
-					pin.set("grid_position", pin_pos)
-				
-				# Set reference to CardEffectHandler for scramble ball handling
-				pin.set_meta("card_effect_handler", card_effect_handler)
-			
-				obstacle_layer.add_child(pin)
-				
-				# Connect pin signals if this is a pin
-				if pin.has_signal("hole_in_one"):
-					pin.hole_in_one.connect(_on_hole_in_one)
-				if pin.has_signal("pin_flag_hit"):
-					pin.pin_flag_hit.connect(_on_pin_flag_hit)
-				
-				# DEBUG: Add pin to ysort_objects for proper layering
-				ysort_objects.append({"node": pin, "grid_pos": pin_pos})
-				
-				# Update z-indices for all objects including the new pin
-				update_all_ysort_z_indices()
-
-func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> void:
-	"""Place objects at the specified positions"""
-	print("Placing objects at positions:", object_positions)
-	
-	# Place trees
-	for tree_pos in object_positions.trees:
-		print("[DEBUG] Placing tree at:", tree_pos)
-		var scene: PackedScene = object_scene_map["T"]
-		if scene == null:
-			push_error("🚫 Tree scene is null")
-			continue
-		var tree: Node2D = scene.instantiate() as Node2D
-		if tree == null:
-			push_error("❌ Tree instantiation failed at (%d,%d)" % [tree_pos.x, tree_pos.y])
-			continue
-		var world_pos: Vector2 = Vector2(tree_pos.x, tree_pos.y) * cell_size
-		tree.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
-		# Don't set z_index here - let update_all_ysort_z_indices handle it
-		if tree.has_meta("grid_position") or "grid_position" in tree:
-			tree.set("grid_position", tree_pos)
-		else:
-			push_warning("⚠️ Tree missing 'grid_position'. Type: %s" % tree.get_class())
-		ysort_objects.append({"node": tree, "grid_pos": tree_pos})
-		obstacle_layer.add_child(tree)
-		if tree.has_method("blocks") and tree.blocks():
-			obstacle_map[tree_pos] = tree
-		print("[DEBUG] Tree placed at:", tree_pos)
-	print("Placed", object_positions.trees.size(), "trees")
-	
-	# Place shop
-	if object_positions.shop != Vector2i.ZERO:
-		var scene: PackedScene = object_scene_map["SHOP"]
-		if scene == null:
-			push_error("🚫 Shop scene is null")
-		else:
-			var shop: Node2D = scene.instantiate() as Node2D
-			if shop == null:
-				push_error("❌ Shop instantiation failed at (%d,%d)" % [object_positions.shop.x, object_positions.shop.y])
-			else:
-				var world_pos: Vector2 = Vector2(object_positions.shop.x, object_positions.shop.y) * cell_size
-				shop.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
-				if shop.has_meta("grid_position") or "grid_position" in shop:
-					shop.set("grid_position", object_positions.shop)
-				ysort_objects.append({"node": shop, "grid_pos": object_positions.shop})
-				obstacle_layer.add_child(shop)
-				shop_grid_pos = object_positions.shop
-				var right_of_shop_pos = object_positions.shop + Vector2i(1, 0)
-				var blocker_scene = preload("res://Obstacles/InvisibleBlocker.tscn")
-				var blocker = blocker_scene.instantiate()
-				var blocker_world_pos = Vector2(right_of_shop_pos.x, right_of_shop_pos.y) * cell_size
-				blocker.position = blocker_world_pos + Vector2(cell_size / 2, cell_size / 2)
-				obstacle_layer.add_child(blocker)
-				obstacle_map[right_of_shop_pos] = blocker
-	update_all_ysort_z_indices()
-
 func _get_tee_area_center() -> Vector2:
 	var tee_positions: Array[Vector2i] = []
 	for y in map_manager.level_layout.size():
@@ -714,6 +411,19 @@ func _ready() -> void:
 	card_effect_handler.set_course_reference(self)
 	card_effect_handler.scramble_complete.connect(_on_scramble_complete)
 	
+	# Setup build_map with necessary data
+	build_map.setup(
+		tile_scene_map,
+		object_scene_map,
+		object_to_tile_mapping,
+		cell_size,
+		obstacle_layer,
+		obstacle_map,
+		ysort_objects
+	)
+	build_map.current_hole = current_hole
+	build_map.card_effect_handler = card_effect_handler
+	
 	# Initialize movement controller
 	movement_controller = MovementController.new()
 	add_child(movement_controller)
@@ -808,9 +518,11 @@ func _ready() -> void:
 	print("=== INITIALIZATION DEBUG ===")
 	print("Loading map data for hole:", current_hole + 1)
 	map_manager.load_map_data(GolfCourseLayout.get_hole_layout(current_hole))
+	build_map.build_map_from_layout_with_randomization(map_manager.level_layout)
+	hole_score = 0
 	print("Map data loaded, building map...")
-	build_map_from_layout_with_randomization(map_manager.level_layout)
-	print("Map built, camera should be positioned on pin")
+	print("Map built, positioning camera on pin...")
+	position_camera_on_pin()  # Add the camera positioning call
 	print("=== END INITIALIZATION DEBUG ===")
 
 	update_hole_and_score_display()
@@ -2195,7 +1907,8 @@ func reset_for_next_hole():
 	if player_node and is_instance_valid(player_node):
 		player_node.visible = false
 	map_manager.load_map_data(GolfCourseLayout.get_hole_layout(current_hole))
-	build_map_from_layout_with_randomization(map_manager.level_layout)
+	build_map.build_map_from_layout_with_randomization(map_manager.level_layout)
+	position_camera_on_pin()  # Add camera positioning for next hole
 	hole_score = 0
 	game_phase = "tee_select"
 	is_putting = false
@@ -2756,7 +2469,7 @@ func save_game_state():
 func restore_game_state():
 	if Global.saved_game_state == "shop_entrance":
 		map_manager.load_map_data(GolfCourseLayout.get_hole_layout(current_hole))
-		build_map_from_layout_with_saved_positions(map_manager.level_layout)
+		build_map.build_map_from_layout_with_saved_positions(map_manager.level_layout)
 		player_grid_pos = Global.saved_player_grid_pos
 		update_player_position()
 		if player_node:
@@ -2976,6 +2689,39 @@ func update_ball_y_sort(ball_node: Node2D) -> void:
 	if not ball_sprite:
 		return
 
+	# First, check if ball should be in front of or behind the pin
+	var pin_node = null
+	var pin_z_index = 1000  # Default pin z_index
+	for obj in ysort_objects:
+		if not obj.has("node") or not obj["node"] or not is_instance_valid(obj["node"]):
+			continue
+		
+		var node = obj["node"]
+		if node.name == "Pin" or "Pin" in node.name:
+			pin_node = node
+			pin_z_index = node.z_index
+			break
+	
+	# If we found a pin, check if ball should be in front of it
+	if pin_node != null:
+		var pin_y = pin_node.global_position.y
+		var ball_y = ball_ground_pos.y
+		
+		# If ball is below pin (higher Y coordinate), it should be in front
+		if ball_y > pin_y:
+			ball_sprite.z_index = pin_z_index + 10  # Higher than pin z_index
+		else:
+			ball_sprite.z_index = pin_z_index - 10  # Lower than pin z_index
+		
+		# Update shadow z_index
+		var ball_shadow = ball_node.get_node_or_null("Shadow")
+		if ball_shadow:
+			ball_shadow.z_index = ball_sprite.z_index - 1
+			if ball_shadow.z_index <= -5:
+				ball_shadow.z_index = 1
+		return
+
+	# If no pin found, fall back to tree-based Y-sorting
 	var closest_tree = null
 	var closest_tree_y = 0.0
 	var closest_tree_z = 0
@@ -3171,7 +2917,7 @@ func build_map_from_layout_with_saved_positions(layout: Array) -> void:
 	clear_existing_objects()
 	
 	# Build the base map (tiles only, no pin)
-	build_map_from_layout_base(layout, false)
+	build_map.build_map_from_layout_base(layout, false)
 	
 	# Create object positions dictionary from saved data
 	var object_positions = {
@@ -3181,7 +2927,7 @@ func build_map_from_layout_with_saved_positions(layout: Array) -> void:
 	print("[DEBUG] About to place trees at positions:", object_positions.trees)
 	
 	# Place objects at saved positions
-	place_objects_at_positions(object_positions, layout)
+	build_map.place_objects_at_positions(object_positions, layout)
 	
 	# Place pin at saved position
 	if Global.saved_pin_position != Vector2i.ZERO:
