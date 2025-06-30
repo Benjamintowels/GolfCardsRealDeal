@@ -19,6 +19,10 @@ extends Control
 @onready var mod_shot_room_button: Button
 @onready var bag: Control = $UILayer/Bag
 @onready var inventory_dialog: Control = $UILayer/InventoryDialog
+
+# Movement controller
+const MovementController := preload("res://MovementController.gd")
+var movement_controller: MovementController
 const GolfCourseLayout := preload("res://Maps/GolfCourseLayout.gd")
 
 var is_placing_player := true
@@ -26,7 +30,6 @@ var is_placing_player := true
 var obstacle_map: Dictionary = {}  # Vector2i -> BaseObstacle
 
 var turn_count: int = 1
-var selected_card: CardData = null
 
 var grid_size := Vector2i(50, 50)
 var cell_size: int = 48 # This will be set by the main script
@@ -37,12 +40,8 @@ var camera_container: Control
 var player_node: Node2D
 var player_grid_pos := Vector2i(25, 25)
 
+# Club selection variables (separate from movement)
 var movement_buttons := []
-var active_button: TextureButton = null
-
-var is_movement_mode := false
-var movement_range := 2
-var valid_movement_tiles := []
 
 var is_panning := false
 var pan_start_pos := Vector2.ZERO
@@ -54,8 +53,6 @@ var mouse_world_pos := Vector2.ZERO
 var player_flashlight_center := Vector2.ZERO
 var tree_scene = preload("res://Obstacles/Tree.tscn")
 var water_scene = preload("res://Obstacles/WaterHazard.tscn")
-
-var selected_card_label: String = ""
 
 var deck_manager: DeckManager
 
@@ -529,6 +526,9 @@ func build_map_from_layout_base(layout: Array, place_pin: bool = true) -> void:
 				pin.z_index = 1000  # Set high Z-index to ensure pin is always visible
 				if pin.has_meta("grid_position") or "grid_position" in pin:
 					pin.set("grid_position", pin_pos)
+				
+				# Set reference to CardEffectHandler for scramble ball handling
+				pin.set_meta("card_effect_handler", card_effect_handler)
 			
 				obstacle_layer.add_child(pin)
 				
@@ -714,6 +714,10 @@ func _ready() -> void:
 	card_effect_handler.set_course_reference(self)
 	card_effect_handler.scramble_complete.connect(_on_scramble_complete)
 	
+	# Initialize movement controller
+	movement_controller = MovementController.new()
+	add_child(movement_controller)
+	
 	call_deferred("fix_ui_layers")
 	display_selected_character()
 	if end_round_button:
@@ -732,6 +736,23 @@ func _ready() -> void:
 	add_child(deck_manager)
 	deck_manager.deck_updated.connect(update_deck_display)
 	deck_manager.discard_recycled.connect(card_stack_display.animate_card_recycle)
+	
+	# Setup movement controller after deck_manager is created
+	movement_controller.setup(
+		player_node,
+		grid_tiles,
+		grid_size,
+		cell_size,
+		obstacle_map,
+		player_grid_pos,
+		player_stats,
+		movement_buttons_container,
+		card_click_sound,
+		card_play_sound,
+		card_stack_display,
+		deck_manager,
+		card_effect_handler
+	)
 
 	var hud := $UILayer/HUD
 
@@ -1112,73 +1133,11 @@ func update_player_position() -> void:
 		print("=== END CAMERA MOVEMENT DEBUG ===")
 
 func create_movement_buttons() -> void:
-	for child in movement_buttons_container.get_children():
-		child.queue_free()
-	movement_buttons.clear()
-
-	for i in deck_manager.hand.size():
-		var card := deck_manager.hand[i]
-
-		var btn := TextureButton.new()
-		btn.name = "CardButton%d" % i
-		btn.texture_normal = card.image
-		btn.custom_minimum_size = Vector2(100, 140)
-		btn.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
-
-		btn.mouse_filter = Control.MOUSE_FILTER_STOP
-		btn.focus_mode = Control.FOCUS_NONE
-		btn.z_index = 10
-
-		var overlay := ColorRect.new()
-		overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		overlay.color = Color(1, 0.84, 0, 0.25)
-		overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
-		overlay.visible = false
-		btn.add_child(overlay)
-
-		btn.mouse_entered.connect(func(): overlay.visible = true)
-		btn.mouse_exited.connect(func(): overlay.visible = false)
-
-		btn.pressed.connect(func(): _on_movement_card_pressed(card, btn))
-
-		movement_buttons_container.add_child(btn)
-		movement_buttons.append(btn)
+	movement_controller.create_movement_buttons()
 	
 
 func _on_movement_card_pressed(card: CardData, button: TextureButton) -> void:
-	if selected_card == card:
-		return
-	card_click_sound.play()
-	hide_all_movement_highlights()
-	valid_movement_tiles.clear()
-
-	# Check if this is a special effect card first
-	if card_effect_handler and card_effect_handler.handle_card_effect(card):
-		return  # Effect was handled by the effect handler
-	
-	if card.effect_type == "ModifyNext":
-		handle_modify_next_card(card)
-		return
-	elif card.effect_type == "ModifyNextCard":
-		handle_modify_next_card_card(card)
-		return
-	
-	is_movement_mode = true
-	active_button = button
-	selected_card = card
-	selected_card_label = card.name
-	movement_range = card.effect_strength
-
-	if next_card_doubled:
-		movement_range *= 2
-		print("Card effect doubled! New range:", movement_range)
-
-	print("Card selected:", card.name, "Range:", movement_range)
-
-	player_node.start_movement_mode(card, movement_range)
-	
-	valid_movement_tiles = player_node.valid_movement_tiles.duplicate()
-	show_movement_highlights()
+	movement_controller._on_movement_card_pressed(card, button)
 
 func handle_modify_next_card(card: CardData) -> void:
 	"""Handle cards with ModifyNext effect type"""
@@ -1211,48 +1170,22 @@ func handle_modify_next_card(card: CardData) -> void:
 			print("Error: Bouncey card not found in hand")
 	
 func calculate_valid_movement_tiles() -> void:
-	valid_movement_tiles.clear()
-
-	var base_mobility = player_stats.get("base_mobility", 0)
-	var total_range = movement_range + base_mobility
-
-	for y in grid_size.y:
-		for x in grid_size.x:
-			var pos := Vector2i(x, y)
-
-			if calculate_grid_distance(player_grid_pos, pos) <= total_range and pos != player_grid_pos:
-				if obstacle_map.has(pos):
-					var obstacle = obstacle_map[pos]
-
-					if obstacle.has_method("blocks") and obstacle.blocks():
-						continue
-
-				valid_movement_tiles.append(pos)
+	movement_controller.calculate_valid_movement_tiles()
 
 func calculate_grid_distance(a: Vector2i, b: Vector2i) -> int:
-	return abs(a.x - b.x) + abs(a.y - b.y)
+	return movement_controller.calculate_grid_distance(a, b)
 
 func show_movement_highlights() -> void:
-	hide_all_movement_highlights()
-	for pos in valid_movement_tiles:
-		grid_tiles[pos.y][pos.x].get_node("MovementHighlight").visible = true
+	movement_controller.show_movement_highlights()
 
 func hide_all_movement_highlights() -> void:
-	for y in grid_size.y:
-		for x in grid_size.x:
-			grid_tiles[y][x].get_node("MovementHighlight").visible = false
+	movement_controller.hide_all_movement_highlights()
 
 func _on_tile_mouse_entered(x: int, y: int) -> void:
-	if not is_panning and is_movement_mode:
-		var tile: Control = grid_tiles[y][x]
-		var clicked := Vector2i(x, y)
-		
-		if not Vector2i(x, y) in valid_movement_tiles:
-			tile.get_node("Highlight").visible = true
+	movement_controller.handle_tile_mouse_entered(x, y, is_panning)
 
 func _on_tile_mouse_exited(x: int, y: int) -> void:
-	if not is_panning:
-		grid_tiles[y][x].get_node("Highlight").visible = false
+	movement_controller.handle_tile_mouse_exited(x, y, is_panning)
 
 func _on_tile_input(event: InputEvent, x: int, y: int) -> void:
 	if event is InputEventMouseButton and event.pressed and not is_panning and event.button_index == MOUSE_BUTTON_LEFT:
@@ -1284,9 +1217,9 @@ func _on_tile_input(event: InputEvent, x: int, y: int) -> void:
 			else:
 				print("player_node does not have can_move_to method")
 			
-			if is_movement_mode and clicked in valid_movement_tiles:
-				player_node.move_to_grid(clicked)
-				card_play_sound.play()
+			if movement_controller.handle_tile_click(x, y):
+				# Movement was successful, no need to do anything else here
+				pass
 			else:
 				print("Invalid movement tile or not in movement mode")
 
@@ -1843,38 +1776,11 @@ func highlight_tee_tiles():
 				highlight.color = Color(0, 0.5, 1, 0.6)  # Blue with transparency
 
 func exit_movement_mode() -> void:
-	is_movement_mode = false
-	hide_all_movement_highlights()
-	valid_movement_tiles.clear()
-
-	if active_button and active_button.is_inside_tree():
-		if selected_card:
-			var card_discarded := false
-
-			if deck_manager.hand.has(selected_card):
-				deck_manager.discard(selected_card)
-				card_discarded = true
-				
-				if next_card_doubled:
-					next_card_doubled = false
-			else:
-				print("Card not in hand:", selected_card.name)
-
-			card_stack_display.animate_card_discard(selected_card.name)
-			update_deck_display()
-
-		if movement_buttons_container and movement_buttons_container.has_node(NodePath(active_button.name)):
-			movement_buttons_container.remove_child(active_button)
-
-		active_button.queue_free()
-		movement_buttons.erase(active_button)
-		active_button = null
-
-	selected_card_label = ""
-	selected_card = null
+	movement_controller.exit_movement_mode()
+	update_deck_display()
 
 func _on_end_turn_pressed() -> void:
-	if is_movement_mode:
+	if movement_controller.is_in_movement_mode():
 		exit_movement_mode()
 
 	var cards_to_discard = deck_manager.hand.size()
@@ -1882,14 +1788,7 @@ func _on_end_turn_pressed() -> void:
 	for card in deck_manager.hand:
 		deck_manager.discard(card)
 	deck_manager.hand.clear()
-	hide_all_movement_highlights()
-	for child in movement_buttons_container.get_children():
-		child.queue_free()
-	movement_buttons.clear()
-	selected_card_label = ""
-	selected_card = null
-	active_button = null
-	is_movement_mode = false
+	movement_controller.clear_all_movement_ui()
 	turn_count += 1
 	update_deck_display()
 	
@@ -1947,7 +1846,7 @@ func display_selected_character() -> void:
 		bag.set_character(character_name)
 
 func _on_end_round_pressed() -> void:
-	if is_movement_mode:
+	if movement_controller.is_in_movement_mode():
 		exit_movement_mode()
 	call_deferred("_change_to_main")
 
@@ -2660,6 +2559,8 @@ func _on_club_card_pressed(club_name: String, club_info: Dictionary, button: Tex
 
 func _on_player_moved_to_tile(new_grid_pos: Vector2i) -> void:
 	player_grid_pos = new_grid_pos
+	movement_controller.update_player_position(new_grid_pos)
+	
 	if player_grid_pos == shop_grid_pos and not shop_entrance_detected:
 		shop_entrance_detected = true
 		show_shop_entrance_dialog()
@@ -2967,6 +2868,11 @@ func build_map_from_layout(layout: Array) -> void:
 					object.set("grid_position", pos)
 				else:
 					push_warning("⚠️ Object missing 'grid_position'. Type: %s" % object.get_class())
+				
+				# Set reference to CardEffectHandler for pins (scramble ball handling)
+				if code == "P":
+					object.set_meta("card_effect_handler", card_effect_handler)
+				
 				ysort_objects.append({"node": object, "grid_pos": pos})
 				obstacle_layer.add_child(object)
 				
@@ -3290,6 +3196,9 @@ func build_map_from_layout_with_saved_positions(layout: Array) -> void:
 			if pin.has_meta("grid_position") or "grid_position" in pin:
 				pin.set("grid_position", Global.saved_pin_position)
 			
+			# Set reference to CardEffectHandler for scramble ball handling
+			pin.set_meta("card_effect_handler", card_effect_handler)
+			
 			# Connect pin signals if this is a pin
 			if pin.has_signal("hole_in_one"):
 				pin.hole_in_one.connect(_on_hole_in_one)
@@ -3403,9 +3312,7 @@ func _on_inventory_closed() -> void:
 	print("Inventory closed")
 
 func get_movement_cards_for_inventory() -> Array[CardData]:
-	if deck_manager:
-		return deck_manager.hand.filter(func(card): return card.effect_type == "movement")
-	return []
+	return movement_controller.get_movement_cards_for_inventory()
 
 func get_club_cards_for_inventory() -> Array[CardData]:
 	return bag_pile.duplicate()
@@ -3444,7 +3351,14 @@ var card_effect_handler: Node = null
 func _on_scramble_complete(closest_ball_position: Vector2, closest_ball_tile: Vector2i):
 	"""Handle completion of Florida Scramble effect"""
 	
-	# Update course state
+	# Check if the ball went in the hole (if waiting_for_player_to_reach_ball is false, it went in the hole)
+	if not waiting_for_player_to_reach_ball:
+		print("Scramble ball went in the hole! Triggering hole completion")
+		# Trigger hole completion dialog
+		show_hole_completion_dialog()
+		return
+	
+	# Update course state for normal scramble completion
 	ball_landing_tile = closest_ball_tile
 	ball_landing_position = closest_ball_position
 	waiting_for_player_to_reach_ball = true

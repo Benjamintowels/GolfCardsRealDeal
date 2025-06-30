@@ -55,16 +55,39 @@ func _on_area_entered(area: Area2D):
 		if ball_height >= 0.0 and ball_height <= HOLE_IN_HEIGHT_MAX:
 			print("Hole in one! Ball height is in range 0-5, triggering hole completion")
 			
-			# Play the hole-in sound
-			var hole_in_audio = get_node_or_null("HoleIn")
-			if hole_in_audio:
-				hole_in_audio.play()
+			# Check if this is a scramble ball
+			var is_scramble_ball = golf_ball.is_in_group("scramble_balls")
+			print("Is scramble ball:", is_scramble_ball)
 			
-			# Emit signal for hole completion
-			hole_in_one.emit(0)  # 0 indicates hole completion, score will be calculated by course
+			if is_scramble_ball:
+				# Handle scramble ball hole completion
+				print("Scramble ball went in the hole - clearing other balls immediately")
+				
+				# Get the CardEffectHandler reference from metadata
+				var card_effect_handler = get_meta("card_effect_handler", null)
+				
+				if card_effect_handler and card_effect_handler.has_method("handle_scramble_ball_hole_completion"):
+					# Call the CardEffectHandler to handle scramble ball hole completion
+					card_effect_handler.handle_scramble_ball_hole_completion(golf_ball)
+				else:
+					print("Warning: Could not find CardEffectHandler for scramble ball hole completion")
+					# Fallback to normal hole completion
+					hole_in_one.emit(0)
+			else:
+				# Normal ball hole completion
+				print("Normal ball went in the hole")
+				
+				# Play the hole-in sound
+				var hole_in_audio = get_node_or_null("HoleIn")
+				if hole_in_audio:
+					hole_in_audio.play()
+				
+				# Emit signal for hole completion
+				hole_in_one.emit(0)  # 0 indicates hole completion, score will be calculated by course
 			
-			# Queue free the ball
-			golf_ball.queue_free()
+			# Queue free the ball (CardEffectHandler will handle scramble balls)
+			if not is_scramble_ball:
+				golf_ball.queue_free()
 			
 			# Note: Removed direct call to show_hole_completion_dialog() 
 			# The course will handle this through the signal connection

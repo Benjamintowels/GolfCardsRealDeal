@@ -279,4 +279,64 @@ func is_scramble_active() -> bool:
 	return scramble_active
 
 func get_scramble_ball_count() -> int:
-	return scramble_balls.size() 
+	return scramble_balls.size()
+
+func clear_all_scramble_balls():
+	"""Immediately clear all scramble balls - used when one goes in the hole"""
+	print("Clearing all scramble balls due to hole completion")
+	
+	# Clear all scramble balls
+	for i in range(scramble_balls.size()):
+		var ball = scramble_balls[i]
+		if ball and is_instance_valid(ball):
+			# Clear the landing highlight before removing the ball
+			if ball.has_method("remove_landing_highlight"):
+				ball.remove_landing_highlight()
+			ball.queue_free()
+	
+	# Reset scramble state
+	scramble_active = false
+	scramble_balls.clear()
+	scramble_landing_positions.clear()
+	scramble_landing_tiles.clear()
+	scramble_ball_landed_count = 0
+	
+	# Stop camera following
+	course.camera_following_ball = false
+	
+	print("All scramble balls cleared")
+
+func handle_scramble_ball_hole_completion(ball_that_went_in: Node2D):
+	"""Handle when a scramble ball goes in the hole"""
+	print("Scramble ball went in the hole! Clearing other balls immediately")
+	
+	# Find which ball went in the hole
+	var ball_that_went_in_index = -1
+	for i in range(scramble_balls.size()):
+		if scramble_balls[i] == ball_that_went_in:
+			ball_that_went_in_index = i
+			break
+	
+	if ball_that_went_in_index != -1:
+		print("Ball", ball_that_went_in_index, "went in the hole")
+		
+		# Store the position of the ball that went in the hole
+		var hole_position = ball_that_went_in.global_position
+		var hole_tile = Vector2i(floor(hole_position.x / course.cell_size), floor(hole_position.y / course.cell_size))
+		
+		# Clear all other scramble balls immediately
+		clear_all_scramble_balls()
+		
+		# Update course state with the hole position
+		course.ball_landing_tile = hole_tile
+		course.ball_landing_position = hole_position
+		course.waiting_for_player_to_reach_ball = false  # Ball went in hole, no need to wait
+		
+		# Emit signal for course to handle hole completion
+		scramble_complete.emit(hole_position, hole_tile)
+		
+		print("Scramble hole completion handled - ball went in at:", hole_position)
+	else:
+		print("Error: Could not find the ball that went in the hole")
+		# Fallback: clear all balls anyway
+		clear_all_scramble_balls() 
