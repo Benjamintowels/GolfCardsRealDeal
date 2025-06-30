@@ -804,21 +804,6 @@ func _ready() -> void:
 	$UILayer.add_child(complete_hole_btn)
 	complete_hole_btn.pressed.connect(_on_complete_hole_pressed)
 
-	var test_random_btn := Button.new()
-	test_random_btn.name = "TestRandomButton"
-	test_random_btn.text = "Test Randomization"
-	test_random_btn.position = Vector2(400, 100)
-	test_random_btn.z_index = 999
-	$UILayer.add_child(test_random_btn)
-
-	var test_pin_tee_btn := Button.new()
-	test_pin_tee_btn.name = "TestPinTeeButton"
-	test_pin_tee_btn.text = "Test Pin-to-Tee"
-	test_pin_tee_btn.position = Vector2(400, 150)
-	test_pin_tee_btn.z_index = 999
-	$UILayer.add_child(test_pin_tee_btn)
-	test_pin_tee_btn.pressed.connect(start_hole_with_pin_transition)
-
 func _on_complete_hole_pressed():
 	show_hole_completion_dialog()
 
@@ -3202,50 +3187,7 @@ func find_child_by_name_recursive(node: Node, name: String) -> Node:
 	
 	return null
 
-func start_hole_with_pin_transition():
-	"""Start a new hole with a pin-to-tee transition"""
-	print("Starting hole with pin-to-tee transition...")
-	print("Current camera position:", camera.position)
-	
-	# Add a small delay to ensure the map is fully built
-	await get_tree().process_frame
-	
-	# Find pin position
-	var pin_position = find_pin_position()
-	if pin_position == Vector2.ZERO:
-		print("Warning: No pin found, skipping transition")
-		focus_camera_on_tee()
-		return
-	
-	print("Pin found at:", pin_position)
-	print("Camera position before setting to pin:", camera.position)
-	
-	# Start with camera at pin position
-	camera.position = pin_position
-	camera_snap_back_pos = pin_position
-	print("Camera position after setting to pin:", camera.position)
-	
-	# Create a sequence: show pin for 2 seconds, then tween to tee
-	var tween = get_tree().create_tween()
-	tween.set_parallel(false)  # Sequential tweens
-	
-	# Wait 2 seconds at pin
-	print("Waiting 2 seconds at pin...")
-	tween.tween_interval(2.0)
-	
-	# Tween to tee area
-	var tee_center = _get_tee_area_center()
-	var tee_center_global = camera_container.position + tee_center
-	print("Tweening from pin at", pin_position, "to tee at", tee_center_global)
-	print("Camera position before tween:", camera.position)
-	tween.tween_property(camera, "position", tee_center_global, 2.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	
-	# Update camera snap back position
-	tween.tween_callback(func(): 
-		camera_snap_back_pos = tee_center_global
-		print("Pin-to-tee transition complete")
-		print("Final camera position:", camera.position)
-	)
+
 
 func position_camera_on_pin(start_transition: bool = true):
 	"""Position camera on pin immediately after map building"""

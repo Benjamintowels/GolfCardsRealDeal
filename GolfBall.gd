@@ -805,6 +805,13 @@ func update_visual_effects():
 			shadow_alpha = 0.4
 		
 		shadow.modulate = Color(0, 0, 0, shadow_alpha)
+		
+		# Ensure shadow is always behind the ball sprite
+		if sprite:
+			shadow.z_index = sprite.z_index - 1
+			# Keep shadow visible even if ball is behind objects
+			if shadow.z_index <= -5:
+				shadow.z_index = 1
 
 func update_tile_friction() -> void:
 	if map_manager == null:
