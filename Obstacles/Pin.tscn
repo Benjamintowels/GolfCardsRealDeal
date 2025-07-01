@@ -19,6 +19,9 @@ texture_filter = 1
 position = Vector2(75.125, -384.08)
 texture = ExtResource("1_d4e4i")
 
+[node name="YSortPoint" type="Node2D" parent="Sprite2D"]
+position = Vector2(4.875, 384.08)
+
 [node name="Area2D" type="Area2D" parent="."]
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D"]

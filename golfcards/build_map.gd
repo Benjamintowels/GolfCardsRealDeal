@@ -290,7 +290,7 @@ func build_map_from_layout_base(layout: Array, place_pin: bool = true) -> void:
 				var pin: Node2D = scene.instantiate() as Node2D
 				pin.name = "Pin"
 				pin.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
-				pin.z_index = 1000
+				# Let the global Y-sort system handle z_index
 				if pin.has_meta("grid_position") or "grid_position" in pin:
 					pin.set("grid_position", pin_pos)
 				pin.set_meta("card_effect_handler", card_effect_handler)
@@ -368,7 +368,7 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 			continue
 		var world_pos: Vector2 = Vector2(gang_pos.x, gang_pos.y) * cell_size
 		gang_member.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
-		gang_member.z_index = 15  # Higher than other objects
+		# Let the global Y-sort system handle z_index
 		if gang_member.has_meta("grid_position") or "grid_position" in gang_member:
 			gang_member.set("grid_position", gang_pos)
 		else:
@@ -396,4 +396,6 @@ func _on_pin_flag_hit(ball: Node2D):
 		get_parent()._on_pin_flag_hit(ball)
 
 func update_all_ysort_z_indices():
-	pass 
+	"""Update z_index for all objects using the simple global Y-sort system"""
+	# Use the global Y-sort system for all objects
+	Global.update_all_objects_y_sort(ysort_objects) 

@@ -1,4 +1,4 @@
-[gd_scene load_steps=19 format=3 uid="uid://dlq5ygh2wv33m"]
+[gd_scene load_steps=20 format=3 uid="uid://dlq5ygh2wv33m"]
 
 [ext_resource type="Script" uid="uid://d4hrfk75nrm45" path="res://course_1.gd" id="1_pe8tc"]
 [ext_resource type="Texture2D" uid="uid://cpe67sk2vh8me" path="res://EDGE.png" id="2_eymfu"]
@@ -18,6 +18,7 @@
 [ext_resource type="Script" uid="uid://dks6b1bolk5lu" path="res://LaunchManager.gd" id="15_launch_manager"]
 [ext_resource type="Script" uid="uid://b278n4knxowm2" path="res://Entities.gd" id="16_entities"]
 [ext_resource type="PackedScene" uid="uid://bqx80a02w3v4u" path="res://HealthBar.tscn" id="17_health_bar"]
+[ext_resource type="AudioStream" uid="uid://ccvh643uqte1h" path="res://Sounds/Birds.mp3" id="19_00plg"]
 
 [node name="Course1" type="Control"]
 layout_mode = 3
@@ -233,3 +234,7 @@ offset_top = -2597.0
 offset_right = 3283.0
 offset_bottom = 2652.0
 texture = ExtResource("2_eymfu")
+
+[node name="BirdsTweeting" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("19_00plg")
+volume_db = -0.732

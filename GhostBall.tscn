@@ -12,7 +12,10 @@ script = ExtResource("1_ghost")
 
 [node name="Shadow" type="Sprite2D" parent="."]
 modulate = Color(0, 0, 0, 0.3)
+scale = Vector2(1, 0.535)
 texture = ExtResource("2_ball")
+
+[node name="YSortPoint" type="Node2D" parent="Shadow"]
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 texture = ExtResource("2_ball")
@@ -20,4 +23,5 @@ texture = ExtResource("2_ball")
 [node name="Area2D" type="Area2D" parent="."]
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D"]
+scale = Vector2(1, 0.53)
 shape = SubResource("CircleShape2D_ghost")

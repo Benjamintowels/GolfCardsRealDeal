@@ -8,8 +8,11 @@ func blocks():
 
 # Returns the Y-sorting reference point (base of trunk)
 func get_y_sort_point() -> float:
-	# Use the tree's global position Y for Y-sorting
-	return global_position.y
+	var ysort_point_node = get_node_or_null("YsortPoint")
+	if ysort_point_node:
+		return ysort_point_node.global_position.y
+	else:
+		return global_position.y
 
 func _ready():
 	# Connect to Area2D's area_entered signal for collision detection with Area2D balls
@@ -45,6 +48,9 @@ func _ready():
 	
 	# Deferred call to double-check collision layers after the scene is fully set up
 	call_deferred("_verify_collision_setup")
+	
+	# Ensure z_index is properly set for Ysort
+	call_deferred("_update_ysort")
 
 func _verify_collision_setup():
 	"""Verify that collision layers are set correctly after the scene is fully set up"""
@@ -194,6 +200,15 @@ func _draw():
 	var cross_color = Color(0, 1, 1, 1) # Cyan for visibility
 	draw_line(Vector2(-cross_size/2, 0), Vector2(cross_size/2, 0), cross_color, 2)
 	draw_line(Vector2(0, -cross_size/2), Vector2(0, cross_size/2), cross_color, 2)
+	
+	# Draw the Ysort point location (base of tree trunk) using YsortPoint node
+	var ysort_point_node = get_node_or_null("YsortPoint")
+	if ysort_point_node:
+		var ysort_local_y = to_local(ysort_point_node.global_position).y
+		var ysort_color = Color(0, 1, 0, 1) # Green for Ysort point
+		draw_line(Vector2(-line_length/2, ysort_local_y), Vector2(line_length/2, ysort_local_y), ysort_color, 2)
+		draw_line(Vector2(-line_length/2, ysort_local_y - 5), Vector2(-line_length/2, ysort_local_y + 5), ysort_color, 2)
+		draw_line(Vector2(line_length/2, ysort_local_y - 5), Vector2(line_length/2, ysort_local_y + 5), ysort_color, 2)
 
 # Function to toggle debug line visibility
 func toggle_debug_line():
@@ -248,3 +263,45 @@ func _process(delta):
 							ball.set_meta("last_leaves_rustle_time", current_time)
 						else:
 							print("✗ LeavesRustle sound not found!")
+
+func _update_ysort():
+	"""Update the Tree's z_index for proper Y-sorting"""
+	# Force update the Ysort using the global system
+	Global.update_object_y_sort(self, "objects")
+	
+	# Only print debug info once
+	if not has_meta("ysort_update_printed"):
+		print("Tree Ysort updated - z_index:", z_index, " global_position:", global_position)
+		set_meta("ysort_update_printed", true)
+	
+	# Debug: Compare with other objects (only once)
+	if not has_meta("ysort_comparison_printed"):
+		_debug_ysort_comparison()
+		set_meta("ysort_comparison_printed", true)
+
+func _debug_ysort_comparison():
+	"""Debug method to compare this Tree's Ysort with other objects"""
+	var tree_ysort = get_y_sort_point()
+	print("=== Tree Ysort Debug ===")
+	print("Tree global_position:", global_position)
+	print("Tree Ysort point:", tree_ysort)
+	print("Tree z_index:", z_index)
+	
+	# Try to find player and ball for comparison
+	var player = get_tree().get_first_node_in_group("player")
+	if player:
+		var player_ysort = player.global_position.y
+		if player.has_method("get_y_sort_point"):
+			player_ysort = player.get_y_sort_point()
+		print("Player Ysort point:", player_ysort)
+		print("Tree vs Player Ysort difference:", tree_ysort - player_ysort)
+	
+	var ball = get_tree().get_first_node_in_group("golf_ball")
+	if ball:
+		var ball_ysort = ball.global_position.y
+		if ball.has_method("get_y_sort_point"):
+			ball_ysort = ball.get_y_sort_point()
+		print("Ball Ysort point:", ball_ysort)
+		print("Tree vs Ball Ysort difference:", tree_ysort - ball_ysort)
+	
+	print("=== End Tree Ysort Debug ===")

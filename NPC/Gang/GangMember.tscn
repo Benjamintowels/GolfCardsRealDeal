@@ -1,7 +1,10 @@
-[gd_scene load_steps=3 format=3 uid="uid://bmlicmv1hmd4j"]
+[gd_scene load_steps=4 format=3 uid="uid://bmlicmv1hmd4j"]
 
 [ext_resource type="Script" uid="uid://b3mk6wcdiwoxy" path="res://NPC/Gang/GangMember.gd" id="1_0x0x0"]
 [ext_resource type="Texture2D" uid="uid://cdgbqbboumokx" path="res://NPC/Gang/GangMember1.png" id="2_qejoy"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_qejoy"]
+radius = 1.59302
 
 [node name="GangMember" type="CharacterBody2D"]
 script = ExtResource("1_0x0x0")
@@ -9,8 +12,18 @@ script = ExtResource("1_0x0x0")
 [node name="Sprite2D" type="Sprite2D" parent="."]
 z_index = 10
 texture_filter = 1
-position = Vector2(0, -34)
+position = Vector2(1, -43)
 scale = Vector2(0.455, 0.455)
 texture = ExtResource("2_qejoy")
 
+[node name="YSortPoint" type="Node2D" parent="Sprite2D"]
+position = Vector2(1.30999e-07, 72.5275)
+
 [node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+
+[node name="BaseCollisionArea" type="Area2D" parent="."]
+
+[node name="BaseCollision" type="CollisionShape2D" parent="BaseCollisionArea"]
+position = Vector2(1, -8)
+scale = Vector2(4.57, 4.57)
+shape = SubResource("CircleShape2D_qejoy")

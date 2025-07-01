@@ -8,3 +8,6 @@ scale = Vector2(0.055, 0.055)
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 texture = ExtResource("1_pt0yq")
+
+[node name="YSortPoint" type="Node2D" parent="Sprite2D"]
+position = Vector2(0, 599.455)

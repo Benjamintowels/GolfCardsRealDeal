@@ -15,7 +15,10 @@ script = ExtResource("1_coy0q")
 [node name="Shadow" type="Sprite2D" parent="."]
 modulate = Color(0, 0, 0, 0.3)
 z_index = -1
+scale = Vector2(0.985, 0.5)
 texture = ExtResource("1_c77dq")
+
+[node name="YSortPoint" type="Node2D" parent="Shadow"]
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 z_index = 1
@@ -24,6 +27,7 @@ texture = ExtResource("1_c77dq")
 [node name="Area2D" type="Area2D" parent="."]
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D"]
+scale = Vector2(1, 0.53)
 shape = SubResource("CircleShape2D_coy0q")
 
 [node name="BallLand" type="AudioStreamPlayer2D" parent="."]

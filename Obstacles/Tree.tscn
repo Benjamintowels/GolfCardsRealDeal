@@ -5,24 +5,23 @@
 [ext_resource type="AudioStream" uid="uid://c72rjrdcq46a6" path="res://Sounds/LeavesRustle.mp3" id="3_l6huh"]
 [ext_resource type="AudioStream" uid="uid://01xbvo1dq6r0" path="res://Sounds/TrunkThunk.mp3" id="4_8f3lk"]
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_l6huh"]
-size = Vector2(10, 6.52418)
+[sub_resource type="CircleShape2D" id="CircleShape2D_8f3lk"]
+radius = 2.27121
 
 [node name="Tree" type="CharacterBody2D"]
-z_index = 3
-scale = Vector2(0.28, 0.28)
 script = ExtResource("1_tree")
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
-position = Vector2(0, -278.365)
+position = Vector2(3, -121)
+scale = Vector2(0.315, 0.315)
 texture = ExtResource("1_le26f")
 
 [node name="TrunkBaseArea" type="Area2D" parent="."]
 
 [node name="TrunkBase" type="CollisionShape2D" parent="TrunkBaseArea"]
-position = Vector2(0, 50.8)
-scale = Vector2(15.875, 15.875)
-shape = SubResource("RectangleShape2D_l6huh")
+position = Vector2(0, -28)
+scale = Vector2(9.985, 9.985)
+shape = SubResource("CircleShape2D_8f3lk")
 
 [node name="LeavesRustle" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("3_l6huh")
@@ -30,3 +29,6 @@ volume_db = -4.224
 
 [node name="TrunkThunk" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("4_8f3lk")
+
+[node name="YsortPoint" type="Node2D" parent="."]
+position = Vector2(0, -28)

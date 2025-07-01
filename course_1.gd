@@ -11,6 +11,7 @@ extends Control
 @onready var movement_buttons_container: BoxContainer = $UILayer/CardHandAnchor/CardRow
 @onready var card_click_sound: AudioStreamPlayer2D = $CardClickSound
 @onready var card_play_sound: AudioStreamPlayer2D = $CardPlaySound
+@onready var birds_tweeting_sound: AudioStreamPlayer2D = $BirdsTweeting
 @onready var obstacle_layer = $ObstacleLayer
 @onready var end_turn_button: Button = $UILayer/EndTurnButton
 @onready var camera := $GameCamera
@@ -322,6 +323,9 @@ func _process(delta):
 	
 	if is_aiming_phase and aiming_circle:
 		update_aiming_circle()
+	
+	# Update global Y-sort for all objects (trees, pins, etc.)
+	update_all_ysort_z_indices()
 
 func _ready() -> void:
 	add_to_group("course")
@@ -480,6 +484,10 @@ func _ready() -> void:
 	
 	# Register any existing GangMembers with the Entities system
 	register_existing_gang_members()
+	
+	# Play birds tweeting sound when course loads
+	if birds_tweeting_sound:
+		birds_tweeting_sound.play()
 
 	var complete_hole_btn := Button.new()
 	complete_hole_btn.name = "CompleteHoleButton"
@@ -726,7 +734,8 @@ func take_damage(amount: int) -> void:
 		# Check if player is defeated
 		if not health_bar.is_alive():
 			print("Player is defeated!")
-			# You can add game over logic here
+			# Trigger death sequence
+			handle_player_death()
 
 func heal_player(amount: int) -> void:
 	"""Player heals and updates health bar"""
@@ -753,6 +762,16 @@ func _on_damage_button_pressed() -> void:
 func _on_heal_button_pressed() -> void:
 	"""Handle heal button press"""
 	heal_player(20)
+
+func handle_player_death() -> void:
+	"""Handle player death - fade to black and show death screen"""
+	print("Handling player death...")
+	
+	# Disable all input to prevent further actions
+	set_process_input(false)
+	
+	# Fade to black and transition to death scene
+	FadeManager.fade_to_black(func(): get_tree().change_scene_to_file("res://DeathScene.tscn"), 1.0)
 
 func _on_player_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
@@ -2206,7 +2225,7 @@ func build_map_from_layout(layout: Array) -> void:
 					push_error("❌ Tile instantiation failed for '%s' at (%d,%d)" % [tile_code, x, y])
 					continue
 				tile.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
-				tile.z_index = -5  # Ensure tiles are behind player & UI
+				tile.z_index = -1000  # Ensure tiles are behind everything
 				var sprite: Sprite2D = tile.get_node_or_null("Sprite2D")
 				if sprite and sprite.texture:
 					var texture_size: Vector2 = sprite.texture.get_size()
@@ -2248,6 +2267,9 @@ func build_map_from_layout(layout: Array) -> void:
 				
 				ysort_objects.append({"node": object, "grid_pos": pos})
 				obstacle_layer.add_child(object)
+				
+				# Apply global Y-sort to the new object
+				Global.update_object_y_sort(object, "objects")
 				
 				if object.has_signal("hole_in_one"):
 					object.hole_in_one.connect(_on_hole_in_one)
@@ -2310,7 +2332,7 @@ func create_ghost_ball() -> void:
 	camera_container.add_child(ghost_ball)
 	ghost_ball.add_to_group("balls")  # Add to group for collision detection
 	ghost_ball_active = true
-	update_ball_y_sort(ghost_ball)
+	# Global Y-sort will be handled by the ball's update_y_sort() method
 	if chosen_landing_spot != Vector2.ZERO:
 		ghost_ball.set_landing_spot(chosen_landing_spot)
 
@@ -2329,114 +2351,9 @@ func remove_ghost_ball() -> void:
 	ghost_ball_active = false
 
 func update_ball_y_sort(ball_node: Node2D) -> void:
-	if not ball_node or not is_instance_valid(ball_node):
-		return
-
-	var ball_global_pos = ball_node.global_position
-	var ball_ground_pos = ball_global_pos
-	if ball_node.has_method("get_ground_position"):
-		ball_ground_pos = ball_node.get_ground_position()
-	else:
-		ball_ground_pos = ball_global_pos
-
-	var ball_height = 0.0
-	if ball_node.has_method("get_height"):
-		ball_height = ball_node.get_height()
-	elif "z" in ball_node:
-		ball_height = ball_node.z
-
-	var ball_sprite = ball_node.get_node_or_null("Sprite2D")
-	if not ball_sprite:
-		return
-
-	# First, check if ball should be in front of or behind the pin
-	var pin_node = null
-	var pin_z_index = 1000  # Default pin z_index
-	for obj in ysort_objects:
-		if not obj.has("node") or not obj["node"] or not is_instance_valid(obj["node"]):
-			continue
-		
-		var node = obj["node"]
-		if node.name == "Pin" or "Pin" in node.name:
-			pin_node = node
-			pin_z_index = node.z_index
-			break
-	
-	# If we found a pin, check if ball should be in front of it
-	if pin_node != null:
-		var pin_y = pin_node.global_position.y
-		var ball_y = ball_ground_pos.y
-		
-		# If ball is below pin (higher Y coordinate), it should be in front
-		if ball_y > pin_y:
-			ball_sprite.z_index = pin_z_index + 10  # Higher than pin z_index
-		else:
-			ball_sprite.z_index = pin_z_index - 10  # Lower than pin z_index
-		
-		# Update shadow z_index
-		var ball_shadow = ball_node.get_node_or_null("Shadow")
-		if ball_shadow:
-			ball_shadow.z_index = ball_sprite.z_index - 1
-			if ball_shadow.z_index <= -5:
-				ball_shadow.z_index = 1
-		return
-
-	# If no pin found, fall back to tree-based Y-sorting
-	var closest_tree = null
-	var closest_tree_y = 0.0
-	var closest_tree_z = 0
-	var min_dist = INF
-	for obj in ysort_objects:
-		if not obj.has("node") or not obj["node"] or not is_instance_valid(obj["node"]):
-			continue
-		
-		var node = obj["node"]
-		var is_tree = node.name == "Tree" or (node.get_script() and "Tree.gd" in str(node.get_script().get_path()))
-		
-		if is_tree:
-			var tree_node = node
-			var tree_y_sort_point = tree_node.global_position.y
-			if tree_node.has_method("get_y_sort_point"):
-				tree_y_sort_point = tree_node.get_y_sort_point()
-			
-			var tree_pos_2d = Vector2(tree_node.global_position.x, tree_y_sort_point)
-			var ball_pos_2d = Vector2(ball_ground_pos.x, ball_ground_pos.y)
-			var dist = ball_pos_2d.distance_to(tree_pos_2d)
-			
-			if dist < min_dist:
-				min_dist = dist
-				closest_tree = tree_node
-				closest_tree_y = tree_y_sort_point
-				closest_tree_z = tree_node.z_index
-
-	if closest_tree != null:
-		var tree_height = 1500.0  # Updated from 100.0 to 1500.0 to match max ball height of 2000
-		
-		var max_tree_distance = 200.0  # Only consider trees within 200 pixels
-		if min_dist > max_tree_distance:
-			ball_sprite.z_index = 100  # Default to in front
-			return
-		
-		if ball_height >= tree_height:
-			ball_sprite.z_index = closest_tree_z + 10  # Higher than tree z_index
-		else:
-			var significant_height_threshold = 200.0  # If ball is more than 200 pixels high, it should appear in front
-			if ball_height >= significant_height_threshold:
-				ball_sprite.z_index = closest_tree_z + 10
-			else:
-				var tree_threshold = closest_tree_y + 50  # 50 pixels higher threshold
-				if ball_ground_pos.y > tree_threshold:
-					ball_sprite.z_index = closest_tree_z + 10  # Higher than tree z_index
-				else:
-					ball_sprite.z_index = closest_tree_z - 10  # Lower than tree z_index to appear behind
-	else:
-		ball_sprite.z_index = 100  # Default to in front
-
-	var ball_shadow = ball_node.get_node_or_null("Shadow")
-	if ball_shadow:
-		ball_shadow.z_index = ball_sprite.z_index - 1
-		if ball_shadow.z_index <= -5:
-			ball_shadow.z_index = 1
+	"""Update ball Y-sort using the simple global system"""
+	# Use the global Y-sort system
+	Global.update_ball_y_sort(ball_node)
 
 var current_hole := 0  # 0-based hole index (0-8 for front 9, 9-17 for back 9)
 var total_score := 0
@@ -2598,7 +2515,7 @@ func build_map_from_layout_with_saved_positions(layout: Array) -> void:
 			var pin_id = randi()  # Generate unique ID for this pin
 			pin.name = "Pin"
 			pin.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
-			pin.z_index = 1000  # Set high Z-index to ensure pin is always visible
+			# Let the global Y-sort system handle z_index
 			if pin.has_meta("grid_position") or "grid_position" in pin:
 				pin.set("grid_position", Global.saved_pin_position)
 			
@@ -2631,38 +2548,9 @@ func build_map_from_layout_with_saved_positions(layout: Array) -> void:
 	position_camera_on_pin(false)
 
 func update_all_ysort_z_indices():
-	"""Update z_index for all objects in ysort_objects based on their Y position"""
-	
-	# Sort objects by Y position (lower Y = higher z_index)
-	var sorted_objects = ysort_objects.duplicate()
-	sorted_objects.sort_custom(func(a, b): return a.grid_pos.y < b.grid_pos.y)
-	
-	# Assign z_index based on Y position
-	for i in range(sorted_objects.size()):
-		var obj = sorted_objects[i]
-		if not obj.has("node") or not obj.has("grid_pos"):
-			continue
-		
-		var node = obj.node
-		if not node or not is_instance_valid(node):
-			continue
-		
-		# Check if this is a tree by name or script
-		var is_tree = node.name == "Tree" or (node.get_script() and "Tree.gd" in str(node.get_script().get_path()))
-		
-		# Base z_index on Y position (lower Y = higher z_index)
-		var base_z = 10 + (sorted_objects.size() - i) * 10
-		
-		# Special handling for different object types
-		if node.name == "Pin":
-			# Skip pins - they have a fixed high z_index
-			continue
-		elif node.name == "Shop":
-			node.z_index = base_z + 3  # Shop should be higher than most objects
-		elif is_tree:
-			node.z_index = base_z + 5  # Trees should be higher than most objects
-		else:
-			node.z_index = base_z
+	"""Update z_index for all objects using the simple global Y-sort system"""
+	# Use the global Y-sort system for all objects
+	Global.update_all_objects_y_sort(ysort_objects)
 
 func get_layout_at_position(pos: Vector2i) -> String:
 	"""Get the tile type at a specific grid position"""

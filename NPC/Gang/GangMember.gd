@@ -18,6 +18,10 @@ var movement_range: int = 3
 var vision_range: int = 12
 var current_action: String = "idle"
 
+# Collision and height properties
+var height: float = 200.0  # Half of tree height (400/2)
+var base_collision_area: Area2D
+
 # State Machine
 enum State {PATROL, CHASE}
 var current_state: State = State.PATROL
@@ -45,6 +49,9 @@ func _ready():
 	state_machine.add_state("chase", ChaseState.new(self))
 	state_machine.set_state("patrol")
 	
+	# Setup base collision area
+	_setup_base_collision()
+	
 	# Defer player finding until after scene is fully loaded
 	call_deferred("_find_player_reference")
 
@@ -59,6 +66,104 @@ func _find_course_script() -> Node:
 	
 	print("ERROR: Could not find course_1.gd script in scene tree!")
 	return null
+
+func _setup_base_collision() -> void:
+	"""Setup the base collision area for ball detection"""
+	base_collision_area = get_node_or_null("BaseCollisionArea")
+	if base_collision_area:
+		# Set collision layer to 1 so golf balls can detect it
+		base_collision_area.collision_layer = 1
+		# Set collision mask to 1 so it can detect golf balls on layer 1
+		base_collision_area.collision_mask = 1
+		# Connect to area_entered signal for collision detection
+		base_collision_area.connect("area_entered", _on_base_area_entered)
+		print("✓ GangMember base collision area setup complete")
+	else:
+		print("✗ ERROR: BaseCollisionArea not found!")
+
+func _on_base_area_entered(area: Area2D) -> void:
+	"""Handle collisions with the base collision area"""
+	var ball = area.get_parent()
+	print("=== GANGMEMBER BASE COLLISION DETECTED ===")
+	print("Area name:", area.name)
+	print("Ball parent:", ball.name if ball else "No parent")
+	print("Ball type:", ball.get_class() if ball else "Unknown")
+	print("Ball position:", ball.global_position if ball else "Unknown")
+	
+	if ball and (ball.name == "GolfBall" or ball.name == "GhostBall"):
+		print("Valid ball detected:", ball.name)
+		# Handle the collision
+		_handle_ball_collision(ball)
+	else:
+		print("Invalid ball or non-ball object:", ball.name if ball else "Unknown")
+	print("=== END GANGMEMBER BASE COLLISION ===")
+
+func _handle_ball_collision(ball: Node2D) -> void:
+	"""Handle ball collisions - check height to determine if ball should pass through"""
+	print("Handling ball collision - checking ball height")
+	
+	# Get ball height
+	var ball_height = 0.0
+	if ball.has_method("get_height"):
+		ball_height = ball.get_height()
+	elif "z" in ball:
+		ball_height = ball.z
+	
+	print("Ball height:", ball_height, "GangMember height:", height)
+	
+	# Check if ball is above GangMember entirely
+	if ball_height > height:
+		# Ball is above GangMember entirely - let it pass through
+		print("Ball is above GangMember entirely (height:", ball_height, "> GangMember height:", height, ") - passing through")
+		return
+	else:
+		# Ball is within or below GangMember height - handle collision
+		print("Ball is within GangMember height (height:", ball_height, "<= GangMember height:", height, ") - handling collision")
+		
+		# Play collision sound effect
+		_play_collision_sound()
+		
+		# Apply collision effect to the ball
+		_apply_ball_collision_effect(ball)
+
+func _apply_ball_collision_effect(ball: Node2D) -> void:
+	"""Apply collision effect to the ball (bounce, damage, etc.)"""
+	# Get the ball's current velocity
+	var ball_velocity = Vector2.ZERO
+	if ball.has_method("get_velocity"):
+		ball_velocity = ball.get_velocity()
+	elif "velocity" in ball:
+		ball_velocity = ball.velocity
+	
+	print("Applying collision effect to ball with velocity:", ball_velocity)
+	
+	var ball_pos = ball.global_position
+	var gang_member_center = global_position
+	
+	# Calculate the direction from GangMember center to ball
+	var to_ball_direction = (ball_pos - gang_member_center).normalized()
+	
+	# Simple reflection: reflect the velocity across the GangMember center
+	var reflected_velocity = ball_velocity - 2 * ball_velocity.dot(to_ball_direction) * to_ball_direction
+	
+	# Reduce speed slightly to prevent infinite bouncing
+	reflected_velocity *= 0.8
+	
+	# Add a small amount of randomness to prevent infinite loops
+	var random_angle = randf_range(-0.1, 0.1)
+	reflected_velocity = reflected_velocity.rotated(random_angle)
+	
+	print("Reflected velocity:", reflected_velocity)
+	
+	# Apply the reflected velocity to the ball
+	if ball.has_method("set_velocity"):
+		ball.set_velocity(reflected_velocity)
+	elif "velocity" in ball:
+		ball.velocity = reflected_velocity
+
+func _process(delta):
+	# Update Y-sort every frame to stay in sync with camera movement
+	update_z_index_for_ysort()
 
 func _find_player_reference() -> void:
 	"""Find the player reference using multiple methods"""
@@ -400,53 +505,9 @@ func _move_gang_member_away_from_player() -> void:
 	print("Could not move GangMember away from collision - staying in place")
 
 func update_z_index_for_ysort() -> void:
-	"""Update the GangMember's z_index based on its position relative to other objects"""
-	if not course:
-		return
-	
-	# Get ysort_objects from the course
-	var ysort_objects = course.ysort_objects if "ysort_objects" in course else []
-	
-	var in_front_zs = []
-	var behind_zs = []
-	print("GangMember grid_pos.y:", grid_position.y)
-	
-	# Check objects from ysort_objects only
-	for obj in ysort_objects:
-		if not obj.has("grid_pos") or not obj.has("node"):
-			continue
-		var obj_grid_pos = obj["grid_pos"]
-		var obj_node = obj["node"]
-		
-		# Check if the node is still valid and not freed
-		if not obj_node or not is_instance_valid(obj_node):
-			continue
-			
-		var is_shop = obj_node.name == "Shop" or obj_node.get_class() == "Shop"
-		var x_range = 3 if is_shop else 1
-		if abs(obj_grid_pos.x - grid_position.x) > x_range:
-			continue  # Only consider objects in the same or adjacent (or wider for Shop) columns
-		
-		print("Object grid_pos.y:", obj_grid_pos.y, "Object z_index:", obj_node.z_index)
-		if grid_position.y > obj_grid_pos.y:
-			# GangMember is at least one row below: in front
-			in_front_zs.append(obj_node.z_index)
-		else:
-			# GangMember is on the same row or above: behind
-			behind_zs.append(obj_node.z_index)
-	
-	# Calculate z_index from objects only (player will handle its own layering)
-	if in_front_zs.size() > 0:
-		z_index = in_front_zs.max() + 25
-		print("GangMember z_index set to:", z_index, "(in front of objects)")
-	elif behind_zs.size() > 0:
-		z_index = 0
-		print("GangMember z_index set to 0 (behind objects)")
-	else:
-		z_index = 0
-		print("GangMember z_index set to 0 (no objects to consider)")
-	
-	print("GangMember final z_index:", z_index)
+	"""Update GangMember Y-sort using the simple global system"""
+	# Use the global Y-sort system for characters
+	Global.update_object_y_sort(self, "characters")
 
 func _play_collision_sound() -> void:
 	"""Play a sound effect when colliding with the player"""
@@ -568,6 +629,30 @@ func _is_position_valid_for_player(pos: Vector2i) -> bool:
 	
 	print("Position ", pos, " is valid for player pushback")
 	return true
+
+# Height and collision shape methods for Entities system
+func get_height() -> float:
+	"""Get the height of this GangMember for collision detection"""
+	return height
+
+func get_y_sort_point() -> float:
+	var ysort_point_node = get_node_or_null("YsortPoint")
+	if ysort_point_node:
+		return ysort_point_node.global_position.y
+	else:
+		return global_position.y
+
+func get_base_collision_shape() -> Dictionary:
+	"""Get the base collision shape dimensions for this GangMember"""
+	return {
+		"width": 10.0,
+		"height": 6.5,
+		"offset": Vector2(0, 25)  # Offset from GangMember center to base
+	}
+
+func handle_ball_collision(ball: Node2D) -> void:
+	"""Handle collision with a ball - called by Entities system"""
+	_handle_ball_collision(ball)
 
 # State Machine Class
 class StateMachine:

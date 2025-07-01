@@ -884,23 +884,9 @@ func _ready():
 	print("GolfBall is_ghost property:", "is_ghost" in self, "value:", get("is_ghost") if "is_ghost" in self else "N/A")
 
 func update_y_sort() -> void:
-	"""Update the ball's z_index based on its position relative to Y-sorted objects"""
-	# Get the ball's grid position
-	var ball_global_pos = global_position
-	var ball_grid_pos = Vector2i(floor(ball_global_pos.x / cell_size), floor(ball_global_pos.y / cell_size))
-	
-	# Find the ball's sprite to update its z_index
-	var ball_sprite = $Sprite2D
-	if not ball_sprite:
-		return
-	
-	# Get the course script to access ysort_objects
-	var course_script = get_parent().get_parent()  # camera_container -> course_1
-	if not course_script or not course_script.has_method("update_ball_y_sort"):
-		return
-	
-	# Call the course script's Y-sort function
-	course_script.update_ball_y_sort(self)
+	"""Update the ball's z_index using the simple global Y-sort system"""
+	# Use the global Y-sort system
+	Global.update_ball_y_sort(self)
 
 func get_ground_position() -> Vector2:
 	"""Return the ball's position on the ground (ignoring height) for Y-sorting"""

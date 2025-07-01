@@ -18,6 +18,14 @@ func _ready():
 		
 		area2d.connect("area_entered", _on_area_entered)
 
+# Returns the Y-sorting reference point (base of pin)
+func get_y_sort_point() -> float:
+	var ysort_point_node = get_node_or_null("YsortPoint")
+	if ysort_point_node:
+		return ysort_point_node.global_position.y
+	else:
+		return global_position.y
+
 func _process(delta):
 	# Y-sort: set z_index based on global y position, but ensure it's above ground
 	# REMOVED: z_index = int(global_position.y) + 10  # This was overriding the fixed z_index = 1000

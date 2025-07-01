@@ -39,8 +39,22 @@ var saved_tree_positions := []
 var saved_pin_position := Vector2i.ZERO
 var saved_shop_position := Vector2i.ZERO
 
+# Global Y-sort system - simple and effective
+# Uses Godot's built-in Y-sorting with manual z_index offsets for different object types
+
+# Z-index offsets for different object types (to ensure proper layering)
+const Z_INDEX_OFFSETS = {
+	"background": -100,  # Behind everything
+	"ground": -50,       # Behind objects
+	"objects": 0,        # Trees, pins, etc.
+	"characters": 0,     # Player, NPCs (same as objects for true Y-sort)
+	"balls": 0,          # Balls (same as objects/characters for true Y-sort)
+	"ui": 200           # UI elements (in front of everything)
+}
+
 func _ready():
 	print("Global script loaded, selected_character = ", selected_character)
+	print("Global Y-sort system initialized - using Godot's built-in Y-sorting")
 
 # Equipment functions
 func add_equipment(equipment: EquipmentData) -> void:
@@ -101,3 +115,108 @@ func get_character_health() -> Dictionary:
 			"is_alive": stats.get("current_hp", 100) > 0
 		}
 	return {"current_hp": 0, "max_hp": 0, "is_alive": false}
+
+func update_screen_height():
+	"""Update screen height (call when viewport changes)"""
+	# No longer needed with simplified Y-sort system
+	pass
+
+# Store last debug output to avoid spam
+var _last_debug_output = {}
+
+func get_y_sort_z_index(world_position: Vector2, object_type: String = "objects") -> int:
+	"""
+	Simple Y-sort: just use the Y position as the z_index with an offset
+	Higher Y position = higher z_index (appears in front)
+	"""
+	# Simple approach: use Y position directly as z_index base
+	# Add 1000 to ensure all game objects have positive z_index values
+	var base_z_index = int(world_position.y) + 1000
+	
+	# Add offset based on object type
+	var offset = Z_INDEX_OFFSETS.get(object_type, 0)
+	var z_index = base_z_index + offset
+	
+	# Debug output for significant changes only
+	if object_type == "characters" or object_type == "balls":
+		var debug_key = str(world_position) + "_" + object_type
+		var current_debug = str(z_index)
+		
+		# Only print if this is a new position or significant change
+		if not _last_debug_output.has(debug_key) or _last_debug_output[debug_key] != current_debug:
+			print("Y-sort update - pos:", world_position, " z_index:", z_index, " type:", object_type)
+			_last_debug_output[debug_key] = current_debug
+	
+	return z_index
+
+func update_object_y_sort(node: Node2D, object_type: String = "objects"):
+	"""
+	Update a node's z_index based on its world position
+	"""
+	if not node or not is_instance_valid(node):
+		return
+	
+	# Use custom Y-sort point for trees
+	var world_position = node.global_position
+	if node.has_method("get_y_sort_point"):
+		world_position.y = node.get_y_sort_point()
+	
+	var z_index = get_y_sort_z_index(world_position, object_type)
+	node.z_index = z_index
+
+func update_ball_y_sort(ball_node: Node2D):
+	"""
+	Special Y-sort handling for ball sprites
+	Uses the ball's Shadow/YSortPoint position for Y-sorting
+	"""
+	if not ball_node or not is_instance_valid(ball_node):
+		return
+
+	var ball_sprite = ball_node.get_node_or_null("Sprite2D")
+	var ysort_point = ball_node.get_node_or_null("Shadow/YSortPoint")
+	var ball_shadow = ball_node.get_node_or_null("Shadow")
+
+	if not ball_sprite:
+		return
+
+	# Use YSortPoint if available, then Shadow, then global_position
+	var ground_y = ball_node.global_position.y
+	if ysort_point:
+		ground_y = ysort_point.global_position.y
+	elif ball_shadow:
+		ground_y = ball_shadow.global_position.y
+
+	var ground_position = ball_node.global_position
+	ground_position.y = ground_y
+
+	# Get z_index based on ground position
+	var z_index = get_y_sort_z_index(ground_position, "balls")
+
+	# Set shadow z_index
+	if ball_shadow:
+		ball_shadow.z_index = z_index
+	# Set ball sprite z_index to always be 1 higher than the shadow
+	ball_sprite.z_index = z_index + 1
+
+func update_all_objects_y_sort(ysort_objects: Array):
+	"""
+	Update Y-sort for all objects in the ysort_objects array
+	"""
+	for obj in ysort_objects:
+		if not obj.has("node") or not obj["node"] or not is_instance_valid(obj["node"]):
+			continue
+		
+		var node = obj["node"]
+		var object_type = "objects"  # Default
+		
+		# Determine object type based on node name or script
+		if node.name == "Tree" or (node.get_script() and "Tree.gd" in str(node.get_script().get_path())):
+			object_type = "objects"
+		elif node.name == "Pin":
+			object_type = "objects"
+		elif node.name == "Shop":
+			object_type = "objects"
+		elif "Player" in node.name or "GangMember" in node.name:
+			object_type = "characters"
+		
+		update_object_y_sort(node, object_type)
