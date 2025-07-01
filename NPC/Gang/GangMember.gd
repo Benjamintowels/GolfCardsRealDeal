@@ -128,6 +128,9 @@ func setup(member_type: String, pos: Vector2i, cell_size_param: int = 48) -> voi
 	# Load appropriate sprite based on type
 	_load_sprite_for_type(member_type)
 	
+	# Update Y-sorting
+	update_z_index_for_ysort()
+	
 	print("GangMember setup: ", member_type, " at ", pos)
 
 func _load_sprite_for_type(type: String) -> void:
@@ -282,7 +285,289 @@ func _move_to_position(target_pos: Vector2i) -> void:
 	# Simple movement - you could add tweening here for smooth movement
 	position = target_world_pos
 	
+	# Update Y-sorting
+	update_z_index_for_ysort()
+	
 	print("GangMember moved from ", old_pos, " to ", target_pos)
+	
+	# Check if we moved to the same tile as the player (only if we weren't already there)
+	if player and "grid_pos" in player and player.grid_pos == target_pos and old_pos != target_pos:
+		print("GangMember collided with player! Dealing damage and pushing back...")
+		var approach_direction = target_pos - old_pos
+		_handle_player_collision(approach_direction)
+
+func _handle_player_collision(approach_direction: Vector2i = Vector2i.ZERO) -> void:
+	"""Handle collision with player - deal damage and push back"""
+	if not player:
+		return
+	
+	# Play collision sound effect
+	_play_collision_sound()
+	
+	# Deal 15 damage to the player
+	if course and course.has_method("take_damage"):
+		course.take_damage(15)
+		print("Player took 15 damage from GangMember collision")
+		
+		# Flash the player red to indicate damage
+		if player and player.has_method("flash_damage"):
+			player.flash_damage()
+	
+	# Push player back to nearest available adjacent tile
+	var pushback_pos = _find_nearest_available_adjacent_tile(player.grid_pos, approach_direction)
+	print("Pushback calculation - Player at: ", player.grid_pos, ", Pushback target: ", pushback_pos)
+	if pushback_pos != player.grid_pos:
+		print("Pushing player from ", player.grid_pos, " to ", pushback_pos)
+		
+		# Temporarily disconnect the moved_to_tile signal to prevent conflicts
+		var signal_was_connected = false
+		if player and player.has_signal("moved_to_tile") and course:
+			signal_was_connected = true
+			player.moved_to_tile.disconnect(course._on_player_moved_to_tile)
+		
+		player.set_grid_position(pushback_pos)
+		print("Player grid position updated to: ", player.grid_pos)
+		print("Player world position: ", player.position)
+		
+		# Reconnect the signal if it was connected
+		if signal_was_connected:
+			player.moved_to_tile.connect(course._on_player_moved_to_tile)
+		
+		# Update the course's player_grid_pos variable first
+		if course and "player_grid_pos" in course:
+			course.player_grid_pos = pushback_pos
+			print("Course player_grid_pos updated to: ", course.player_grid_pos)
+		
+		# Update the course's player position reference
+		if course and course.has_method("update_player_position"):
+			course.update_player_position()
+		
+		# Verify the position was actually updated
+		print("Final verification - Player grid_pos: ", player.grid_pos, ", Course player_grid_pos: ", course.player_grid_pos if course else "N/A")
+		
+		# The GangMember stays in the position where the collision occurred (player's original position)
+		# No need to move the GangMember - it should occupy the tile the player was pushed from
+		print("GangMember staying in collision position: ", grid_position)
+		
+		# Update Y-sorting for the new position
+		update_z_index_for_ysort()
+	else:
+		print("No available adjacent tile found for pushback")
+
+func _move_gang_member_away_from_player() -> void:
+	"""Move the GangMember to a position away from the player to prevent immediate re-collision"""
+	var current_pos = grid_position
+	var player_pos = player.grid_pos if player else Vector2i.ZERO
+	
+	print("GangMember repositioning - Current pos: ", current_pos, ", Player pos after pushback: ", player_pos)
+	
+	# Try to find a position that's not the player's new position
+	var directions = [Vector2i(0, -1), Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, 0)]  # Up, Right, Down, Left
+	
+	for direction in directions:
+		var new_pos = current_pos + direction
+		print("Checking GangMember move to: ", new_pos, " (direction: ", direction, ")")
+		if new_pos != player_pos and _is_position_valid(new_pos):
+			print("Moving GangMember away from collision to: ", new_pos)
+			grid_position = new_pos
+			position = Vector2(new_pos.x, new_pos.y) * cell_size + Vector2(cell_size / 2, cell_size / 2)
+			return
+		else:
+			if new_pos == player_pos:
+				print("Position ", new_pos, " is occupied by player")
+			else:
+				print("Position ", new_pos, " is not valid for GangMember")
+	
+	# If no valid position found, try the opposite direction from the player
+	var away_direction = (current_pos - player_pos)
+	if away_direction.x != 0 or away_direction.y != 0:
+		# Normalize the direction
+		if away_direction.x != 0:
+			away_direction.x = 1 if away_direction.x > 0 else -1
+		if away_direction.y != 0:
+			away_direction.y = 1 if away_direction.y > 0 else -1
+		
+		var new_pos = current_pos + away_direction
+		print("Trying opposite direction: ", new_pos, " (away_direction: ", away_direction, ")")
+		if _is_position_valid(new_pos):
+			print("Moving GangMember in opposite direction to: ", new_pos)
+			grid_position = new_pos
+			position = Vector2(new_pos.x, new_pos.y) * cell_size + Vector2(cell_size / 2, cell_size / 2)
+			return
+		else:
+			print("Opposite direction position ", new_pos, " is not valid")
+	
+	print("Could not move GangMember away from collision - staying in place")
+
+func update_z_index_for_ysort() -> void:
+	"""Update the GangMember's z_index based on its position relative to other objects"""
+	if not course:
+		return
+	
+	# Get ysort_objects from the course
+	var ysort_objects = course.ysort_objects if "ysort_objects" in course else []
+	
+	var in_front_zs = []
+	var behind_zs = []
+	print("GangMember grid_pos.y:", grid_position.y)
+	
+	# Check objects from ysort_objects only
+	for obj in ysort_objects:
+		if not obj.has("grid_pos") or not obj.has("node"):
+			continue
+		var obj_grid_pos = obj["grid_pos"]
+		var obj_node = obj["node"]
+		
+		# Check if the node is still valid and not freed
+		if not obj_node or not is_instance_valid(obj_node):
+			continue
+			
+		var is_shop = obj_node.name == "Shop" or obj_node.get_class() == "Shop"
+		var x_range = 3 if is_shop else 1
+		if abs(obj_grid_pos.x - grid_position.x) > x_range:
+			continue  # Only consider objects in the same or adjacent (or wider for Shop) columns
+		
+		print("Object grid_pos.y:", obj_grid_pos.y, "Object z_index:", obj_node.z_index)
+		if grid_position.y > obj_grid_pos.y:
+			# GangMember is at least one row below: in front
+			in_front_zs.append(obj_node.z_index)
+		else:
+			# GangMember is on the same row or above: behind
+			behind_zs.append(obj_node.z_index)
+	
+	# Calculate z_index from objects only (player will handle its own layering)
+	if in_front_zs.size() > 0:
+		z_index = in_front_zs.max() + 25
+		print("GangMember z_index set to:", z_index, "(in front of objects)")
+	elif behind_zs.size() > 0:
+		z_index = 0
+		print("GangMember z_index set to 0 (behind objects)")
+	else:
+		z_index = 0
+		print("GangMember z_index set to 0 (no objects to consider)")
+	
+	print("GangMember final z_index:", z_index)
+
+func _play_collision_sound() -> void:
+	"""Play a sound effect when colliding with the player"""
+	# Try to find an audio player in the course
+	if course:
+		var audio_players = course.get_tree().get_nodes_in_group("audio_players")
+		if audio_players.size() > 0:
+			var audio_player = audio_players[0]
+			if audio_player.has_method("play"):
+				audio_player.play()
+				return
+		
+		# Try to find TrunkThunk sound specifically
+		var trunk_thunk = course.get_node_or_null("TrunkThunk")
+		if trunk_thunk and trunk_thunk is AudioStreamPlayer2D:
+			trunk_thunk.play()
+			return
+	
+	# Fallback: create a temporary audio player
+	var temp_audio = AudioStreamPlayer2D.new()
+	var sound_file = load("res://Sounds/TrunkThunk.mp3")
+	if sound_file:
+		temp_audio.stream = sound_file
+		temp_audio.volume_db = -10.0  # Slightly quieter
+		add_child(temp_audio)
+		temp_audio.play()
+		# Remove the audio player after it finishes
+		temp_audio.finished.connect(func(): temp_audio.queue_free())
+
+func _find_nearest_available_adjacent_tile(player_pos: Vector2i, approach_direction: Vector2i = Vector2i.ZERO) -> Vector2i:
+	"""Find the nearest available adjacent tile to push the player to based on GangMember's approach direction"""
+	# Use the passed approach direction
+	var gang_member_approach_direction = approach_direction
+	print("GangMember approach direction: ", gang_member_approach_direction)
+	
+	# The pushback direction is the same as the approach direction (player gets pushed in the direction GangMember came from)
+	var pushback_direction = gang_member_approach_direction
+	print("Pushback direction: ", pushback_direction)
+	
+	# Try the primary pushback direction first
+	var primary_pushback_pos = player_pos + pushback_direction
+	print("Checking primary pushback position: ", primary_pushback_pos)
+	if _is_position_valid_for_player(primary_pushback_pos):
+		print("Found valid primary pushback position: ", primary_pushback_pos)
+		return primary_pushback_pos
+	
+	# If primary direction is blocked, try perpendicular directions
+	var perpendicular_directions = _get_perpendicular_directions(pushback_direction)
+	for direction in perpendicular_directions:
+		var adjacent_pos = player_pos + direction
+		print("Checking perpendicular position: ", adjacent_pos, " (direction: ", direction, ")")
+		if _is_position_valid_for_player(adjacent_pos):
+			print("Found valid perpendicular pushback position: ", adjacent_pos)
+			return adjacent_pos
+	
+	# If perpendicular directions are blocked, try any available adjacent tile
+	var all_directions = [Vector2i(0, -1), Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, 0)]  # Up, Right, Down, Left
+	for direction in all_directions:
+		var adjacent_pos = player_pos + direction
+		print("Checking fallback position: ", adjacent_pos, " (direction: ", direction, ")")
+		if _is_position_valid_for_player(adjacent_pos):
+			print("Found valid fallback pushback position: ", adjacent_pos)
+			return adjacent_pos
+	
+	# If no valid adjacent tile found, return the original position
+	print("No valid adjacent tile found for player pushback")
+	return player_pos
+
+func _get_gang_member_approach_direction() -> Vector2i:
+	"""Get the direction the GangMember moved to reach the player"""
+	# We need to track the previous position before the collision
+	# For now, we'll calculate it based on the current movement
+	# This assumes the collision just happened and we're still in the _move_to_position function
+	
+	# The approach direction is the direction from the old position to the current position
+	# We can get this from the _move_to_position function's old_pos parameter
+	# But since we're in a different function, we'll need to pass this information
+	
+	# For now, let's use a simple approach - we'll modify the collision handling to pass this info
+	return Vector2i.ZERO  # Placeholder
+
+func _get_perpendicular_directions(direction: Vector2i) -> Array[Vector2i]:
+	"""Get the two perpendicular directions to the given direction"""
+	var perpendicular_dirs: Array[Vector2i] = []
+	
+	if direction.x != 0:  # Horizontal movement
+		perpendicular_dirs.append(Vector2i(0, -1))  # Up
+		perpendicular_dirs.append(Vector2i(0, 1))   # Down
+	elif direction.y != 0:  # Vertical movement
+		perpendicular_dirs.append(Vector2i(-1, 0))  # Left
+		perpendicular_dirs.append(Vector2i(1, 0))   # Right
+	
+	return perpendicular_dirs
+
+func _is_position_valid_for_player(pos: Vector2i) -> bool:
+	"""Check if a position is valid for the player to move to"""
+	# Basic bounds checking
+	if pos.x < 0 or pos.y < 0 or pos.x > 100 or pos.y > 100:
+		print("Position ", pos, " is out of bounds")
+		return false
+	
+	# Check if the position is occupied by an obstacle
+	if course and "obstacle_map" in course:
+		var obstacle = course.obstacle_map.get(pos)
+		if obstacle and obstacle.has_method("blocks") and obstacle.blocks():
+			print("Position ", pos, " is blocked by obstacle: ", obstacle.name)
+			return false
+	
+	# Check if the position is occupied by another GangMember
+	if course:
+		var entities = course.get_node_or_null("Entities")
+		if entities and entities.has_method("get_npcs"):
+			var npcs = entities.get_npcs()
+			for npc in npcs:
+				if npc != self and npc.has_method("get_grid_position"):
+					if npc.get_grid_position() == pos:
+						print("Position ", pos, " is occupied by NPC: ", npc.name)
+						return false
+	
+	print("Position ", pos, " is valid for player pushback")
+	return true
 
 # State Machine Class
 class StateMachine:

@@ -65,6 +65,21 @@ func force_reset_highlight():
 	else:
 		print("[Player.gd] force_reset_highlight: No character sprite to reset!")
 
+func flash_damage():
+	"""Flash the player red to indicate damage taken"""
+	var sprite = get_character_sprite()
+	if not sprite:
+		print("[Player.gd] flash_damage: No character sprite for damage flash!")
+		return
+	
+	if highlight_tween:
+		highlight_tween.kill()
+	
+	highlight_tween = create_tween()
+	# Flash red for 0.3 seconds, then return to normal
+	highlight_tween.tween_property(sprite, "modulate", Color(1, 0, 0, 1), 0.1)
+	highlight_tween.tween_property(sprite, "modulate", Color(1, 1, 1, 1), 0.2)
+
 func _input_event(viewport, event, shape_idx):
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		emit_signal("player_clicked")
@@ -113,6 +128,7 @@ func update_z_index_for_ysort(ysort_objects: Array) -> void:
 		print("Player on shop entrance - setting z_index to 1000")
 		return
 	
+	# Check objects from ysort_objects
 	for obj in ysort_objects:
 		if not obj.has("grid_pos") or not obj.has("node"):
 			continue
@@ -134,13 +150,56 @@ func update_z_index_for_ysort(ysort_objects: Array) -> void:
 		else:
 			# Player is on the same row or above: behind
 			behind_zs.append(obj_node.z_index)
+	
+	# Calculate z_index from objects first
+	var object_z_index = 0
+	if in_front_zs.size() > 0:
+		object_z_index = in_front_zs.max() + 100
+		print("Player object z_index:", object_z_index, "(in front of objects)")
+	elif behind_zs.size() > 0:
+		object_z_index = 0
+		print("Player object z_index: 0 (behind objects)")
+	else:
+		object_z_index = 0
+		print("Player object z_index: 0 (no objects)")
+	
+	# Now handle GangMembers separately
+	var final_z_index = object_z_index
+	var course = get_parent().get_parent()  # Navigate to course_1.gd
+	if course and course.has_method("get_entities_manager"):
+		var entities = course.get_node_or_null("Entities")
+		if entities and entities.has_method("get_npcs"):
+			var npcs = entities.get_npcs()
+			for npc in npcs:
+				if npc.has_method("get_grid_position"):
+					var npc_grid_pos = npc.get_grid_position()
+					var x_range = 1  # Consider GangMembers in same column only
+					if abs(npc_grid_pos.x - grid_pos.x) <= x_range:
+						print("GangMember grid_pos.y:", npc_grid_pos.y, "GangMember z_index:", npc.z_index)
+						if grid_pos.y > npc_grid_pos.y:
+							# Player is below GangMember: should be in front
+							final_z_index = max(final_z_index, npc.z_index + 100)
+							print("Player should be in front of GangMember - setting z_index to:", final_z_index)
+						else:
+							# Player is above or same row as GangMember: should be behind
+							final_z_index = min(final_z_index, npc.z_index - 25)
+							print("Player should be behind GangMember - setting z_index to:", final_z_index)
+	
+	z_index = final_z_index
+	print("Player final z_index:", z_index)
+	
+	# Calculate final z_index
 	if in_front_zs.size() > 0:
 		z_index = in_front_zs.max() + 100
+		print("Player setting z_index to:", z_index, "(in front of objects with max z:", in_front_zs.max(), ")")
 	elif behind_zs.size() > 0:
-		z_index = 0  # Always behind when above the object row
+		z_index = 0  # Always behind when above objects/GangMembers
+		print("Player setting z_index to 0 (behind objects)")
 	else:
 		z_index = 0
-	print("Player z_index after update:", z_index)
+		print("Player setting z_index to 0 (no objects to consider)")
+	
+	print("Player final z_index:", z_index)
 
 func start_movement_mode(card, movement_range_: int):
 	selected_card = card

@@ -17,7 +17,7 @@
 [ext_resource type="Script" uid="uid://1gtesn5q77m4" path="res://golfcards/build_map.gd" id="14_build_map"]
 [ext_resource type="Script" uid="uid://dks6b1bolk5lu" path="res://LaunchManager.gd" id="15_launch_manager"]
 [ext_resource type="Script" uid="uid://b278n4knxowm2" path="res://Entities.gd" id="16_entities"]
-[ext_resource type="PackedScene" path="res://HealthBar.tscn" id="17_health_bar"]
+[ext_resource type="PackedScene" uid="uid://bqx80a02w3v4u" path="res://HealthBar.tscn" id="17_health_bar"]
 
 [node name="Course1" type="Control"]
 layout_mode = 3
