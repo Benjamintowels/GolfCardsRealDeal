@@ -459,15 +459,15 @@ func _play_collision_sound() -> void:
 				audio_player.play()
 				return
 		
-		# Try to find TrunkThunk sound specifically
-		var trunk_thunk = course.get_node_or_null("TrunkThunk")
-		if trunk_thunk and trunk_thunk is AudioStreamPlayer2D:
-			trunk_thunk.play()
+		# Try to find Push sound specifically
+		var push_sound = course.get_node_or_null("Push")
+		if push_sound and push_sound is AudioStreamPlayer2D:
+			push_sound.play()
 			return
 	
 	# Fallback: create a temporary audio player
 	var temp_audio = AudioStreamPlayer2D.new()
-	var sound_file = load("res://Sounds/TrunkThunk.mp3")
+	var sound_file = load("res://Sounds/Push.mp3")
 	if sound_file:
 		temp_audio.stream = sound_file
 		temp_audio.volume_db = -10.0  # Slightly quieter
