@@ -114,13 +114,6 @@ func _on_movement_card_pressed(card: CardData, button: TextureButton) -> void:
 	if card_effect_handler and card_effect_handler.handle_card_effect(card):
 		return  # Effect was handled by the effect handler
 	
-	if card.effect_type == "ModifyNext":
-		handle_modify_next_card(card)
-		return
-	elif card.effect_type == "ModifyNextCard":
-		handle_modify_next_card_card(card)
-		return
-	
 	is_movement_mode = true
 	active_button = button
 	selected_card = card
@@ -141,46 +134,7 @@ func _on_movement_card_pressed(card: CardData, button: TextureButton) -> void:
 	emit_signal("movement_mode_entered")
 	emit_signal("card_selected", card)
 
-func handle_modify_next_card(card: CardData) -> void:
-	"""Handle cards with ModifyNext effect type"""
-	print("Handling ModifyNext card:", card.name)
-	
-	if card.name == "Sticky Shot":
-		# This would need to be handled by the main game controller
-		print("StickyShot effect applied to next shot")
-		
-		if deck_manager.hand.has(card):
-			deck_manager.discard(card)
-			card_stack_display.animate_card_discard(card.name)
-			emit_signal("card_discarded", card)
-		else:
-			print("Error: StickyShot card not found in hand")
-	
-	elif card.name == "Bouncey":
-		# This would need to be handled by the main game controller
-		print("Bouncey effect applied to next shot")
-		
-		if deck_manager.hand.has(card):
-			deck_manager.discard(card)
-			card_stack_display.animate_card_discard(card.name)
-			emit_signal("card_discarded", card)
-		else:
-			print("Error: Bouncey card not found in hand")
 
-func handle_modify_next_card_card(card: CardData) -> void:
-	"""Handle cards that modify the next card played"""
-	print("Handling ModifyNextCard card:", card.name)
-	
-	if card.name == "Dub":
-		next_card_doubled = true
-		print("Next card effect will be doubled")
-		
-		if deck_manager.hand.has(card):
-			deck_manager.discard(card)
-			card_stack_display.animate_card_discard(card.name)
-			emit_signal("card_discarded", card)
-		else:
-			print("Error: Dub card not found in hand")
 
 func calculate_valid_movement_tiles() -> void:
 	valid_movement_tiles.clear()

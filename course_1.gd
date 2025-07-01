@@ -208,12 +208,14 @@ var object_scene_map := {
 	"P": preload("res://Obstacles/Pin.tscn"),
 	"SHOP": preload("res://Shop/ShopExterior.tscn"),
 	"BLOCK": preload("res://Obstacles/InvisibleBlocker.tscn"),
+	"GANG": preload("res://NPC/Gang/GangMember.tscn"),
 }
 
 var object_to_tile_mapping := {
 	"T": "Base",
 	"P": "G",
 	"SHOP": "Base",
+	"GANG": "G",
 }
 
 # Add these variables after the existing object_scene_map and object_to_tile_mapping
@@ -465,6 +467,9 @@ func _ready() -> void:
 	update_hole_and_score_display()
 
 	show_tee_selection_instruction()
+	
+	# Register any existing GangMembers with the Entities system
+	register_existing_gang_members()
 
 	var complete_hole_btn := Button.new()
 	complete_hole_btn.name = "CompleteHoleButton"
@@ -740,35 +745,7 @@ func create_movement_buttons() -> void:
 func _on_movement_card_pressed(card: CardData, button: TextureButton) -> void:
 	movement_controller._on_movement_card_pressed(card, button)
 
-func handle_modify_next_card(card: CardData) -> void:
-	"""Handle cards with ModifyNext effect type"""
-	print("Handling ModifyNext card:", card.name)
-	
-	if card.name == "Sticky Shot":
-		sticky_shot_active = true
-		next_shot_modifier = "sticky_shot"
-		print("StickyShot effect applied to next shot")
-		
-		if deck_manager.hand.has(card):
-			deck_manager.discard(card)
-			card_stack_display.animate_card_discard(card.name)
-			update_deck_display()
-			create_movement_buttons()  # Refresh the card display
-		else:
-			print("Error: StickyShot card not found in hand")
-	
-	elif card.name == "Bouncey":
-		bouncey_shot_active = true
-		next_shot_modifier = "bouncey_shot"
-		print("Bouncey effect applied to next shot")
-		
-		if deck_manager.hand.has(card):
-			deck_manager.discard(card)
-			card_stack_display.animate_card_discard(card.name)
-			update_deck_display()
-			create_movement_buttons()  # Refresh the card display
-		else:
-			print("Error: Bouncey card not found in hand")
+
 	
 func calculate_valid_movement_tiles() -> void:
 	movement_controller.calculate_valid_movement_tiles()
@@ -1019,6 +996,51 @@ func _on_end_turn_pressed() -> void:
 			if discard_empty_sound and discard_empty_sound.stream:
 				discard_empty_sound.play()
 
+	# Start NPC turn sequence
+	start_npc_turn_sequence()
+
+func start_npc_turn_sequence() -> void:
+	"""Handle the NPC turn sequence with camera transitions and UI"""
+	print("Starting NPC turn sequence...")
+	
+	# Disable end turn button during NPC turn
+	end_turn_button.disabled = true
+	
+	# Find the nearest visible NPC
+	var nearest_npc = find_nearest_visible_npc()
+	print("Nearest NPC found: ", nearest_npc.name if nearest_npc else "None")
+	
+	if nearest_npc:
+		print("Beginning World Turn phase...")
+		
+		# Transition camera to NPC and wait for it to complete
+		await transition_camera_to_npc(nearest_npc)
+		
+		# Show "World Turn" message and wait for it to display
+		await show_turn_message("World Turn", 2.0)
+		
+		# Manually trigger the NPC's turn (not through Entities system)
+		print("Manually triggering NPC turn...")
+		nearest_npc.take_turn()
+		
+		# Wait 1 second after NPC turn to let player see the result
+		await get_tree().create_timer(1.0).timeout
+		
+		# Show "Your Turn" message
+		show_turn_message("Your Turn", 2.0)
+		
+		# Wait for message to display, then transition camera back to player
+		await get_tree().create_timer(1.0).timeout
+		await transition_camera_to_player()
+		
+		print("World Turn phase completed")
+	else:
+		print("No visible NPCs found, skipping World Turn phase")
+	
+	# Re-enable end turn button
+	end_turn_button.disabled = false
+	
+	# Continue with normal turn flow
 	if waiting_for_player_to_reach_ball and player_grid_pos == ball_landing_tile:
 		if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball) and launch_manager.golf_ball.has_method("remove_landing_highlight"):
 			launch_manager.golf_ball.remove_landing_highlight()
@@ -1028,6 +1050,114 @@ func _on_end_turn_pressed() -> void:
 		draw_cards_for_shot(3)
 		create_movement_buttons()
 		draw_cards_button.visible = false
+
+func find_nearest_visible_npc() -> Node:
+	"""Find the nearest NPC that is visible to the player"""
+	var entities = get_node_or_null("Entities")
+	if not entities:
+		print("ERROR: No Entities node found!")
+		return null
+	
+	var npcs = entities.get_npcs()
+	print("Found ", npcs.size(), " NPCs in Entities system")
+	
+	var nearest_npc = null
+	var nearest_distance = INF
+	
+	for npc in npcs:
+		if is_instance_valid(npc) and npc.has_method("get_grid_position"):
+			var npc_pos = npc.get_grid_position()
+			var distance = player_grid_pos.distance_to(npc_pos)
+			
+			print("NPC ", npc.name, " at distance ", distance, " from player")
+			
+			# Check if NPC is within vision range (12 tiles)
+			if distance <= 12 and distance < nearest_distance:
+				nearest_distance = distance
+				nearest_npc = npc
+				print("New nearest NPC: ", npc.name, " at distance ", distance)
+		else:
+			print("Invalid NPC or missing get_grid_position method: ", npc.name if npc else "None")
+	
+	print("Final nearest NPC: ", nearest_npc.name if nearest_npc else "None")
+	return nearest_npc
+
+func transition_camera_to_npc(npc: Node) -> void:
+	"""Transition camera to focus on the NPC"""
+	if not npc:
+		print("ERROR: No NPC provided for camera transition")
+		return
+	
+	var npc_pos = npc.global_position
+	print("Transitioning camera to NPC at position: ", npc_pos)
+	var tween := get_tree().create_tween()
+	tween.tween_property(camera, "position", npc_pos, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	await tween.finished
+
+func transition_camera_to_player() -> void:
+	"""Transition camera back to the player"""
+	if not player_node:
+		print("ERROR: No player node found for camera transition")
+		return
+	
+	var player_center = player_node.global_position
+	print("Transitioning camera back to player at position: ", player_center)
+	var tween := get_tree().create_tween()
+	tween.tween_property(camera, "position", player_center, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	await tween.finished
+
+func show_turn_message(message: String, duration: float) -> void:
+	"""Show a turn message for the specified duration"""
+	var message_label := Label.new()
+	message_label.name = "TurnMessageLabel"
+	message_label.text = message
+	message_label.add_theme_font_size_override("font_size", 48)
+	message_label.add_theme_color_override("font_color", Color.YELLOW)
+	message_label.add_theme_constant_override("outline_size", 4)
+	message_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	
+	# Center the message on screen
+	var viewport_size = get_viewport_rect().size
+	message_label.position = Vector2(viewport_size.x / 2 - 150, viewport_size.y / 2 - 50)
+	message_label.z_index = 1000
+	$UILayer.add_child(message_label)
+	
+	# Remove message after duration
+	var timer = get_tree().create_timer(duration)
+	await timer.timeout
+	if is_instance_valid(message_label):
+		message_label.queue_free()
+
+func register_existing_gang_members() -> void:
+	"""Register any existing GangMembers in the scene with the Entities system"""
+	var entities = get_node_or_null("Entities")
+	if not entities:
+		print("ERROR: No Entities node found for registering GangMembers!")
+		return
+	
+	# Search for GangMember nodes in the scene
+	var gang_members = []
+	_find_gang_members_recursive(self, gang_members)
+	
+	print("Found ", gang_members.size(), " existing GangMembers to register")
+	
+	# Register each GangMember
+	for gang_member in gang_members:
+		if is_instance_valid(gang_member):
+			entities.register_npc(gang_member)
+			print("Registered existing GangMember: ", gang_member.name)
+
+func _find_gang_members_recursive(node: Node, gang_members: Array) -> void:
+	"""Recursively search for GangMember nodes in the scene tree"""
+	for child in node.get_children():
+		if child.get_script() and child.get_script().resource_path.ends_with("GangMember.gd"):
+			gang_members.append(child)
+		_find_gang_members_recursive(child, gang_members)
+
+func get_player_reference() -> Node:
+	"""Get the player reference for NPCs to use"""
+	print("get_player_reference called - player_node: ", player_node.name if player_node else "None")
+	return player_node
 
 func update_deck_display() -> void:
 	var hud := get_node("UILayer/HUD")
@@ -1223,6 +1353,11 @@ func enter_launch_phase() -> void:
 func enter_aiming_phase() -> void:
 	game_phase = "aiming"
 	is_aiming_phase = true
+	
+	# Set the shot start position to where the player currently is
+	shot_start_grid_pos = player_grid_pos
+	print("Shot started from position:", shot_start_grid_pos)
+	
 	show_aiming_circle()
 	create_ghost_ball()
 	show_aiming_instruction()
@@ -1565,6 +1700,13 @@ func _on_draw_cards_pressed() -> void:
 			if card_draw_sound and card_draw_sound.stream:
 				card_draw_sound.play()
 		draw_club_cards()
+	elif game_phase == "ball_tile_choice":
+		print("Drawing club cards for shot from ball tile...")
+		if card_stack_display.has_node("CardDraw"):
+			var card_draw_sound = card_stack_display.get_node("CardDraw")
+			if card_draw_sound and card_draw_sound.stream:
+				card_draw_sound.play()
+		draw_club_cards()
 	else:
 		if card_stack_display.has_node("CardDraw"):
 			var card_draw_sound = card_stack_display.get_node("CardDraw")
@@ -1673,9 +1815,9 @@ func draw_club_cards() -> void:
 		btn.mouse_exited.connect(func(): overlay.visible = false)
 		
 		if club_card.effect_type == "ModifyNext":
-			btn.pressed.connect(func(): handle_modify_next_card(club_card))
+			btn.pressed.connect(func(): card_effect_handler.handle_modify_next_card(club_card))
 		elif club_card.effect_type == "ModifyNextCard":
-			btn.pressed.connect(func(): handle_modify_next_card_card(club_card))
+			btn.pressed.connect(func(): card_effect_handler.handle_modify_next_card_card(club_card))
 		else:
 			btn.pressed.connect(func(): _on_club_card_pressed(club_name, club_info, btn))
 		
@@ -1709,7 +1851,38 @@ func _on_player_moved_to_tile(new_grid_pos: Vector2i) -> void:
 		shop_entrance_detected = false
 	
 	update_player_position()
-	exit_movement_mode()
+	
+	# Check if player is on an active ball tile
+	if waiting_for_player_to_reach_ball and player_grid_pos == ball_landing_tile:
+		# Player is on the ball tile - show "Draw Club Cards" button
+		if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball) and launch_manager.golf_ball.has_method("remove_landing_highlight"):
+			launch_manager.golf_ball.remove_landing_highlight()
+		
+		# Show the "Draw Club Cards" button instead of automatically entering launch phase
+		show_draw_club_cards_button()
+	else:
+		# Normal movement - exit movement mode
+		exit_movement_mode()
+
+func show_draw_club_cards_button() -> void:
+	"""Show the 'Draw Club Cards' button when player is on an active ball tile"""
+	game_phase = "ball_tile_choice"
+	print("Player is on ball tile - showing 'Draw Club Cards' button")
+	
+	# Show the "Draw Club Cards" button
+	draw_cards_button.visible = true
+	draw_cards_button.text = "Draw Club Cards"
+	
+	# Exit movement mode but don't automatically enter launch phase
+	movement_controller.exit_movement_mode()
+	update_deck_display()
+	
+	# Camera follows player to ball position
+	var sprite = player_node.get_node_or_null("Sprite2D")
+	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
+	var player_center = player_node.global_position + player_size / 2
+	var tween := get_tree().create_tween()
+	tween.tween_property(camera, "position", player_center, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 
 func show_shop_entrance_dialog():
 	if shop_dialog:
@@ -2431,6 +2604,13 @@ func update_all_ysort_z_indices():
 		else:
 			node.z_index = base_z
 
+func get_layout_at_position(pos: Vector2i) -> String:
+	"""Get the tile type at a specific grid position"""
+	if pos.y >= 0 and pos.y < map_manager.level_layout.size():
+		if pos.x >= 0 and pos.x < map_manager.level_layout[pos.y].size():
+			return map_manager.level_layout[pos.y][pos.x]
+	return ""
+
 func _on_hole_in_one(score: int):
 	"""Handle hole completion when ball goes in the hole"""
 	show_hole_completion_dialog()
@@ -2499,16 +2679,7 @@ func get_movement_cards_for_inventory() -> Array[CardData]:
 func get_club_cards_for_inventory() -> Array[CardData]:
 	return bag_pile.duplicate()
 
-func handle_modify_next_card_card(card: CardData) -> void:
-	if card.name == "Dub":
-		next_card_doubled = true
-		if deck_manager.hand.has(card):
-			deck_manager.discard(card)
-			card_stack_display.animate_card_discard(card.name)
-			update_deck_display()
-			create_movement_buttons()  # Refresh the card display
-		else:
-			print("Error: Dub card not found in hand")
+
 	
 
 func fix_ui_layers() -> void:

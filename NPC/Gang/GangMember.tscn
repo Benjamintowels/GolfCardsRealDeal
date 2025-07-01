@@ -1,0 +1,16 @@
+[gd_scene load_steps=3 format=3 uid="uid://bmlicmv1hmd4j"]
+
+[ext_resource type="Script" uid="uid://b3mk6wcdiwoxy" path="res://NPC/Gang/GangMember.gd" id="1_0x0x0"]
+[ext_resource type="Texture2D" uid="uid://cdgbqbboumokx" path="res://NPC/Gang/GangMember1.png" id="2_qejoy"]
+
+[node name="GangMember" type="CharacterBody2D"]
+script = ExtResource("1_0x0x0")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+z_index = 10
+texture_filter = 1
+position = Vector2(0, -34)
+scale = Vector2(0.455, 0.455)
+texture = ExtResource("2_qejoy")
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]

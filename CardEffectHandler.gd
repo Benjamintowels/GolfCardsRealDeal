@@ -28,6 +28,12 @@ func handle_card_effect(card: CardData) -> bool:
 	if card.effect_type == "Scramble":
 		handle_scramble_effect(card)
 		return true
+	elif card.effect_type == "ModifyNext":
+		handle_modify_next_card(card)
+		return true
+	elif card.effect_type == "ModifyNextCard":
+		handle_modify_next_card_card(card)
+		return true
 	
 	return false
 
@@ -47,6 +53,86 @@ func handle_scramble_effect(card: CardData):
 		course.card_stack_display.animate_card_discard(card.name)
 		course.update_deck_display()
 		course.create_movement_buttons()
+
+func handle_modify_next_card(card: CardData):
+	"""Handle cards with ModifyNext effect type"""
+	print("CardEffectHandler: Handling ModifyNext card:", card.name)
+	
+	if card.name == "Sticky Shot":
+		course.sticky_shot_active = true
+		course.next_shot_modifier = "sticky_shot"
+		print("StickyShot effect applied to next shot")
+		
+		# Handle card discard - could be from hand or bag pile
+		if course.deck_manager.hand.has(card):
+			course.deck_manager.discard(card)
+			course.card_stack_display.animate_card_discard(card.name)
+			course.update_deck_display()
+		else:
+			# Card is from bag pile during club selection - just animate discard
+			course.card_stack_display.animate_card_discard(card.name)
+			print("StickyShot card used from bag pile")
+		
+		# Remove only the specific card button, not the entire hand
+		remove_specific_card_button(card)
+	
+	elif card.name == "Bouncey":
+		course.bouncey_shot_active = true
+		course.next_shot_modifier = "bouncey_shot"
+		print("Bouncey effect applied to next shot")
+		
+		# Handle card discard - could be from hand or bag pile
+		if course.deck_manager.hand.has(card):
+			course.deck_manager.discard(card)
+			course.card_stack_display.animate_card_discard(card.name)
+			course.update_deck_display()
+		else:
+			# Card is from bag pile during club selection - just animate discard
+			course.card_stack_display.animate_card_discard(card.name)
+			print("Bouncey card used from bag pile")
+		
+		# Remove only the specific card button, not the entire hand
+		remove_specific_card_button(card)
+
+func handle_modify_next_card_card(card: CardData):
+	"""Handle cards that modify the next card played"""
+	print("CardEffectHandler: Handling ModifyNextCard card:", card.name)
+	
+	if card.name == "Dub":
+		course.next_card_doubled = true
+		print("Next card effect will be doubled")
+		
+		# Handle card discard - could be from hand or bag pile
+		if course.deck_manager.hand.has(card):
+			course.deck_manager.discard(card)
+			course.card_stack_display.animate_card_discard(card.name)
+			course.update_deck_display()
+		else:
+			# Card is from bag pile during club selection - just animate discard
+			course.card_stack_display.animate_card_discard(card.name)
+			print("Dub card used from bag pile")
+		
+		# Remove only the specific card button, not the entire hand
+		remove_specific_card_button(card)
+
+func remove_specific_card_button(card: CardData):
+	"""Remove only the specific card button from the UI without affecting other cards"""
+	# Find the button that corresponds to this card and remove it
+	var movement_buttons_container = course.movement_buttons_container
+	if movement_buttons_container:
+		for child in movement_buttons_container.get_children():
+			if child is TextureButton and child.texture_normal == card.image:
+				# Remove from the container and free the button
+				movement_buttons_container.remove_child(child)
+				child.queue_free()
+				
+				# Also remove from the movement_buttons array if it exists
+				if course.has_method("get_movement_buttons") or "movement_buttons" in course:
+					if "movement_buttons" in course and course.movement_buttons.has(child):
+						course.movement_buttons.erase(child)
+				
+				print("Removed card button for:", card.name)
+				break
 
 func launch_scramble_balls(launch_direction: Vector2, power: float, height: float, spin: float):
 	"""Launch multiple balls for Florida Scramble"""

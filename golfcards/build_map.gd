@@ -141,10 +141,11 @@ func is_valid_position_for_object(pos: Vector2i, layout: Array) -> bool:
 			return false
 	return true
 
-func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include_shop: bool = true) -> Dictionary:
+func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include_shop: bool = true, num_gang_members: int = 1) -> Dictionary:
 	var positions = {
 		"trees": [],
-		"shop": Vector2i.ZERO
+		"shop": Vector2i.ZERO,
+		"gang_members": []
 	}
 	randomize()
 	random_seed_value = current_hole * 1000 + randi()
@@ -175,6 +176,23 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 			placed_objects.append(tree_pos)
 			trees_placed += 1
 		valid_positions.remove_at(tree_index)
+	
+	# Place GangMembers on green tiles
+	var green_positions: Array = []
+	for y in layout.size():
+		for x in layout[y].size():
+			if layout[y][x] == "G":
+				green_positions.append(Vector2i(x, y))
+	
+	var gang_members_placed = 0
+	while gang_members_placed < num_gang_members and green_positions.size() > 0:
+		var gang_index = randi() % green_positions.size()
+		var gang_pos = green_positions[gang_index]
+		positions.gang_members.append(gang_pos)
+		placed_objects.append(gang_pos)
+		gang_members_placed += 1
+		green_positions.remove_at(gang_index)
+	
 	return positions
 
 func build_map_from_layout_with_randomization(layout: Array) -> void:
@@ -186,7 +204,7 @@ func build_map_from_layout_with_randomization(layout: Array) -> void:
 	print("About to clear existing objects...")
 	clear_existing_objects()
 	build_map_from_layout_base(layout)
-	var object_positions = get_random_positions_for_objects(layout, 8, true)
+	var object_positions = get_random_positions_for_objects(layout, 8, true, 1)
 	place_objects_at_positions(object_positions, layout)
 	# position_camera_on_pin()  # This should be called from the main scene if needed
 
@@ -337,6 +355,36 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 				blocker.position = blocker_world_pos + Vector2(cell_size / 2, cell_size / 2)
 				obstacle_layer.add_child(blocker)
 				obstacle_map[right_of_shop_pos] = blocker
+	
+	# Place GangMembers
+	for gang_pos in object_positions.gang_members:
+		var scene: PackedScene = object_scene_map["GANG"]
+		if scene == null:
+			push_error("🚫 GangMember scene is null")
+			continue
+		var gang_member: Node2D = scene.instantiate() as Node2D
+		if gang_member == null:
+			push_error("❌ GangMember instantiation failed at (%d,%d)" % [gang_pos.x, gang_pos.y])
+			continue
+		var world_pos: Vector2 = Vector2(gang_pos.x, gang_pos.y) * cell_size
+		gang_member.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
+		gang_member.z_index = 15  # Higher than other objects
+		if gang_member.has_meta("grid_position") or "grid_position" in gang_member:
+			gang_member.set("grid_position", gang_pos)
+		else:
+			push_warning("⚠️ GangMember missing 'grid_position'. Type: %s" % gang_member.get_class())
+		
+		# Setup the GangMember with random type
+		var gang_types = ["default", "variant1", "variant2"]
+		var random_type = gang_types[randi() % gang_types.size()]
+		if gang_member.has_method("setup"):
+			gang_member.setup(random_type, gang_pos, cell_size)
+		
+		ysort_objects.append({"node": gang_member, "grid_pos": gang_pos})
+		obstacle_layer.add_child(gang_member)
+		print("Placed GangMember at ", gang_pos)
+	
+	print("Placed", object_positions.gang_members.size(), "gang members")
 	update_all_ysort_z_indices() 
 
 # --- Signal handlers that forward to course_1.gd ---

@@ -63,10 +63,10 @@ text = "Clark"
 
 [node name="StartRoundButton" type="Button" parent="UI"]
 texture_filter = 1
-offset_left = 702.0
-offset_top = 555.0
-offset_right = 912.0
-offset_bottom = 598.0
+offset_left = 433.0
+offset_top = 499.0
+offset_right = 643.0
+offset_bottom = 542.0
 text = "Start Round"
 
 [node name="Character2" type="Sprite2D" parent="UI"]
@@ -88,30 +88,23 @@ scale = Vector2(2.055, 1.94)
 texture = ExtResource("6_3dxm6")
 
 [node name="StartPuttPutt" type="Button" parent="UI"]
-offset_left = 512.0
-offset_top = 609.0
-offset_right = 632.0
-offset_bottom = 640.0
+offset_left = 477.0
+offset_top = 602.0
+offset_right = 597.0
+offset_bottom = 633.0
 text = "Start Putt Putt"
 
 [node name="StartBack9" type="Button" parent="UI"]
-offset_left = 314.0
-offset_top = 553.0
-offset_right = 435.0
-offset_bottom = 594.0
+offset_left = 476.0
+offset_top = 551.0
+offset_right = 597.0
+offset_bottom = 592.0
 text = "Start Back 9"
 
 [node name="ModShotRoom" type="Button" parent="UI"]
 offset_right = 8.0
 offset_bottom = 8.0
 text = "ModShotRoom"
-
-[node name="RealCourse" type="Button" parent="UI"]
-offset_left = 496.0
-offset_top = 542.0
-offset_right = 646.0
-offset_bottom = 595.0
-text = "Real Course"
 
 [node name="TextureRect2" type="TextureRect" parent="."]
 visible = false

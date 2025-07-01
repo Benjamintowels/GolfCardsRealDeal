@@ -1,6 +1,4 @@
-[gd_scene load_steps=2 format=3 uid="uid://dvj3eue3puh87"]
-
-[ext_resource type="Texture2D" path="res://Obstacles/Treeline2.png" id="1_de2oj"]
+[gd_scene format=3 uid="uid://dvj3eue3puh87"]
 
 [node name="TreeLine2" type="Node2D"]
 
@@ -8,4 +6,3 @@
 offset_top = -135.885
 offset_right = 600.0
 offset_bottom = 1.11501
-texture = ExtResource("1_de2oj")
