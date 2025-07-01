@@ -21,11 +21,15 @@ extends Control
 @onready var bag: Control = $UILayer/Bag
 @onready var inventory_dialog: Control = $UILayer/InventoryDialog
 @onready var launch_manager = $LaunchManager
+@onready var health_bar: HealthBar = $UILayer/HealthBar
+@onready var damage_button: Button = $UILayer/HealthTestButtons/DamageButton
+@onready var heal_button: Button = $UILayer/HealthTestButtons/HealButton
 
 # Movement controller
 const MovementController := preload("res://MovementController.gd")
 var movement_controller: MovementController
 const GolfCourseLayout := preload("res://Maps/GolfCourseLayout.gd")
+const HealthBar := preload("res://HealthBar.gd")
 
 var is_placing_player := true
 
@@ -360,6 +364,12 @@ func _ready() -> void:
 	display_selected_character()
 	if end_round_button:
 		end_round_button.pressed.connect(_on_end_round_pressed)
+	
+	# Connect health test buttons
+	if damage_button:
+		damage_button.pressed.connect(_on_damage_button_pressed)
+	if heal_button:
+		heal_button.pressed.connect(_on_heal_button_pressed)
 
 	create_grid()
 	create_player()
@@ -635,6 +645,14 @@ func _draw_tile(drawer: Control, x: int, y: int) -> void:
 
 func create_player() -> void:
 	player_stats = Global.CHARACTER_STATS.get(Global.selected_character, {})
+	
+	# Initialize health bar with character stats
+	if health_bar:
+		var max_hp = player_stats.get("max_hp", 100)
+		var current_hp = player_stats.get("current_hp", max_hp)
+		health_bar.set_health(current_hp, max_hp)
+		print("Health bar initialized: %d/%d HP" % [current_hp, max_hp])
+	
 	if player_node and is_instance_valid(player_node):
 		player_node.position = Vector2(player_grid_pos.x, player_grid_pos.y) * cell_size + Vector2(2, 2)
 		player_node.set_grid_position(player_grid_pos)
@@ -696,6 +714,45 @@ func update_player_stats_from_equipment() -> void:
 		var base_mobility = player_stats.get("base_mobility", 0)
 		player_node.setup(grid_size, cell_size, base_mobility, obstacle_map)
 		print("Updated player stats with equipment buffs:", player_stats)
+
+func take_damage(amount: int) -> void:
+	"""Player takes damage and updates health bar"""
+	if health_bar:
+		health_bar.take_damage(amount)
+		# Update Global stats
+		Global.CHARACTER_STATS[Global.selected_character]["current_hp"] = health_bar.current_hp
+		print("Player took %d damage. Current HP: %d" % [amount, health_bar.current_hp])
+		
+		# Check if player is defeated
+		if not health_bar.is_alive():
+			print("Player is defeated!")
+			# You can add game over logic here
+
+func heal_player(amount: int) -> void:
+	"""Player heals and updates health bar"""
+	if health_bar:
+		health_bar.heal(amount)
+		# Update Global stats
+		Global.CHARACTER_STATS[Global.selected_character]["current_hp"] = health_bar.current_hp
+		print("Player healed %d HP. Current HP: %d" % [amount, health_bar.current_hp])
+
+func get_player_health() -> Dictionary:
+	"""Get current player health info"""
+	if health_bar:
+		return {
+			"current_hp": health_bar.current_hp,
+			"max_hp": health_bar.max_hp,
+			"is_alive": health_bar.is_alive()
+		}
+	return {"current_hp": 0, "max_hp": 0, "is_alive": false}
+
+func _on_damage_button_pressed() -> void:
+	"""Handle damage button press"""
+	take_damage(20)
+
+func _on_heal_button_pressed() -> void:
+	"""Handle heal button press"""
+	heal_player(20)
 
 func _on_player_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
@@ -809,6 +866,9 @@ func start_round_after_tee_selection() -> void:
 	for y in grid_size.y:
 		for x in grid_size.x:
 			grid_tiles[y][x].get_node("Highlight").visible = false
+	
+	# Reset character health for new round
+	Global.reset_character_health()
 	
 	player_stats = Global.CHARACTER_STATS.get(Global.selected_character, {})
 	

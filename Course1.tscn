@@ -1,4 +1,4 @@
-[gd_scene load_steps=18 format=3 uid="uid://dlq5ygh2wv33m"]
+[gd_scene load_steps=19 format=3 uid="uid://dlq5ygh2wv33m"]
 
 [ext_resource type="Script" uid="uid://d4hrfk75nrm45" path="res://course_1.gd" id="1_pe8tc"]
 [ext_resource type="Texture2D" uid="uid://cpe67sk2vh8me" path="res://EDGE.png" id="2_eymfu"]
@@ -17,6 +17,7 @@
 [ext_resource type="Script" uid="uid://1gtesn5q77m4" path="res://golfcards/build_map.gd" id="14_build_map"]
 [ext_resource type="Script" uid="uid://dks6b1bolk5lu" path="res://LaunchManager.gd" id="15_launch_manager"]
 [ext_resource type="Script" uid="uid://b278n4knxowm2" path="res://Entities.gd" id="16_entities"]
+[ext_resource type="PackedScene" path="res://HealthBar.tscn" id="17_health_bar"]
 
 [node name="Course1" type="Control"]
 layout_mode = 3
@@ -180,6 +181,28 @@ offset_left = 53.0
 offset_top = 90.0
 offset_right = 113.0
 offset_bottom = 150.0
+
+[node name="HealthBar" parent="UILayer" instance=ExtResource("17_health_bar")]
+z_index = 10
+offset_left = 11.615
+offset_top = 415.53
+offset_right = 211.615
+offset_bottom = 455.53
+
+[node name="HealthTestButtons" type="VBoxContainer" parent="UILayer"]
+z_index = 10
+offset_left = 20.07
+offset_top = 275.005
+offset_right = 220.07
+offset_bottom = 345.005
+
+[node name="DamageButton" type="Button" parent="UILayer/HealthTestButtons"]
+layout_mode = 2
+text = "Take 20 Damage"
+
+[node name="HealButton" type="Button" parent="UILayer/HealthTestButtons"]
+layout_mode = 2
+text = "Heal 20 HP"
 
 [node name="InventoryDialog" parent="UILayer" instance=ExtResource("13_inventory")]
 visible = false

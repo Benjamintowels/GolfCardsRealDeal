@@ -8,9 +8,9 @@ var final_18_hole_score = 0  # Final score for 18-hole game
 var front_9_score = 0  # Score from front 9 holes
 
 var CHARACTER_STATS = {
-	1: { "name": "Layla", "base_mobility": 3, "strength": -1, "card_draw": -1 },
-	2: { "name": "Benny", "base_mobility": 2, "strength": 0, "card_draw": 0 },
-	3: { "name": "Clark", "base_mobility": 1, "strength": 2, "card_draw": 1 }
+	1: { "name": "Layla", "base_mobility": 3, "strength": -1, "card_draw": -1, "max_hp": 125, "current_hp": 125 },
+	2: { "name": "Benny", "base_mobility": 2, "strength": 0, "card_draw": 0, "max_hp": 150, "current_hp": 150 },
+	3: { "name": "Clark", "base_mobility": 1, "strength": 2, "card_draw": 1, "max_hp": 200, "current_hp": 200 }
 }
 
 # Equipment inventory and buffs
@@ -83,3 +83,21 @@ func get_equipment_buff(stat_type: String) -> int:
 		if equipment.buff_type == stat_type:
 			total_buff += equipment.buff_value
 	return total_buff
+
+func reset_character_health() -> void:
+	"""Reset character health to maximum for new round"""
+	if CHARACTER_STATS.has(selected_character):
+		var max_hp = CHARACTER_STATS[selected_character].get("max_hp", 100)
+		CHARACTER_STATS[selected_character]["current_hp"] = max_hp
+		print("Reset health for character %d to %d HP" % [selected_character, max_hp])
+
+func get_character_health() -> Dictionary:
+	"""Get current character health info"""
+	if CHARACTER_STATS.has(selected_character):
+		var stats = CHARACTER_STATS[selected_character]
+		return {
+			"current_hp": stats.get("current_hp", 100),
+			"max_hp": stats.get("max_hp", 100),
+			"is_alive": stats.get("current_hp", 100) > 0
+		}
+	return {"current_hp": 0, "max_hp": 0, "is_alive": false}
