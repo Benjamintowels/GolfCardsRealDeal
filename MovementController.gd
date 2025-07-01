@@ -30,7 +30,6 @@ var deck_manager: DeckManager
 
 # Card effect handling
 var card_effect_handler: Node
-var next_card_doubled := false
 
 # Signals
 signal movement_mode_entered
@@ -120,7 +119,8 @@ func _on_movement_card_pressed(card: CardData, button: TextureButton) -> void:
 	selected_card_label = card.name
 	movement_range = card.effect_strength
 
-	if next_card_doubled:
+	# Check if the next card should be doubled by checking the course's next_card_doubled variable
+	if card_effect_handler and card_effect_handler.course and card_effect_handler.course.next_card_doubled:
 		movement_range *= 2
 		print("Card effect doubled! New range:", movement_range)
 
@@ -133,8 +133,6 @@ func _on_movement_card_pressed(card: CardData, button: TextureButton) -> void:
 	
 	emit_signal("movement_mode_entered")
 	emit_signal("card_selected", card)
-
-
 
 func calculate_valid_movement_tiles() -> void:
 	valid_movement_tiles.clear()
@@ -181,8 +179,10 @@ func exit_movement_mode() -> void:
 				deck_manager.discard(selected_card)
 				card_discarded = true
 				
-				if next_card_doubled:
-					next_card_doubled = false
+				# Reset the course's next_card_doubled variable when the card is used
+				if card_effect_handler and card_effect_handler.course and card_effect_handler.course.next_card_doubled:
+					card_effect_handler.course.next_card_doubled = false
+					print("Next card doubled effect consumed")
 			else:
 				print("Card not in hand:", selected_card.name)
 
