@@ -15,9 +15,9 @@ var is_charging_height := false
 const MAX_LAUNCH_POWER := 1200.0
 const MIN_LAUNCH_POWER := 300.0
 const POWER_CHARGE_RATE := 300.0 # units per second
-const MAX_LAUNCH_HEIGHT := 8000.0  # Increased for better arc
-const MIN_LAUNCH_HEIGHT := 1000.0  # Increased minimum height
-const HEIGHT_CHARGE_RATE := 2000.0 # Increased charge rate for faster height charging
+const MAX_LAUNCH_HEIGHT := 2000.0  # Increased for better arc
+const MIN_LAUNCH_HEIGHT := 500.0  # Increased minimum height
+const HEIGHT_CHARGE_RATE := 1000.0 # Increased charge rate for faster height charging
 const HEIGHT_SWEET_SPOT_MIN := 0.3 # 30% of max height - lower sweet spot for better arc
 const HEIGHT_SWEET_SPOT_MAX := 0.5 # 50% of max height - narrower sweet spot
 
@@ -506,7 +506,7 @@ func handle_input(event: InputEvent) -> bool:
 					return true
 				elif is_charging_height:
 					is_charging_height = false
-					launch_height = MIN_LAUNCH_HEIGHT
+					# Don't reset launch_height here - keep the charged value
 					launch_golf_ball(launch_direction, 0.0, launch_height)
 					hide_power_meter()
 					hide_height_meter()
