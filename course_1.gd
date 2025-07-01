@@ -20,6 +20,7 @@ extends Control
 @onready var mod_shot_room_button: Button
 @onready var bag: Control = $UILayer/Bag
 @onready var inventory_dialog: Control = $UILayer/InventoryDialog
+@onready var launch_manager = $LaunchManager
 
 # Movement controller
 const MovementController := preload("res://MovementController.gd")
@@ -83,22 +84,7 @@ var next_card_doubled := false  # Track if the next card should have its effect 
 var round_scores := []  # Array to store scores for each hole
 var round_complete := false  # Flag to track if front 9 is complete
 
-var golf_ball: Node2D = null
-var power_meter: Control = null
-var height_meter: Control = null
-var launch_power := 0.0
-var launch_height := 0.0
-var launch_direction := Vector2.ZERO
-var is_charging := false
-var is_charging_height := false
-const MAX_LAUNCH_POWER := 1200.0
-const MIN_LAUNCH_POWER := 300.0
-const POWER_CHARGE_RATE := 300.0 # units per second (reduced from 900.0)
-const MAX_LAUNCH_HEIGHT := 2000.0
-const MIN_LAUNCH_HEIGHT := 400.0
-const HEIGHT_CHARGE_RATE := 600.0 # units per second
-const HEIGHT_SWEET_SPOT_MIN := 0.4 # 40% of max height
-const HEIGHT_SWEET_SPOT_MAX := 0.6 # 60% of max height
+
 
 # Camera following variables
 var camera_following_ball := false
@@ -124,12 +110,7 @@ var chosen_landing_spot: Vector2 = Vector2.ZERO
 var max_shot_distance: float = 800.0  # Reduced from 2000.0 to something more on-screen
 var is_aiming_phase: bool = false
 
-# Add at the top with other variables
-var original_aim_mouse_pos: Vector2 = Vector2.ZERO
-var launch_spin: float = 0.0
-var current_charge_mouse_pos: Vector2 = Vector2.ZERO
-var spin_indicator: Line2D = null
-var is_putting: bool = false  # Flag for putter-only rolling mechanics
+
 
 # Club selection variables
 var selected_club: String = ""
@@ -194,9 +175,7 @@ var bag_pile: Array[CardData] = [
 	preload("res://Cards/PitchingWedge.tres")
 ]
 
-# --- 1. Add these variables at the top (after var launch_power, etc.) ---
-var power_for_target := 0.0
-var max_power_for_bar := 0.0
+
 
 # Add these variables at the top (after var launch_power, etc.)
 var charge_time := 0.0  # Time spent charging (in seconds)
@@ -319,62 +298,14 @@ func _get_tee_area_center() -> Vector2:
 	return center_world_pos
 
 func _process(delta):
-	if is_charging and game_phase == "launch":
-		max_charge_time = 3.0  # Default for close shots
-		if chosen_landing_spot != Vector2.ZERO:
-			var sprite = player_node.get_node_or_null("Sprite2D")
-			var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
-			var player_center = player_node.global_position + player_size / 2
-			var distance_to_target = player_center.distance_to(chosen_landing_spot)
-			var distance_factor = distance_to_target / max_shot_distance
-			max_charge_time = 3.0 - (distance_factor * 2.0)  # 3.0 to 1.0 seconds
-			max_charge_time = clamp(max_charge_time, 1.0, 3.0)
-		
-		charge_time = min(charge_time + delta, max_charge_time)
-		
-		if power_meter:
-			var meter_fill = power_meter.get_node_or_null("MeterFill")
-			var value_label = power_meter.get_node_or_null("PowerValue")
-			var time_percent = charge_time / max_charge_time
-			time_percent = clamp(time_percent, 0.0, 1.0)
-			
-			if meter_fill:
-				meter_fill.size.x = 300 * time_percent
-				if time_percent >= 0.65 and time_percent <= 0.75:
-					meter_fill.color = Color(0, 1, 0, 0.8)
-					if player_node and player_node.has_method("show_highlight"):
-						player_node.show_highlight()
-				else:
-					meter_fill.color = Color(1, 0.8, 0.2, 0.8)
-					if player_node and player_node.has_method("hide_highlight"):
-						player_node.hide_highlight()
-			if value_label:
-				value_label.text = str(int(time_percent * 100)) + "%"
+	# Update LaunchManager
+	launch_manager.chosen_landing_spot = chosen_landing_spot
+	launch_manager.selected_club = selected_club
+	launch_manager.club_data = club_data
+	launch_manager.player_stats = player_stats
 	
-	if is_charging_height and game_phase == "launch":
-		launch_height = min(launch_height + HEIGHT_CHARGE_RATE * delta, MAX_LAUNCH_HEIGHT)
-		if height_meter:
-			var meter_fill = height_meter.get_node_or_null("MeterFill")
-			var value_label = height_meter.get_node_or_null("HeightValue")
-			if meter_fill:
-				var height_percentage = (launch_height - MIN_LAUNCH_HEIGHT) / (MAX_LAUNCH_HEIGHT - MIN_LAUNCH_HEIGHT)
-				meter_fill.size.y = 300 * height_percentage
-				meter_fill.position.y = 330 - meter_fill.size.y  # Start from bottom
-			if value_label:
-				value_label.text = str(int(launch_height))
-			
-			var height_percentage = (launch_height - MIN_LAUNCH_HEIGHT) / (MAX_LAUNCH_HEIGHT - MIN_LAUNCH_HEIGHT)
-			if meter_fill:
-				if height_percentage >= HEIGHT_SWEET_SPOT_MIN and height_percentage <= HEIGHT_SWEET_SPOT_MAX:
-					meter_fill.color = Color(0, 1, 0, 0.8)  # Green for sweet spot
-				else:
-					meter_fill.color = Color(1, 0.8, 0.2, 0.8)  # Yellow for other areas
-	
-	if game_phase == "launch" and (is_charging or is_charging_height):
-		current_charge_mouse_pos = get_global_mouse_position()
-	
-	if camera_following_ball and golf_ball and is_instance_valid(golf_ball):
-		var ball_center = golf_ball.global_position
+	if camera_following_ball and launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball):
+		var ball_center = launch_manager.golf_ball.global_position
 		var tween := get_tree().create_tween()
 		tween.tween_property(camera, "position", ball_center, 0.1).set_trans(Tween.TRANS_LINEAR)
 	
@@ -385,11 +316,6 @@ func _process(delta):
 	
 	if is_aiming_phase and aiming_circle:
 		update_aiming_circle()
-	
-	if game_phase == "launch" and not is_charging and not is_charging_height and spin_indicator and spin_indicator.visible:
-		update_spin_indicator()
-	if (is_charging or is_charging_height) and spin_indicator and spin_indicator.visible:
-		spin_indicator.visible = false
 
 func _ready() -> void:
 	add_to_group("course")
@@ -435,7 +361,18 @@ func _ready() -> void:
 
 	create_grid()
 	create_player()
-
+	launch_manager.set("camera_container", camera_container)
+	launch_manager.ui_layer = $UILayer
+	launch_manager.player_node = player_node
+	launch_manager.cell_size = cell_size
+	launch_manager.camera = camera
+	launch_manager.card_effect_handler = card_effect_handler
+	
+	# Connect signals
+	launch_manager.ball_launched.connect(_on_ball_launched)
+	launch_manager.launch_phase_entered.connect(_on_launch_phase_entered)
+	launch_manager.launch_phase_exited.connect(_on_launch_phase_exited)	
+	
 	if obstacle_layer.get_parent():
 		obstacle_layer.get_parent().remove_child(obstacle_layer)
 	camera_container.add_child(obstacle_layer)
@@ -554,58 +491,10 @@ func _input(event: InputEvent) -> void:
 				hide_aiming_instruction()
 				game_phase = "move"  # Return to move phase
 	elif game_phase == "launch":
-		if event is InputEventMouseButton:
-			if event.button_index == MOUSE_BUTTON_LEFT:
-				if event.pressed and not is_charging and not is_charging_height:
-					is_charging = true
-					charge_time = 0.0  # Reset charge time
-					
-					if player_node and player_node.has_method("force_reset_highlight"):
-						print("Force resetting highlight state for new charge")
-						player_node.force_reset_highlight()
-					
-					var input_start_sprite = player_node.get_node_or_null("Sprite2D")
-					var input_start_player_size = input_start_sprite.texture.get_size() * input_start_sprite.scale if input_start_sprite and input_start_sprite.texture else Vector2(cell_size, cell_size)
-					var input_start_player_center = player_node.global_position + input_start_player_size / 2
-					launch_direction = (chosen_landing_spot - input_start_player_center).normalized()
-				elif not event.pressed and is_charging:
-					is_charging = false
-					
-					if player_node and player_node.has_method("hide_highlight"):
-						player_node.hide_highlight()
-						
-					if is_putting:
-						print("Putter: Skipping height charge, launching directly")
-						launch_golf_ball(launch_direction, 0.0, launch_height)  # Pass 0.0 since we calculate power from charge_time
-						hide_power_meter()
-						game_phase = "ball_flying"
-					else:
-						is_charging_height = true
-						launch_height = MIN_LAUNCH_HEIGHT
-				elif not event.pressed and is_charging_height:
-					is_charging_height = false
-					launch_golf_ball(launch_direction, 0.0, launch_height)  # Pass 0.0 since we calculate power from charge_time
-					hide_power_meter()
-					hide_height_meter()
-					game_phase = "ball_flying"
-			elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
-				if is_charging or is_charging_height:
-					is_charging = false
-					is_charging_height = false
-					charge_time = 0.0  # Reset charge time
-					
-					if player_node and player_node.has_method("hide_highlight"):
-						player_node.hide_highlight()
-					
-					hide_power_meter()
-					if not is_putting:
-						hide_height_meter()
-		elif event is InputEventMouseMotion and (is_charging or is_charging_height):
-			# Update direction while charging (but keep the same landing spot)
-			var input_motion_sprite = player_node.get_node_or_null("Sprite2D")
-			var input_motion_player_size = input_motion_sprite.texture.get_size() * input_motion_sprite.scale if input_motion_sprite and input_motion_sprite.texture else Vector2(cell_size, cell_size)
-			var input_motion_player_center = player_node.global_position + input_motion_player_size / 2
-			launch_direction = (chosen_landing_spot - input_motion_player_center).normalized()
+		# Handle launch input through LaunchManager
+		print("[DEBUG] In launch phase, handling input through LaunchManager")
+		if launch_manager.handle_input(event):
+			return
 	elif game_phase == "ball_flying":
 		if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_MIDDLE:
 			is_panning = event.pressed
@@ -621,7 +510,7 @@ func _input(event: InputEvent) -> void:
 		return  # Don't process other input during ball flight
 
 	if event is InputEventMouseButton and event.pressed:
-		var mouse_pos = get_global_mouse_position()
+		var mouse_pos = get_viewport().get_mouse_position()
 		var node = get_viewport().gui_get_hovered_control()
 
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_MIDDLE:
@@ -664,7 +553,7 @@ func get_flashlight_center() -> Vector2:
 	var sprite = player_node.get_node_or_null("Sprite2D")
 	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
 	var player_center = player_node.global_position + player_size / 2
-	var mouse_pos: Vector2 = get_global_mouse_position()
+	var mouse_pos: Vector2 = get_viewport().get_mouse_position()
 	var dir: Vector2 = mouse_pos - player_center
 	var dist: float = dir.length()
 	if dist > flashlight_radius:
@@ -957,210 +846,16 @@ func start_round_after_tee_selection() -> void:
 	print("Round started! Player at position:", player_grid_pos)
 
 func show_power_meter():
-	if power_meter:
-		power_meter.queue_free()
-	
-	power_for_target = MIN_LAUNCH_POWER  # Default if no target
-	max_power_for_bar = MAX_LAUNCH_POWER  # Default
-
-	if chosen_landing_spot != Vector2.ZERO:
-		var sprite = player_node.get_node_or_null("Sprite2D")
-		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
-		var player_center = player_node.global_position + player_size / 2
-		var distance_to_target = player_center.distance_to(chosen_landing_spot)
-		# Use your existing logic for physics compensation
-		var ball_physics_factor = 0.8  # Reduced from 1.8 to 0.8
-		var base_power_per_distance = 0.6  # Reduced from 1.2 to 0.6
-		var required_power = distance_to_target * base_power_per_distance * ball_physics_factor
-		power_for_target = max(required_power, 0.0)
-		# 100% = target + 25% of club's max power
-		var club_max = club_data[selected_club]["max_distance"] if selected_club in club_data else MAX_LAUNCH_POWER
-		max_power_for_bar = power_for_target + 0.25 * club_max
-		print("=== POWER BAR MAPPING DEBUG ===")
-		print("Distance to target:", distance_to_target)
-		print("Power for target (75%):", power_for_target)
-		print("Club max:", club_max)
-		print("Max power for bar (100%):", max_power_for_bar)
-		print("=== END POWER BAR MAPPING DEBUG ===")
-	
-	power_meter = Control.new()
-	power_meter.name = "PowerMeter"
-	power_meter.size = Vector2(350, 80)
-	power_meter.position = Vector2(50, get_viewport_rect().size.y - 120)
-	$UILayer.add_child(power_meter)
-	power_meter.z_index = 200
-	
-	var background := ColorRect.new()
-	background.color = Color(0.1, 0.1, 0.1, 0.8)
-	background.size = power_meter.size
-	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	power_meter.add_child(background)
-	
-	var border := ColorRect.new()
-	border.color = Color(0.8, 0.8, 0.8, 0.6)
-	border.size = Vector2(power_meter.size.x + 4, power_meter.size.y + 4)
-	border.position = Vector2(-2, -2)
-	border.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	power_meter.add_child(border)
-	border.z_index = -1
-	
-	var title_label := Label.new()
-	title_label.text = "CHARGE TIME (0-100%)"
-	title_label.add_theme_font_size_override("font_size", 16)
-	title_label.add_theme_color_override("font_color", Color.WHITE)
-	title_label.add_theme_constant_override("outline_size", 1)
-	title_label.add_theme_color_override("font_outline_color", Color.BLACK)
-	title_label.position = Vector2(10, 5)
-	title_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	power_meter.add_child(title_label)
-	
-	var meter_bg := ColorRect.new()
-	meter_bg.color = Color(0.2, 0.2, 0.2, 0.9)
-	meter_bg.size = Vector2(300, 20)
-	meter_bg.position = Vector2(10, 30)
-	meter_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	power_meter.add_child(meter_bg)
-	
-	var sweet_spot := ColorRect.new()
-	sweet_spot.name = "SweetSpot"
-	sweet_spot.color = Color(0, 0.8, 0, 0.3)  # Green with transparency
-	sweet_spot.size = Vector2(30, 20)  # 10% of 300 (65-75% = 10% range)
-	sweet_spot.position = Vector2(195, 30)  # 65% of 300 = 195
-	sweet_spot.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	power_meter.add_child(sweet_spot)
-	
-	var meter_fill := ColorRect.new()
-	meter_fill.name = "MeterFill"
-	meter_fill.color = Color(1, 0.8, 0.2, 0.8)
-	meter_fill.size = Vector2(0, 20)  # Start at 0 width
-	meter_fill.position = Vector2(10, 30)
-	meter_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	power_meter.add_child(meter_fill)
-	
-	var value_label := Label.new()
-	value_label.name = "PowerValue"
-	value_label.text = "0%"  # Start at 0%
-	value_label.add_theme_font_size_override("font_size", 14)
-	value_label.add_theme_color_override("font_color", Color.WHITE)
-	value_label.add_theme_constant_override("outline_size", 1)
-	value_label.add_theme_color_override("font_outline_color", Color.BLACK)
-	value_label.position = Vector2(320, 30)
-	value_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	power_meter.add_child(value_label)
-	
-	var min_label := Label.new()
-	min_label.text = "0%"
-	min_label.add_theme_font_size_override("font_size", 10)
-	min_label.add_theme_color_override("font_color", Color.LIGHT_GRAY)
-	min_label.position = Vector2(10, 55)
-	min_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	power_meter.add_child(min_label)
-	
-	var max_label := Label.new()
-	max_label.text = "100%"
-	max_label.add_theme_font_size_override("font_size", 10)
-	max_label.add_theme_color_override("font_color", Color.LIGHT_GRAY)
-	max_label.position = Vector2(280, 55)
-	max_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	power_meter.add_child(max_label)
-	
-	power_meter.set_meta("max_power_for_bar", max_power_for_bar)
-	power_meter.set_meta("power_for_target", power_for_target)
+	launch_manager.show_power_meter()
 
 func hide_power_meter():
-	if power_meter:
-		power_meter.queue_free()
-		power_meter = null
+	launch_manager.hide_power_meter()
 
 func show_height_meter():
-	if height_meter:
-		height_meter.queue_free()
-	
-	height_meter = Control.new()
-	height_meter.name = "HeightMeter"
-	height_meter.size = Vector2(80, 350)
-	height_meter.position = Vector2(get_viewport_rect().size.x - 130, get_viewport_rect().size.y - 400)
-	$UILayer.add_child(height_meter)
-	height_meter.z_index = 200
-	
-	var background := ColorRect.new()
-	background.color = Color(0.1, 0.1, 0.1, 0.8)
-	background.size = height_meter.size
-	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	height_meter.add_child(background)
-	
-	var border := ColorRect.new()
-	border.color = Color(0.8, 0.8, 0.8, 0.6)
-	border.size = Vector2(height_meter.size.x + 4, height_meter.size.y + 4)
-	border.position = Vector2(-2, -2)
-	border.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	height_meter.add_child(border)
-	border.z_index = -1
-	
-	var title_label := Label.new()
-	title_label.text = "HEIGHT"
-	title_label.add_theme_font_size_override("font_size", 16)
-	title_label.add_theme_color_override("font_color", Color.WHITE)
-	title_label.add_theme_constant_override("outline_size", 1)
-	title_label.add_theme_color_override("font_outline_color", Color.BLACK)
-	title_label.position = Vector2(5, 5)
-	title_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	height_meter.add_child(title_label)
-	
-	var meter_bg := ColorRect.new()
-	meter_bg.color = Color(0.2, 0.2, 0.2, 0.9)
-	meter_bg.size = Vector2(20, 300)
-	meter_bg.position = Vector2(30, 30)
-	meter_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	height_meter.add_child(meter_bg)
-	
-	var sweet_spot := ColorRect.new()
-	sweet_spot.name = "SweetSpot"
-	sweet_spot.color = Color(0, 0.8, 0, 0.3)
-	sweet_spot.size = Vector2(20, 60)  # 20% of 300
-	sweet_spot.position = Vector2(30, 120)  # Center of the meter
-	sweet_spot.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	height_meter.add_child(sweet_spot)
-	
-	var meter_fill := ColorRect.new()
-	meter_fill.name = "MeterFill"
-	meter_fill.color = Color(1, 0.8, 0.2, 0.8)
-	meter_fill.size = Vector2(20, 100)
-	meter_fill.position = Vector2(30, 230)  # Start from bottom
-	meter_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	height_meter.add_child(meter_fill)
-	
-	var value_label := Label.new()
-	value_label.name = "HeightValue"
-	value_label.text = "400"
-	value_label.add_theme_font_size_override("font_size", 14)
-	value_label.add_theme_color_override("font_color", Color.WHITE)
-	value_label.add_theme_constant_override("outline_size", 1)
-	value_label.add_theme_color_override("font_outline_color", Color.BLACK)
-	value_label.position = Vector2(55, 30)
-	value_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	height_meter.add_child(value_label)
-	
-	var max_label := Label.new()
-	max_label.text = "MAX"
-	max_label.add_theme_font_size_override("font_size", 10)
-	max_label.add_theme_color_override("font_color", Color.LIGHT_GRAY)
-	max_label.position = Vector2(55, 30)
-	max_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	height_meter.add_child(max_label)
-	
-	var min_label := Label.new()
-	min_label.text = "MIN"
-	min_label.add_theme_font_size_override("font_size", 10)
-	min_label.add_theme_color_override("font_color", Color.LIGHT_GRAY)
-	min_label.position = Vector2(55, 320)
-	min_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	height_meter.add_child(min_label)
+	launch_manager.show_height_meter()
 
 func hide_height_meter():
-	if height_meter:
-		height_meter.queue_free()
-		height_meter = null
+	launch_manager.hide_height_meter()
 
 func show_aiming_circle():
 	if aiming_circle:
@@ -1219,7 +914,7 @@ func update_aiming_circle():
 	var sprite = player_node.get_node_or_null("Sprite2D")
 	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
 	var player_center = player_node.global_position + player_size / 2
-	var mouse_pos = get_global_mouse_position()
+	var mouse_pos = camera.get_global_mouse_position()
 	var direction = (mouse_pos - player_center).normalized()
 	var distance = player_center.distance_to(mouse_pos)
 	
@@ -1253,226 +948,35 @@ func update_aiming_circle():
 		distance_label.text = str(int(clamped_distance)) + "px"
 
 func launch_golf_ball(direction: Vector2, charged_power: float, height: float):
-	# Check if scramble effect is active
-	if card_effect_handler and card_effect_handler.is_scramble_active():
-		# Clear any existing golf ball before launching scramble balls
-		if golf_ball and is_instance_valid(golf_ball):
-			golf_ball.queue_free()
-			golf_ball = null
-		
-		# Calculate final power for scramble balls
-		var time_percent = charge_time / max_charge_time
-		time_percent = clamp(time_percent, 0.0, 1.0)
-		var actual_power = 0.0
-		
-		if chosen_landing_spot != Vector2.ZERO:
-			var player_sprite = player_node.get_node_or_null("Sprite2D")
-			var player_size = player_sprite.texture.get_size() * player_sprite.scale if player_sprite and player_sprite.texture else Vector2(cell_size, cell_size)
-			var player_center = player_node.global_position + player_size / 2
-			var distance_to_target = player_center.distance_to(chosen_landing_spot)
-			var reference_distance = 1200.0
-			var distance_factor = distance_to_target / reference_distance
-			var ball_physics_factor = 0.8 + (distance_factor * 0.4)
-			var base_power_per_distance = 0.6 + (distance_factor * 0.2)
-			var base_power_for_target = distance_to_target * base_power_per_distance * ball_physics_factor
-			
-			var club_efficiency = 1.0
-			if selected_club in club_data:
-				var club_max = club_data[selected_club]["max_distance"]
-				var efficiency_factor = 1200.0 / club_max
-				club_efficiency = sqrt(efficiency_factor)
-				club_efficiency = clamp(club_efficiency, 0.7, 1.5)
-			
-			var power_for_target = base_power_for_target * club_efficiency
-			
-			if is_putting:
-				var base_putter_power = 300.0
-				actual_power = time_percent * base_putter_power
-			elif time_percent <= 0.75:
-				actual_power = (time_percent / 0.75) * power_for_target
-				var trailoff_forgiveness = club_data[selected_club].get("trailoff_forgiveness", 0.5) if selected_club in club_data else 0.5
-				var undercharge_factor = 1.0 - (time_percent / 0.75)
-				var trailoff_penalty = undercharge_factor * (1.0 - trailoff_forgiveness)
-				actual_power = actual_power * (1.0 - trailoff_penalty)
-			else:
-				var overcharge_bonus = ((time_percent - 0.75) / 0.25) * (0.25 * max_shot_distance)
-				actual_power = power_for_target + overcharge_bonus
-		else:
-			actual_power = time_percent * MAX_LAUNCH_POWER
-		
-		var height_percentage = (height - MIN_LAUNCH_HEIGHT) / (MAX_LAUNCH_HEIGHT - MIN_LAUNCH_HEIGHT)
-		height_percentage = clamp(height_percentage, 0.0, 1.0)
-		var height_resistance_multiplier = 1.0
-		if height_percentage > HEIGHT_SWEET_SPOT_MAX:
-			var excess_height = height_percentage - HEIGHT_SWEET_SPOT_MAX
-			var max_excess = 1.0 - HEIGHT_SWEET_SPOT_MAX
-			var resistance_factor = excess_height / max_excess
-			height_resistance_multiplier = 1.0 - (resistance_factor * 0.5)
-		
-		var final_power = actual_power * height_resistance_multiplier
-		var strength_modifier = player_stats.get("strength", 0)
-		if strength_modifier != 0:
-			var strength_multiplier = 1.0 + (strength_modifier * 0.1)
-			final_power *= strength_multiplier
-		
-		card_effect_handler.launch_scramble_balls(direction, final_power, height, launch_spin)
-		hide_power_meter()
-		if not is_putting:
-			hide_height_meter()
-		game_phase = "ball_flying"
-		return
-	
-	var player_sprite = player_node.get_node_or_null("Sprite2D")
-	var player_size = player_sprite.texture.get_size() * player_sprite.scale if player_sprite and player_sprite.texture else Vector2(cell_size, cell_size)
-	var player_center = player_node.global_position + player_size / 2
-
-	var launch_direction = (chosen_landing_spot - player_center).normalized() if chosen_landing_spot != Vector2.ZERO else Vector2.ZERO
-
-	var time_percent = charge_time / max_charge_time
-	time_percent = clamp(time_percent, 0.0, 1.0)
-	var actual_power = 0.0
-	if chosen_landing_spot != Vector2.ZERO:
-		var distance_to_target = player_center.distance_to(chosen_landing_spot)
-		var reference_distance = 1200.0  # Driver's max distance as reference
-		var distance_factor = distance_to_target / reference_distance
-		var ball_physics_factor = 0.8 + (distance_factor * 0.4)  # Reduced from 1.2 to 0.4 (0.8 to 1.2)
-		var base_power_per_distance = 0.6 + (distance_factor * 0.2)  # Reduced from 0.8 to 0.2 (0.6 to 0.8)
-		
-		var base_power_for_target = distance_to_target * base_power_per_distance * ball_physics_factor
-		
-		var club_efficiency = 1.0
-		if selected_club in club_data:
-			var club_max = club_data[selected_club]["max_distance"]
-			var efficiency_factor = 1200.0 / club_max
-			club_efficiency = sqrt(efficiency_factor)
-			club_efficiency = clamp(club_efficiency, 0.7, 1.5)
-		
-		var power_for_target = base_power_for_target * club_efficiency
-		
-		if is_putting:
-			var base_putter_power = 300.0  # Base power for putters
-			actual_power = time_percent * base_putter_power
-		elif time_percent <= 0.75:
-			actual_power = (time_percent / 0.75) * power_for_target
-			var trailoff_forgiveness = club_data[selected_club].get("trailoff_forgiveness", 0.5) if selected_club in club_data else 0.5
-			var undercharge_factor = 1.0 - (time_percent / 0.75)  # 0.0 to 1.0
-			var trailoff_penalty = undercharge_factor * (1.0 - trailoff_forgiveness)
-			actual_power = actual_power * (1.0 - trailoff_penalty)
-		else:
-			var overcharge_bonus = ((time_percent - 0.75) / 0.25) * (0.25 * max_shot_distance)
-			actual_power = power_for_target + overcharge_bonus
-	else:
-		actual_power = time_percent * MAX_LAUNCH_POWER
-	shot_start_grid_pos = player_grid_pos
-	hole_score += 1
-	update_deck_display()
-	var aim_deviation = current_charge_mouse_pos - original_aim_mouse_pos
-	var launch_dir_perp = Vector2(-launch_direction.y, launch_direction.x) # Perpendicular to launch direction
-	var spin_strength = aim_deviation.dot(launch_dir_perp)
-	launch_spin = clamp(spin_strength * 1.0, -800, 800)  # Increased from 0.1 to 1.0 and max from 200 to 800
-	var spin_abs = abs(spin_strength)
-	var spin_strength_category = 0  # 0=green, 1=yellow, 2=red
-	if spin_abs > 120:
-		spin_strength_category = 2  # Red - high spin
-	elif spin_abs > 48:
-		spin_strength_category = 1  # Yellow - medium spin
-	else:
-		spin_strength_category = 0  # Green - low spin
-
-	var height_percentage = (height - MIN_LAUNCH_HEIGHT) / (MAX_LAUNCH_HEIGHT - MIN_LAUNCH_HEIGHT)
-	height_percentage = clamp(height_percentage, 0.0, 1.0)
-
-	var height_resistance_multiplier = 1.0
-	if height_percentage > HEIGHT_SWEET_SPOT_MAX:  # Above 60% height
-		var excess_height = height_percentage - HEIGHT_SWEET_SPOT_MAX
-		var max_excess = 1.0 - HEIGHT_SWEET_SPOT_MAX  # 0.4 (from 60% to 100%)
-		var resistance_factor = excess_height / max_excess  # 0.0 to 1.0
-		height_resistance_multiplier = 1.0 - (resistance_factor * 0.5)  # Reduce power by up to 50%
-
-	var final_power = actual_power * height_resistance_multiplier
-	
-	var strength_modifier = player_stats.get("strength", 0)
-	if strength_modifier != 0:
-		var strength_multiplier = 1.0 + (strength_modifier * 0.1)
-		final_power *= strength_multiplier
-		print("Character strength modifier applied: +", strength_modifier, " (", (strength_modifier * 10), "% power)")
-
-	print("=== POWER DEBUG ===")
-	var debug_distance = 0.0
-	if chosen_landing_spot != Vector2.ZERO:
-		debug_distance = player_center.distance_to(chosen_landing_spot)
-	print("Distance to target:", debug_distance)
-	print("Time percent:", time_percent)
-	print("Actual power:", actual_power)
-	print("Final power:", final_power)
-	print("=== END POWER DEBUG ===")
-
-	if golf_ball:
-		golf_ball.queue_free()
-	golf_ball = preload("res://GolfBall.tscn").instantiate()
-	var ball_area = golf_ball.get_node_or_null("Area2D")
-	if ball_area:
-		ball_area.collision_layer = 1
-		ball_area.collision_mask = 1  # Collide with layer 1 (trees)
-	
-	var ball_setup_player_sprite = player_node.get_node_or_null("Sprite2D")
-	var ball_setup_player_size = ball_setup_player_sprite.texture.get_size() * ball_setup_player_sprite.scale if ball_setup_player_sprite and ball_setup_player_sprite.texture else Vector2(cell_size, cell_size)
-	var ball_setup_player_center = player_node.global_position + ball_setup_player_size / 2
-
-	var ball_position_offset = Vector2(0, -cell_size * 0.5)
-	ball_setup_player_center += ball_position_offset
-
-	var ball_local_position = ball_setup_player_center - camera_container.global_position
-	golf_ball.position = ball_local_position
-	golf_ball.cell_size = cell_size
-	golf_ball.map_manager = map_manager  # Pass map manager reference for tile-based friction
-	camera_container.add_child(golf_ball)  # Add to camera container instead of main scene
-	golf_ball.add_to_group("balls")  # Add to group for collision detection
-	print("Golf ball added to scene at position:", golf_ball.position)
-	print("Golf ball node z_index:", golf_ball.z_index)
-	print("Golf ball visible:", golf_ball.visible)
-	print("Golf ball global position:", golf_ball.global_position)
-	
-	update_ball_y_sort(golf_ball)
-	var shadow = golf_ball.get_node_or_null("Shadow")
-	var ball_sprite = golf_ball.get_node_or_null("Sprite2D")
-	play_swing_sound(final_power)  # Use final_power for sound
-	golf_ball.chosen_landing_spot = chosen_landing_spot
-	golf_ball.club_info = club_data[selected_club] if selected_club in club_data else {}
-	golf_ball.is_putting = is_putting
-	golf_ball.time_percentage = time_percent
-	if sticky_shot_active and next_shot_modifier == "sticky_shot":
-		golf_ball.sticky_shot_active = true
-		sticky_shot_active = false
-		next_shot_modifier = ""
-	
-	if bouncey_shot_active and next_shot_modifier == "bouncey_shot":
-		golf_ball.bouncey_shot_active = true
-		bouncey_shot_active = false
-		next_shot_modifier = ""
-	golf_ball.launch(launch_direction, final_power, height, launch_spin, spin_strength_category)  # Pass spin strength category
-	golf_ball.landed.connect(_on_golf_ball_landed)
-	golf_ball.out_of_bounds.connect(_on_golf_ball_out_of_bounds)  # Connect out of bounds signal
-	golf_ball.sand_landing.connect(_on_golf_ball_sand_landing)  # Connect sand landing signal
-	camera_following_ball = true
+	launch_manager.launch_golf_ball(direction, charged_power, height)
 	
 func _on_golf_ball_landed(tile: Vector2i):
 	hole_score += 1
 	camera_following_ball = false
 	ball_landing_tile = tile
-	ball_landing_position = golf_ball.global_position if golf_ball else Vector2.ZERO
-	waiting_for_player_to_reach_ball = true
-	var sprite = player_node.get_node_or_null("Sprite2D")
-	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
-	var player_center = player_node.global_position + player_size / 2
-	var player_start_pos = player_center
-	var ball_landing_pos = golf_ball.global_position if golf_ball else player_start_pos
-	drive_distance = player_start_pos.distance_to(ball_landing_pos)
-	var dialog_timer = get_tree().create_timer(0.5)  # Reduced from 1.5 to 0.5 second delay
-	dialog_timer.timeout.connect(func():
-		show_drive_distance_dialog()
-	)
-	game_phase = "move"
+	
+	# Check if the ball still exists (if not, it went in the hole)
+	if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball):
+		# Normal landing - ball still exists
+		ball_landing_position = launch_manager.golf_ball.global_position
+		waiting_for_player_to_reach_ball = true
+		var sprite = player_node.get_node_or_null("Sprite2D")
+		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
+		var player_center = player_node.global_position + player_size / 2
+		var player_start_pos = player_center
+		var ball_landing_pos = launch_manager.golf_ball.global_position
+		drive_distance = player_start_pos.distance_to(ball_landing_pos)
+		var dialog_timer = get_tree().create_timer(0.5)  # Reduced from 1.5 to 0.5 second delay
+		dialog_timer.timeout.connect(func():
+			show_drive_distance_dialog()
+		)
+		game_phase = "move"
+	else:
+		# Ball went in the hole - don't show drive distance dialog
+		# The hole completion dialog will be shown by the pin's hole_in_one signal
+		print("Ball went in the hole - skipping drive distance dialog")
+		# Clear the ball reference since it's been destroyed
+		launch_manager.golf_ball = null
 	
 func highlight_tee_tiles():
 	for y in grid_size.y:
@@ -1516,8 +1020,8 @@ func _on_end_turn_pressed() -> void:
 				discard_empty_sound.play()
 
 	if waiting_for_player_to_reach_ball and player_grid_pos == ball_landing_tile:
-		if golf_ball and is_instance_valid(golf_ball) and golf_ball.has_method("remove_landing_highlight"):
-			golf_ball.remove_landing_highlight()
+		if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball) and launch_manager.golf_ball.has_method("remove_landing_highlight"):
+			launch_manager.golf_ball.remove_landing_highlight()
 		
 		enter_draw_cards_phase()  # Start with club selection phase
 	else:
@@ -1650,8 +1154,7 @@ func setup_swing_sounds() -> void:
 	sand_thunk_sound = $SandThunk
 
 func play_swing_sound(power: float) -> void:
-	var power_percentage = (power - MIN_LAUNCH_POWER) / (MAX_LAUNCH_POWER - MIN_LAUNCH_POWER)
-	power_percentage = clamp(power_percentage, 0.0, 1.0)
+	var power_percentage = (power - 300.0) / (1200.0 - 300.0)  # Using hardcoded values since constants are removed	power_percentage = clamp(power_percentage, 0.0, 1.0)
 	
 	if power_percentage >= 0.7:  # Strong swing (70%+ power)
 		swing_strong_sound.play()
@@ -1661,9 +1164,9 @@ func play_swing_sound(power: float) -> void:
 		swing_soft_sound.play()
 
 func start_next_shot_from_ball() -> void:
-	if golf_ball and is_instance_valid(golf_ball):
-		golf_ball.queue_free()
-		golf_ball = null
+	if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball):
+		launch_manager.golf_ball.queue_free()
+		launch_manager.golf_ball = null
 	
 	waiting_for_player_to_reach_ball = false
 	update_player_position()
@@ -1677,9 +1180,9 @@ func _on_golf_ball_out_of_bounds():
 	camera_following_ball = false
 	
 	hole_score += 1
-	if golf_ball:
-		golf_ball.queue_free()
-		golf_ball = null
+	if launch_manager.golf_ball:
+		launch_manager.golf_ball.queue_free()
+		launch_manager.golf_ball = null
 	show_out_of_bounds_dialog()
 	ball_landing_tile = shot_start_grid_pos
 	ball_landing_position = Vector2(shot_start_grid_pos.x * cell_size + cell_size/2, shot_start_grid_pos.y * cell_size + cell_size/2)
@@ -1714,45 +1217,8 @@ func reset_player_to_tee():
 
 func enter_launch_phase() -> void:
 	"""Enter the launch phase for taking a shot"""
-	game_phase = "launch"
 	remove_ghost_ball()
-	charge_time = 0.0
-	original_aim_mouse_pos = get_global_mouse_position()
-	show_power_meter()
-	if not is_putting:
-		show_height_meter()
-		launch_height = MIN_LAUNCH_HEIGHT
-	else:
-		launch_height = 0.0
-	
-	var scaled_min_power = power_meter.get_meta("scaled_min_power", MIN_LAUNCH_POWER)
-	launch_power = scaled_min_power
-	
-	if chosen_landing_spot != Vector2.ZERO:
-		var sprite = player_node.get_node_or_null("Sprite2D")
-		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
-		var player_center = player_node.global_position + player_size / 2
-		var distance_to_target = player_center.distance_to(chosen_landing_spot)
-	
-	var sprite = player_node.get_node_or_null("Sprite2D")
-	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
-	var player_center = player_node.global_position + player_size / 2
-	var tween := get_tree().create_tween()
-	tween.tween_property(camera, "position", player_center, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	
-	if not is_putting:
-		if not spin_indicator:
-			spin_indicator = Line2D.new()
-			spin_indicator.width = 12 # Make it thick for testing
-			spin_indicator.default_color = Color(1, 1, 0, 1) # Bright yellow for testing
-			spin_indicator.z_index = 999
-			camera_container.add_child(spin_indicator)
-		spin_indicator.z_index = 999
-		spin_indicator.visible = true
-		update_spin_indicator()
-	else:
-		if spin_indicator:
-			spin_indicator.visible = false
+	launch_manager.enter_launch_phase()
 	
 func enter_aiming_phase() -> void:
 	game_phase = "aiming"
@@ -1772,7 +1238,7 @@ func show_aiming_instruction() -> void:
 		existing_instruction.queue_free()
 	var instruction_label := Label.new()
 	instruction_label.name = "AimingInstructionLabel"
-	if is_putting:
+	if club_data.get(selected_club, {}).get("is_putter", false):
 		instruction_label.text = "Move mouse to set landing spot\nLeft click to confirm, Right click to cancel\n(Putter: Power only, no height)"
 	else:
 		instruction_label.text = "Move mouse to set landing spot\nLeft click to confirm, Right click to cancel"
@@ -1815,8 +1281,9 @@ func _on_golf_ball_sand_landing():
 		sand_thunk_sound.play()
 	
 	camera_following_ball = false
-	if golf_ball and map_manager:
-		var final_tile = Vector2i(floor(golf_ball.position.x / cell_size), floor(golf_ball.position.y / cell_size))
+	if launch_manager.golf_ball and map_manager:
+		var final_tile = Vector2i(floor(launch_manager.golf_ball.position.x / cell_size), floor(launch_manager.golf_ball.position.y / cell_size))
+		_on_golf_ball_landed(final_tile)
 		_on_golf_ball_landed(final_tile)
 
 func show_sand_landing_dialog():
@@ -1834,6 +1301,9 @@ func show_sand_landing_dialog():
 
 func show_hole_completion_dialog():
 	"""Show dialog when the ball goes in the hole"""
+	print("=== SHOW_HOLE_COMPLETION_DIALOG CALLED ===")
+	print("Current hole:", current_hole)
+	print("Hole score:", hole_score)
 	round_scores.append(hole_score)
 	var hole_par = GolfCourseLayout.get_hole_par(current_hole)
 	var score_vs_par = hole_score - hole_par
@@ -1880,9 +1350,19 @@ func show_hole_completion_dialog():
 	dialog.add_theme_font_size_override("font_size", 18)
 	dialog.add_theme_color_override("font_color", Color.GREEN)
 	dialog.position = Vector2(400, 300)
-	$UILayer.add_child(dialog)
+	print("UILayer exists:", $UILayer != null)
+	if $UILayer:
+		print("Adding dialog to UILayer")
+		$UILayer.add_child(dialog)
+		print("Dialog added to UILayer")
+	else:
+		print("ERROR: UILayer not found!")
+		return
+	print("Creating hole completion dialog...")
 	dialog.popup_centered()
+	print("Dialog popped up")
 	dialog.confirmed.connect(func():
+		print("Dialog confirmed - cleaning up")
 		dialog.queue_free()
 		print("Hole completion dialog dismissed")
 		if current_hole < round_end_hole:
@@ -1911,7 +1391,6 @@ func reset_for_next_hole():
 	position_camera_on_pin()  # Add camera positioning for next hole
 	hole_score = 0
 	game_phase = "tee_select"
-	is_putting = false
 	chosen_landing_spot = Vector2.ZERO
 	selected_club = ""
 	update_hole_and_score_display()
@@ -2097,59 +1576,8 @@ func _on_draw_cards_pressed() -> void:
 		print("Drew 3 new cards after ending turn. DrawCards button hidden:", draw_cards_button.visible)
 
 func update_spin_indicator():
-	if not spin_indicator:
-		return
+	launch_manager.update_spin_indicator()
 	
-	var screen_center = Vector2(get_viewport().size.x, get_viewport().size.y) / 2
-	var debug_pos = screen_center - camera_container.position  # Convert to camera container coordinates
-	spin_indicator.clear_points()
-	spin_indicator.add_point(debug_pos)
-	spin_indicator.add_point(debug_pos + Vector2(100, 0))  # 100 pixel line to the right
-	spin_indicator.default_color = Color(1, 0, 0, 1)  # Bright red
-	spin_indicator.width = 20  # Very thick
-	var current_mouse_pos = get_global_mouse_position()
-	var mouse_deviation = current_mouse_pos - original_aim_mouse_pos
-	
-	var launch_dir = Vector2.ZERO
-	if chosen_landing_spot != Vector2.ZERO and player_node:
-		var sprite = player_node.get_node_or_null("Sprite2D")
-		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
-		var player_center = player_node.global_position + player_size / 2
-		launch_dir = (chosen_landing_spot - player_center).normalized()
-	else:
-		launch_dir = Vector2(1, 0)  # Default direction
-	
-	var spin_dir = Vector2(-launch_dir.y, launch_dir.x)  # Perpendicular to launch direction
-	var spin_strength = mouse_deviation.dot(spin_dir)
-	
-	var spin_scale = 2.0  # Reduced from 6.0 to keep indicator on screen
-	var max_spin_threshold = 120.0  # Increased from 60.0 to require greater mouse movement
-	var visual_length = clamp(spin_strength * spin_scale, -max_spin_threshold * spin_scale, max_spin_threshold * spin_scale)
-	
-	var indicator_pos = Vector2.ZERO
-	if player_node:
-		var sprite = player_node.get_node_or_null("Sprite2D")
-		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
-		var player_center = player_node.global_position + player_size / 2
-		indicator_pos = player_center - camera_container.position
-	else:
-		var fallback_center = Vector2(get_viewport().size.x, get_viewport().size.y) / 2
-		indicator_pos = fallback_center - camera_container.position
-	
-	spin_indicator.clear_points()
-	spin_indicator.add_point(indicator_pos)
-	spin_indicator.add_point(indicator_pos + spin_dir * visual_length)
-	
-	var spin_abs = abs(spin_strength)
-	if spin_abs > 120:  # Increased from 60 to 120 for high spin
-		spin_indicator.default_color = Color(1, 0, 0, 1)  # Red for high spin
-	elif spin_abs > 48:  # Increased from 24 to 48 for medium spin
-		spin_indicator.default_color = Color(1, 1, 0, 1)  # Yellow for medium spin
-	else:
-		spin_indicator.default_color = Color(0, 1, 0, 1)  # Green for low spin
-	
-	
-
 func enter_draw_cards_phase() -> void:
 	"""Enter the club selection phase where player draws club cards"""
 	game_phase = "draw_cards"
@@ -2263,7 +1691,6 @@ func _on_club_card_pressed(club_name: String, club_info: Dictionary, button: Tex
 	var strength_modifier = player_stats.get("strength", 0)
 	var strength_multiplier = 1.0 + (strength_modifier * 0.1)  # Same multiplier as power calculation
 	max_shot_distance = base_max_distance * strength_multiplier
-	is_putting = club_info.get("is_putter", false)
 	card_click_sound.play()
 	for child in movement_buttons_container.get_children():
 		child.queue_free()
@@ -2418,7 +1845,7 @@ func _on_shop_under_construction_input(event: InputEvent):
 
 func save_game_state():
 	Global.saved_player_grid_pos = player_grid_pos
-	Global.saved_ball_position = golf_ball.global_position if golf_ball else Vector2.ZERO
+	Global.saved_ball_position = launch_manager.golf_ball.global_position if launch_manager.golf_ball else Vector2.ZERO
 	Global.saved_current_turn = turn_count
 	Global.saved_shot_score = hole_score
 	Global.saved_deck_manager_state = deck_manager.get_deck_state()
@@ -2431,7 +1858,7 @@ func save_game_state():
 	Global.saved_ball_landing_tile = ball_landing_tile
 	Global.saved_ball_landing_position = ball_landing_position
 	Global.saved_waiting_for_player_to_reach_ball = waiting_for_player_to_reach_ball
-	Global.saved_ball_exists = (golf_ball != null and is_instance_valid(golf_ball))
+	Global.saved_ball_exists = (launch_manager.golf_ball != null and is_instance_valid(launch_manager.golf_ball))
 	
 	Global.saved_tree_positions.clear()
 	Global.saved_pin_position = Vector2i.ZERO
@@ -2479,25 +1906,25 @@ func restore_game_state():
 		ball_landing_position = Global.saved_ball_landing_position
 		waiting_for_player_to_reach_ball = Global.saved_waiting_for_player_to_reach_ball
 		if Global.saved_ball_exists and Global.saved_ball_position != Vector2.ZERO:
-			if golf_ball and is_instance_valid(golf_ball):
-				golf_ball.queue_free()
-			golf_ball = preload("res://GolfBall.tscn").instantiate()
-			var ball_area = golf_ball.get_node_or_null("Area2D")
+			if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball):
+				launch_manager.golf_ball.queue_free()
+			launch_manager.golf_ball = preload("res://GolfBall.tscn").instantiate()
+			var ball_area = launch_manager.golf_ball.get_node_or_null("Area2D")
 			if ball_area:
 				ball_area.collision_layer = 1
 				ball_area.collision_mask = 1  # Collide with layer 1 (trees)
-			golf_ball.collision_layer = 1
-			golf_ball.collision_mask = 1  # Collide with layer 1 (trees)
+			launch_manager.golf_ball.collision_layer = 1
+			launch_manager.golf_ball.collision_mask = 1  # Collide with layer 1 (trees)
 			var ball_local_position = Global.saved_ball_position - camera_container.global_position
-			golf_ball.position = ball_local_position
-			golf_ball.cell_size = cell_size
-			golf_ball.map_manager = map_manager
-			camera_container.add_child(golf_ball)
-			golf_ball.add_to_group("balls")  # Add to group for collision detection
+			launch_manager.golf_ball.position = ball_local_position
+			launch_manager.golf_ball.cell_size = cell_size
+			launch_manager.golf_ball.map_manager = map_manager
+			camera_container.add_child(launch_manager.golf_ball)
+			launch_manager.golf_ball.add_to_group("balls")  # Add to group for collision detection
 		else:
-			if golf_ball and is_instance_valid(golf_ball):
-				golf_ball.queue_free()
-				golf_ball = null
+			if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball):
+				launch_manager.golf_ball.queue_free()
+				launch_manager.golf_ball = null
 		turn_count = Global.saved_current_turn
 		hole_score = Global.saved_shot_score
 		deck_manager.restore_deck_state(Global.saved_deck_manager_state)
@@ -2646,7 +2073,7 @@ func create_ghost_ball() -> void:
 	ghost_ball.map_manager = map_manager
 	if selected_club in club_data:
 		ghost_ball.set_club_info(club_data[selected_club])
-	ghost_ball.set_putting_mode(is_putting)
+	ghost_ball.set_putting_mode(club_data.get(selected_club, {}).get("is_putter", false))
 	camera_container.add_child(ghost_ball)
 	ghost_ball.add_to_group("balls")  # Add to group for collision detection
 	ghost_ball_active = true
@@ -2947,7 +2374,17 @@ func build_map_from_layout_with_saved_positions(layout: Array) -> void:
 			
 			# Connect pin signals if this is a pin
 			if pin.has_signal("hole_in_one"):
-				pin.hole_in_one.connect(_on_hole_in_one)
+				print("Connecting hole_in_one signal for pin:", pin.name, "pin ID:", pin_id)
+				# Use Callable to ensure proper connection
+				pin.hole_in_one.connect(Callable(self, "_on_hole_in_one"))
+				print("hole_in_one signal connected successfully")
+				# Verify connection
+				var connections = pin.hole_in_one.get_connections()
+				print("Signal connections after connecting:", connections.size())
+				for conn in connections:
+					print("  - Connected to:", conn.callable)
+			else:
+				print("WARNING: Pin does not have hole_in_one signal!")
 			if pin.has_signal("pin_flag_hit"):
 				pin.pin_flag_hit.connect(_on_pin_flag_hit)
 			
@@ -2996,12 +2433,11 @@ func update_all_ysort_z_indices():
 
 func _on_hole_in_one(score: int):
 	"""Handle hole completion when ball goes in the hole"""
-	print("Hole in one! Score:", score)
 	show_hole_completion_dialog()
 
 func _on_pin_flag_hit(ball: Node2D):
 	"""Handle pin flag hit - ball velocity has already been reduced by the pin"""
-	print("Pin flag hit detected for ball:", ball)
+	pass
 
 var force_stickyshot_bonus := false
 
@@ -3122,3 +2558,35 @@ func _on_scramble_complete(closest_ball_position: Vector2, closest_ball_tile: Ve
 	)
 	
 	game_phase = "move"
+
+# LaunchManager signal handlers
+func _on_ball_launched(ball: Node2D):
+	# Set up ball properties that require course_1.gd references
+	ball.map_manager = map_manager
+	update_ball_y_sort(ball)
+	play_swing_sound(ball.final_power if ball.has_method("get_final_power") else 0.0)
+	
+	# Connect ball signals
+	ball.landed.connect(_on_golf_ball_landed)
+	ball.out_of_bounds.connect(_on_golf_ball_out_of_bounds)
+	ball.sand_landing.connect(_on_golf_ball_sand_landing)
+	
+	# Set camera following
+	camera_following_ball = true
+	
+	# Handle card effects
+	if sticky_shot_active and next_shot_modifier == "sticky_shot":
+		ball.sticky_shot_active = true
+		sticky_shot_active = false
+		next_shot_modifier = ""
+	
+	if bouncey_shot_active and next_shot_modifier == "bouncey_shot":
+		ball.bouncey_shot_active = true
+		bouncey_shot_active = false
+		next_shot_modifier = ""
+
+func _on_launch_phase_entered():
+	game_phase = "launch"
+
+func _on_launch_phase_exited():
+	game_phase = "ball_flying"

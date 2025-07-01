@@ -1,4 +1,4 @@
-[gd_scene load_steps=16 format=3 uid="uid://dlq5ygh2wv33m"]
+[gd_scene load_steps=17 format=3 uid="uid://dlq5ygh2wv33m"]
 
 [ext_resource type="Script" uid="uid://d4hrfk75nrm45" path="res://course_1.gd" id="1_pe8tc"]
 [ext_resource type="Texture2D" uid="uid://cpe67sk2vh8me" path="res://EDGE.png" id="2_eymfu"]
@@ -15,6 +15,7 @@
 [ext_resource type="PackedScene" uid="uid://dna6q0m23qdsl" path="res://Bags/Bag.tscn" id="12_bag"]
 [ext_resource type="PackedScene" path="res://InventoryDialog.tscn" id="13_inventory"]
 [ext_resource type="Script" uid="uid://1gtesn5q77m4" path="res://golfcards/build_map.gd" id="14_build_map"]
+[ext_resource type="Script" uid="uid://dks6b1bolk5lu" path="res://LaunchManager.gd" id="15_launch_manager"]
 
 [node name="Course1" type="Control"]
 layout_mode = 3
@@ -52,6 +53,9 @@ script = ExtResource("5_p65p8")
 
 [node name="BuildMap" type="Node" parent="."]
 script = ExtResource("14_build_map")
+
+[node name="LaunchManager" type="Node" parent="."]
+script = ExtResource("15_launch_manager")
 
 [node name="UILayer" type="CanvasLayer" parent="."]
 

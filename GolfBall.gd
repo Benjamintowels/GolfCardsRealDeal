@@ -76,11 +76,11 @@ var shadow: Sprite2D
 var base_scale := Vector2.ONE
 var max_height := 0.0
 
-# Height sweet spot constants (matching course_1.gd)
-const HEIGHT_SWEET_SPOT_MIN := 0.4 # 40% of max height
-const HEIGHT_SWEET_SPOT_MAX := 0.6 # 60% of max height
-const MAX_LAUNCH_HEIGHT := 2000.0
-const MIN_LAUNCH_HEIGHT := 400.0
+# Height sweet spot constants (matching LaunchManager.gd)
+const HEIGHT_SWEET_SPOT_MIN := 0.3 # 30% of max height
+const HEIGHT_SWEET_SPOT_MAX := 0.5 # 50% of max height
+const MAX_LAUNCH_HEIGHT := 8000.0
+const MIN_LAUNCH_HEIGHT := 1000.0
 
 # Power constants (matching course_1.gd)
 const MAX_LAUNCH_POWER := 1200.0
@@ -921,25 +921,14 @@ func get_height() -> float:
 	return z
 
 func _on_area_entered(area):
-	print("GolfBall _on_area_entered - Area entered:", area)
-	print("Area parent:", area.get_parent())
-	print("Area parent name:", area.get_parent().name if area.get_parent() else "No parent")
-	print("Ball position:", global_position, "Ball height:", z)
-	print("Area position:", area.global_position)
-	
 	# Check if this is a Pin collision
 	if area.get_parent() and area.get_parent().name == "Pin":
-		print("*** PIN COLLISION DETECTED! ***")
-		print("Ball height at collision:", z)
-		if z <= 0.0:
-			print("*** BALL SHOULD TRIGGER HOLE COMPLETION! ***")
-			# Add a simple debug print to confirm the collision is working
-			print("PIN COLLISION: Ball at ground level - hole completion should trigger")
+		# Pin collision detected - the pin will handle hole completion
+		pass
 
 func _on_area_exited(area):
-	print("GolfBall _on_area_exited - Area exited:", area)
-	print("Area parent:", area.get_parent())
-	print("Area parent name:", area.get_parent().name if area.get_parent() else "No parent")
+	# Area exit handling if needed
+	pass
 
 func reset_shot_effects() -> void:
 	"""Reset all shot modification effects after the ball has landed"""

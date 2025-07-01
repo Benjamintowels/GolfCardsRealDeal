@@ -39,8 +39,8 @@ var shadow: Sprite2D
 var base_scale := Vector2.ONE
 
 # Height and power constants (matching GolfBall.gd)
-const MAX_LAUNCH_HEIGHT := 2000.0
-const MIN_LAUNCH_HEIGHT := 400.0
+const MAX_LAUNCH_HEIGHT := 8000.0
+const MIN_LAUNCH_HEIGHT := 1000.0
 const MAX_LAUNCH_POWER := 1200.0
 const MIN_LAUNCH_POWER := 300.0
 

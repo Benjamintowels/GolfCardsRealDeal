@@ -277,8 +277,16 @@ func build_map_from_layout_base(layout: Array, place_pin: bool = true) -> void:
 					pin.set("grid_position", pin_pos)
 				pin.set_meta("card_effect_handler", card_effect_handler)
 				obstacle_layer.add_child(pin)
+				# Connect pin signals
 				if pin.has_signal("hole_in_one"):
-					pin.hole_in_one.connect(_on_hole_in_one)
+					# Disconnect any existing connections first
+					if pin.hole_in_one.get_connections().size() > 0:
+						for conn in pin.hole_in_one.get_connections():
+							pin.hole_in_one.disconnect(conn.callable)
+					
+					# Connect directly to parent's method
+					if get_parent() and get_parent().has_method("_on_hole_in_one"):
+						pin.hole_in_one.connect(Callable(get_parent(), "_on_hole_in_one"))
 				if pin.has_signal("pin_flag_hit"):
 					pin.pin_flag_hit.connect(_on_pin_flag_hit)
 				ysort_objects.append({"node": pin, "grid_pos": pin_pos})
@@ -331,12 +339,13 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 				obstacle_map[right_of_shop_pos] = blocker
 	update_all_ysort_z_indices() 
 
-# --- Stubs for signals and utility functions to avoid linter errors ---
-func _on_hole_in_one():
-	pass
+# --- Signal handlers that forward to course_1.gd ---
+# Note: Signals are now connected directly to parent methods
 
-func _on_pin_flag_hit():
-	pass
+func _on_pin_flag_hit(ball: Node2D):
+	# Forward the signal to course_1.gd
+	if get_parent() and get_parent().has_method("_on_pin_flag_hit"):
+		get_parent()._on_pin_flag_hit(ball)
 
 func update_all_ysort_z_indices():
 	pass 
