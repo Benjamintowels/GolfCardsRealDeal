@@ -609,8 +609,8 @@ func _play_death_sound() -> void:
 		print("DeathGroan audio player playing:", death_audio.playing)
 		print("DeathGroan audio player autoplay:", death_audio.autoplay)
 		
-		
 		# Ensure the audio player is not muted and has proper volume
+		death_audio.volume_db = 0.0  # Set to full volume
 		death_audio.play()
 		print("Playing death groan sound using existing audio player")
 		print("DeathGroan audio player playing after play():", death_audio.playing)

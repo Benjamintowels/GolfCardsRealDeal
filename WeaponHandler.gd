@@ -111,6 +111,10 @@ func enter_weapon_aiming_mode() -> void:
 	"""Enter weapon aiming mode with mouse tracking"""
 	print("Entering weapon aiming mode")
 	
+	# Change mouse cursor to reticle
+	var reticle_texture = preload("res://UI/Reticle.png")
+	Input.set_custom_mouse_cursor(reticle_texture, Input.CURSOR_ARROW, Vector2(16, 16))
+	
 	# Create weapon instance
 	create_weapon_instance()
 	
@@ -244,6 +248,9 @@ func exit_weapon_mode() -> void:
 	print("Exiting weapon mode")
 	
 	is_weapon_mode = false
+	
+	# Restore default mouse cursor
+	Input.set_custom_mouse_cursor(null)
 	
 	# Remove weapon instance
 	if weapon_instance:

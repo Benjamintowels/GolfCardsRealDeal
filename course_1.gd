@@ -478,6 +478,9 @@ func _ready() -> void:
 	
 	# Connect weapon handler signals
 	weapon_handler.npc_shot.connect(_on_npc_shot)
+	
+	# Setup global death sound
+	setup_global_death_sound()
 
 	var hud := $UILayer/HUD
 
@@ -2762,6 +2765,7 @@ func fix_ui_layers() -> void:
 # Add this variable declaration after the existing card modification variables (around line 75)
 var card_effect_handler: Node = null
 var weapon_handler: Node = null
+var global_death_sound: AudioStreamPlayer = null
 
 # Add this function at the end of the file, before the final closing brace
 func _on_scramble_complete(closest_ball_position: Vector2, closest_ball_tile: Vector2i):
@@ -2832,3 +2836,18 @@ func _on_npc_attacked(npc: Node, damage: int) -> void:
 func _on_npc_shot(npc: Node, damage: int) -> void:
 	"""Handle when an NPC is shot with a weapon"""
 	print("NPC shot:", npc.name, "Damage dealt:", damage)
+	
+	# Play global death sound if NPC died
+	if npc.has_method("get_is_dead") and npc.get_is_dead():
+		if global_death_sound:
+			global_death_sound.play()
+			print("Playing global death sound")
+
+func setup_global_death_sound() -> void:
+	"""Setup global death sound that can be heard from anywhere"""
+	global_death_sound = AudioStreamPlayer.new()
+	var death_sound = preload("res://Sounds/DeathGroan.mp3")
+	global_death_sound.stream = death_sound
+	global_death_sound.volume_db = 0.0
+	add_child(global_death_sound)
+	print("Global death sound setup complete")
