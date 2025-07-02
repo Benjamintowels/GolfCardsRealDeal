@@ -220,6 +220,11 @@ func launch_single_scramble_ball(direction: Vector2, power: float, height: float
 	ball.landed.connect(_on_scramble_ball_landed.bind(ball_index))
 	ball.out_of_bounds.connect(_on_scramble_ball_out_of_bounds.bind(ball_index))
 	
+	# Set ball launch position for player collision delay system
+	if course.player_node and course.player_node.has_method("set_ball_launch_position"):
+		course.player_node.set_ball_launch_position(ball.global_position)
+		print("Scramble ball launch position set for player collision delay:", ball.global_position)
+	
 	# Launch the ball with the deviated direction
 	ball.launch(direction, power, height, spin, 0)  # No spin strength category for scramble balls
 	

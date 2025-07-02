@@ -2804,6 +2804,11 @@ func _on_ball_launched(ball: Node2D):
 	update_ball_y_sort(ball)
 	play_swing_sound(ball.final_power if ball.has_method("get_final_power") else 0.0)
 	
+	# Set ball launch position for player collision delay system
+	if player_node and player_node.has_method("set_ball_launch_position"):
+		player_node.set_ball_launch_position(ball.global_position)
+		print("Ball launch position set for player collision delay:", ball.global_position)
+	
 	# Connect ball signals
 	ball.landed.connect(_on_golf_ball_landed)
 	ball.out_of_bounds.connect(_on_golf_ball_out_of_bounds)

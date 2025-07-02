@@ -264,7 +264,7 @@ func clear_all_movement_ui() -> void:
 
 func get_movement_cards_for_inventory() -> Array[CardData]:
 	"""Get all movement cards from the current hand"""
-	return deck_manager.hand.filter(func(card): return card.effect_type == "movement")
+	return deck_manager.hand.filter(func(card): return card.effect_type == "Move")
 
 func update_player_position(new_grid_pos: Vector2i) -> void:
 	"""Update the stored player grid position"""
