@@ -1,0 +1,9 @@
+[gd_scene load_steps=2 format=3 uid="uid://p4vq8eim5v13"]
+
+[ext_resource type="Texture2D" uid="uid://b4beje00r3oas" path="res://Weapons/Pistol.png" id="1_sk4x2"]
+
+[node name="Pistol" type="Node2D"]
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture_filter = 1
+texture = ExtResource("1_sk4x2")

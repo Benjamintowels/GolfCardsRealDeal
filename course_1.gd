@@ -33,6 +33,7 @@ var movement_controller: MovementController
 
 # Attack handler
 const AttackHandler := preload("res://AttackHandler.gd")
+const WeaponHandler := preload("res://WeaponHandler.gd")
 var attack_handler: AttackHandler
 const GolfCourseLayout := preload("res://Maps/GolfCourseLayout.gd")
 const HealthBar := preload("res://HealthBar.gd")
@@ -373,6 +374,10 @@ func _ready() -> void:
 	attack_handler = AttackHandler.new()
 	add_child(attack_handler)
 	
+	# Initialize weapon handler
+	weapon_handler = WeaponHandler.new()
+	add_child(weapon_handler)
+	
 	call_deferred("fix_ui_layers")
 	display_selected_character()
 	if end_round_button:
@@ -426,7 +431,8 @@ func _ready() -> void:
 		card_stack_display,
 		deck_manager,
 		card_effect_handler,
-		attack_handler
+		attack_handler,
+		weapon_handler
 	)
 	
 	# Setup attack handler after deck_manager is created
@@ -446,11 +452,32 @@ func _ready() -> void:
 		card_effect_handler
 	)
 	
+	# Setup weapon handler after deck_manager is created
+	weapon_handler.setup(
+		player_node,
+		grid_tiles,
+		grid_size,
+		cell_size,
+		obstacle_map,
+		player_grid_pos,
+		player_stats,
+		camera,
+		card_click_sound,
+		card_play_sound,
+		card_stack_display,
+		deck_manager,
+		card_effect_handler
+	)
+	
 	# Set the movement controller reference for button cleanup
 	attack_handler.set_movement_controller(movement_controller)
+	weapon_handler.set_movement_controller(movement_controller)
 	
 	# Connect attack handler signals
 	attack_handler.npc_attacked.connect(_on_npc_attacked)
+	
+	# Connect weapon handler signals
+	weapon_handler.npc_shot.connect(_on_npc_shot)
 
 	var hud := $UILayer/HUD
 
@@ -536,6 +563,10 @@ func _on_complete_hole_pressed():
 	show_hole_completion_dialog()
 
 func _input(event: InputEvent) -> void:
+	# Handle weapon mode input first
+	if weapon_handler and weapon_handler.handle_input(event):
+		return
+	
 	if game_phase == "aiming":
 		if event is InputEventMouseButton:
 			if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
@@ -1004,14 +1035,16 @@ func show_aiming_circle():
 	aiming_circle.z_index = 150  # Above the player but below UI
 	camera_container.add_child(aiming_circle)
 	
-	var circle = ColorRect.new()
+	# Load the target circle texture
+	var target_circle_texture = preload("res://UI/TargetCircle.png")
+	
+	var circle = TextureRect.new()
 	circle.name = "CircleVisual"
 	circle.size = Vector2(adjusted_circle_size, adjusted_circle_size)
-	circle.color = Color(1, 0, 0, 0.6)  # Red with transparency
+	circle.texture = target_circle_texture
+	circle.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
 	circle.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	aiming_circle.add_child(circle)
-	
-	circle.draw.connect(_draw_circle.bind(circle))
 	
 	var distance_label = Label.new()
 	distance_label.name = "DistanceLabel"
@@ -1026,11 +1059,7 @@ func show_aiming_circle():
 	
 	print("Aiming circle created with size:", adjusted_circle_size, "(base:", base_circle_size, "strength modifier:", strength_modifier, ")")
 
-func _draw_circle(circle: ColorRect):
-	var center = circle.size / 2
-	var radius = min(circle.size.x, circle.size.y) / 2
-	circle.draw_circle(center, radius, Color(1, 0, 0, 0.8))
-	circle.draw_arc(center, radius, 0, 2 * PI, 32, Color(1, 0, 0, 1.0), 2.0)
+
 
 func hide_aiming_circle():
 	if aiming_circle:
@@ -1063,9 +1092,9 @@ func update_aiming_circle():
 	if circle and selected_club in club_data:
 		var min_distance = club_data[selected_club]["min_distance"]
 		if clamped_distance >= min_distance:
-			circle.color = Color(0, 1, 0, 0.8)  # Green
+			circle.modulate = Color(0, 1, 0, 0.8)  # Green
 		else:
-			circle.color = Color(1, 0, 0, 0.8)  # Red
+			circle.modulate = Color(1, 0, 0, 0.8)  # Red
 	
 	var target_camera_pos = clamped_position
 	var current_camera_pos = camera.position
@@ -1126,6 +1155,7 @@ func highlight_tee_tiles():
 func exit_movement_mode() -> void:
 	movement_controller.exit_movement_mode()
 	attack_handler.exit_attack_mode()
+	weapon_handler.exit_weapon_mode()
 	update_deck_display()
 
 func _on_end_turn_pressed() -> void:
@@ -1133,6 +1163,8 @@ func _on_end_turn_pressed() -> void:
 		exit_movement_mode()
 	if attack_handler.is_in_attack_mode():
 		attack_handler.exit_attack_mode()
+	if weapon_handler.is_in_weapon_mode():
+		weapon_handler.exit_weapon_mode()
 
 	var cards_to_discard = deck_manager.hand.size()
 	
@@ -1141,6 +1173,7 @@ func _on_end_turn_pressed() -> void:
 	deck_manager.hand.clear()
 	movement_controller.clear_all_movement_ui()
 	attack_handler.clear_all_attack_ui()
+	weapon_handler.clear_all_weapon_ui()
 	turn_count += 1
 	update_deck_display()
 	
@@ -2728,6 +2761,7 @@ func fix_ui_layers() -> void:
 
 # Add this variable declaration after the existing card modification variables (around line 75)
 var card_effect_handler: Node = null
+var weapon_handler: Node = null
 
 # Add this function at the end of the file, before the final closing brace
 func _on_scramble_complete(closest_ball_position: Vector2, closest_ball_tile: Vector2i):
@@ -2794,3 +2828,7 @@ func _on_launch_phase_exited():
 func _on_npc_attacked(npc: Node, damage: int) -> void:
 	"""Handle when an NPC is attacked"""
 	print("NPC attacked:", npc.name, "Damage dealt:", damage)
+
+func _on_npc_shot(npc: Node, damage: int) -> void:
+	"""Handle when an NPC is shot with a weapon"""
+	print("NPC shot:", npc.name, "Damage dealt:", damage)

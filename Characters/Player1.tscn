@@ -1,6 +1,7 @@
-[gd_scene load_steps=3 format=3 uid="uid://clxh2b81uxvtv"]
+[gd_scene load_steps=4 format=3 uid="uid://clxh2b81uxvtv"]
 
 [ext_resource type="Script" uid="uid://bkqfjhiqcwabx" path="res://Characters/Player.gd" id="1_yweqe"]
+[ext_resource type="AudioStream" uid="uid://w3sc1j80onsl" path="res://Sounds/PistolShot.mp3" id="2_5tbhv"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_5tbhv"]
 
@@ -9,3 +10,6 @@ script = ExtResource("1_yweqe")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("RectangleShape2D_5tbhv")
+
+[node name="PistolShot" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("2_5tbhv")

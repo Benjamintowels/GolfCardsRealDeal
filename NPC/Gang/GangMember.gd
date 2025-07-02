@@ -18,6 +18,10 @@ var movement_range: int = 3
 var vision_range: int = 12
 var current_action: String = "idle"
 
+# Facing direction properties
+var facing_direction: Vector2i = Vector2i(1, 0)  # Start facing right
+var last_movement_direction: Vector2i = Vector2i(1, 0)  # Track last movement direction
+
 # Health and damage properties
 var max_health: int = 30
 var current_health: int = 30
@@ -269,6 +273,9 @@ func setup(member_type: String, pos: Vector2i, cell_size_param: int = 48) -> voi
 	# Load appropriate sprite based on type
 	_load_sprite_for_type(member_type)
 	
+	# Initialize sprite facing direction
+	_update_sprite_facing()
+	
 	# Update Y-sorting
 	update_z_index_for_ysort()
 	
@@ -364,6 +371,9 @@ func _check_player_vision() -> void:
 			state_machine.set_state("chase")
 		else:
 			print("Already in chase state, player still in range")
+		
+		# Face the player when in chase mode
+		_face_player()
 	else:
 		if current_state != State.PATROL:
 			print("Player out of range, returning to patrol")
@@ -426,6 +436,15 @@ func _move_to_position(target_pos: Vector2i) -> void:
 	var old_pos = grid_position
 	grid_position = target_pos
 	
+	# Calculate movement direction and update facing
+	var movement_direction = target_pos - old_pos
+	if movement_direction != Vector2i.ZERO:
+		last_movement_direction = movement_direction
+		# Only update facing direction in patrol mode (not when chasing player)
+		if current_state == State.PATROL:
+			facing_direction = last_movement_direction
+			_update_sprite_facing()
+	
 	# Update world position
 	var target_world_pos = Vector2(target_pos.x, target_pos.y) * cell_size + Vector2(cell_size / 2, cell_size / 2)
 	
@@ -435,7 +454,7 @@ func _move_to_position(target_pos: Vector2i) -> void:
 	# Update Y-sorting
 	update_z_index_for_ysort()
 	
-	print("GangMember moved from ", old_pos, " to ", target_pos)
+	print("GangMember moved from ", old_pos, " to ", target_pos, " with direction: ", movement_direction)
 	
 	# Check if we moved to the same tile as the player (only if we weren't already there)
 	if player and "grid_pos" in player and player.grid_pos == target_pos and old_pos != target_pos:
@@ -581,19 +600,22 @@ func _play_collision_sound() -> void:
 
 func _play_death_sound() -> void:
 	"""Play the death groan sound when the GangMember dies"""
-	# Create a temporary audio player for the death sound
-	var death_audio = AudioStreamPlayer2D.new()
-	var sound_file = load("res://Sounds/DeathGroan.mp3")
-	if sound_file:
-		death_audio.stream = sound_file
-		death_audio.volume_db = -5.0  # Slightly louder than collision sound
-		add_child(death_audio)
+	print("_play_death_sound() called")
+	# Use the existing DeathGroan audio player on the GangMember
+	var death_audio = get_node_or_null("DeathGroan")
+	if death_audio:
+		print("DeathGroan audio player found, stream:", death_audio.stream)
+		print("DeathGroan audio player volume:", death_audio.volume_db)
+		print("DeathGroan audio player playing:", death_audio.playing)
+		print("DeathGroan audio player autoplay:", death_audio.autoplay)
+		
+		
+		# Ensure the audio player is not muted and has proper volume
 		death_audio.play()
-		# Remove the audio player after it finishes
-		death_audio.finished.connect(func(): death_audio.queue_free())
-		print("Playing death groan sound")
+		print("Playing death groan sound using existing audio player")
+		print("DeathGroan audio player playing after play():", death_audio.playing)
 	else:
-		print("ERROR: Could not load DeathGroan.mp3 sound file")
+		print("ERROR: DeathGroan audio player not found on GangMember")
 
 func _find_nearest_available_adjacent_tile(player_pos: Vector2i, approach_direction: Vector2i = Vector2i.ZERO) -> Vector2i:
 	"""Find the nearest available adjacent tile to push the player to based on GangMember's approach direction"""
@@ -688,6 +710,63 @@ func _is_position_valid_for_player(pos: Vector2i) -> bool:
 	print("Position ", pos, " is valid for player pushback")
 	return true
 
+func _update_sprite_facing() -> void:
+	"""Update the sprite facing direction based on facing_direction"""
+	if not sprite:
+		return
+	
+	# Flip sprite horizontally based on facing direction
+	# If facing left (negative x), flip the sprite
+	if facing_direction.x < 0:
+		sprite.flip_h = true
+	elif facing_direction.x > 0:
+		sprite.flip_h = false
+	
+	# Also update dead sprite if it's visible
+	var dead_sprite = get_node_or_null("Dead")
+	if dead_sprite and dead_sprite.visible:
+		if facing_direction.x < 0:
+			dead_sprite.flip_h = true
+		elif facing_direction.x > 0:
+			dead_sprite.flip_h = false
+	
+	print("Updated sprite facing - Direction: ", facing_direction, ", Flip H: ", sprite.flip_h)
+
+func _face_player() -> void:
+	"""Make the GangMember face the player"""
+	if not player:
+		return
+	
+	var player_pos = player.grid_pos
+	var direction_to_player = player_pos - grid_position
+	
+	# Normalize the direction to get primary direction
+	if direction_to_player.x != 0:
+		direction_to_player.x = 1 if direction_to_player.x > 0 else -1
+	if direction_to_player.y != 0:
+		direction_to_player.y = 1 if direction_to_player.y > 0 else -1
+	
+	# Update facing direction to face the player
+	facing_direction = direction_to_player
+	_update_sprite_facing()
+	
+	print("Facing player - Direction: ", facing_direction)
+
+func _update_dead_sprite_facing() -> void:
+	"""Update the dead sprite facing direction based on facing_direction"""
+	var dead_sprite = get_node_or_null("Dead")
+	if not dead_sprite:
+		return
+	
+	# Flip dead sprite horizontally based on facing direction
+	# If facing left (negative x), flip the sprite
+	if facing_direction.x < 0:
+		dead_sprite.flip_h = true
+	elif facing_direction.x > 0:
+		dead_sprite.flip_h = false
+	
+	print("Updated dead sprite facing - Direction: ", facing_direction, ", Flip H: ", dead_sprite.flip_h)
+
 # Height and collision shape methods for Entities system
 func get_height() -> float:
 	"""Get the height of this GangMember for collision detection"""
@@ -768,6 +847,9 @@ class PatrolState extends BaseState:
 			gang_member._move_to_position(target_pos)
 		else:
 			print("Staying in same position")
+			# Face the last movement direction when not moving
+			gang_member.facing_direction = gang_member.last_movement_direction
+			gang_member._update_sprite_facing()
 	
 	func _get_random_patrol_position(max_distance: int) -> Vector2i:
 		var attempts = 0
@@ -815,6 +897,9 @@ class ChaseState extends BaseState:
 			gang_member._move_to_position(next_pos)
 		else:
 			print("No path found to player")
+		
+		# Always face the player when in chase mode
+		gang_member._face_player()
 
 	func _get_path_to_player(player_pos: Vector2i) -> Array[Vector2i]:
 		# Simple pathfinding - move towards player
@@ -878,6 +963,8 @@ class DeadState extends BaseState:
 		# Hide health bar
 		if gang_member.health_bar_container:
 			gang_member.health_bar_container.visible = false
+		# Update dead sprite facing direction
+		gang_member._update_dead_sprite_facing()
 	
 	func update() -> void:
 		# Dead GangMembers don't move or take actions
@@ -890,6 +977,7 @@ class DeadState extends BaseState:
 func take_damage(amount: int) -> void:
 	"""Take damage and handle death if health reaches 0"""
 	if not is_alive:
+		print("GangMember is already dead, ignoring damage")
 		return
 	
 	current_health = max(0, current_health - amount)
@@ -903,7 +991,10 @@ func take_damage(amount: int) -> void:
 	flash_damage()
 	
 	if current_health <= 0 and not is_dead:
+		print("GangMember health reached 0, calling die()")
 		die()
+	else:
+		print("GangMember survived with", current_health, "health")
 
 func heal(amount: int) -> void:
 	"""Heal the GangMember"""
@@ -916,6 +1007,7 @@ func heal(amount: int) -> void:
 func die() -> void:
 	"""Handle the GangMember's death"""
 	if not is_alive or is_dead:
+		print("GangMember is already dead, ignoring die() call")
 		return
 	
 	is_alive = false
@@ -923,6 +1015,7 @@ func die() -> void:
 	print("GangMember has died!")
 	
 	# Play death groan sound
+	print("Calling _play_death_sound()")
 	_play_death_sound()
 	
 	# Switch to dead state
@@ -942,6 +1035,8 @@ func _change_to_dead_sprite() -> void:
 	var dead_sprite = get_node_or_null("Dead")
 	if dead_sprite:
 		dead_sprite.visible = true
+		# Apply the same facing direction to the dead sprite
+		_update_dead_sprite_facing()
 		print("✓ GangMember switched to dead sprite")
 	else:
 		print("✗ ERROR: Dead sprite not found")

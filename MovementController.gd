@@ -31,6 +31,7 @@ var deck_manager: DeckManager
 # Card effect handling
 var card_effect_handler: Node
 var attack_handler: Node  # Reference to AttackHandler
+var weapon_handler: Node  # Reference to WeaponHandler
 
 # Signals
 signal movement_mode_entered
@@ -55,7 +56,8 @@ func setup(
 	card_stack_display_ref: Control,
 	deck_manager_ref: DeckManager,
 	card_effect_handler_ref: Node,
-	attack_handler_ref: Node = null
+	attack_handler_ref: Node = null,
+	weapon_handler_ref: Node = null
 ):
 	player_node = player_node_ref
 	grid_tiles = grid_tiles_ref
@@ -71,6 +73,7 @@ func setup(
 	deck_manager = deck_manager_ref
 	card_effect_handler = card_effect_handler_ref
 	attack_handler = attack_handler_ref
+	weapon_handler = weapon_handler_ref
 
 func create_movement_buttons() -> void:
 	for child in movement_buttons_container.get_children():
@@ -96,6 +99,8 @@ func create_movement_buttons() -> void:
 		# Set overlay color based on card type
 		if card.effect_type == "Attack":
 			overlay.color = Color(1, 0.5, 0, 0.25)  # Orange for attack cards
+		elif card.effect_type == "Weapon":
+			overlay.color = Color(1, 0, 0, 0.25)  # Red for weapon cards
 		else:
 			overlay.color = Color(1, 0.84, 0, 0.25)  # Yellow for movement cards
 		
@@ -118,6 +123,12 @@ func _on_movement_card_pressed(card: CardData, button: TextureButton) -> void:
 	hide_all_movement_highlights()
 	valid_movement_tiles.clear()
 
+	# Check if this is a weapon card first
+	if card.effect_type == "Weapon" and weapon_handler:
+		# Pass the button reference to the weapon handler for cleanup
+		weapon_handler._on_weapon_card_pressed(card, button)
+		return
+	
 	# Check if this is an attack card first
 	if card.effect_type == "Attack" and attack_handler:
 		# Pass the button reference to the attack handler for cleanup
