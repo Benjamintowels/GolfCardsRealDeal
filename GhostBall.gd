@@ -93,8 +93,8 @@ func _process(delta):
 	var ball_grid_y = int(floor(position.y / cell_size))
 	
 	# Check if ball is in the area where trees should be
-	if ball_grid_x >= 16 and ball_grid_x <= 18 and ball_grid_y >= 10 and ball_grid_y <= 12:
-		print("*** GHOST BALL IN TREE AREA! Grid:", ball_grid_x, ",", ball_grid_y, "Position:", position, "Global:", global_position)
+	# if ball_grid_x >= 16 and ball_grid_x <= 18 and ball_grid_y >= 10 and ball_grid_y <= 12:
+	# 	print("*** GHOST BALL IN TREE AREA! Grid:", ball_grid_x, ",", ball_grid_y, "Position:", position, "Global:", global_position)
 	
 	if landed_flag:
 		return
@@ -111,6 +111,11 @@ func _process(delta):
 	
 	# Update Y-sorting based on new position
 	update_y_sort()
+	
+	# OPTIMIZED: Ball handles its own tree collision detection
+	# Only check for tree collisions when ball is in the air (during launch mode)
+	if z > 0.0:
+		check_nearby_tree_collisions()
 	
 	# Update vertical physics (arc and bounce)
 	if z > 0.0:
@@ -515,4 +520,53 @@ func _on_area_entered(area):
 	print("Area position:", area.global_position)
 
 func _on_area_exited(area):
-	print("Ghost ball collision exited with area:", area.name, "Parent:", area.get_parent().name if area.get_parent() else "No parent") 
+	print("Ghost ball collision exited with area:", area.name, "Parent:", area.get_parent().name if area.get_parent() else "No parent")
+
+func check_nearby_tree_collisions() -> void:
+	"""OPTIMIZED: Ball checks for nearby tree collisions during flight"""
+	# Only check for leaves rustling sound (trunk collisions handled by Area2D)
+	# This is much more efficient than trees checking all balls every frame
+	
+	var trees = get_tree().get_nodes_in_group("trees")
+	if trees.is_empty():
+		return
+	
+	# Get ball's ground position (shadow position)
+	var ball_ground_pos = global_position
+	if has_method("get_ground_position"):
+		ball_ground_pos = get_ground_position()
+	
+	# Check only nearby trees (spatial optimization)
+	var nearby_trees = []
+	for tree in trees:
+		if is_instance_valid(tree):
+			var distance_to_tree = ball_ground_pos.distance_to(tree.global_position)
+			if distance_to_tree <= 150.0:  # Only check trees within 150 pixels
+				nearby_trees.append(tree)
+	
+	# Process leaves rustling for nearby trees
+	for tree in nearby_trees:
+		var tree_center = tree.global_position
+		var distance_to_trunk = ball_ground_pos.distance_to(tree_center)
+		var trunk_radius = 120.0
+		
+		# Only check if ball is within the trunk radius
+		if distance_to_trunk <= trunk_radius:
+			# Check if ball is at the right height to pass through leaves
+			var ball_height = z
+			var tree_height = 400.0
+			var min_leaves_height = 60.0
+			
+			if ball_height > min_leaves_height and ball_height < tree_height:
+				# Check if we haven't played the sound recently for this ball-tree combination
+				var current_time = Time.get_ticks_msec() / 1000.0
+				var tree_id = tree.get_instance_id()
+				var sound_key = "last_leaves_rustle_time_%d" % tree_id
+				
+				if not has_meta(sound_key) or get_meta(sound_key) + 0.5 < current_time:
+					var rustle = tree.get_node_or_null("LeavesRustle")
+					if rustle:
+						rustle.play()
+						print("✓ LeavesRustle sound played - ball passing through leaves near trunk")
+						# Mark when we last played the sound for this ball-tree combination
+						set_meta(sound_key, current_time) 

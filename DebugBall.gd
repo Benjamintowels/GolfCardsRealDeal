@@ -100,10 +100,6 @@ func _process(delta):
 	
 	# Update Y-sorting
 	update_y_sort()
-	
-	# Debug position every few frames
-	if Engine.get_process_frames() % 60 == 0:  # Every 60 frames (about once per second)
-		print("Debug Ball position:", position, "height:", z, "visible:", sprite.visible if sprite else "no sprite")
 
 func update_visual_effects():
 	"""Update ball and shadow visuals based on height"""

@@ -1,0 +1,335 @@
+extends Node
+
+# Smart Performance Optimizer
+# Only runs expensive operations when they're actually needed
+
+# Game state tracking
+var current_game_phase: String = ""
+var ball_is_active: bool = false
+var ball_is_moving: bool = false
+var aiming_phase_active: bool = false
+var launch_phase_active: bool = false
+
+# Object movement tracking
+var last_ball_position: Vector2 = Vector2.ZERO
+var ball_movement_threshold: float = 5.0  # Only update Y-sort if ball moves more than this
+var last_camera_position: Vector2 = Vector2.ZERO
+var camera_movement_threshold: float = 10.0
+
+# Collision detection optimization
+var collision_detection_active: bool = false
+var nearby_collision_objects: Array = []
+var collision_detection_radius: float = 300.0  # Only check objects within this radius
+
+# Y-sort optimization
+var ysort_update_cooldown: float = 0.016  # ~60 FPS for moving objects
+var last_ysort_update: float = 0.0
+var objects_need_ysort_update: Array = []
+
+# Tree collision optimization
+var tree_collision_active: bool = false
+var last_tree_update: float = 0.0
+var tree_update_interval: float = 0.1  # Only when ball is near trees
+
+func _ready():
+	print("Smart Performance Optimizer initialized")
+
+func update_game_state(game_phase: String, ball_active: bool = false, aiming: bool = false, launching: bool = false):
+	"""Update the current game state to determine what optimizations to apply"""
+	current_game_phase = game_phase
+	ball_is_active = ball_active
+	aiming_phase_active = aiming
+	launch_phase_active = launching
+	
+	# Determine if collision detection should be active
+	collision_detection_active = (aiming_phase_active or launch_phase_active or ball_is_active)
+	
+	# Determine if tree collision should be active
+	tree_collision_active = (ball_is_active and has_nearby_trees())
+	
+	print("Game state updated - Phase:", game_phase, " Ball active:", ball_is_active, " Collision detection:", collision_detection_active)
+
+func update_ball_state(ball_position: Vector2, ball_velocity: Vector2):
+	"""Update ball state to determine if Y-sort updates are needed"""
+	if not ball_is_active:
+		return
+	
+	# Check if ball has moved significantly
+	var ball_moved = ball_position.distance_to(last_ball_position) > ball_movement_threshold
+	ball_is_moving = ball_velocity.length() > 10.0  # Ball is moving if velocity > 10
+	
+	if ball_moved or ball_is_moving:
+		last_ball_position = ball_position
+		# Mark ball for Y-sort update
+		add_object_for_ysort_update("ball")
+	
+	# Update collision detection radius based on ball movement
+	if ball_is_moving:
+		collision_detection_radius = 400.0  # Larger radius when ball is moving
+	else:
+		collision_detection_radius = 200.0  # Smaller radius when stationary
+
+func update_camera_state(camera_position: Vector2):
+	"""Update camera state to determine if Y-sort updates are needed"""
+	var camera_moved = camera_position.distance_to(last_camera_position) > camera_movement_threshold
+	if camera_moved:
+		last_camera_position = camera_position
+		# Mark all static objects for Y-sort update when camera moves
+		add_object_for_ysort_update("camera_moved")
+
+func smart_process(delta: float, course_instance):
+	"""Smart _process function that only runs expensive operations when needed"""
+	var current_time = Time.get_ticks_msec() / 1000.0
+	
+	# Always run essential updates
+	update_essential_systems(course_instance)
+	
+	# Only run Y-sort updates when needed
+	if should_update_ysort(current_time):
+		update_ysort_systems(course_instance, current_time)
+	
+	# Only run collision detection when relevant
+	if collision_detection_active:
+		update_collision_systems(course_instance, current_time)
+	
+	# Tree collision is now handled by the ball itself during launch mode
+	# No need to run tree collision checks here anymore
+	pass
+
+func update_essential_systems(course_instance):
+	"""Update systems that always need to run"""
+	# Update LaunchManager (essential for gameplay)
+	course_instance.launch_manager.chosen_landing_spot = course_instance.chosen_landing_spot
+	course_instance.launch_manager.selected_club = course_instance.selected_club
+	course_instance.launch_manager.club_data = course_instance.club_data
+	course_instance.launch_manager.player_stats = course_instance.player_stats
+	
+	# Camera following (only when ball is active)
+	if course_instance.camera_following_ball and course_instance.launch_manager.golf_ball and is_instance_valid(course_instance.launch_manager.golf_ball):
+		var ball_center = course_instance.launch_manager.golf_ball.global_position
+		var tween := get_tree().create_tween()
+		tween.tween_property(course_instance.camera, "position", ball_center, 0.1).set_trans(Tween.TRANS_LINEAR)
+	
+	# Card hand anchor check (one-time setup)
+	if course_instance.card_hand_anchor and course_instance.card_hand_anchor.z_index != 100:
+		course_instance.card_hand_anchor.z_index = 100
+		course_instance.card_hand_anchor.mouse_filter = Control.MOUSE_FILTER_STOP
+		course_instance.set_process(false)  # stop checking after setting
+	
+	# Aiming circle update (only during aiming)
+	if course_instance.is_aiming_phase and course_instance.aiming_circle:
+		course_instance.update_aiming_circle()
+
+func should_update_ysort(current_time: float) -> bool:
+	"""Determine if Y-sort updates are needed"""
+	# Always update if we have objects queued for update
+	if not objects_need_ysort_update.is_empty():
+		return true
+	
+	# Update at regular intervals for moving objects
+	if current_time - last_ysort_update >= ysort_update_cooldown:
+		return ball_is_moving or aiming_phase_active or launch_phase_active
+	
+	return false
+
+func update_ysort_systems(course_instance, current_time: float):
+	"""Update Y-sort systems only when needed"""
+	last_ysort_update = current_time
+	
+	# Update Y-sort for objects that need it
+	for object_info in objects_need_ysort_update:
+		if object_info.has("node") and is_instance_valid(object_info.node):
+			Global.update_object_y_sort(object_info.node, object_info.type)
+	
+	# Clear the update queue
+	objects_need_ysort_update.clear()
+	
+	# Update camera position for spatial calculations
+	update_camera_state(course_instance.camera.global_position)
+
+func update_collision_systems(course_instance, current_time: float):
+	"""Update collision detection systems only when relevant"""
+	# Only check for nearby collision objects
+	update_nearby_collision_objects(course_instance)
+	
+	# Update collision detection for nearby objects only
+	for obj in nearby_collision_objects:
+		if is_instance_valid(obj):
+			# Update collision detection for this object
+			update_object_collision(obj)
+
+func update_nearby_collision_objects(course_instance):
+	"""Find collision objects near the ball or aiming area"""
+	nearby_collision_objects.clear()
+	
+	var check_position: Vector2
+	if course_instance.launch_manager.golf_ball and is_instance_valid(course_instance.launch_manager.golf_ball):
+		check_position = course_instance.launch_manager.golf_ball.global_position
+	else:
+		check_position = course_instance.player_node.global_position if course_instance.player_node else Vector2.ZERO
+	
+	# Get all collision objects
+	var collision_objects = get_tree().get_nodes_in_group("collision_objects")
+	
+	for obj in collision_objects:
+		if is_instance_valid(obj):
+			var distance = obj.global_position.distance_to(check_position)
+			if distance <= collision_detection_radius:
+				nearby_collision_objects.append(obj)
+
+func update_object_collision(obj: Node2D):
+	"""Update collision detection for a specific object"""
+	# This would contain the specific collision logic for each object type
+	# For now, just mark it for Y-sort update if it's moving
+	if obj.has_method("is_moving") and obj.is_moving():
+		add_object_for_ysort_update(obj)
+
+func update_tree_collisions(course_instance):
+	"""Update tree collisions only when ball is near trees"""
+	if not course_instance.launch_manager.golf_ball or not is_instance_valid(course_instance.launch_manager.golf_ball):
+		return
+	
+	var ball_position = course_instance.launch_manager.golf_ball.global_position
+	var nearby_trees = get_nearby_trees(ball_position)
+	
+	for tree in nearby_trees:
+		if is_instance_valid(tree):
+			check_tree_collision(tree, course_instance.launch_manager.golf_ball)
+
+func get_nearby_trees(ball_position: Vector2) -> Array:
+	"""Get trees near the ball position"""
+	var nearby_trees = []
+	var trees = get_tree().get_nodes_in_group("trees")
+	
+	for tree in trees:
+		if is_instance_valid(tree):
+			var distance = tree.global_position.distance_to(ball_position)
+			if distance <= 200.0:  # Check trees within 200 pixels
+				nearby_trees.append(tree)
+	
+	return nearby_trees
+
+func has_nearby_trees() -> bool:
+	"""Check if there are trees near the current ball position"""
+	if not get_tree().get_first_node_in_group("balls"):
+		return false
+	
+	var ball = get_tree().get_first_node_in_group("balls")
+	if not ball or not is_instance_valid(ball):
+		return false
+	
+	var nearby_trees = get_nearby_trees(ball.global_position)
+	return not nearby_trees.is_empty()
+
+func check_tree_collision(tree: Node2D, ball: Node2D):
+	"""Check collision between a tree and ball"""
+	# This would contain the specific tree collision logic
+	# For now, just mark the tree for Y-sort update
+	add_object_for_ysort_update(tree)
+
+func add_object_for_ysort_update(obj, object_type: String = "objects"):
+	"""Add an object to the Y-sort update queue"""
+	# Avoid duplicates
+	for existing in objects_need_ysort_update:
+		if existing.has("node") and existing.node == obj:
+			return
+	
+	objects_need_ysort_update.append({
+		"node": obj,
+		"type": object_type
+	})
+
+func smart_input(event: InputEvent, course_instance):
+	"""Smart _input function that only redraws when necessary"""
+	# Handle weapon mode input first
+	if course_instance.weapon_handler and course_instance.weapon_handler.handle_input(event):
+		return
+	
+	# Game phase handling (keep existing logic)
+	if course_instance.game_phase == "aiming":
+		handle_aiming_input(event, course_instance)
+	elif course_instance.game_phase == "launch":
+		handle_launch_input(event, course_instance)
+	elif course_instance.game_phase == "ball_flying":
+		handle_ball_flying_input(event, course_instance)
+	
+	# Mouse handling (keep existing logic)
+	handle_mouse_input(event, course_instance)
+	
+	# OPTIMIZED: Only redraw grid when necessary
+	if should_redraw_grid(event):
+		redraw_grid(course_instance)
+
+func handle_aiming_input(event: InputEvent, course_instance):
+	"""Handle input during aiming phase"""
+	if event is InputEventMouseButton:
+		if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+			course_instance.is_aiming_phase = false
+			course_instance.hide_aiming_circle()
+			course_instance.hide_aiming_instruction()
+			course_instance.enter_launch_phase()
+		elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
+			course_instance.is_aiming_phase = false
+			course_instance.hide_aiming_circle()
+			course_instance.hide_aiming_instruction()
+			course_instance.game_phase = "move"
+			course_instance._update_player_mouse_facing_state()
+
+func handle_launch_input(event: InputEvent, course_instance):
+	"""Handle input during launch phase"""
+	if course_instance.launch_manager.handle_input(event):
+		return
+
+func handle_ball_flying_input(event: InputEvent, course_instance):
+	"""Handle input during ball flying phase"""
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_MIDDLE:
+		course_instance.is_panning = event.pressed
+		if course_instance.is_panning:
+			course_instance.pan_start_pos = event.position
+		else:
+			var tween := get_tree().create_tween()
+			tween.tween_property(course_instance.camera, "position", course_instance.camera_snap_back_pos, 0.6).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	elif event is InputEventMouseMotion and course_instance.is_panning:
+		var delta: Vector2 = event.position - course_instance.pan_start_pos
+		course_instance.camera.position -= delta
+		course_instance.pan_start_pos = event.position
+
+func handle_mouse_input(event: InputEvent, course_instance):
+	"""Handle general mouse input"""
+	if event is InputEventMouseButton and event.pressed:
+		course_instance.is_panning = event.pressed
+		if course_instance.is_panning:
+			course_instance.pan_start_pos = event.position
+		else:
+			var tween := get_tree().create_tween()
+			tween.tween_property(course_instance.camera, "position", course_instance.camera_snap_back_pos, 0.6).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	elif event is InputEventMouseMotion and course_instance.is_panning:
+		var delta: Vector2 = event.position - course_instance.pan_start_pos
+		course_instance.camera.position -= delta
+		course_instance.pan_start_pos = event.position
+
+func should_redraw_grid(event: InputEvent) -> bool:
+	"""Determine if grid redraw is necessary"""
+	# Only redraw on mouse movement or when flashlight effect changes
+	return (event is InputEventMouseMotion or 
+			(event is InputEventMouseButton and event.pressed) or
+			aiming_phase_active or
+			ball_is_active)
+
+func redraw_grid(course_instance):
+	"""Redraw the grid when necessary"""
+	# Update flashlight center
+	if course_instance.player_node:
+		course_instance.player_flashlight_center = course_instance.get_flashlight_center()
+	
+	# Redraw grid tiles
+	for y in course_instance.grid_size.y:
+		for x in course_instance.grid_size.x:
+			course_instance.grid_tiles[y][x].get_node("TileDrawer").queue_redraw()
+	
+	course_instance.queue_redraw()
+
+func cleanup():
+	"""Cleanup optimization systems"""
+	objects_need_ysort_update.clear()
+	nearby_collision_objects.clear() 

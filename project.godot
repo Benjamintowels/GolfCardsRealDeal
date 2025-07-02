@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="GolfCards"
-run/main_scene="uid://wyu3udwngros"
+run/main_scene="res://LoadingScreen.tscn"
 config/features=PackedStringArray("4.4", "Forward Plus")
 config/icon="res://icon.svg"
 

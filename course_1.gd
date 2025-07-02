@@ -198,6 +198,10 @@ var ysort_objects := [] # Array of {node: Node2D, grid_pos: Vector2i}
 
 # Shop interaction variables
 var shop_dialog: Control = null
+
+# Smart Performance Optimizer
+var smart_optimizer: Node
+var original_process_enabled: bool = true  # Toggle for testing
 var shop_entrance_detected := false
 var shop_grid_pos := Vector2i(2, 6)  # Position of shop from map layout
 
@@ -312,6 +316,13 @@ func _get_tee_area_center() -> Vector2:
 	return center_world_pos
 
 func _process(delta):
+	if smart_optimizer and not original_process_enabled:
+		smart_optimizer.smart_process(delta, self)
+	else:
+		# Original _process code (keep this as backup)
+		original_process(delta)
+
+func original_process(delta):
 	# Update LaunchManager
 	launch_manager.chosen_landing_spot = chosen_landing_spot
 	launch_manager.selected_club = selected_club
@@ -533,7 +544,26 @@ func _ready() -> void:
 		print("=== STARTING FRONT 9 MODE ===")
 		is_back_9_mode = false
 		current_hole = 0  # Start at hole 1 (index 0)
-		print("Front 9 mode initialized, starting at hole:", current_hole + 1)
+	
+	print("Front 9 mode initialized, starting at hole:", current_hole + 1)
+	
+	# Initialize smart performance optimizer
+	var optimizer_script = load("res://SmartPerformanceOptimizer.gd")
+	smart_optimizer = optimizer_script.new()
+	add_child(smart_optimizer)
+	print("Smart performance optimizer added to course")
+	
+	# Test the smart optimizer
+	if smart_optimizer:
+		smart_optimizer.update_game_state("tee_select", false, false, false)
+		print("Smart optimizer test: Game state updated successfully")
+	
+	# Start with original process enabled for safety
+	original_process_enabled = true
+	print("Smart optimization is DISABLED by default. Use toggle_optimization() to enable.")
+	
+	# Create optimization toggle button
+	create_optimization_toggle_button()
 
 	is_placing_player = true
 	highlight_tee_tiles()
@@ -632,9 +662,11 @@ func _input(event: InputEvent) -> void:
 	if player_node:
 		player_flashlight_center = get_flashlight_center()
 
-	for y in grid_size.y:
-		for x in grid_size.x:
-			grid_tiles[y][x].get_node("TileDrawer").queue_redraw()
+	# Skip grid redraws when smart optimization is enabled - tiles are static
+	if original_process_enabled:
+		for y in grid_size.y:
+			for x in grid_size.x:
+				grid_tiles[y][x].get_node("TileDrawer").queue_redraw()
 
 	queue_redraw()
 
@@ -3151,3 +3183,41 @@ func _update_player_mouse_facing_state() -> void:
 # 	if obstacle_map.has(grid_pos):
 # 		return obstacle_map[grid_pos]
 # 	return null
+
+func create_optimization_toggle_button():
+	"""Create a button to toggle smart optimization on/off"""
+	var toggle_button = Button.new()
+	toggle_button.name = "OptimizationToggleButton"
+	toggle_button.text = "Enable Smart Optimization"
+	toggle_button.position = Vector2(10, 10)
+	toggle_button.size = Vector2(200, 30)
+	toggle_button.z_index = 1000  # Keep on top
+	toggle_button.connect("pressed", _on_optimization_toggle_pressed)
+	
+	# Add to UI layer
+	if has_node("UILayer"):
+		get_node("UILayer").add_child(toggle_button)
+		print("Optimization toggle button created")
+	else:
+		print("ERROR: UILayer not found for optimization button")
+
+func _on_optimization_toggle_pressed():
+	"""Handle optimization toggle button press"""
+	toggle_optimization()
+	
+	# Update button text
+	var toggle_button = get_node_or_null("UILayer/OptimizationToggleButton")
+	if toggle_button:
+		toggle_button.text = "Disable Smart Optimization" if not original_process_enabled else "Enable Smart Optimization"
+
+func toggle_optimization():
+	"""Toggle between smart optimization and original process"""
+	original_process_enabled = !original_process_enabled
+	print("Smart optimization ", "disabled" if original_process_enabled else "enabled")
+	
+	# Update the smart optimizer with current game state
+	if smart_optimizer:
+		var ball_active = (game_phase == "ball_flying" or game_phase == "launch")
+		var aiming = (game_phase == "aiming")
+		var launching = (game_phase == "launch")
+		smart_optimizer.update_game_state(game_phase, ball_active, aiming, launching)

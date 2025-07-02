@@ -35,6 +35,9 @@ var is_charging_height: bool = false  # Will be updated by parent
 var camera: Camera2D = null  # Will be set by parent
 var is_in_launch_mode: bool = false  # Track if we're in launch mode (ball flying)
 
+# Performance optimization - Y-sort only when moving
+# No camera tracking needed since camera panning doesn't affect Y-sort in 2.5D
+
 func _ready():
 	# Look for the character sprite (it's added as a direct child by the course script)
 	for child in get_children():
@@ -128,8 +131,9 @@ func setup(grid_size_: Vector2i, cell_size_: int, base_mobility_: int, obstacle_
 func set_grid_position(pos: Vector2i, ysort_objects: Array = []):
 	grid_pos = pos
 	self.position = Vector2(pos.x, pos.y) * cell_size + Vector2(cell_size / 2, cell_size / 2)
-	if ysort_objects.size() > 0:
-		update_z_index_for_ysort(ysort_objects)
+	# OPTIMIZED: Always update Y-sort when player moves
+	# Camera panning doesn't change Y-sort relationships in 2.5D perspective
+	update_z_index_for_ysort(ysort_objects)
 
 func update_z_index_for_ysort(ysort_objects: Array) -> void:
 	"""Update player Y-sort using the simple global system"""
@@ -184,8 +188,9 @@ func move_to_grid(pos: Vector2i):
 	print("=== END PLAYER.GD MOVE_TO_GRID DEBUG ===")
 
 func _process(delta):
-	# Update Y-sort every frame to stay in sync with camera movement
-	update_z_index_for_ysort([])
+	# OPTIMIZED: Only update Y-sort when Player moves
+	# Camera panning doesn't change Y-sort relationships in 2.5D perspective
+	# No need to update Y-sort every frame or when camera moves
 	
 	# Handle mouse facing system
 	_update_mouse_facing()

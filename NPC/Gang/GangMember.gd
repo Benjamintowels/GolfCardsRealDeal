@@ -46,6 +46,9 @@ var state_machine: StateMachine
 var player: Node
 var course: Node
 
+# Performance optimization - Y-sort only when moving
+# No camera tracking needed since camera panning doesn't affect Y-sort in 2.5D
+
 func _ready():
 	# Connect to Entities manager
 	# Find the course_1.gd script by searching up the scene tree
@@ -274,8 +277,10 @@ func _apply_ball_collision_effect(ball: Node2D) -> void:
 			ball.velocity = reflected_velocity
 
 func _process(delta):
-	# Update Y-sort every frame to stay in sync with camera movement
-	update_z_index_for_ysort()
+	# OPTIMIZED: Only update Y-sort when GangMember moves
+	# Camera panning doesn't change Y-sort relationships in 2.5D perspective
+	# No need to update Y-sort every frame or when camera moves
+	pass
 
 func _find_player_reference() -> void:
 	"""Find the player reference using multiple methods"""

@@ -179,47 +179,12 @@ func set_transparent(is_transparent: bool):
 
 
 
+# OPTIMIZED: Tree collision detection moved to ball for better performance
+# Trees no longer check for balls every frame - ball handles its own collision detection
 func _process(delta):
-	# Check for nearby balls and play leaves rustling sound
-	var balls = get_tree().get_nodes_in_group("balls")
-	for ball in balls:
-		if ball and (ball.name == "GolfBall" or ball.name == "GhostBall"):
-			# Get the ball's ground position (shadow position)
-			var ball_ground_pos = ball.global_position
-			if ball.has_method("get_ground_position"):
-				ball_ground_pos = ball.get_ground_position()
-			
-			# Check if ball's shadow is near the tree trunk
-			var tree_center = global_position
-			var distance_to_trunk = ball_ground_pos.distance_to(tree_center)
-			var trunk_radius = 120.0  # Increased from 60.0 to 120.0 for more forgiveness
-			
-			# Only check if ball is within the trunk radius
-			if distance_to_trunk <= trunk_radius:
-				# Get ball height
-				var ball_height = 0.0
-				if ball.has_method("get_height"):
-					ball_height = ball.get_height()
-				elif "z" in ball:
-					ball_height = ball.z
-				
-				var tree_height = 400.0  # Tree height (ball needs 230.0 to pass over)
-				var min_leaves_height = 60.0  # Increased from 40.0 to 60.0 - slightly higher requirement
-				
-				# Check if ball is at the right height to pass through leaves
-				if ball_height > min_leaves_height and ball_height < tree_height:
-					# Check if we haven't played the sound recently for this ball
-					var ball_id = ball.get_instance_id()
-					var current_time = Time.get_ticks_msec() / 1000.0  # Convert to seconds
-					if not ball.has_meta("last_leaves_rustle_time") or ball.get_meta("last_leaves_rustle_time") + 0.5 < current_time:
-						var rustle = get_node_or_null("LeavesRustle")
-						if rustle:
-							rustle.play()
-							print("✓ LeavesRustle sound played - ball passing through leaves near trunk")
-							# Mark when we last played the sound for this ball
-							ball.set_meta("last_leaves_rustle_time", current_time)
-						else:
-							print("✗ LeavesRustle sound not found!")
+	# DISABLED: Tree collision detection moved to ball
+	# This eliminates the performance cost of trees checking all balls every frame
+	pass
 
 func _update_ysort():
 	"""Update the Tree's z_index for proper Y-sorting"""
