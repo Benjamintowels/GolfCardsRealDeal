@@ -216,6 +216,17 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 	velocity = direction.normalized() * power
 	# Store the original launch direction for spin limits
 	original_launch_direction = direction.normalized()
+	
+	print("=== BALL LAUNCH DEBUG ===")
+	print("Ball position:", global_position)
+	print("Launch direction:", direction)
+	print("Direction normalized:", direction.normalized())
+	print("Power:", power)
+	print("Final velocity:", velocity)
+	print("Velocity length:", velocity.length())
+	print("Height:", height)
+	print("Vertical velocity (vz):", vz)
+	print("=== END BALL LAUNCH DEBUG ===")
 	# Apply minimal initial spin - most of the spin effect will come from progressive in-air influence
 	if spin != 0.0:
 		var perp = Vector2(-direction.y, direction.x)
@@ -333,6 +344,10 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 func _process(delta):
 	if landed_flag:
 		return
+	
+	# Debug: Print ball movement every few frames
+	if Engine.get_process_frames() % 60 == 0:  # Every 60 frames (about once per second)
+		print("Ball position:", global_position, "velocity:", velocity, "z:", z, "vz:", vz, "landed_flag:", landed_flag)
 	
 	# Apply progressive height resistance during flight
 	if is_applying_height_resistance and z > 0.0:
@@ -920,10 +935,14 @@ func _on_area_entered(area):
 	elif area.get_parent() and area.get_parent().has_method("take_damage"):
 		# Player collision detected - handle player damage
 		_handle_player_collision(area.get_parent())
+		# Notify course to re-enable player collision since ball hit player
+		notify_course_of_collision()
 	# Check if this is a Tree collision
 	elif area.get_parent() and area.get_parent().has_method("_handle_trunk_collision"):
 		# Tree collision detected - let the tree handle the collision
 		area.get_parent()._handle_trunk_collision(self)
+		# Notify course to re-enable player collision since ball hit tree
+		notify_course_of_collision()
 
 func _on_area_exited(area):
 	# Area exit handling if needed
@@ -984,6 +1003,13 @@ func reset_shot_effects() -> void:
 	sticky_shot_active = false
 	bouncey_shot_active = false
 	print("Shot effects reset: sticky_shot_active =", sticky_shot_active, "bouncey_shot_active =", bouncey_shot_active)
+
+func notify_course_of_collision() -> void:
+	"""Notify the course that the ball has collided with something, so it can re-enable player collision"""
+	# Find the course script and notify it
+	var course_script = get_parent().get_parent()  # camera_container -> course_1
+	if course_script and course_script.has_method("_on_ball_collision_detected"):
+		course_script._on_ball_collision_detected()
 
 func create_landing_highlight(tile_pos: Vector2i) -> void:
 	"""Create a bright highlight effect for the final landing tile"""

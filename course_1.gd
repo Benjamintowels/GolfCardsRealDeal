@@ -912,21 +912,66 @@ func update_player_position() -> void:
 	var player_center: Vector2 = player_node.global_position + player_size / 2
 	camera_snap_back_pos = player_center
 	
+	# Only create ball if player is properly placed (not during initial setup)
 	if not is_placing_player:
-		print("=== CAMERA MOVEMENT DEBUG ===")
-		print("update_player_position moving camera from", camera.position, "to", player_center)
-		print("player_node.visible:", player_node.visible, "is_placing_player:", is_placing_player)
-		
+		# Create or update ball at tile center for all shots
+		var tile_center: Vector2 = Vector2(player_grid_pos.x * cell_size + cell_size/2, player_grid_pos.y * cell_size + cell_size/2) + camera_container.global_position
+		create_or_update_ball_at_player_center(tile_center)
+	
+	if not is_placing_player:
 		# Check if there's an ongoing pin-to-tee transition
 		var ongoing_tween = get_meta("pin_to_tee_tween", null)
 		if ongoing_tween and ongoing_tween.is_valid():
-			print("Cancelling ongoing pin-to-tee transition for player placement")
 			ongoing_tween.kill()
 			remove_meta("pin_to_tee_tween")
 		
 		var tween = get_tree().create_tween()
 		tween.tween_property(camera, "position", player_center, 0.5).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-		print("=== END CAMERA MOVEMENT DEBUG ===")
+
+func remove_all_balls() -> void:
+	"""Remove all balls from the scene"""
+	var balls = get_tree().get_nodes_in_group("balls")
+	for ball in balls:
+		if is_instance_valid(ball):
+			ball.queue_free()
+	print("Removed", balls.size(), "balls from scene")
+
+func create_or_update_ball_at_player_center(player_center: Vector2) -> void:
+	"""Create a ball at the player center or update existing ball position"""
+	# Check if a ball already exists
+	var existing_balls = get_tree().get_nodes_in_group("balls")
+	var existing_ball = null
+	
+	for ball in existing_balls:
+		if is_instance_valid(ball):
+			existing_ball = ball
+			break
+	
+	if existing_ball:
+		# Ball already exists - don't recreate it, just update its properties
+		return
+	
+
+	
+	# No ball exists - create a new one at player center
+	var ball_scene = preload("res://GolfBall.tscn")
+	var ball = ball_scene.instantiate()
+	ball.name = "GolfBall"
+	ball.add_to_group("balls")
+	
+	# Position the ball relative to the camera container
+	var ball_local_position = player_center - camera_container.global_position
+	ball.position = ball_local_position
+	ball.cell_size = cell_size
+	ball.map_manager = map_manager
+	
+	# Connect ball signals using the existing function names
+	ball.landed.connect(_on_golf_ball_landed)
+	ball.out_of_bounds.connect(_on_golf_ball_out_of_bounds)
+	ball.sand_landing.connect(_on_golf_ball_sand_landing)
+	
+	# Add ball to camera container so it moves with the world
+	camera_container.add_child(ball)
 
 func create_movement_buttons() -> void:
 	movement_controller.create_movement_buttons()
@@ -973,10 +1018,10 @@ func _on_tile_input(event: InputEvent, x: int, y: int) -> void:
 				player_grid_pos = clicked
 				create_player()  # This will reuse existing player or create new one
 				is_placing_player = false
-				var sprite = player_node.get_node_or_null("Sprite2D")
-				var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
-				var player_center = player_node.global_position + player_size / 2
-				camera_snap_back_pos = player_center
+				
+				# Update player position and create ball
+				update_player_position()
+				
 				if sand_thunk_sound and sand_thunk_sound.stream:
 					sand_thunk_sound.play()
 				start_round_after_tee_selection()
@@ -1122,12 +1167,20 @@ func update_aiming_circle():
 		distance_label.text = str(int(clamped_distance)) + "px"
 
 func launch_golf_ball(direction: Vector2, charged_power: float, height: float):
-	launch_manager.launch_golf_ball(direction, charged_power, height)
+	# Determine if this is a tee shot (first shot of the hole)
+	print("DEBUG: Launching ball, hole_score =", hole_score)
+	launch_manager.launch_golf_ball(direction, charged_power, height, 0.0, 0)
 	
 func _on_golf_ball_landed(tile: Vector2i):
+	print("DEBUG: Ball landed, hole_score before increment =", hole_score)
 	hole_score += 1
+	print("DEBUG: Ball landed, hole_score after increment =", hole_score)
 	camera_following_ball = false
 	ball_landing_tile = tile
+	
+	# Re-enable player collision shape after ball lands
+	if player_node and player_node.has_method("enable_collision_shape"):
+		player_node.enable_collision_shape()
 	
 	# Check if the ball still exists (if not, it went in the hole)
 	if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball):
@@ -1516,6 +1569,10 @@ func _on_golf_ball_out_of_bounds():
 		water_plunk_sound.play()
 	camera_following_ball = false
 	
+	# Re-enable player collision shape after ball goes out of bounds
+	if player_node and player_node.has_method("enable_collision_shape"):
+		player_node.enable_collision_shape()
+	
 	hole_score += 1
 	if launch_manager.golf_ball:
 		launch_manager.golf_ball.queue_free()
@@ -1526,6 +1583,11 @@ func _on_golf_ball_out_of_bounds():
 	waiting_for_player_to_reach_ball = true
 	player_grid_pos = shot_start_grid_pos
 	update_player_position()
+	
+	# Create a new ball at the player's tile center position
+	var tile_center: Vector2 = Vector2(player_grid_pos.x * cell_size + cell_size/2, player_grid_pos.y * cell_size + cell_size/2) + camera_container.global_position
+	create_or_update_ball_at_player_center(tile_center)
+	
 	game_phase = "draw_cards"
 	_update_player_mouse_facing_state()
 
@@ -1625,6 +1687,10 @@ func _on_golf_ball_sand_landing():
 		sand_thunk_sound.play()
 	
 	camera_following_ball = false
+	# Re-enable player collision shape after ball lands in sand
+	if player_node and player_node.has_method("enable_collision_shape"):
+		player_node.enable_collision_shape()
+	
 	if launch_manager.golf_ball and map_manager:
 		var final_tile = Vector2i(floor(launch_manager.golf_ball.position.x / cell_size), floor(launch_manager.golf_ball.position.y / cell_size))
 		_on_golf_ball_landed(final_tile)
@@ -2449,16 +2515,11 @@ func create_ghost_ball() -> void:
 	var ghost_ball_area = ghost_ball.get_node_or_null("Area2D")
 	if ghost_ball_area:
 		ghost_ball_area.collision_layer = 1
-		ghost_ball_area.collision_mask = 1  # Collide with layer 1 (trees)
+		ghost_ball_area.collision_mask = 0  # Don't collide with anything (including player)
 	
-	var sprite = player_node.get_node_or_null("Sprite2D")
-	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
-	var player_center = player_node.global_position + player_size / 2
-	
-	# Ghost ball is just a preview, so use simple front-of-player positioning
-	player_center += Vector2(0, -cell_size * 0.5)
-
-	var ball_local_position = player_center - camera_container.global_position
+	# Position ghost ball at tile center (same as real ball)
+	var tile_center: Vector2 = Vector2(player_grid_pos.x * cell_size + cell_size/2, player_grid_pos.y * cell_size + cell_size/2) + camera_container.global_position
+	var ball_local_position = tile_center - camera_container.global_position
 	ghost_ball.position = ball_local_position
 	ghost_ball.cell_size = cell_size
 	ghost_ball.map_manager = map_manager
@@ -2856,10 +2917,18 @@ func _on_launch_phase_entered():
 func _on_launch_phase_exited():
 	game_phase = "ball_flying"
 	_update_player_mouse_facing_state()
+	# Disable player collision shape during ball flight
+	if player_node and player_node.has_method("disable_collision_shape"):
+		player_node.disable_collision_shape()
 
 func _on_charging_state_changed(charging: bool, charging_height: bool) -> void:
 	"""Handle charging state changes from LaunchManager"""
 	_update_player_mouse_facing_state()
+
+func _on_ball_collision_detected() -> void:
+	"""Handle ball collision detection - re-enable player collision shape"""
+	if player_node and player_node.has_method("enable_collision_shape"):
+		player_node.enable_collision_shape()
 
 func _on_npc_attacked(npc: Node, damage: int) -> void:
 	"""Handle when an NPC is attacked"""
@@ -2900,6 +2969,10 @@ func _update_player_mouse_facing_state() -> void:
 		is_charging_height = launch_manager.is_charging_height
 	
 	player_node.set_launch_state(is_charging, is_charging_height)
+	
+	# Update launch mode state
+	var is_in_launch_mode = (game_phase == "ball_flying")
+	player_node.set_launch_mode(is_in_launch_mode)
 	
 	# Set camera reference if not already set
 	if player_node.has_method("set_camera_reference") and camera:

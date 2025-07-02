@@ -52,6 +52,9 @@ signal launch_phase_entered
 signal launch_phase_exited
 signal charging_state_changed(charging: bool, charging_height: bool)
 
+# Add this variable to track if this is a tee shot
+
+
 func _ready():
 	pass
 
@@ -145,204 +148,50 @@ func exit_launch_phase() -> void:
 	is_charging = false
 	is_charging_height = false
 
-func launch_golf_ball(direction: Vector2, charged_power: float, height: float):
-	# Check if scramble effect is active
-	if card_effect_handler and card_effect_handler.is_scramble_active():
-		# Clear any existing golf ball before launching scramble balls
-		if golf_ball and is_instance_valid(golf_ball):
-			golf_ball.queue_free()
-			golf_ball = null
-		
-		# Calculate final power for scramble balls
-		var time_percent = charge_time / max_charge_time
-		time_percent = clamp(time_percent, 0.0, 1.0)
-		var actual_power = 0.0
-		
-		if chosen_landing_spot != Vector2.ZERO:
-			var player_sprite = player_node.get_node_or_null("Sprite2D")
-			var player_size = player_sprite.texture.get_size() * player_sprite.scale if player_sprite and player_sprite.texture else Vector2(cell_size, cell_size)
-			var player_center = player_node.global_position + player_size / 2
-			var distance_to_target = player_center.distance_to(chosen_landing_spot)
-			var reference_distance = 1200.0
-			var distance_factor = distance_to_target / reference_distance
-			var ball_physics_factor = 0.8 + (distance_factor * 0.4)
-			var base_power_per_distance = 0.6 + (distance_factor * 0.2)
-			var base_power_for_target = distance_to_target * base_power_per_distance * ball_physics_factor
-			
-			var club_efficiency = 1.0
-			if selected_club in club_data:
-				var club_max = club_data[selected_club]["max_distance"]
-				var efficiency_factor = 1200.0 / club_max
-				club_efficiency = sqrt(efficiency_factor)
-				club_efficiency = clamp(club_efficiency, 0.7, 1.5)
-			
-			var power_for_target = base_power_for_target * club_efficiency
-			
-			var is_putting = club_data.get(selected_club, {}).get("is_putter", false)
-			if is_putting:
-				var base_putter_power = 300.0
-				actual_power = time_percent * base_putter_power
-			elif time_percent <= 0.75:
-				actual_power = (time_percent / 0.75) * power_for_target
-				var trailoff_forgiveness = club_data[selected_club].get("trailoff_forgiveness", 0.5) if selected_club in club_data else 0.5
-				var undercharge_factor = 1.0 - (time_percent / 0.75)
-				var trailoff_penalty = undercharge_factor * (1.0 - trailoff_forgiveness)
-				actual_power = actual_power * (1.0 - trailoff_penalty)
-			else:
-				var overcharge_bonus = ((time_percent - 0.75) / 0.25) * (0.25 * 800.0) # max_shot_distance
-				actual_power = power_for_target + overcharge_bonus
-		else:
-			actual_power = time_percent * MAX_LAUNCH_POWER
-		
-		var height_percentage = (height - MIN_LAUNCH_HEIGHT) / (MAX_LAUNCH_HEIGHT - MIN_LAUNCH_HEIGHT)
-		height_percentage = clamp(height_percentage, 0.0, 1.0)
-		var height_resistance_multiplier = 1.0
-		if height_percentage > HEIGHT_SWEET_SPOT_MAX:
-			var excess_height = height_percentage - HEIGHT_SWEET_SPOT_MAX
-			var max_excess = 1.0 - HEIGHT_SWEET_SPOT_MAX
-			var resistance_factor = excess_height / max_excess
-			height_resistance_multiplier = 1.0 - (resistance_factor * 0.5)
-		
-		var final_power = actual_power * height_resistance_multiplier
-		var strength_modifier = player_stats.get("strength", 0)
-		if strength_modifier != 0:
-			var strength_multiplier = 1.0 + (strength_modifier * 0.1)
-			final_power *= strength_multiplier
-		
-		# Calculate proper launch direction for scramble balls
-		var scramble_launch_direction = Vector2.ZERO
-		if chosen_landing_spot != Vector2.ZERO:
-			var player_sprite = player_node.get_node_or_null("Sprite2D")
-			var player_size = player_sprite.texture.get_size() * player_sprite.scale if player_sprite and player_sprite.texture else Vector2(cell_size, cell_size)
-			var player_center = player_node.global_position + player_size / 2
-			scramble_launch_direction = (chosen_landing_spot - player_center).normalized()
-		else:
-			scramble_launch_direction = direction  # Fallback to passed direction
-		
-		card_effect_handler.launch_scramble_balls(scramble_launch_direction, final_power, height, launch_spin)
-		hide_power_meter()
-		var is_putting = club_data.get(selected_club, {}).get("is_putter", false)
-		if not is_putting:
-			hide_height_meter()
+func launch_golf_ball(launch_direction: Vector2, final_power: float, height: float, launch_spin: float = 0.0, spin_strength_category: int = 0):
+	"""Launch the golf ball with the specified parameters"""
+	print("=== LAUNCHING GOLF BALL ===")
+	print("Launch direction:", launch_direction)
+	print("Final power:", final_power)
+	print("Height:", height)
+	print("Spin:", launch_spin)
+	print("Spin strength category:", spin_strength_category)
+	
+	# Find the existing ball in the scene
+	var existing_ball = null
+	var balls = get_tree().get_nodes_in_group("balls")
+	print("DEBUG: Found", balls.size(), "balls in 'balls' group")
+	
+	for ball in balls:
+		print("DEBUG: Checking ball:", ball.name, "valid:", is_instance_valid(ball), "type:", ball.get_class())
+		if is_instance_valid(ball):
+			existing_ball = ball
+			print("DEBUG: Found existing ball at position:", ball.global_position)
+			break
+	
+	if not existing_ball:
+		print("ERROR: No existing ball found in scene")
 		return
 	
-	var player_sprite = player_node.get_node_or_null("Sprite2D")
-	var player_size = player_sprite.texture.get_size() * player_sprite.scale if player_sprite and player_sprite.texture else Vector2(cell_size, cell_size)
-	var player_center = player_node.global_position + player_size / 2
-
-	var launch_direction = (chosen_landing_spot - player_center).normalized() if chosen_landing_spot != Vector2.ZERO else Vector2.ZERO
-
-	var time_percent = charge_time / max_charge_time
-	time_percent = clamp(time_percent, 0.0, 1.0)
-	var actual_power = 0.0
-	if chosen_landing_spot != Vector2.ZERO:
-		var distance_to_target = player_center.distance_to(chosen_landing_spot)
-		var reference_distance = 1200.0  # Driver's max distance as reference
-		var distance_factor = distance_to_target / reference_distance
-		var ball_physics_factor = 0.8 + (distance_factor * 0.4)  # Reduced from 1.2 to 0.4 (0.8 to 1.2)
-		var base_power_per_distance = 0.6 + (distance_factor * 0.2)  # Reduced from 0.8 to 0.2 (0.6 to 0.8)
-		
-		var base_power_for_target = distance_to_target * base_power_per_distance * ball_physics_factor
-		
-		var club_efficiency = 1.0
-		if selected_club in club_data:
-			var club_max = club_data[selected_club]["max_distance"]
-			var efficiency_factor = 1200.0 / club_max
-			club_efficiency = sqrt(efficiency_factor)
-			club_efficiency = clamp(club_efficiency, 0.7, 1.5)
-		
-		var power_for_target = base_power_for_target * club_efficiency
-		
-		var is_putting = club_data.get(selected_club, {}).get("is_putter", false)
-		if is_putting:
-			var base_putter_power = 300.0  # Base power for putters
-			actual_power = time_percent * base_putter_power
-		elif time_percent <= 0.75:
-			actual_power = (time_percent / 0.75) * power_for_target
-			var trailoff_forgiveness = club_data[selected_club].get("trailoff_forgiveness", 0.5) if selected_club in club_data else 0.5
-			var undercharge_factor = 1.0 - (time_percent / 0.75)  # 0.0 to 1.0
-			var trailoff_penalty = undercharge_factor * (1.0 - trailoff_forgiveness)
-			actual_power = actual_power * (1.0 - trailoff_penalty)
-		else:
-			var overcharge_bonus = ((time_percent - 0.75) / 0.25) * (0.25 * 800.0) # max_shot_distance
-			actual_power = power_for_target + overcharge_bonus
-	else:
-		actual_power = time_percent * MAX_LAUNCH_POWER
-
-	var aim_deviation = current_charge_mouse_pos - original_aim_mouse_pos
-	var launch_dir_perp = Vector2(-launch_direction.y, launch_direction.x) # Perpendicular to launch direction
-	var spin_strength = aim_deviation.dot(launch_dir_perp)
-	launch_spin = clamp(spin_strength * 1.0, -800, 800)  # Increased from 0.1 to 1.0 and max from 200 to 800
-	var spin_abs = abs(spin_strength)
-	var spin_strength_category = 0  # 0=green, 1=yellow, 2=red
-	if spin_abs > 120:
-		spin_strength_category = 2  # Red - high spin
-	elif spin_abs > 48:
-		spin_strength_category = 1  # Yellow - medium spin
-	else:
-		spin_strength_category = 0  # Green - low spin
-
-	var height_percentage = (height - MIN_LAUNCH_HEIGHT) / (MAX_LAUNCH_HEIGHT - MIN_LAUNCH_HEIGHT)
-	height_percentage = clamp(height_percentage, 0.0, 1.0)
-
-	var height_resistance_multiplier = 1.0
-	if height_percentage > HEIGHT_SWEET_SPOT_MAX:  # Above 50% height
-		var excess_height = height_percentage - HEIGHT_SWEET_SPOT_MAX
-		var max_excess = 1.0 - HEIGHT_SWEET_SPOT_MAX  # 0.5 (from 50% to 100%)
-		var resistance_factor = excess_height / max_excess  # 0.0 to 1.0
-		height_resistance_multiplier = 1.0 - (resistance_factor * 0.5)  # Reduce power by up to 50%
-
-	var final_power = actual_power * height_resistance_multiplier
+	# Use the existing ball
+	golf_ball = existing_ball
 	
-	var strength_modifier = player_stats.get("strength", 0)
-	if strength_modifier != 0:
-		var strength_multiplier = 1.0 + (strength_modifier * 0.1)
-		final_power *= strength_multiplier
-
-	if golf_ball:
-		golf_ball.queue_free()
-	golf_ball = preload("res://GolfBall.tscn").instantiate()
-	var ball_area = golf_ball.get_node_or_null("Area2D")
-	if ball_area:
-		ball_area.collision_layer = 1
-		ball_area.collision_mask = 1  # Collide with layer 1 (trees)
-	
-	var ball_setup_player_sprite = player_node.get_node_or_null("Sprite2D")
-	var ball_setup_player_size = ball_setup_player_sprite.texture.get_size() * ball_setup_player_sprite.scale if ball_setup_player_sprite and ball_setup_player_sprite.texture else Vector2(cell_size, cell_size)
-	var ball_setup_player_center = player_node.global_position + ball_setup_player_size / 2
-
-	# Position the ball based on launch direction to avoid collision with player
-	var ball_position_offset = Vector2.ZERO
-	if launch_direction != Vector2.ZERO:
-		# Position ball in the direction of launch, slightly away from player
-		ball_position_offset = launch_direction * (cell_size * 0.3)
-	else:
-		# Fallback to front of player if no direction
-		ball_position_offset = Vector2(0, -cell_size * 0.5)
-	
-	ball_setup_player_center += ball_position_offset
-
-	var ball_local_position = ball_setup_player_center - camera_container.global_position
-	golf_ball.position = ball_local_position
-	golf_ball.cell_size = cell_size
-	# golf_ball.map_manager = map_manager  # This will be set by parent
-	camera_container.add_child(golf_ball)  # Add to camera container instead of main scene
-	golf_ball.add_to_group("balls")  # Add to group for collision detection
-	
-	# update_ball_y_sort(golf_ball)  # This will be called by parent
-	var shadow = golf_ball.get_node_or_null("Shadow")
-	var ball_sprite = golf_ball.get_node_or_null("Sprite2D")
-	# play_swing_sound(final_power)  # This will be called by parent
+	# Set ball properties
 	golf_ball.chosen_landing_spot = chosen_landing_spot
 	golf_ball.club_info = club_data[selected_club] if selected_club in club_data else {}
 	var is_putting = club_data.get(selected_club, {}).get("is_putter", false)
 	golf_ball.is_putting = is_putting
+	
+	# Calculate time percentage for the ball
+	var time_percent = charge_time / max_charge_time
+	time_percent = clamp(time_percent, 0.0, 1.0)
 	golf_ball.time_percentage = time_percent
-	# Card effects will be handled by parent
 	
-	golf_ball.launch(launch_direction, final_power, height, launch_spin, spin_strength_category)  # Pass spin strength category
-	# Signal connections will be handled by parent
+	# Launch the ball
+	golf_ball.launch(launch_direction, final_power, height, launch_spin, spin_strength_category)
 	
+	# Store reference and emit signal
+	self.golf_ball = golf_ball
 	emit_signal("ball_launched", golf_ball)
 
 func show_power_meter():
@@ -521,14 +370,20 @@ func handle_input(event: InputEvent) -> bool:
 						is_charging_height = true
 						launch_height = MIN_LAUNCH_HEIGHT
 					else:
-						launch_golf_ball(launch_direction, 0.0, launch_height)
+						# Calculate final power and launch the ball
+						var final_power = calculate_final_power()
+						launch_direction = calculate_launch_direction()
+						launch_golf_ball(launch_direction, final_power, launch_height)
 						hide_power_meter()
 					emit_signal("charging_state_changed", is_charging, is_charging_height)
 					return true
 				elif is_charging_height:
 					is_charging_height = false
 					# Don't reset launch_height here - keep the charged value
-					launch_golf_ball(launch_direction, 0.0, launch_height)
+					# Calculate final power and launch the ball
+					var final_power = calculate_final_power()
+					launch_direction = calculate_launch_direction()
+					launch_golf_ball(launch_direction, final_power, launch_height)
 					hide_power_meter()
 					hide_height_meter()
 					emit_signal("charging_state_changed", is_charging, is_charging_height)
@@ -550,6 +405,104 @@ func handle_input(event: InputEvent) -> bool:
 	return false
 
 # Spin indicator visibility function removed
+
+func calculate_launch_direction() -> Vector2:
+	"""Calculate the launch direction based on the chosen landing spot or mouse position"""
+	# Get the ball's actual position for direction calculation
+	var ball_position = Vector2.ZERO
+	var balls = get_tree().get_nodes_in_group("balls")
+	for ball in balls:
+		if is_instance_valid(ball):
+			ball_position = ball.global_position
+			break
+	
+	# Fallback to player center if no ball found
+	if ball_position == Vector2.ZERO:
+		var sprite = player_node.get_node_or_null("Sprite2D")
+		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
+		ball_position = player_node.global_position + player_size / 2
+	
+	if chosen_landing_spot != Vector2.ZERO:
+		# Use direction to the chosen landing spot
+		return (chosen_landing_spot - ball_position).normalized()
+	else:
+		# Use direction from ball to mouse position
+		var mouse_pos = camera.get_global_mouse_position()
+		return (mouse_pos - ball_position).normalized()
+
+func calculate_final_power() -> float:
+	"""Calculate the final power based on charge time and target distance"""
+	var time_percent = charge_time / max_charge_time
+	time_percent = clamp(time_percent, 0.0, 1.0)
+	var actual_power = 0.0
+	
+	print("=== POWER CALCULATION DEBUG ===")
+	print("Charge time:", charge_time, "Max charge time:", max_charge_time)
+	print("Time percent:", time_percent)
+	print("Chosen landing spot:", chosen_landing_spot)
+	print("Selected club:", selected_club)
+	
+	if chosen_landing_spot != Vector2.ZERO:
+		var sprite = player_node.get_node_or_null("Sprite2D")
+		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
+		var player_center = player_node.global_position + player_size / 2
+		var distance_to_target = player_center.distance_to(chosen_landing_spot)
+		var reference_distance = 1200.0  # Driver's max distance as reference
+		var distance_factor = distance_to_target / reference_distance
+		var ball_physics_factor = 0.8 + (distance_factor * 0.4)
+		var base_power_per_distance = 0.6 + (distance_factor * 0.2)
+		var base_power_for_target = distance_to_target * base_power_per_distance * ball_physics_factor
+		
+		var club_efficiency = 1.0
+		if selected_club in club_data:
+			var club_max = club_data[selected_club]["max_distance"]
+			var efficiency_factor = 1200.0 / club_max
+			club_efficiency = sqrt(efficiency_factor)
+			club_efficiency = clamp(club_efficiency, 0.7, 1.5)
+		
+		var power_for_target = base_power_for_target * club_efficiency
+		
+		var is_putting = club_data.get(selected_club, {}).get("is_putter", false)
+		if is_putting:
+			var base_putter_power = 300.0
+			actual_power = time_percent * base_putter_power
+		elif time_percent <= 0.75:
+			actual_power = (time_percent / 0.75) * power_for_target
+			var trailoff_forgiveness = club_data[selected_club].get("trailoff_forgiveness", 0.5) if selected_club in club_data else 0.5
+			var undercharge_factor = 1.0 - (time_percent / 0.75)
+			var trailoff_penalty = undercharge_factor * (1.0 - trailoff_forgiveness)
+			actual_power = actual_power * (1.0 - trailoff_penalty)
+		else:
+			var overcharge_bonus = ((time_percent - 0.75) / 0.25) * (0.25 * 800.0)
+			actual_power = power_for_target + overcharge_bonus
+	else:
+		actual_power = time_percent * MAX_LAUNCH_POWER
+	
+	# Apply height resistance
+	var height_percentage = (launch_height - MIN_LAUNCH_HEIGHT) / (MAX_LAUNCH_HEIGHT - MIN_LAUNCH_HEIGHT)
+	height_percentage = clamp(height_percentage, 0.0, 1.0)
+	var height_resistance_multiplier = 1.0
+	if height_percentage > HEIGHT_SWEET_SPOT_MAX:
+		var excess_height = height_percentage - HEIGHT_SWEET_SPOT_MAX
+		var max_excess = 1.0 - HEIGHT_SWEET_SPOT_MAX
+		var resistance_factor = excess_height / max_excess
+		height_resistance_multiplier = 1.0 - (resistance_factor * 0.5)
+	
+	var final_power = actual_power * height_resistance_multiplier
+	
+	# Apply strength modifier
+	var strength_modifier = player_stats.get("strength", 0)
+	if strength_modifier != 0:
+		var strength_multiplier = 1.0 + (strength_modifier * 0.1)
+		final_power *= strength_multiplier
+	
+	print("Actual power:", actual_power)
+	print("Height resistance multiplier:", height_resistance_multiplier)
+	print("Strength modifier:", strength_modifier)
+	print("Final power:", final_power)
+	print("=== END POWER CALCULATION DEBUG ===")
+	
+	return final_power
 
 func cleanup():
 	"""Clean up launch manager resources"""

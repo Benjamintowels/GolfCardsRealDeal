@@ -33,6 +33,7 @@ var game_phase: String = "move"  # Will be updated by parent
 var is_charging: bool = false  # Will be updated by parent
 var is_charging_height: bool = false  # Will be updated by parent
 var camera: Camera2D = null  # Will be set by parent
+var is_in_launch_mode: bool = false  # Track if we're in launch mode (ball flying)
 
 func _ready():
 	# Look for the character sprite (it's added as a direct child by the course script)
@@ -195,13 +196,13 @@ func _update_mouse_facing() -> void:
 	if not sprite:
 		return
 	
-	# Only face mouse when it's player's turn and not in launch charge mode
+	# Only face mouse when it's player's turn and not in launch charge mode or ball flying mode
 	var should_face_mouse = (
 		game_phase == "move" or 
 		game_phase == "aiming" or 
 		game_phase == "draw_cards" or
 		game_phase == "ball_tile_choice"
-	) and not is_charging and not is_charging_height
+	) and not is_charging and not is_charging_height and not is_in_launch_mode
 	
 	if not should_face_mouse:
 		return
@@ -260,7 +261,12 @@ func _on_base_area_entered(area: Area2D) -> void:
 	print("Ball type:", ball.get_class() if ball else "Unknown")
 	print("Ball position:", ball.global_position if ball else "Unknown")
 	
-	if ball and (ball.name == "GolfBall" or ball.name == "GhostBall"):
+	# Check if this is a ghost ball and ignore it completely
+	if ball and ball.name == "GhostBall":
+		print("Ghost ball detected - ignoring collision completely")
+		return
+	
+	if ball and ball.name == "GolfBall":
 		print("Valid ball detected:", ball.name)
 		# Handle the collision
 		_handle_ball_collision(ball)
@@ -428,3 +434,21 @@ func set_launch_state(charging: bool, charging_height: bool) -> void:
 func set_camera_reference(camera_ref: Camera2D) -> void:
 	"""Set the camera reference for mouse position calculation"""
 	camera = camera_ref
+
+func disable_collision_shape() -> void:
+	"""Disable the player's collision shape during launch mode"""
+	if base_collision_area:
+		base_collision_area.monitoring = false
+		base_collision_area.monitorable = false
+		print("[Player.gd] Collision shape disabled for launch mode")
+
+func enable_collision_shape() -> void:
+	"""Enable the player's collision shape after ball lands"""
+	if base_collision_area:
+		base_collision_area.monitoring = true
+		base_collision_area.monitorable = true
+		print("[Player.gd] Collision shape enabled after ball landing")
+
+func set_launch_mode(launch_mode: bool) -> void:
+	"""Set the launch mode state for mouse facing logic"""
+	is_in_launch_mode = launch_mode

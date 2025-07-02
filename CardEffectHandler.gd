@@ -180,21 +180,10 @@ func launch_single_scramble_ball(direction: Vector2, power: float, height: float
 		ball_area.collision_layer = 1
 		ball_area.collision_mask = 1
 	
-	# Position the ball
+	# Position the ball at the player's position (scramble balls are always tee shots)
 	var player_sprite = course.player_node.get_node_or_null("Sprite2D")
 	var player_size = player_sprite.texture.get_size() * player_sprite.scale if player_sprite and player_sprite.texture else Vector2(course.cell_size, course.cell_size)
 	var player_center = course.player_node.global_position + player_size / 2
-	
-	# Position the ball based on launch direction to avoid collision with player
-	var ball_position_offset = Vector2.ZERO
-	if direction != Vector2.ZERO:
-		# Position ball in the direction of launch, slightly away from player
-		ball_position_offset = direction * (course.cell_size * 0.3)
-	else:
-		# Fallback to front of player if no direction
-		ball_position_offset = Vector2(0, -course.cell_size * 0.5)
-	
-	player_center += ball_position_offset
 	
 	var ball_local_position = player_center - course.camera_container.global_position
 	ball.position = ball_local_position
