@@ -42,6 +42,9 @@ func _ready():
 	else:
 		print("ERROR: Tree Area2D nodes not found!")
 	
+	# Setup HitBox for gun collision detection
+	_setup_hitbox()
+	
 	# Deferred call to double-check collision layers after the scene is fully set up
 	call_deferred("_verify_collision_setup")
 	
@@ -176,6 +179,18 @@ func set_transparent(is_transparent: bool):
 			sprite.modulate.a = 0.4
 		else:
 			sprite.modulate.a = 1.0
+
+func _setup_hitbox() -> void:
+	"""Setup HitBox for gun collision detection"""
+	var hitbox = get_node_or_null("HitBox")
+	if hitbox:
+		# Set collision layer to 1 so gun can detect it
+		hitbox.collision_layer = 1
+		# Set collision mask to 0 (gun doesn't need to detect this)
+		hitbox.collision_mask = 0
+		print("✓ Tree HitBox setup complete for gun collision")
+	else:
+		print("✗ ERROR: Tree HitBox not found!")
 
 
 

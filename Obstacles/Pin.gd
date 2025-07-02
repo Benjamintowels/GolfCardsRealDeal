@@ -5,18 +5,43 @@ signal pin_flag_hit(ball: Node2D)  # New signal for pin flag hits
 
 # Pin flag reflection settings
 const HOLE_IN_HEIGHT_MAX = 5.0  # Maximum height for hole-in
-const PIN_FLAG_HEIGHT_MAX = 100.0  # Updated height for proper collision detection
+var PIN_FLAG_HEIGHT_MAX = 400.0  # Will be set dynamically based on Marker2D position
 
 func _ready():
-	# Connect to the Area2D's area_entered signal
-	var area2d = $Area2D
-	if area2d:
+	# Connect to the flag Area2D's area_entered signal (for flag hits)
+	var flag_area = $FlagArea
+	if flag_area:
 		# Set collision layer to 1 so golf balls can detect it
-		area2d.collision_layer = 1
+		flag_area.collision_layer = 1
 		# Set collision mask to 1 so it can detect golf balls on layer 1
-		area2d.collision_mask = 1
+		flag_area.collision_mask = 1
 		
-		area2d.connect("area_entered", _on_area_entered)
+		flag_area.connect("area_entered", _on_flag_area_entered)
+	
+	# Connect to the hole Area2D's area_entered signal (for hole-in detection)
+	var hole_area = get_node_or_null("HoleArea")
+	if hole_area:
+		# Set collision layer to 1 so golf balls can detect it
+		hole_area.collision_layer = 1
+		# Set collision mask to 1 so it can detect golf balls on layer 1
+		hole_area.collision_mask = 1
+		
+		hole_area.connect("area_entered", _on_hole_area_entered)
+		print("Hole collision area connected")
+	else:
+		print("No HoleArea found - hole-in detection may not work properly")
+	
+	# Set collision height based on Marker2D position (if it exists)
+	var top_marker = get_node_or_null("TopMarker")
+	if top_marker:
+		# Convert the marker's Y position to ball height units
+		# The marker's Y position is negative (up), so we take the absolute value
+		PIN_FLAG_HEIGHT_MAX = abs(top_marker.position.y)
+		print("Pin collision height set to:", PIN_FLAG_HEIGHT_MAX, "based on TopMarker position")
+	else:
+		# Fallback to default value
+		PIN_FLAG_HEIGHT_MAX = 400.0
+		print("No TopMarker found, using default collision height:", PIN_FLAG_HEIGHT_MAX)
 
 # Returns the Y-sorting reference point (base of pin)
 func get_y_sort_point() -> float:
@@ -31,7 +56,36 @@ func _process(delta):
 	# REMOVED: z_index = int(global_position.y) + 10  # This was overriding the fixed z_index = 1000
 	pass
 
-func _on_area_entered(area: Area2D):
+func _on_flag_area_entered(area: Area2D):
+	"""Handle collisions with the flag area (for flag hits)"""
+	# Check if the area belongs to a golf ball
+	if area.get_parent() and area.get_parent().has_method("get_height"):
+		var golf_ball = area.get_parent()
+		var ball_height = golf_ball.get_height()
+		
+		# Check if this is a ghost ball (ghost balls have is_ghost property set to true)
+		if "is_ghost" in golf_ball and golf_ball.is_ghost:
+			return
+		
+		# Only handle flag hits (not hole-ins) in this area
+		if ball_height > HOLE_IN_HEIGHT_MAX and ball_height <= PIN_FLAG_HEIGHT_MAX:
+			# Ball hit the pin flag - apply reflection effect
+			# Play the pin flag hit sound
+			var hit_flag_audio = get_node_or_null("HitFlag")
+			if hit_flag_audio:
+				hit_flag_audio.play()
+			
+			# Emit signal for pin flag hit
+			pin_flag_hit.emit(golf_ball)
+			
+			# Apply velocity reduction (75% reduction = 25% of original velocity)
+			if golf_ball.has_method("set_velocity"):
+				var current_velocity = golf_ball.get_velocity()
+				var reduced_velocity = current_velocity * 0.25  # 25% of original velocity
+				golf_ball.set_velocity(reduced_velocity)
+
+func _on_hole_area_entered(area: Area2D):
+	"""Handle collisions with the hole area (for hole-in detection)"""
 	# Check if the area belongs to a golf ball
 	if area.get_parent() and area.get_parent().has_method("get_height"):
 		var golf_ball = area.get_parent()
@@ -42,6 +96,7 @@ func _on_area_entered(area: Area2D):
 			return
 		
 		# Check if the ball is in the hole-in height range (0-5) for all shots
+		# This should work for both rolling balls and balls dropping from above
 		if ball_height >= 0.0 and ball_height <= HOLE_IN_HEIGHT_MAX:
 			# Check if this is a scramble ball
 			var is_scramble_ball = golf_ball.is_in_group("scramble_balls")
@@ -73,18 +128,3 @@ func _on_area_entered(area: Area2D):
 			
 			# Note: Removed direct call to show_hole_completion_dialog() 
 			# The course will handle this through the signal connection
-		elif ball_height > HOLE_IN_HEIGHT_MAX and ball_height <= PIN_FLAG_HEIGHT_MAX:
-			# Ball hit the pin flag - apply reflection effect
-			# Play the pin flag hit sound
-			var hit_flag_audio = get_node_or_null("HitFlag")
-			if hit_flag_audio:
-				hit_flag_audio.play()
-			
-			# Emit signal for pin flag hit
-			pin_flag_hit.emit(golf_ball)
-			
-			# Apply velocity reduction (75% reduction = 25% of original velocity)
-			if golf_ball.has_method("set_velocity"):
-				var current_velocity = golf_ball.get_velocity()
-				var reduced_velocity = current_velocity * 0.25  # 25% of original velocity
-				golf_ball.set_velocity(reduced_velocity) 

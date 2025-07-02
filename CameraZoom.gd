@@ -7,6 +7,7 @@ extends Camera2D
 
 var target_zoom: float = 1.0
 var is_zooming: bool = false
+var zoom_tween: Tween = null
 
 func _ready():
 	# Initialize zoom
@@ -16,37 +17,42 @@ func _input(event):
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed:
 			# Zoom in (inverted from original)
-			target_zoom = clamp(target_zoom - zoom_speed, min_zoom, max_zoom)
-			is_zooming = true
+			set_zoom_level(target_zoom - zoom_speed)
 		elif event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:
 			# Zoom out (inverted from original)
-			target_zoom = clamp(target_zoom + zoom_speed, min_zoom, max_zoom)
-			is_zooming = true
+			set_zoom_level(target_zoom + zoom_speed)
 
+# OPTIMIZED: No more _process function - using Tween instead
+# This eliminates the need to run zoom interpolation every frame
 func _process(delta):
-	if is_zooming:
-		# Smooth zoom interpolation
-		var current_zoom_x = zoom.x
-		var current_zoom_y = zoom.y
-		
-		var new_zoom_x = lerp(current_zoom_x, target_zoom, zoom_smoothness * delta)
-		var new_zoom_y = lerp(current_zoom_y, target_zoom, zoom_smoothness * delta)
-		
-		zoom = Vector2(new_zoom_x, new_zoom_y)
-		
-		# Check if we're close enough to target to stop zooming
-		if abs(new_zoom_x - target_zoom) < 0.01 and abs(new_zoom_y - target_zoom) < 0.01:
-			zoom = Vector2(target_zoom, target_zoom)
-			is_zooming = false
+	pass
 
 # Public methods for external control
 func set_zoom_level(zoom_level: float):
 	target_zoom = clamp(zoom_level, min_zoom, max_zoom)
-	is_zooming = true
+	_start_zoom_tween()
 
 func reset_zoom():
 	target_zoom = 1.0
-	is_zooming = true
+	_start_zoom_tween()
 
 func get_current_zoom() -> float:
-	return target_zoom 
+	return target_zoom
+
+func _start_zoom_tween():
+	"""Start a smooth zoom tween to the target zoom level"""
+	# Kill any existing tween
+	if zoom_tween:
+		zoom_tween.kill()
+	
+	# Create new tween
+	zoom_tween = create_tween()
+	zoom_tween.set_trans(Tween.TRANS_SINE)
+	zoom_tween.set_ease(Tween.EASE_OUT)
+	
+	# Tween to target zoom
+	zoom_tween.tween_property(self, "zoom", Vector2(target_zoom, target_zoom), 0.3)
+	
+	# Mark as zooming during the tween
+	is_zooming = true
+	zoom_tween.finished.connect(func(): is_zooming = false) 

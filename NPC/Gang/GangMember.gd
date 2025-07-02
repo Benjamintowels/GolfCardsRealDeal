@@ -102,6 +102,17 @@ func _setup_base_collision() -> void:
 		print("✓ GangMember base collision area setup complete")
 	else:
 		print("✗ ERROR: BaseCollisionArea not found!")
+	
+	# Setup HitBox for gun collision detection
+	var hitbox = get_node_or_null("HitBox")
+	if hitbox:
+		# Set collision layer to 1 so gun can detect it
+		hitbox.collision_layer = 1
+		# Set collision mask to 0 (gun doesn't need to detect this)
+		hitbox.collision_mask = 0
+		print("✓ GangMember HitBox setup complete for gun collision")
+	else:
+		print("✗ ERROR: HitBox not found!")
 
 func _create_health_bar() -> void:
 	"""Create and setup the health bar"""

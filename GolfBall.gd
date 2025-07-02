@@ -315,14 +315,7 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 	self.spin_strength_category = spin_strength_category
 	spin_progress = 0.0
 	
-	print("=== BALL LAUNCH DEBUG ===")
-	print("Ball is_putting flag:", is_putting)
-	print("Club info:", club_info)
-	print("Launch power:", power)
-	print("Launch height:", height)
-	print("Initial velocity length:", velocity.length())
-	print("Velocity vector:", velocity)
-	print("=== END BALL LAUNCH DEBUG ===")
+	# Debug output removed for cleaner code
 	
 	# Reset bounce reduction system for new shot
 	bounce_reduction_applied = false
@@ -391,6 +384,8 @@ func _process(delta):
 		
 		# Track maximum height for scaling reference
 		max_height = max(max_height, z)
+		
+		# Height tracking for visual effects
 		
 		# Apply progressive spin effect during in-air flight
 		if spin != 0.0 and velocity.length() > 0.1:
@@ -889,19 +884,11 @@ func _ready():
 	sprite = get_node_or_null("Sprite2D")
 	shadow = get_node_or_null("Shadow")
 	
-	# Debug collision setup
+	# Connect to area_entered signal for collision detection
 	var area2d = get_node_or_null("Area2D")
 	if area2d:
-		print("GolfBall _ready - Area2D found, collision_layer:", area2d.collision_layer, "collision_mask:", area2d.collision_mask)
-		print("GolfBall Area2D - monitoring:", area2d.monitoring, "monitorable:", area2d.monitorable)
-		# Connect to area_entered signal for debugging
 		area2d.connect("area_entered", _on_area_entered)
 		area2d.connect("area_exited", _on_area_exited)
-	else:
-		print("GolfBall _ready - ERROR: Area2D not found!")
-	
-	print("GolfBall _ready called at position:", global_position)
-	print("GolfBall is_ghost property:", "is_ghost" in self, "value:", get("is_ghost") if "is_ghost" in self else "N/A")
 
 func update_y_sort() -> void:
 	"""Update the ball's z_index using the simple global Y-sort system"""

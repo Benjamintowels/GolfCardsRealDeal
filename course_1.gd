@@ -344,6 +344,17 @@ func original_process(delta):
 	
 	# Update global Y-sort for all objects (trees, pins, etc.)
 	update_all_ysort_z_indices()
+	
+	# Update ball state for smart optimizer
+	update_ball_for_optimizer()
+
+func update_ball_for_optimizer():
+	"""Update ball state for the smart optimizer"""
+	if smart_optimizer and launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball):
+		var ball = launch_manager.golf_ball
+		var ball_pos = ball.global_position
+		var ball_velocity = ball.velocity if "velocity" in ball else Vector2.ZERO
+		smart_optimizer.update_ball_state(ball_pos, ball_velocity)
 
 func _ready() -> void:
 	add_to_group("course")
@@ -495,8 +506,7 @@ func _ready() -> void:
 	# Setup global death sound
 	setup_global_death_sound()
 	
-	# Setup debug mode (DISABLED - collision heights are now working correctly)
-	# setup_debug_mode()
+
 
 	var hud := $UILayer/HUD
 
@@ -558,9 +568,9 @@ func _ready() -> void:
 		smart_optimizer.update_game_state("tee_select", false, false, false)
 		print("Smart optimizer test: Game state updated successfully")
 	
-	# Start with original process enabled for safety
-	original_process_enabled = true
-	print("Smart optimization is DISABLED by default. Use toggle_optimization() to enable.")
+	# Start with smart optimization enabled for better performance
+	original_process_enabled = false
+	print("Smart optimization is ENABLED by default for better performance.")
 	
 	# Create optimization toggle button
 	create_optimization_toggle_button()
@@ -572,6 +582,21 @@ func _ready() -> void:
 	print("Loading map data for hole:", current_hole + 1)
 	map_manager.load_map_data(GolfCourseLayout.get_hole_layout(current_hole))
 	build_map.build_map_from_layout_with_randomization(map_manager.level_layout)
+	
+	# Debug: Check if pin was created
+	print("=== PIN CREATION DEBUG ===")
+	print("ysort_objects size after map building:", ysort_objects.size())
+	for i in range(ysort_objects.size()):
+		var obj = ysort_objects[i]
+		if obj.has("node") and obj.node:
+			print("Object", i, ":", obj.node.name, "at grid pos:", obj.grid_pos)
+		else:
+			print("Object", i, ": Invalid object")
+	print("=== END PIN CREATION DEBUG ===")
+	
+	# Ensure Y-sort objects are properly registered for pin detection
+	update_all_ysort_z_indices()
+	print("Y-sort updated after map building")
 	hole_score = 0
 	print("Map data loaded, building map...")
 	print("Map built, positioning camera on pin...")
@@ -603,6 +628,8 @@ func _ready() -> void:
 	complete_hole_btn.pressed.connect(_on_complete_hole_pressed)
 
 func _on_complete_hole_pressed():
+	# Clear any existing balls before showing the hole completion dialog
+	remove_all_balls()
 	show_hole_completion_dialog()
 
 func _input(event: InputEvent) -> void:
@@ -1006,6 +1033,33 @@ func create_or_update_ball_at_player_center(player_center: Vector2) -> void:
 	# Add ball to camera container so it moves with the world
 	camera_container.add_child(ball)
 
+func force_create_ball_at_position(world_position: Vector2) -> void:
+	"""Force create a new ball at the specified world position (ignores existing balls)"""
+	# Create a new ball at the specified position
+	var ball_scene = preload("res://GolfBall.tscn")
+	var ball = ball_scene.instantiate()
+	ball.name = "GolfBall"
+	ball.add_to_group("balls")
+	
+	# Position the ball relative to the camera container
+	var ball_local_position = world_position - camera_container.global_position
+	ball.position = ball_local_position
+	ball.cell_size = cell_size
+	ball.map_manager = map_manager
+	
+	# Connect ball signals using the existing function names
+	ball.landed.connect(_on_golf_ball_landed)
+	ball.out_of_bounds.connect(_on_golf_ball_out_of_bounds)
+	ball.sand_landing.connect(_on_golf_ball_sand_landing)
+	
+	# Add ball to camera container so it moves with the world
+	camera_container.add_child(ball)
+	
+	# Set the launch manager's golf ball reference
+	launch_manager.golf_ball = ball
+	
+	print("Force created new ball at position:", world_position)
+
 func create_movement_buttons() -> void:
 	movement_controller.create_movement_buttons()
 	attack_handler.create_attack_buttons()
@@ -1210,6 +1264,10 @@ func _on_golf_ball_landed(tile: Vector2i):
 	print("DEBUG: Ball landed, hole_score after increment =", hole_score)
 	camera_following_ball = false
 	ball_landing_tile = tile
+	
+	# Update smart optimizer state
+	if smart_optimizer:
+		smart_optimizer.update_game_state("move", false, false, false)
 	
 	# Re-enable player collision shape after ball lands
 	if player_node and player_node.has_method("enable_collision_shape"):
@@ -1673,6 +1731,10 @@ func _on_golf_ball_out_of_bounds():
 	if launch_manager.golf_ball:
 		launch_manager.golf_ball.queue_free()
 		launch_manager.golf_ball = null
+	
+	# Clear any existing balls to ensure clean state
+	remove_all_balls()
+	
 	show_out_of_bounds_dialog()
 	ball_landing_tile = shot_start_grid_pos
 	ball_landing_position = Vector2(shot_start_grid_pos.x * cell_size + cell_size/2, shot_start_grid_pos.y * cell_size + cell_size/2)
@@ -1680,9 +1742,9 @@ func _on_golf_ball_out_of_bounds():
 	player_grid_pos = shot_start_grid_pos
 	update_player_position()
 	
-	# Create a new ball at the player's tile center position
+	# Force create a new ball at the player's tile center position for the penalty shot
 	var tile_center: Vector2 = Vector2(player_grid_pos.x * cell_size + cell_size/2, player_grid_pos.y * cell_size + cell_size/2) + camera_container.global_position
-	create_or_update_ball_at_player_center(tile_center)
+	force_create_ball_at_position(tile_center)
 	
 	game_phase = "draw_cards"
 	_update_player_mouse_facing_state()
@@ -1716,10 +1778,18 @@ func enter_launch_phase() -> void:
 	remove_ghost_ball()
 	launch_manager.enter_launch_phase()
 	
+	# Update smart optimizer state
+	if smart_optimizer:
+		smart_optimizer.update_game_state("launch", true, false, true)
+	
 func enter_aiming_phase() -> void:
 	game_phase = "aiming"
 	_update_player_mouse_facing_state()
 	is_aiming_phase = true
+	
+	# Update smart optimizer state
+	if smart_optimizer:
+		smart_optimizer.update_game_state("aiming", false, true, false)
 	
 	# Set the shot start position to where the player currently is
 	shot_start_grid_pos = player_grid_pos
@@ -1892,8 +1962,29 @@ func reset_for_next_hole():
 		return
 	if player_node and is_instance_valid(player_node):
 		player_node.visible = false
+	
+	# Temporarily disable optimization during map building
+	var was_optimization_enabled = false
+	if smart_optimizer and not original_process_enabled:
+		was_optimization_enabled = true
+		print("Temporarily disabling optimization during map building")
+		original_process_enabled = true  # Use original process during map building
+	
 	map_manager.load_map_data(GolfCourseLayout.get_hole_layout(current_hole))
 	build_map.build_map_from_layout_with_randomization(map_manager.level_layout)
+	
+	# Re-enable optimization after map building
+	if was_optimization_enabled:
+		print("Re-enabling optimization after map building")
+		original_process_enabled = false
+	
+	# Ensure Y-sort objects are properly registered for pin detection
+	update_all_ysort_z_indices()
+	print("Y-sort updated after map building")
+	
+	# Checkpoint: Map building completed
+	print("=== BuildMapCompleted Checkpoint ===")
+	
 	position_camera_on_pin()  # Add camera positioning for next hole
 	hole_score = 0
 	game_phase = "tee_select"
@@ -2443,8 +2534,32 @@ func save_game_state():
 		
 func restore_game_state():
 	if Global.saved_game_state == "shop_entrance":
+		# Temporarily disable optimization during map building
+		var was_optimization_enabled = false
+		if smart_optimizer and not original_process_enabled:
+			was_optimization_enabled = true
+			print("Temporarily disabling optimization during saved positions map building")
+			original_process_enabled = true  # Use original process during map building
+		
 		map_manager.load_map_data(GolfCourseLayout.get_hole_layout(current_hole))
 		build_map.build_map_from_layout_with_saved_positions(map_manager.level_layout)
+		
+		# Re-enable optimization after map building
+		if was_optimization_enabled:
+			print("Re-enabling optimization after saved positions map building")
+			original_process_enabled = false
+		
+		# Debug: Check if pin was created
+		print("=== PIN CREATION DEBUG (Saved Positions) ===")
+		print("ysort_objects size after saved positions map building:", ysort_objects.size())
+		for i in range(ysort_objects.size()):
+			var obj = ysort_objects[i]
+			if obj.has("node") and obj.node:
+				print("Object", i, ":", obj.node.name, "at grid pos:", obj.grid_pos)
+			else:
+				print("Object", i, ": Invalid object")
+		print("=== END PIN CREATION DEBUG (Saved Positions) ===")
+		
 		player_grid_pos = Global.saved_player_grid_pos
 		update_player_position()
 		if player_node:
@@ -2500,104 +2615,9 @@ func restore_game_state():
 func is_player_on_shop_tile() -> bool:
 	return player_grid_pos == shop_grid_pos
 
-func build_map_from_layout(layout: Array) -> void:
-	obstacle_map.clear()
-	ysort_objects.clear() # Clear previous objects
-	for y in layout.size():
-		for x in layout[y].size():
-			var code: String = layout[y][x]
-			var pos: Vector2i = Vector2i(x, y)
-			var world_pos: Vector2 = Vector2(x, y) * cell_size
 
-			var tile_code: String = code
-			if object_scene_map.has(code):
-				tile_code = object_to_tile_mapping[code]
-			if tile_scene_map.has(tile_code):
-				var scene: PackedScene = tile_scene_map[tile_code]
-				if scene == null:
-					push_error("🚫 Tile scene for code '%s' is null at (%d,%d)" % [tile_code, x, y])
-					continue
-				var tile: Node2D = scene.instantiate() as Node2D
-				if tile == null:
-					push_error("❌ Tile instantiation failed for '%s' at (%d,%d)" % [tile_code, x, y])
-					continue
-				tile.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
-				tile.z_index = -1000  # Ensure tiles are behind everything
-				var sprite: Sprite2D = tile.get_node_or_null("Sprite2D")
-				if sprite and sprite.texture:
-					var texture_size: Vector2 = sprite.texture.get_size()
-					if texture_size.x > 0 and texture_size.y > 0:
-						var scale_x = cell_size / texture_size.x
-						var scale_y = cell_size / texture_size.y
-						sprite.scale = Vector2(scale_x, scale_y)
-				if tile.has_meta("grid_position") or "grid_position" in tile:
-					tile.set("grid_position", pos)
-				else:
-					push_warning("⚠️ Tile missing 'grid_position'. Type: %s" % tile.get_class())
-				obstacle_layer.add_child(tile)
-				obstacle_map[pos] = tile
-			else:
-				print("ℹ️ Skipping unmapped tile code '%s' at (%d,%d)" % [tile_code, x, y])
-	for y in layout.size():
-		for x in layout[y].size():
-			var code: String = layout[y][x]
-			var pos: Vector2i = Vector2i(x, y)
-			var world_pos: Vector2 = Vector2(x, y) * cell_size
-			if object_scene_map.has(code):
-				var scene: PackedScene = object_scene_map[code]
-				if scene == null:
-					push_error("🚫 Object scene for code '%s' is null at (%d,%d)" % [code, x, y])
-					continue
-				var object: Node2D = scene.instantiate() as Node2D
-				if object == null:
-					push_error("❌ Object instantiation failed for '%s' at (%d,%d)" % [code, x, y])
-					continue
-				object.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
-				if object.has_meta("grid_position") or "grid_position" in object:
-					object.set("grid_position", pos)
-				else:
-					push_warning("⚠️ Object missing 'grid_position'. Type: %s" % object.get_class())
-				
-				# Set reference to CardEffectHandler for pins (scramble ball handling)
-				if code == "P":
-					object.set_meta("card_effect_handler", card_effect_handler)
-				
-				ysort_objects.append({"node": object, "grid_pos": pos})
-				obstacle_layer.add_child(object)
-				
-				# Apply global Y-sort to the new object
-				Global.update_object_y_sort(object, "objects")
-				
-				if object.has_signal("hole_in_one"):
-					object.hole_in_one.connect(_on_hole_in_one)
-				if object.has_signal("pin_flag_hit"):
-					object.pin_flag_hit.connect(_on_pin_flag_hit)
-				
-				if object.has_method("blocks") and object.blocks():
-					obstacle_map[pos] = object
-				if code == "T":
-					print("Tree created at grid position:", pos, "world position:", object.position, "global position:", object.global_position)
-					if pos.x >= 16 and pos.x <= 18 and pos.y >= 10 and pos.y <= 12:
-						print("*** TREE IN BALL PATH! Grid:", pos, "World:", object.position, "Global:", object.global_position)
-				
-				if code == "SHOP":
-					var right_of_shop_pos = pos + Vector2i(1, 0)
-					var blocker_scene = preload("res://Obstacles/InvisibleBlocker.tscn")
-					var blocker = blocker_scene.instantiate()
-					var blocker_world_pos = Vector2(right_of_shop_pos.x, right_of_shop_pos.y) * cell_size
-					blocker.position = blocker_world_pos + Vector2(cell_size / 2, cell_size / 2)
-					obstacle_layer.add_child(blocker)
-					obstacle_map[right_of_shop_pos] = blocker
-				
-			elif not tile_scene_map.has(code):
-				print("ℹ️ Skipping unmapped code '%s' at (%d,%d)" % [code, x, y])
 
-func focus_camera_on_tee():
-	var tee_center_local := _get_tee_area_center()
-	var tee_center_global := camera_container.position + tee_center_local
-	camera_snap_back_pos = tee_center_global
-	var tween := get_tree().create_tween()
-	tween.tween_property(camera, "position", tee_center_global, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+
 
 var ghost_ball: Node2D = null
 var ghost_ball_active: bool = false
@@ -2644,10 +2664,7 @@ func remove_ghost_ball() -> void:
 		ghost_ball = null
 	ghost_ball_active = false
 
-func update_ball_y_sort(ball_node: Node2D) -> void:
-	"""Update ball Y-sort using the simple global system"""
-	# Use the global Y-sort system
-	Global.update_ball_y_sort(ball_node)
+
 
 var current_hole := 0  # 0-based hole index (0-8 for front 9, 9-17 for back 9)
 var total_score := 0
@@ -2660,42 +2677,65 @@ var back_9_start_hole := 9  # Starting hole for back 9 (hole 10, index 9)
 
 func find_pin_position() -> Vector2:
 	"""Find the position of the pin in the current hole"""
-	print("Searching for pin in ysort_objects (size:", ysort_objects.size(), ")")
 	
 	# First try to find by name in ysort_objects
 	for obj in ysort_objects:
 		if obj.has("node") and obj.node and is_instance_valid(obj.node):
 			# Check if this is the pin by name or by checking if it has the pin script
-			if obj.node.name == "Pin" or "Pin" in obj.node.name or obj.node.has_method("_on_area_entered"):
-				print("Found pin in ysort_objects at:", obj.node.global_position, "name:", obj.node.name)
-				return obj.node.global_position
+			var is_pin = false
+			if obj.node.name == "Pin" or obj.node.name.begins_with("Pin") or "Pin" in obj.node.name:
+				is_pin = true
+			elif obj.node.has_method("_on_area_entered"):
+				# Check if this object has pin-related methods or signals
+				if obj.node.has_signal("hole_in_one") or obj.node.has_signal("pin_flag_hit"):
+					is_pin = true
+				elif obj.node.get_script() and "Pin" in str(obj.node.get_script()):
+					is_pin = true
+			
+			if is_pin:
+				# Use manually calculated global position as fallback
+				var calculated_global = obstacle_layer.global_position + obj.node.position
+				return calculated_global
 	
 	# If not found in ysort_objects, search in obstacle_layer
-	print("Pin not found in ysort_objects, searching obstacle_layer...")
 	
 	# Search for any object with "Pin" in the name or pin script
 	for child in obstacle_layer.get_children():
-		if "Pin" in child.name or child.has_method("_on_area_entered"):
-			print("Found pin in obstacle_layer at:", child.global_position, "name:", child.name)
+		var is_pin = false
+		if "Pin" in child.name or child.name.begins_with("Pin"):
+			is_pin = true
+		elif child.has_method("_on_area_entered"):
+			# Check if this object has pin-related methods or signals
+			if child.has_signal("hole_in_one") or child.has_signal("pin_flag_hit"):
+				is_pin = true
+			elif child.get_script() and "Pin" in str(child.get_script()):
+				is_pin = true
+		
+		if is_pin:
 			return child.global_position
 	
 	# Search recursively in all children of obstacle_layer
-	print("Searching recursively in obstacle_layer...")
 	for child in obstacle_layer.get_children():
 		if child.has_method("get_children"):
 			for grandchild in child.get_children():
-				if "Pin" in grandchild.name or grandchild.has_method("_on_area_entered"):
-					print("Found pin as grandchild at:", grandchild.global_position, "name:", grandchild.name)
+				var is_pin = false
+				if "Pin" in grandchild.name or grandchild.name.begins_with("Pin"):
+					is_pin = true
+				elif grandchild.has_method("_on_area_entered"):
+					# Check if this object has pin-related methods or signals
+					if grandchild.has_signal("hole_in_one") or grandchild.has_signal("pin_flag_hit"):
+						is_pin = true
+					elif grandchild.get_script() and "Pin" in str(grandchild.get_script()):
+						is_pin = true
+				
+				if is_pin:
 					return grandchild.global_position
 	
 	# Search in the entire scene tree
-	print("Searching entire scene tree for pin...")
 	var pin_node = find_child_by_name_recursive(self, "Pin")
 	if pin_node:
-		print("Found pin in scene tree at:", pin_node.global_position)
 		return pin_node.global_position
 	
-	print("No pin found anywhere!")
 	return Vector2.ZERO
 
 func find_child_by_name_recursive(node: Node, name: String) -> Node:
@@ -2714,8 +2754,10 @@ func find_child_by_name_recursive(node: Node, name: String) -> Node:
 
 func position_camera_on_pin(start_transition: bool = true):
 	"""Position camera on pin immediately after map building"""
-	print("=== POSITION CAMERA ON PIN DEBUG ===")
-	print("Positioning camera on pin...")
+	
+	# Switch optimization back on at the checkpoint
+	if smart_optimizer and not original_process_enabled:
+		smart_optimizer.update_game_state("tee_select", false, false, false)
 	
 	# Add a small delay to ensure everything is properly added to the scene
 	await get_tree().process_frame
@@ -2723,50 +2765,36 @@ func position_camera_on_pin(start_transition: bool = true):
 	# Find pin position
 	var pin_position = find_pin_position()
 	if pin_position == Vector2.ZERO:
-		print("Warning: No pin found, positioning camera at center")
 		camera.position = Vector2(0, 0)
 		return
-	
-	print("Pin found at:", pin_position)
 	
 	# Position camera directly on pin (no tween - immediate positioning)
 	camera.position = pin_position
 	camera_snap_back_pos = pin_position
-	print("Camera positioned on pin at:", camera.position)
 	
 	# Only start the transition if requested
 	if start_transition:
-		print("Starting pin-to-tee transition...")
 		start_pin_to_tee_transition()
-	else:
-		print("Skipping pin-to-tee transition (returning from shop)")
-	print("=== END POSITION CAMERA ON PIN DEBUG ===")
 
 func start_pin_to_tee_transition():
 	"""Start the pin-to-tee transition after the fade-in"""
-	print("Current camera position:", camera.position)
 	
 	# Store the tween reference so we can cancel it if needed
 	var pin_to_tee_tween = get_tree().create_tween()
 	pin_to_tee_tween.set_parallel(false)  # Sequential tweens
 	
 	# Wait 1.5 seconds at pin (as requested)
-	print("Waiting 1.5 seconds at pin...")
 	pin_to_tee_tween.tween_interval(1.5)
 	
 	# Tween to tee area
 	var tee_center = _get_tee_area_center()
 	var tee_center_global = camera_container.position + tee_center
-	print("Tweening from pin to tee at", tee_center_global)
 	pin_to_tee_tween.tween_property(camera, "position", tee_center_global, 2.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	
 	# Update camera snap back position only if player hasn't been placed yet
 	pin_to_tee_tween.tween_callback(func(): 
 		if is_placing_player:
 			camera_snap_back_pos = tee_center_global
-			print("Pin-to-tee transition complete - set snap back to tee center")
-		else:
-			print("Pin-to-tee transition complete - player already placed, keeping current snap back")
 	)
 	
 	# Store the tween reference so we can cancel it if player places early
@@ -2777,8 +2805,6 @@ func start_pin_to_tee_transition():
 		if has_meta("pin_to_tee_tween"):
 			remove_meta("pin_to_tee_tween")
 	)
-	
-	print("=== END START PIN TO TEE TRANSITION DEBUG ===")
 
 func build_map_from_layout_with_saved_positions(layout: Array) -> void:
 	"""Build map with saved object positions (for returning from shop)"""
@@ -2807,7 +2833,7 @@ func build_map_from_layout_with_saved_positions(layout: Array) -> void:
 		if scene != null:
 			var pin: Node2D = scene.instantiate() as Node2D
 			var pin_id = randi()  # Generate unique ID for this pin
-			pin.name = "Pin"
+			pin.name = "Pin" + str(current_hole + 1)  # Give unique name based on hole number
 			pin.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
 			# Let the global Y-sort system handle z_index
 			if pin.has_meta("grid_position") or "grid_position" in pin:
@@ -2837,6 +2863,13 @@ func build_map_from_layout_with_saved_positions(layout: Array) -> void:
 			print("Pin placed at saved position:", Global.saved_pin_position, "pin ID:", pin_id, "pin name:", pin.name)
 		else:
 			print("ERROR: Pin scene is null!")
+	
+	# Ensure Y-sort objects are properly registered for pin detection
+	update_all_ysort_z_indices()
+	print("Y-sort updated after saved positions map building")
+	
+	# Checkpoint: Map building completed
+	print("=== BuildMapCompleted Checkpoint (Saved Positions) ===")
 	
 	# Position camera on pin immediately after map is built (no transition when returning from shop)
 	position_camera_on_pin(false)
@@ -2979,7 +3012,6 @@ func _on_scramble_complete(closest_ball_position: Vector2, closest_ball_tile: Ve
 func _on_ball_launched(ball: Node2D):
 	# Set up ball properties that require course_1.gd references
 	ball.map_manager = map_manager
-	update_ball_y_sort(ball)
 	play_swing_sound(ball.final_power if ball.has_method("get_final_power") else 0.0)
 	
 	# Set ball launch position for player collision delay system
@@ -3074,121 +3106,13 @@ func _update_player_mouse_facing_state() -> void:
 	if player_node.has_method("set_camera_reference") and camera:
 		player_node.set_camera_reference(camera)
 
-# Debug mode variables and functions (DISABLED - collision heights are now working correctly)
-# var debug_mode_active := false
-# var debug_ball: Node2D = null
-# var debug_button: Button = null
 
-# func setup_debug_mode() -> void:
-# 	"""Setup debug mode button and functionality"""
-# 	# Create debug button
-# 	debug_button = Button.new()
-# 	debug_button.name = "DebugModeButton"
-# 	debug_button.text = "Debug Height Mode"
-# 	debug_button.position = Vector2(10, 50)
-# 	debug_button.size = Vector2(150, 30)
-# 	debug_button.connect("pressed", _on_debug_mode_toggled)
-# 	
-# 	# Add to UI layer
-# 	if has_node("UILayer"):
-# 		get_node("UILayer").add_child(debug_button)
-# 		debug_button.z_index = 1000  # Keep on top
-# 		print("Debug mode button created")
-
-# func _on_debug_mode_toggled() -> void:
-# 	"""Toggle debug mode on/off"""
-# 	if debug_mode_active:
-# 		_exit_debug_mode()
-# 	else:
-# 		_enter_debug_mode()
-
-# func _enter_debug_mode() -> void:
-# 	"""Enter debug mode - create debug ball"""
-# 	if debug_mode_active:
-# 		return
-# 	
-# 	debug_mode_active = true
-# 	debug_button.text = "Exit Debug Mode"
-# 	
-# 	# Create debug ball
-# 	var debug_ball_scene = load("res://DebugBall.tscn")
-# 	if debug_ball_scene:
-# 		debug_ball = debug_ball_scene.instantiate()
-# 		if debug_ball:
-# 			print("Debug ball scene loaded and instantiated successfully")
-# 		else:
-# 			print("ERROR: Could not instantiate DebugBall.tscn")
-# 			debug_mode_active = false
-# 			debug_button.text = "Debug Height Mode"
-# 			return
-# 	else:
-# 		print("ERROR: Could not load DebugBall.tscn")
-# 		print("Please check that the file exists and is properly formatted")
-# 		debug_mode_active = false
-# 		debug_button.text = "Debug Height Mode"
-# 		return
-# 	
-# 	# Add to UI layer so it's always visible and on top
-# 	if has_node("UILayer"):
-# 		get_node("UILayer").add_child(debug_ball)
-# 		debug_ball.global_position = get_global_mouse_position()
-# 		
-# 		# Test collision setup
-# 		print("Debug ball added to UILayer at position:", debug_ball.global_position)
-# 		print("Debug ball collision layer:", debug_ball.get_node("Area2D").collision_layer)
-# 		print("Debug ball collision mask:", debug_ball.get_node("Area2D").collision_mask)
-# 		print("Debug ball parent:", debug_ball.get_parent().name)
-# 		
-# 		# Connect debug collision signal
-# 		if debug_ball.has_signal("debug_collision_detected"):
-# 			debug_ball.debug_collision_detected.connect(_on_debug_collision_detected)
-# 			print("Debug collision signal connected")
-# 		else:
-# 			print("WARNING: Debug ball does not have debug_collision_detected signal")
-# 		
-# 		print("Debug mode activated - Use W/S to adjust height, mouse to move")
-# 	else:
-# 		print("ERROR: UILayer not found for debug ball")
-# 		print("Available nodes:", get_children())
-# 		debug_mode_active = false
-# 		debug_button.text = "Debug Height Mode"
-# 		if debug_ball:
-# 			debug_ball.queue_free()
-# 			debug_ball = null
-
-# func _exit_debug_mode() -> void:
-# 	"""Exit debug mode - remove debug ball"""
-# 	if not debug_mode_active:
-# 		return
-# 	
-# 	debug_mode_active = false
-# 	debug_button.text = "Debug Height Mode"
-# 	
-# 	# Remove debug ball
-# 	if debug_ball and is_instance_valid(debug_ball):
-# 		debug_ball.queue_free()
-# 		debug_ball = null
-# 	
-# 	print("Debug mode deactivated")
-
-# func _on_debug_collision_detected(object_name: String, object_height: float, ball_height: float) -> void:
-# 	"""Handle debug collision detection"""
-# 	print("DEBUG COLLISION: Ball (%.1f) with %s (%.1f)" % [ball_height, object_name, object_height])
-# 	
-# 	# You can add additional debug output or logging here
-# 	# For example, save the collision data to a file for analysis
-
-# func get_obstacle_at_position(grid_pos: Vector2i) -> Node:
-# 	"""Get obstacle at a specific grid position for debug ball collision detection"""
-# 	if obstacle_map.has(grid_pos):
-# 		return obstacle_map[grid_pos]
-# 	return null
 
 func create_optimization_toggle_button():
 	"""Create a button to toggle smart optimization on/off"""
 	var toggle_button = Button.new()
 	toggle_button.name = "OptimizationToggleButton"
-	toggle_button.text = "Enable Smart Optimization"
+	toggle_button.text = "Disable Smart Optimization"
 	toggle_button.position = Vector2(10, 10)
 	toggle_button.size = Vector2(200, 30)
 	toggle_button.z_index = 1000  # Keep on top

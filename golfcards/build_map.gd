@@ -91,12 +91,10 @@ func build_map_from_layout(layout: Array) -> void:
 
 # --- Clear all existing objects from the map ---
 func clear_existing_objects() -> void:
-	print("Clearing existing objects...")
 	var objects_removed = 0
 	for child in obstacle_layer.get_children():
 		child.queue_free()
 		objects_removed += 1
-	print("Removed", objects_removed, "objects from obstacle_layer")
 	var keys_to_remove: Array = []
 	for pos in obstacle_map.keys():
 		var obstacle = obstacle_map[pos]
@@ -113,12 +111,8 @@ func clear_existing_objects() -> void:
 				keys_to_remove.append(pos)
 	for pos in keys_to_remove:
 		obstacle_map.erase(pos)
-	print("Removed", keys_to_remove.size(), "object entries from obstacle_map")
-	var ysort_count = ysort_objects.size()
 	ysort_objects.clear()
 	placed_objects.clear()
-	print("Cleared", ysort_count, "ysort objects")
-	print("Objects cleared. Remaining obstacles:", obstacle_map.size())
 
 func is_valid_position_for_object(pos: Vector2i, layout: Array) -> bool:
 	if pos.y < 0 or pos.y >= layout.size() or pos.x < 0 or pos.x >= layout[0].size():
@@ -196,12 +190,7 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 	return positions
 
 func build_map_from_layout_with_randomization(layout: Array) -> void:
-	print("=== BUILD MAP WITH RANDOMIZATION DEBUG ===")
-	print("Building map with randomization for hole", current_hole + 1)
-	print("Current hole variable:", current_hole)
-	print("Layout size:", layout.size(), "x", layout[0].size() if layout.size() > 0 else "empty")
 	randomize()
-	print("About to clear existing objects...")
 	clear_existing_objects()
 	build_map_from_layout_base(layout)
 	var object_positions = get_random_positions_for_objects(layout, 8, true, 1)
@@ -288,13 +277,18 @@ func build_map_from_layout_base(layout: Array, place_pin: bool = true) -> void:
 			var scene: PackedScene = object_scene_map["P"]
 			if scene != null:
 				var pin: Node2D = scene.instantiate() as Node2D
-				pin.name = "Pin"
 				pin.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
 				# Let the global Y-sort system handle z_index
 				if pin.has_meta("grid_position") or "grid_position" in pin:
 					pin.set("grid_position", pin_pos)
 				pin.set_meta("card_effect_handler", card_effect_handler)
+				
+				# Add pin to groups for smart optimization
+				pin.add_to_group("collision_objects")
+				
 				obstacle_layer.add_child(pin)
+				# Set the name AFTER adding to scene to prevent Godot from renaming it
+				pin.name = "Pin" + str(current_hole + 1)
 				# Connect pin signals
 				if pin.has_signal("hole_in_one"):
 					# Disconnect any existing connections first
@@ -311,7 +305,6 @@ func build_map_from_layout_base(layout: Array, place_pin: bool = true) -> void:
 				update_all_ysort_z_indices()
 
 func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> void:
-	print("Placing objects at positions:", object_positions)
 	for tree_pos in object_positions.trees:
 		var scene: PackedScene = object_scene_map["T"]
 		if scene == null:
@@ -327,11 +320,15 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 			tree.set("grid_position", tree_pos)
 		else:
 			push_warning("⚠️ Tree missing 'grid_position'. Type: %s" % tree.get_class())
+		
+		# Add tree to groups for smart optimization
+		tree.add_to_group("trees")
+		tree.add_to_group("collision_objects")
+		
 		ysort_objects.append({"node": tree, "grid_pos": tree_pos})
 		obstacle_layer.add_child(tree)
 		if tree.has_method("blocks") and tree.blocks():
 			obstacle_map[tree_pos] = tree
-	print("Placed", object_positions.trees.size(), "trees")
 	if object_positions.shop != Vector2i.ZERO:
 		var scene: PackedScene = object_scene_map["SHOP"]
 		if scene == null:
@@ -345,6 +342,10 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 				shop.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
 				if shop.has_meta("grid_position") or "grid_position" in shop:
 					shop.set("grid_position", object_positions.shop)
+				
+				# Add shop to groups for smart optimization
+				shop.add_to_group("collision_objects")
+				
 				ysort_objects.append({"node": shop, "grid_pos": object_positions.shop})
 				obstacle_layer.add_child(shop)
 				shop_grid_pos = object_positions.shop
@@ -382,9 +383,7 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		
 		ysort_objects.append({"node": gang_member, "grid_pos": gang_pos})
 		obstacle_layer.add_child(gang_member)
-		print("Placed GangMember at ", gang_pos)
 	
-	print("Placed", object_positions.gang_members.size(), "gang members")
 	update_all_ysort_z_indices() 
 
 # --- Signal handlers that forward to course_1.gd ---
