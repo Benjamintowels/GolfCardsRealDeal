@@ -108,6 +108,7 @@ var swing_med_sound: AudioStreamPlayer2D
 var swing_soft_sound: AudioStreamPlayer2D
 var water_plunk_sound: AudioStreamPlayer2D
 var sand_thunk_sound: AudioStreamPlayer2D
+var trunk_thunk_sound: AudioStreamPlayer2D
 
 # Multi-shot golf variables
 var ball_landing_tile: Vector2i = Vector2i.ZERO
@@ -1604,6 +1605,7 @@ func setup_swing_sounds() -> void:
 	swing_soft_sound = $SwingSoft
 	water_plunk_sound = $WaterPlunk
 	sand_thunk_sound = $SandThunk
+	trunk_thunk_sound = $TrunkThunk
 
 func play_swing_sound(power: float) -> void:
 	var power_percentage = (power - 300.0) / (1200.0 - 300.0)  # Using hardcoded values since constants are removed	power_percentage = clamp(power_percentage, 0.0, 1.0)

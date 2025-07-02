@@ -86,8 +86,6 @@ func _on_weapon_card_pressed(card: CardData, button: TextureButton) -> void:
 		return
 	card_click_sound.play()
 	
-	print("Weapon card pressed:", card.name)
-	
 	is_weapon_mode = true
 	active_button = button
 	selected_card = card
@@ -109,7 +107,6 @@ func _on_weapon_card_pressed(card: CardData, button: TextureButton) -> void:
 
 func enter_weapon_aiming_mode() -> void:
 	"""Enter weapon aiming mode with mouse tracking"""
-	print("Entering weapon aiming mode")
 	
 	# Change mouse cursor to reticle
 	var reticle_texture = preload("res://UI/Reticle.png")
@@ -128,31 +125,18 @@ func create_weapon_instance() -> void:
 	weapon_instance = pistol_scene.instantiate()
 	player_node.add_child(weapon_instance)
 	
-	# Position the weapon in front of the player
-	var weapon_offset = Vector2(30, 0)  # 30 pixels in front
+	# Reset weapon sprite flip state
+	var weapon_sprite = weapon_instance.get_node_or_null("Sprite2D")
+	if weapon_sprite:
+		weapon_sprite.flip_h = false
+		weapon_sprite.flip_v = false
+	
+	# Position the weapon closer to the player's hands with the specified offset
+	var weapon_offset = Vector2(-37.955, 0)  # Closer to player's hands
 	weapon_instance.position = weapon_offset
-	
-	print("Weapon instance created")
-
-func handle_input(event: InputEvent) -> bool:
-	"""Handle input events during weapon mode. Returns true if event was handled."""
-	if not is_weapon_mode:
-		return false
-	
-	if event is InputEventMouseMotion:
-		update_weapon_rotation()
-		return true
-	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		fire_weapon()
-		return true
-	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
-		exit_weapon_mode()
-		return true
-	
-	return false
 
 func update_weapon_rotation() -> void:
-	"""Update weapon rotation to follow mouse"""
+	"""Update weapon rotation to follow mouse and position based on player direction"""
 	if not weapon_instance or not player_node or not camera:
 		return
 	
@@ -163,19 +147,33 @@ func update_weapon_rotation() -> void:
 	# Calculate angle to mouse
 	var angle = atan2(direction.y, direction.x)
 	weapon_instance.rotation = angle
+	
+	# Get the player's character sprite to check its flip state
+	var player_sprite = player_node.get_character_sprite()
+	if player_sprite:
+		var y_offset = -33 
+		var weapon_offset = Vector2(37.955, y_offset)  # Base offset (right side)
+		var weapon_sprite = weapon_instance.get_node_or_null("Sprite2D")
+		if player_sprite.flip_h:
+			weapon_offset.x = -37.955
+			if weapon_sprite:
+				weapon_sprite.flip_h = false
+				weapon_sprite.flip_v = true
+		else:
+			if weapon_sprite:
+				weapon_sprite.flip_h = false
+				weapon_sprite.flip_v = false
+		weapon_instance.position = weapon_offset
 
 func fire_weapon() -> void:
 	"""Fire the weapon and perform raytrace"""
 	if not weapon_instance or not player_node:
 		return
 	
-	print("Firing weapon!")
-	
 	# Play weapon sound from player node
 	var pistol_shot = player_node.get_node_or_null("PistolShot")
 	if pistol_shot:
 		pistol_shot.play()
-		print("Pistol shot sound played")
 	else:
 		print("Warning: PistolShot sound not found on player node")
 	
@@ -185,67 +183,215 @@ func fire_weapon() -> void:
 	if hit_target:
 		# Deal damage to the target
 		if hit_target.has_method("take_damage"):
-			print("Dealing", weapon_damage, "damage to", hit_target.name)
 			hit_target.take_damage(weapon_damage)
 			emit_signal("npc_shot", hit_target, weapon_damage)
-			print("Hit target for", weapon_damage, "damage!")
 			
 			# Check if the target died
 			if hit_target.has_method("get_is_dead"):
 				var is_dead = hit_target.get_is_dead()
-				print("Target is dead:", is_dead)
 			elif hit_target.has_method("is_dead"):
 				var is_dead = hit_target.is_dead
-				print("Target is dead:", is_dead)
 		else:
-			print("Target doesn't have take_damage method")
-	else:
-		print("No target hit")
+			print("Warning: Target doesn't have take_damage method")
 	
 	# Exit weapon mode after firing
 	exit_weapon_mode()
 
 func perform_raytrace() -> Node:
-	"""Perform raytrace from player position towards mouse direction"""
-	var player_pos = player_node.global_position
-	var mouse_pos = camera.get_global_mouse_position()
-	var direction = (mouse_pos - player_pos).normalized()
+	"""Perform raytrace from pistol center to mouse position with proper bullet physics"""
+	if not weapon_instance or not player_node or not camera:
+		return null
 	
-	# Simple approach: check for NPCs in the direction
+	# Get pistol center position (weapon's global position)
+	var pistol_pos = weapon_instance.global_position
+	var mouse_pos = camera.get_global_mouse_position()
+	
+	# Get course reference for obstacle checking
 	if not card_effect_handler or not card_effect_handler.course:
 		return null
 	
-	var entities = card_effect_handler.course.get_node_or_null("Entities")
-	if not entities:
-		return null
+	var course = card_effect_handler.course
 	
-	var npcs = entities.get_npcs()
-	var closest_npc = null
-	var closest_distance = weapon_range
+	# Cast ray from pistol center to mouse position, extending beyond mouse
+	var direction = (mouse_pos - pistol_pos).normalized()
+	var ray_end = pistol_pos + direction * weapon_range
 	
-	for npc in npcs:
-		if is_instance_valid(npc) and npc.has_method("take_damage"):
-			var npc_pos = npc.global_position
-			var to_npc = npc_pos - player_pos
-			var distance = to_npc.length()
+	# Update debug line to show trajectory
+	update_debug_line(pistol_pos, ray_end)
+	
+	# Check for obstacles along the bullet path
+	var space_state = course.get_world_2d().direct_space_state
+	var query = PhysicsRayQueryParameters2D.create(pistol_pos, ray_end)
+	query.collision_mask = 1  # Collide with layer 1 (trees, obstacles)
+	query.collide_with_bodies = false  # We're using Area2D HitBoxes
+	query.collide_with_areas = true
+	
+
+	
+	var result = space_state.intersect_ray(query)
+	
+
+	
+	if result:
+		# Bullet hit something
+		var hit_object = result.collider
+		var hit_distance = result.position.distance_to(pistol_pos)
+		
+		# Check if it's a HitBox Area2D
+		if hit_object.name == "HitBox":
+			var parent = hit_object.get_parent()
 			
-			# Check if NPC is within range and in the general direction
-			if distance <= weapon_range:
-				var dot_product = to_npc.normalized().dot(direction)
-				if dot_product > 0.7:  # Within ~45 degrees of aim direction
-					if distance < closest_distance:
-						closest_distance = distance
-						closest_npc = npc
+			# Check if it's a tree's HitBox
+			if parent and (parent.name == "Tree" or "Tree" in str(parent.get_script()) or parent.has_method("_handle_trunk_collision")):
+				# Play tree thunk sound using the Tree's own sound player
+				var tree_trunk_sound = parent.get_node_or_null("TrunkThunk")
+				if tree_trunk_sound:
+					tree_trunk_sound.play()
+				return null  # Tree blocks the shot
+			
+			# Check if it's a GangMember's HitBox
+			if parent and parent.has_method("take_damage"):
+				# Since we already hit the GangMember's HitBox, we have direct line of sight
+				return parent  # Return the parent GangMember, not the HitBox
 	
-	if closest_npc:
-		print("Raytrace hit NPC:", closest_npc.name)
+	# No obstacles hit, check if any NPCs are in the direct path
+	var entities = course.get_node_or_null("Entities")
+	if entities:
+		var npcs = entities.get_npcs()
+		var closest_npc = null
+		var closest_distance = weapon_range
+		
+		for npc in npcs:
+			if is_instance_valid(npc) and npc.has_method("take_damage"):
+				var npc_pos = npc.global_position
+				var to_npc = npc_pos - pistol_pos
+				var distance = to_npc.length()
+				
+				# Check if NPC is in the direct line of fire
+				if distance <= weapon_range:
+					var dot_product = to_npc.normalized().dot(direction)
+					if dot_product > 0.99:  # Very precise aim required
+						# Double-check no obstacles in the way
+						var final_query = PhysicsRayQueryParameters2D.create(pistol_pos, npc_pos)
+						final_query.collision_mask = 1
+						final_query.collide_with_bodies = true
+						final_query.collide_with_areas = true
+						
+						var final_result = space_state.intersect_ray(final_query)
+						
+						if final_result and final_result.collider == npc:
+							if distance < closest_distance:
+								closest_distance = distance
+								closest_npc = npc
+		
+		return closest_npc
+	
+	# Fallback: If physics raycast isn't working, try a simpler distance-based check
+	var fallback_hit = _fallback_distance_check(pistol_pos, direction)
+	if fallback_hit:
+		print("✓ Fallback check found hit:", fallback_hit.name)
+		return fallback_hit
+	
+	# Additional debug: Try to find GangMembers manually
+	print("=== MANUAL GANGMEMBER SEARCH ===")
+	var entities_system = course.get_node_or_null("Entities")
+	if entities_system:
+		var npcs = entities_system.get_npcs()
+		print("Found", npcs.size(), "NPCs in Entities system")
+		for npc in npcs:
+			if is_instance_valid(npc):
+				print("NPC:", npc.name, "Position:", npc.global_position)
+				var hitbox = npc.get_node_or_null("HitBox")
+				if hitbox:
+					print("  - HitBox found:", hitbox.name, "Layer:", hitbox.collision_layer, "Mask:", hitbox.collision_mask)
+				else:
+					print("  - No HitBox found")
+	else:
+		print("No Entities system found")
+	print("=== END MANUAL SEARCH ===")
+	
+	return null
+
+func _fallback_distance_check(pistol_pos: Vector2, direction: Vector2) -> Node:
+	"""Fallback method to check for objects along the bullet path using distance calculations"""
+	print("Running fallback distance check...")
+	
+	# Check for HitBox Area2D nodes first
+	var hitboxes = get_tree().get_nodes_in_group("hitboxes")
+	if not hitboxes:
+		# Try to find HitBox nodes by name
+		hitboxes = []
+		for node in get_tree().get_nodes_in_group("."):
+			if node.name == "HitBox":
+				hitboxes.append(node)
+	
+
+	
+	# Check each HitBox
+	for hitbox in hitboxes:
+		if is_instance_valid(hitbox):
+			var hitbox_pos = hitbox.global_position
+			var to_hitbox = hitbox_pos - pistol_pos
+			var distance = to_hitbox.length()
+			
+			# Check if HitBox is in the bullet path
+			if distance <= weapon_range:
+				var dot_product = to_hitbox.normalized().dot(direction)
+				if dot_product > 0.95:  # Within ~18 degrees of aim direction
+					var parent = hitbox.get_parent()
+					
+					# Check if it's a tree's HitBox
+					if parent and (parent.name == "Tree" or "Tree" in str(parent.get_script()) or parent.has_method("_handle_trunk_collision")):
+						# Play tree thunk sound using the Tree's own sound player
+						var tree_trunk_sound = parent.get_node_or_null("TrunkThunk")
+						if tree_trunk_sound:
+							tree_trunk_sound.play()
+						return null  # Tree blocks the shot
+					
+					# Check if it's a GangMember's HitBox
+					if parent and parent.has_method("take_damage"):
+						return parent  # Return the parent GangMember
+	
+	# Check for GangMembers (fallback for entities without HitBox)
+	var entities = card_effect_handler.course.get_node_or_null("Entities")
+	if entities:
+		var npcs = entities.get_npcs()
+		var closest_npc = null
+		var closest_distance = weapon_range
+		
+		for npc in npcs:
+			if is_instance_valid(npc) and npc.has_method("take_damage"):
+				var npc_pos = npc.global_position
+				var to_npc = npc_pos - pistol_pos
+				var distance = to_npc.length()
+				
+				# Check if NPC is in the bullet path
+				if distance <= weapon_range:
+					var dot_product = to_npc.normalized().dot(direction)
+					if dot_product > 0.95:  # Within ~18 degrees of aim direction
+						# Check if any HitBoxes are blocking the shot
+						var blocked = false
+						for hitbox in hitboxes:
+							if is_instance_valid(hitbox):
+								var hitbox_pos = hitbox.global_position
+								var hitbox_to_npc = npc_pos - hitbox_pos
+								var hitbox_to_pistol = pistol_pos - hitbox_pos
+								
+								# If HitBox is between pistol and NPC
+								if hitbox_to_pistol.dot(hitbox_to_npc) > 0 and hitbox_to_npc.length() < distance:
+									blocked = true
+									break
+						
+						if not blocked and distance < closest_distance:
+							closest_distance = distance
+							closest_npc = npc
+		
 		return closest_npc
 	
 	return null
 
 func exit_weapon_mode() -> void:
 	"""Exit weapon aiming mode"""
-	print("Exiting weapon mode")
 	
 	is_weapon_mode = false
 	
@@ -256,6 +402,9 @@ func exit_weapon_mode() -> void:
 	if weapon_instance:
 		weapon_instance.queue_free()
 		weapon_instance = null
+	
+	# Clear debug line
+	clear_debug_line()
 	
 	# Input is handled by the course's _input function
 	
@@ -299,3 +448,66 @@ func is_in_weapon_mode() -> bool:
 
 func get_selected_card() -> CardData:
 	return selected_card 
+
+# Debug visualization
+var debug_line: Line2D = null
+
+func create_debug_line() -> void:
+	"""Create a debug line to visualize the bullet trajectory"""
+	if debug_line:
+		debug_line.queue_free()
+	
+	debug_line = Line2D.new()
+	debug_line.width = 2.0
+	debug_line.default_color = Color.RED
+	debug_line.z_index = 1000  # High z-index to be visible
+	
+	# Add to the course scene
+	if card_effect_handler and card_effect_handler.course:
+		card_effect_handler.course.add_child(debug_line)
+
+func update_debug_line(start_pos: Vector2, end_pos: Vector2) -> void:
+	"""Update the debug line to show the bullet trajectory"""
+	if not debug_line:
+		create_debug_line()
+	
+	debug_line.clear_points()
+	debug_line.add_point(start_pos)
+	debug_line.add_point(end_pos)
+
+func clear_debug_line() -> void:
+	"""Clear the debug line"""
+	if debug_line:
+		debug_line.queue_free()
+		debug_line = null
+
+func handle_input(event: InputEvent) -> bool:
+	"""Handle input when in weapon mode. Returns true if input was handled."""
+	if not is_weapon_mode:
+		return false
+	
+	# Handle mouse movement for aiming
+	if event is InputEventMouseMotion:
+		update_weapon_rotation()
+		# Show debug trajectory when aiming
+		if weapon_instance and camera:
+			var pistol_pos = weapon_instance.global_position
+			var mouse_pos = camera.get_global_mouse_position()
+			var direction = (mouse_pos - pistol_pos).normalized()
+			var ray_end = pistol_pos + direction * weapon_range
+			update_debug_line(pistol_pos, ray_end)
+		return true
+	
+	# Handle left click for firing
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		fire_weapon()
+		clear_debug_line()  # Clear debug line after firing
+		return true
+	
+	# Handle right click to cancel weapon mode
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
+		exit_weapon_mode()
+		clear_debug_line()  # Clear debug line when exiting
+		return true
+	
+	return false 
