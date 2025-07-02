@@ -911,10 +911,73 @@ func _on_area_entered(area):
 	if area.get_parent() and area.get_parent().name == "Pin":
 		# Pin collision detected - the pin will handle hole completion
 		pass
+	# Check if this is an NPC collision (GangMember)
+	elif area.get_parent() and area.get_parent().has_method("_handle_ball_collision"):
+		# NPC collision detected - let the NPC handle the collision
+		# The NPC will check ball height and apply appropriate effects
+		area.get_parent()._handle_ball_collision(self)
+	# Check if this is a Player collision
+	elif area.get_parent() and area.get_parent().has_method("take_damage"):
+		# Player collision detected - handle player damage
+		_handle_player_collision(area.get_parent())
+	# Check if this is a Tree collision
+	elif area.get_parent() and area.get_parent().has_method("_handle_trunk_collision"):
+		# Tree collision detected - let the tree handle the collision
+		area.get_parent()._handle_trunk_collision(self)
 
 func _on_area_exited(area):
 	# Area exit handling if needed
 	pass
+
+func _handle_player_collision(player: Node2D) -> void:
+	"""Handle collision with player - deal damage based on ball velocity"""
+	# Check if this is a ghost ball (shouldn't deal damage)
+	var is_ghost_ball = false
+	if "is_ghost" in self:
+		is_ghost_ball = get("is_ghost")
+	elif name == "GhostBall":
+		is_ghost_ball = true
+	
+	if is_ghost_ball:
+		return
+	
+	# Calculate damage based on ball velocity
+	var ball_speed = velocity.length()
+	var damage = 0
+	
+	# Simple damage calculation based on speed
+	if ball_speed > 800:
+		damage = 25  # High speed = high damage
+	elif ball_speed > 400:
+		damage = 15  # Medium speed = medium damage
+	elif ball_speed > 100:
+		damage = 5   # Low speed = low damage
+	else:
+		damage = 1   # Very low speed = minimal damage
+	
+	# Apply damage to player
+	if player.has_method("take_damage"):
+		player.take_damage(damage)
+	
+	# Reflect the ball away from the player
+	var ball_pos = global_position
+	var player_center = player.global_position
+	
+	# Calculate the direction from player center to ball
+	var to_ball_direction = (ball_pos - player_center).normalized()
+	
+	# Simple reflection: reflect the velocity across the player center
+	var reflected_velocity = velocity - 2 * velocity.dot(to_ball_direction) * to_ball_direction
+	
+	# Reduce speed slightly to prevent infinite bouncing
+	reflected_velocity *= 0.8
+	
+	# Add a small amount of randomness to prevent infinite loops
+	var random_angle = randf_range(-0.1, 0.1)
+	reflected_velocity = reflected_velocity.rotated(random_angle)
+	
+	# Apply the reflected velocity to the ball
+	velocity = reflected_velocity
 
 func reset_shot_effects() -> void:
 	"""Reset all shot modification effects after the ball has landed"""

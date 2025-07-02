@@ -112,7 +112,7 @@ func _handle_trunk_collision(ball: Node2D):
 	print("Ball height:", ball_height)
 	
 	# Define tree height - ball must be above this to pass through
-	var tree_height = 400.0  # Tree height (ball needs 230.0 to pass over)
+	var tree_height = 500.0  # Tree height (ball needs 505.0 to pass over)
 	
 	if ball_height > tree_height:
 		# Ball is above the tree entirely - let it pass through

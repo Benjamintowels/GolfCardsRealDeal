@@ -310,7 +310,15 @@ func launch_golf_ball(direction: Vector2, charged_power: float, height: float):
 	var ball_setup_player_size = ball_setup_player_sprite.texture.get_size() * ball_setup_player_sprite.scale if ball_setup_player_sprite and ball_setup_player_sprite.texture else Vector2(cell_size, cell_size)
 	var ball_setup_player_center = player_node.global_position + ball_setup_player_size / 2
 
-	var ball_position_offset = Vector2(0, -cell_size * 0.5)
+	# Position the ball based on launch direction to avoid collision with player
+	var ball_position_offset = Vector2.ZERO
+	if launch_direction != Vector2.ZERO:
+		# Position ball in the direction of launch, slightly away from player
+		ball_position_offset = launch_direction * (cell_size * 0.3)
+	else:
+		# Fallback to front of player if no direction
+		ball_position_offset = Vector2(0, -cell_size * 0.5)
+	
 	ball_setup_player_center += ball_position_offset
 
 	var ball_local_position = ball_setup_player_center - camera_container.global_position
