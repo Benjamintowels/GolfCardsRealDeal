@@ -208,7 +208,17 @@ func launch_golf_ball(direction: Vector2, charged_power: float, height: float):
 			var strength_multiplier = 1.0 + (strength_modifier * 0.1)
 			final_power *= strength_multiplier
 		
-		card_effect_handler.launch_scramble_balls(direction, final_power, height, launch_spin)
+		# Calculate proper launch direction for scramble balls
+		var scramble_launch_direction = Vector2.ZERO
+		if chosen_landing_spot != Vector2.ZERO:
+			var player_sprite = player_node.get_node_or_null("Sprite2D")
+			var player_size = player_sprite.texture.get_size() * player_sprite.scale if player_sprite and player_sprite.texture else Vector2(cell_size, cell_size)
+			var player_center = player_node.global_position + player_size / 2
+			scramble_launch_direction = (chosen_landing_spot - player_center).normalized()
+		else:
+			scramble_launch_direction = direction  # Fallback to passed direction
+		
+		card_effect_handler.launch_scramble_balls(scramble_launch_direction, final_power, height, launch_spin)
 		hide_power_meter()
 		var is_putting = club_data.get(selected_club, {}).get("is_putter", false)
 		if not is_putting:

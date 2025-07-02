@@ -1,7 +1,8 @@
-[gd_scene load_steps=4 format=3 uid="uid://bmlicmv1hmd4j"]
+[gd_scene load_steps=5 format=3 uid="uid://bmlicmv1hmd4j"]
 
 [ext_resource type="Script" uid="uid://b3mk6wcdiwoxy" path="res://NPC/Gang/GangMember.gd" id="1_0x0x0"]
 [ext_resource type="Texture2D" uid="uid://cdgbqbboumokx" path="res://NPC/Gang/GangMember1.png" id="2_qejoy"]
+[ext_resource type="Texture2D" uid="uid://blpokt66jbsr7" path="res://NPC/Gang/GangMember1Dead.png" id="3_sr211"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_qejoy"]
 radius = 1.59302
@@ -12,7 +13,7 @@ script = ExtResource("1_0x0x0")
 [node name="Sprite2D" type="Sprite2D" parent="."]
 z_index = 10
 texture_filter = 1
-position = Vector2(1, -43)
+position = Vector2(0, -35.07)
 scale = Vector2(0.455, 0.455)
 texture = ExtResource("2_qejoy")
 
@@ -25,5 +26,18 @@ position = Vector2(1.30999e-07, 72.5275)
 
 [node name="BaseCollision" type="CollisionShape2D" parent="BaseCollisionArea"]
 position = Vector2(1, -8)
-scale = Vector2(4.57, 4.57)
+scale = Vector2(4.865, 4.57)
+shape = SubResource("CircleShape2D_qejoy")
+
+[node name="Dead" type="Sprite2D" parent="."]
+visible = false
+position = Vector2(1, -11)
+scale = Vector2(0.085, 0.085)
+texture = ExtResource("3_sr211")
+
+[node name="BaseCollisionArea" type="Area2D" parent="Dead"]
+
+[node name="BaseCollision" type="CollisionShape2D" parent="Dead/BaseCollisionArea"]
+position = Vector2(1, 68.67)
+scale = Vector2(281.141, 77.75)
 shape = SubResource("CircleShape2D_qejoy")

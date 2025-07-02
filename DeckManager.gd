@@ -18,6 +18,7 @@ var starter_deck: Array[CardData] = [
 	preload("res://Cards/Bouncey.tres"),
 	preload("res://Cards/Dub.tres"),
 	preload("res://Cards/FloridaScramble.tres"),
+	preload("res://Cards/KickB.tres"),
 	preload("res://Cards/Move1.tres"),
 	preload("res://Cards/Move2.tres"),
 	preload("res://Cards/Move3.tres"),
@@ -27,12 +28,14 @@ var starter_deck: Array[CardData] = [
 	preload("res://Cards/Bouncey.tres"),
 	preload("res://Cards/Dub.tres"),
 	preload("res://Cards/FloridaScramble.tres"),
+	preload("res://Cards/KickB.tres"),
 	preload("res://Cards/Move1.tres"),
 	preload("res://Cards/Move2.tres"),
 	preload("res://Cards/Move3.tres"),
 	preload("res://Cards/Move4.tres"),
 	preload("res://Cards/Move5.tres"),
-	preload("res://Cards/FloridaScramble.tres")
+	preload("res://Cards/FloridaScramble.tres"),
+	preload("res://Cards/KickB.tres")
 ]
 
 

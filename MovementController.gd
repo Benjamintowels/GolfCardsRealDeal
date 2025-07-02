@@ -30,6 +30,7 @@ var deck_manager: DeckManager
 
 # Card effect handling
 var card_effect_handler: Node
+var attack_handler: Node  # Reference to AttackHandler
 
 # Signals
 signal movement_mode_entered
@@ -53,7 +54,8 @@ func setup(
 	card_play_sound_ref: AudioStreamPlayer2D,
 	card_stack_display_ref: Control,
 	deck_manager_ref: DeckManager,
-	card_effect_handler_ref: Node
+	card_effect_handler_ref: Node,
+	attack_handler_ref: Node = null
 ):
 	player_node = player_node_ref
 	grid_tiles = grid_tiles_ref
@@ -68,6 +70,7 @@ func setup(
 	card_stack_display = card_stack_display_ref
 	deck_manager = deck_manager_ref
 	card_effect_handler = card_effect_handler_ref
+	attack_handler = attack_handler_ref
 
 func create_movement_buttons() -> void:
 	for child in movement_buttons_container.get_children():
@@ -89,7 +92,13 @@ func create_movement_buttons() -> void:
 
 		var overlay := ColorRect.new()
 		overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		overlay.color = Color(1, 0.84, 0, 0.25)
+		
+		# Set overlay color based on card type
+		if card.effect_type == "Attack":
+			overlay.color = Color(1, 0.5, 0, 0.25)  # Orange for attack cards
+		else:
+			overlay.color = Color(1, 0.84, 0, 0.25)  # Yellow for movement cards
+		
 		overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 		overlay.visible = false
 		btn.add_child(overlay)
@@ -109,6 +118,12 @@ func _on_movement_card_pressed(card: CardData, button: TextureButton) -> void:
 	hide_all_movement_highlights()
 	valid_movement_tiles.clear()
 
+	# Check if this is an attack card first
+	if card.effect_type == "Attack" and attack_handler:
+		# Pass the button reference to the attack handler for cleanup
+		attack_handler._on_attack_card_pressed(card, button)
+		return
+	
 	# Check if this is a special effect card first
 	if card_effect_handler and card_effect_handler.handle_card_effect(card):
 		return  # Effect was handled by the effect handler
@@ -252,3 +267,24 @@ func get_selected_card() -> CardData:
 
 func get_valid_movement_tiles() -> Array:
 	return valid_movement_tiles.duplicate() 
+
+func cleanup_attack_card_button() -> void:
+	"""Clean up the button for an attack card that was just used"""
+	if active_button and active_button.is_inside_tree():
+		if movement_buttons_container and movement_buttons_container.has_node(NodePath(active_button.name)):
+			movement_buttons_container.remove_child(active_button)
+		
+		active_button.queue_free()
+		movement_buttons.erase(active_button)
+		active_button = null
+	
+	selected_card = null
+
+func get_movement_buttons_container() -> BoxContainer:
+	"""Get the movement buttons container for external access"""
+	return movement_buttons_container
+
+func remove_button_from_list(button: TextureButton) -> void:
+	"""Remove a button from the movement buttons list"""
+	if button in movement_buttons:
+		movement_buttons.erase(button)

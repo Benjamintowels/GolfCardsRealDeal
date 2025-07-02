@@ -54,7 +54,7 @@ const Z_INDEX_OFFSETS = {
 
 func _ready():
 	print("Global script loaded, selected_character = ", selected_character)
-	print("Global Y-sort system initialized - using Godot's built-in Y-sorting")
+	# Global Y-sort system initialized - using Godot's built-in Y-sorting
 
 # Equipment functions
 func add_equipment(equipment: EquipmentData) -> void:
@@ -144,7 +144,7 @@ func get_y_sort_z_index(world_position: Vector2, object_type: String = "objects"
 		
 		# Only print if this is a new position or significant change
 		if not _last_debug_output.has(debug_key) or _last_debug_output[debug_key] != current_debug:
-			print("Y-sort update - pos:", world_position, " z_index:", z_index, " type:", object_type)
+			# Y-sort update - pos: world_position, z_index: z_index, type: object_type
 			_last_debug_output[debug_key] = current_debug
 	
 	return z_index

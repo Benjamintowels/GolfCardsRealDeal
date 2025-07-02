@@ -18,12 +18,23 @@ var movement_range: int = 3
 var vision_range: int = 12
 var current_action: String = "idle"
 
+# Health and damage properties
+var max_health: int = 30
+var current_health: int = 30
+var is_alive: bool = true
+var is_dead: bool = false
+
 # Collision and height properties
 var height: float = 200.0  # Half of tree height (400/2)
+var dead_height: float = 50.0  # Lower height when dead (laying down)
 var base_collision_area: Area2D
 
+# Health bar
+var health_bar: HealthBar
+var health_bar_container: Control
+
 # State Machine
-enum State {PATROL, CHASE}
+enum State {PATROL, CHASE, DEAD}
 var current_state: State = State.PATROL
 var state_machine: StateMachine
 
@@ -47,10 +58,14 @@ func _ready():
 	state_machine = StateMachine.new()
 	state_machine.add_state("patrol", PatrolState.new(self))
 	state_machine.add_state("chase", ChaseState.new(self))
+	state_machine.add_state("dead", DeadState.new(self))
 	state_machine.set_state("patrol")
 	
 	# Setup base collision area
 	_setup_base_collision()
+	
+	# Create health bar
+	_create_health_bar()
 	
 	# Defer player finding until after scene is fully loaded
 	call_deferred("_find_player_reference")
@@ -80,6 +95,27 @@ func _setup_base_collision() -> void:
 		print("✓ GangMember base collision area setup complete")
 	else:
 		print("✗ ERROR: BaseCollisionArea not found!")
+
+func _create_health_bar() -> void:
+	"""Create and setup the health bar"""
+	# Create container for health bar
+	health_bar_container = Control.new()
+	health_bar_container.name = "HealthBarContainer"
+	health_bar_container.custom_minimum_size = Vector2(60, 30)
+	health_bar_container.size = Vector2(60, 30)
+	health_bar_container.position = Vector2(-30, 11.145)
+	health_bar_container.scale = Vector2(0.35, 0.35)
+	add_child(health_bar_container)
+	
+	# Create health bar
+	var health_bar_scene = preload("res://HealthBar.tscn")
+	health_bar = health_bar_scene.instantiate()
+	health_bar_container.add_child(health_bar)
+	
+	# Set initial health
+	health_bar.set_health(current_health, max_health)
+	
+	print("✓ GangMember health bar created")
 
 func _on_base_area_entered(area: Area2D) -> void:
 	"""Handle collisions with the base collision area"""
@@ -266,6 +302,12 @@ func _load_sprite_for_type(type: String) -> void:
 func take_turn() -> void:
 	"""Called by Entities manager when it's this NPC's turn"""
 	print("GangMember taking turn: ", name)
+	
+	# Skip turn if dead
+	if is_dead:
+		print("GangMember is dead, skipping turn")
+		call_deferred("_complete_turn")
+		return
 	
 	# Try to get player reference if we don't have one
 	if not player and course:
@@ -537,6 +579,22 @@ func _play_collision_sound() -> void:
 		# Remove the audio player after it finishes
 		temp_audio.finished.connect(func(): temp_audio.queue_free())
 
+func _play_death_sound() -> void:
+	"""Play the death groan sound when the GangMember dies"""
+	# Create a temporary audio player for the death sound
+	var death_audio = AudioStreamPlayer2D.new()
+	var sound_file = load("res://Sounds/DeathGroan.mp3")
+	if sound_file:
+		death_audio.stream = sound_file
+		death_audio.volume_db = -5.0  # Slightly louder than collision sound
+		add_child(death_audio)
+		death_audio.play()
+		# Remove the audio player after it finishes
+		death_audio.finished.connect(func(): death_audio.queue_free())
+		print("Playing death groan sound")
+	else:
+		print("ERROR: Could not load DeathGroan.mp3 sound file")
+
 func _find_nearest_available_adjacent_tile(player_pos: Vector2i, approach_direction: Vector2i = Vector2i.ZERO) -> Vector2i:
 	"""Find the nearest available adjacent tile to push the player to based on GangMember's approach direction"""
 	# Use the passed approach direction
@@ -807,4 +865,139 @@ class ChaseState extends BaseState:
 			steps += 1
 		
 		print("Pathfinding - Final path: ", path)
-		return path 
+		return path
+
+# Dead State
+class DeadState extends BaseState:
+	func enter() -> void:
+		print("GangMember entering dead state")
+		# Change sprite to dead version
+		gang_member._change_to_dead_sprite()
+		# Lower height for collision detection
+		gang_member.height = gang_member.dead_height
+		# Hide health bar
+		if gang_member.health_bar_container:
+			gang_member.health_bar_container.visible = false
+	
+	func update() -> void:
+		# Dead GangMembers don't move or take actions
+		pass
+	
+	func exit() -> void:
+		pass
+
+# Health and damage methods
+func take_damage(amount: int) -> void:
+	"""Take damage and handle death if health reaches 0"""
+	if not is_alive:
+		return
+	
+	current_health = max(0, current_health - amount)
+	print("GangMember took", amount, "damage. Current health:", current_health, "/", max_health)
+	
+	# Update health bar
+	if health_bar:
+		health_bar.set_health(current_health, max_health)
+	
+	# Flash red to indicate damage
+	flash_damage()
+	
+	if current_health <= 0 and not is_dead:
+		die()
+
+func heal(amount: int) -> void:
+	"""Heal the GangMember"""
+	if not is_alive:
+		return
+	
+	current_health = min(max_health, current_health + amount)
+	print("GangMember healed", amount, "HP. Current health:", current_health, "/", max_health)
+
+func die() -> void:
+	"""Handle the GangMember's death"""
+	if not is_alive or is_dead:
+		return
+	
+	is_alive = false
+	is_dead = true
+	print("GangMember has died!")
+	
+	# Play death groan sound
+	_play_death_sound()
+	
+	# Switch to dead state
+	current_state = State.DEAD
+	state_machine.set_state("dead")
+	
+	# Don't unregister from Entities system - dead GangMembers can still be pushed
+	# But they won't take turns anymore since the dead state doesn't do anything
+
+func _change_to_dead_sprite() -> void:
+	"""Change the sprite to the dead version"""
+	# Hide the main sprite
+	if sprite:
+		sprite.visible = false
+	
+	# Show the dead sprite
+	var dead_sprite = get_node_or_null("Dead")
+	if dead_sprite:
+		dead_sprite.visible = true
+		print("✓ GangMember switched to dead sprite")
+	else:
+		print("✗ ERROR: Dead sprite not found")
+	
+	# Switch collision shapes
+	_switch_to_dead_collision()
+
+func _switch_to_dead_collision() -> void:
+	"""Switch to the dead collision shape"""
+	# Disable the main base collision area
+	if base_collision_area:
+		base_collision_area.monitoring = false
+		base_collision_area.monitorable = false
+		print("✓ Disabled main collision area")
+	
+	# Enable the dead collision area
+	var dead_collision_area = get_node_or_null("Dead/BaseCollisionArea")
+	if dead_collision_area:
+		dead_collision_area.monitoring = true
+		dead_collision_area.monitorable = true
+		# Set collision layer to 1 so golf balls can detect it
+		dead_collision_area.collision_layer = 1
+		# Set collision mask to 1 so it can detect golf balls on layer 1
+		dead_collision_area.collision_mask = 1
+		# Connect to area_entered signal for collision detection
+		if not dead_collision_area.is_connected("area_entered", _on_base_area_entered):
+			dead_collision_area.connect("area_entered", _on_base_area_entered)
+		print("✓ Enabled dead collision area")
+	else:
+		print("✗ ERROR: Dead/BaseCollisionArea not found")
+
+func flash_damage() -> void:
+	"""Flash the GangMember red to indicate damage taken"""
+	if not sprite:
+		return
+	
+	var original_modulate = sprite.modulate
+	var tween = create_tween()
+	tween.tween_property(sprite, "modulate", Color(1, 0, 0, 1), 0.1)
+	tween.tween_property(sprite, "modulate", original_modulate, 0.2)
+
+func play_death_effect() -> void:
+	"""Play death animation or effect"""
+	if sprite:
+		var tween = create_tween()
+		tween.tween_property(sprite, "modulate:a", 0.0, 1.0)
+		tween.tween_callback(queue_free)
+
+func get_health_percentage() -> float:
+	"""Get current health as a percentage"""
+	return float(current_health) / float(max_health)
+
+func is_healthy() -> bool:
+	"""Check if the GangMember is at full health"""
+	return current_health >= max_health
+
+func get_is_dead() -> bool:
+	"""Check if the GangMember is dead"""
+	return is_dead 

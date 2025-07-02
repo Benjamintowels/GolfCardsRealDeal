@@ -1,7 +1,6 @@
 extends CharacterBody2D
 
 var blocks_movement := true  # Trees block by default; water might not
-var show_debug_line := true  # Toggle for debug line visibility
 
 func blocks(): 
 	return blocks_movement
@@ -42,9 +41,6 @@ func _ready():
 		print("Tree Area2D nodes found and ready for collision detection")
 	else:
 		print("ERROR: Tree Area2D nodes not found!")
-	
-	# Force redraw to show the debug line after ready
-	call_deferred("queue_redraw")
 	
 	# Deferred call to double-check collision layers after the scene is fully set up
 	call_deferred("_verify_collision_setup")
@@ -181,46 +177,7 @@ func set_transparent(is_transparent: bool):
 		else:
 			sprite.modulate.a = 1.0
 
-func _draw():
-	if not show_debug_line:
-		return
-	
-	# Draw a horizontal red line at the Y-sorting cutoff (tree base)
-	var line_length = 150
-	var color = Color(1, 0, 0, 1)
-	var line_width = 3
-	
-	draw_line(Vector2(-line_length/2, 0), Vector2(line_length/2, 0), color, line_width)
-	var marker_length = 10
-	draw_line(Vector2(-line_length/2, -marker_length/2), Vector2(-line_length/2, marker_length/2), color, line_width)
-	draw_line(Vector2(line_length/2, -marker_length/2), Vector2(line_length/2, marker_length/2), color, line_width)
 
-	# Draw a cross at the origin (0,0) to visualize the node's origin
-	var cross_size = 12
-	var cross_color = Color(0, 1, 1, 1) # Cyan for visibility
-	draw_line(Vector2(-cross_size/2, 0), Vector2(cross_size/2, 0), cross_color, 2)
-	draw_line(Vector2(0, -cross_size/2), Vector2(0, cross_size/2), cross_color, 2)
-	
-	# Draw the Ysort point location (base of tree trunk) using YsortPoint node
-	var ysort_point_node = get_node_or_null("YsortPoint")
-	if ysort_point_node:
-		var ysort_local_y = to_local(ysort_point_node.global_position).y
-		var ysort_color = Color(0, 1, 0, 1) # Green for Ysort point
-		draw_line(Vector2(-line_length/2, ysort_local_y), Vector2(line_length/2, ysort_local_y), ysort_color, 2)
-		draw_line(Vector2(-line_length/2, ysort_local_y - 5), Vector2(-line_length/2, ysort_local_y + 5), ysort_color, 2)
-		draw_line(Vector2(line_length/2, ysort_local_y - 5), Vector2(line_length/2, ysort_local_y + 5), ysort_color, 2)
-
-# Function to toggle debug line visibility
-func toggle_debug_line():
-	show_debug_line = !show_debug_line
-	queue_redraw()  # Force redraw
-	print("Tree debug line toggled: ", show_debug_line)
-
-# Function to set debug line visibility
-func set_debug_line_visible(visible: bool):
-	show_debug_line = visible
-	queue_redraw()  # Force redraw
-	print("Tree debug line visibility set to: ", visible)
 
 func _process(delta):
 	# Check for nearby balls and play leaves rustling sound

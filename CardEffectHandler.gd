@@ -163,7 +163,7 @@ func launch_scramble_balls(launch_direction: Vector2, power: float, height: floa
 		var ball_power = power * (0.95 + randf_range(-0.05, 0.05))  # Slight power variation
 		var ball_height = height * (0.95 + randf_range(-0.05, 0.05))  # Slight height variation
 		
-		print("Ball", i, "original direction:", launch_direction, "final direction:", ball_direction)
+		# Ball launched with deviation
 		launch_single_scramble_ball(ball_direction, ball_power, ball_height, spin, i)
 
 func launch_single_scramble_ball(direction: Vector2, power: float, height: float, spin: float, ball_index: int):
@@ -197,11 +197,24 @@ func launch_single_scramble_ball(direction: Vector2, power: float, height: float
 	ball.add_to_group("balls")
 	ball.add_to_group("scramble_balls")
 	
-	# Set ball properties - DON'T override with chosen_landing_spot for scramble balls
-	# ball.chosen_landing_spot = course.chosen_landing_spot  # This was causing the override!
+	# Set ball properties - calculate a landing spot for proper targeting
 	ball.club_info = course.club_data[course.selected_club] if course.selected_club in course.club_data else {}
-	ball.is_putting = course.is_putting
+	# Determine is_putting from club data, just like LaunchManager does
+	var is_putting = course.club_data.get(course.selected_club, {}).get("is_putter", false)
+	ball.is_putting = is_putting
 	ball.time_percentage = course.charge_time / course.max_charge_time
+	
+	# Set landing spot - middle ball uses the actual chosen landing spot, others use estimated spots
+	if ball_index == 0:
+		# Middle ball (index 0) uses the actual chosen landing spot like a normal ball
+		ball.chosen_landing_spot = course.chosen_landing_spot
+	else:
+		# Side balls use estimated landing spots based on their deviated direction
+		# Calculate the landing spot in global coordinates
+		var ball_global_pos = course.camera_container.global_position + ball.position
+		var estimated_distance = power * 0.8  # Rough estimate of how far the ball will travel
+		var landing_spot = ball_global_pos + (direction.normalized() * estimated_distance)
+		ball.chosen_landing_spot = landing_spot
 	
 	# Connect signals
 	ball.landed.connect(_on_scramble_ball_landed.bind(ball_index))
@@ -218,9 +231,9 @@ func launch_single_scramble_ball(direction: Vector2, power: float, height: float
 	# Enable camera following for the first ball (center ball)
 	if ball_index == 0:
 		course.camera_following_ball = true
-		course.golf_ball = ball  # Set as the main golf ball for camera following
+		course.launch_manager.golf_ball = ball  # Set as the main golf ball for camera following
 	
-	print("Launched scramble ball", ball_index, "with direction:", direction, "power:", power)
+	# Scramble ball launched
 
 func _on_scramble_ball_landed(tile: Vector2i, ball_index: int = -1):
 	"""Handle when a scramble ball lands"""
@@ -230,7 +243,7 @@ func _on_scramble_ball_landed(tile: Vector2i, ball_index: int = -1):
 	# Find the ball index if not provided
 	if ball_index == -1:
 		for i in range(scramble_balls.size()):
-			if scramble_balls[i] and scramble_balls[i].global_position == course.golf_ball.global_position:
+			if scramble_balls[i] and scramble_balls[i].global_position == course.launch_manager.golf_ball.global_position:
 				ball_index = i
 				break
 	
@@ -257,7 +270,7 @@ func _on_scramble_ball_out_of_bounds(ball_index: int = -1):
 	# Find the ball index if not provided
 	if ball_index == -1:
 		for i in range(scramble_balls.size()):
-			if scramble_balls[i] and scramble_balls[i].global_position == course.golf_ball.global_position:
+			if scramble_balls[i] and scramble_balls[i].global_position == course.launch_manager.golf_ball.global_position:
 				ball_index = i
 				break
 	
@@ -330,8 +343,8 @@ func complete_scramble_with_ball(ball_index: int):
 		closest_ball.remove_from_group("scramble_balls")
 		closest_ball.add_to_group("balls")
 		
-		# Set as the main golf ball for the course
-		course.golf_ball = closest_ball
+		# Set as the main golf ball for the course via launch_manager
+		course.launch_manager.golf_ball = closest_ball
 		
 		# Connect the ball to normal course signals
 		closest_ball.landed.disconnect(_on_scramble_ball_landed)

@@ -25,10 +25,15 @@ extends Control
 @onready var health_bar: HealthBar = $UILayer/HealthBar
 @onready var damage_button: Button = $UILayer/HealthTestButtons/DamageButton
 @onready var heal_button: Button = $UILayer/HealthTestButtons/HealButton
+@onready var kill_gangmember_button: Button = $UILayer/KillGangMemberButton
 
 # Movement controller
 const MovementController := preload("res://MovementController.gd")
 var movement_controller: MovementController
+
+# Attack handler
+const AttackHandler := preload("res://AttackHandler.gd")
+var attack_handler: AttackHandler
 const GolfCourseLayout := preload("res://Maps/GolfCourseLayout.gd")
 const HealthBar := preload("res://HealthBar.gd")
 
@@ -364,6 +369,10 @@ func _ready() -> void:
 	movement_controller = MovementController.new()
 	add_child(movement_controller)
 	
+	# Initialize attack handler
+	attack_handler = AttackHandler.new()
+	add_child(attack_handler)
+	
 	call_deferred("fix_ui_layers")
 	display_selected_character()
 	if end_round_button:
@@ -374,6 +383,8 @@ func _ready() -> void:
 		damage_button.pressed.connect(_on_damage_button_pressed)
 	if heal_button:
 		heal_button.pressed.connect(_on_heal_button_pressed)
+	if kill_gangmember_button:
+		kill_gangmember_button.pressed.connect(_on_kill_gangmember_button_pressed)
 
 	create_grid()
 	create_player()
@@ -414,8 +425,32 @@ func _ready() -> void:
 		card_play_sound,
 		card_stack_display,
 		deck_manager,
+		card_effect_handler,
+		attack_handler
+	)
+	
+	# Setup attack handler after deck_manager is created
+	attack_handler.setup(
+		player_node,
+		grid_tiles,
+		grid_size,
+		cell_size,
+		obstacle_map,
+		player_grid_pos,
+		player_stats,
+		movement_buttons_container,  # Reuse the same container for now
+		card_click_sound,
+		card_play_sound,
+		card_stack_display,
+		deck_manager,
 		card_effect_handler
 	)
+	
+	# Set the movement controller reference for button cleanup
+	attack_handler.set_movement_controller(movement_controller)
+	
+	# Connect attack handler signals
+	attack_handler.npc_attacked.connect(_on_npc_attacked)
 
 	var hud := $UILayer/HUD
 
@@ -763,6 +798,41 @@ func _on_heal_button_pressed() -> void:
 	"""Handle heal button press"""
 	heal_player(20)
 
+func _on_kill_gangmember_button_pressed() -> void:
+	"""Handle kill GangMember button press"""
+	kill_nearest_gangmember()
+
+func kill_nearest_gangmember() -> void:
+	"""Kill the nearest GangMember to the player"""
+	var entities = get_node_or_null("Entities")
+	if not entities:
+		print("No Entities system found")
+		return
+	
+	var npcs = entities.get_npcs()
+	if npcs.size() == 0:
+		print("No NPCs found to kill")
+		return
+	
+	# Find the nearest GangMember
+	var nearest_npc = null
+	var nearest_distance = INF
+	
+	for npc in npcs:
+		if npc.has_method("get_grid_position") and npc.has_method("take_damage"):
+			var npc_pos = npc.get_grid_position()
+			var distance = player_grid_pos.distance_to(npc_pos)
+			if distance < nearest_distance:
+				nearest_distance = distance
+				nearest_npc = npc
+	
+	if nearest_npc:
+		print("Killing nearest GangMember at distance:", nearest_distance)
+		# Deal enough damage to kill the GangMember
+		nearest_npc.take_damage(nearest_npc.max_health)
+	else:
+		print("No valid GangMember found to kill")
+
 func handle_player_death() -> void:
 	"""Handle player death - fade to black and show death screen"""
 	print("Handling player death...")
@@ -816,6 +886,7 @@ func update_player_position() -> void:
 
 func create_movement_buttons() -> void:
 	movement_controller.create_movement_buttons()
+	attack_handler.create_attack_buttons()
 	
 
 func _on_movement_card_pressed(card: CardData, button: TextureButton) -> void:
@@ -837,9 +908,11 @@ func hide_all_movement_highlights() -> void:
 
 func _on_tile_mouse_entered(x: int, y: int) -> void:
 	movement_controller.handle_tile_mouse_entered(x, y, is_panning)
+	attack_handler.handle_tile_mouse_entered(x, y, is_panning)
 
 func _on_tile_mouse_exited(x: int, y: int) -> void:
 	movement_controller.handle_tile_mouse_exited(x, y, is_panning)
+	attack_handler.handle_tile_mouse_exited(x, y, is_panning)
 
 func _on_tile_input(event: InputEvent, x: int, y: int) -> void:
 	if event is InputEventMouseButton and event.pressed and not is_panning and event.button_index == MOUSE_BUTTON_LEFT:
@@ -874,8 +947,11 @@ func _on_tile_input(event: InputEvent, x: int, y: int) -> void:
 			if movement_controller.handle_tile_click(x, y):
 				# Movement was successful, no need to do anything else here
 				pass
+			elif attack_handler.handle_tile_click(x, y):
+				# Attack was successful, no need to do anything else here
+				pass
 			else:
-				print("Invalid movement tile or not in movement mode")
+				print("Invalid movement/attack tile or not in movement/attack mode")
 
 func start_round_after_tee_selection() -> void:
 	var instruction_label = $UILayer.get_node_or_null("TeeInstructionLabel")
@@ -1049,11 +1125,14 @@ func highlight_tee_tiles():
 
 func exit_movement_mode() -> void:
 	movement_controller.exit_movement_mode()
+	attack_handler.exit_attack_mode()
 	update_deck_display()
 
 func _on_end_turn_pressed() -> void:
 	if movement_controller.is_in_movement_mode():
 		exit_movement_mode()
+	if attack_handler.is_in_attack_mode():
+		attack_handler.exit_attack_mode()
 
 	var cards_to_discard = deck_manager.hand.size()
 	
@@ -1061,6 +1140,7 @@ func _on_end_turn_pressed() -> void:
 		deck_manager.discard(card)
 	deck_manager.hand.clear()
 	movement_controller.clear_all_movement_ui()
+	attack_handler.clear_all_attack_ui()
 	turn_count += 1
 	update_deck_display()
 	
@@ -1921,6 +2001,7 @@ func _on_club_card_pressed(club_name: String, club_info: Dictionary, button: Tex
 func _on_player_moved_to_tile(new_grid_pos: Vector2i) -> void:
 	player_grid_pos = new_grid_pos
 	movement_controller.update_player_position(new_grid_pos)
+	attack_handler.update_player_position(new_grid_pos)
 	
 	if player_grid_pos == shop_grid_pos and not shop_entrance_detected:
 		shop_entrance_detected = true
@@ -2709,3 +2790,7 @@ func _on_launch_phase_entered():
 
 func _on_launch_phase_exited():
 	game_phase = "ball_flying"
+
+func _on_npc_attacked(npc: Node, damage: int) -> void:
+	"""Handle when an NPC is attacked"""
+	print("NPC attacked:", npc.name, "Damage dealt:", damage)
