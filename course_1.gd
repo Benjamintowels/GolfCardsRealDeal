@@ -1262,6 +1262,25 @@ func start_npc_turn_sequence() -> void:
 	"""Handle the NPC turn sequence with camera transitions and UI"""
 	print("Starting NPC turn sequence...")
 	
+	# Check if there are any alive NPCs on the map
+	if not has_alive_npcs():
+		print("No alive NPCs found on the map, skipping World Turn and entering next player turn")
+		
+		# Show "Your Turn" message immediately
+		show_turn_message("Your Turn", 2.0)
+		
+		# Continue with normal turn flow
+		if waiting_for_player_to_reach_ball and player_grid_pos == ball_landing_tile:
+			if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball) and launch_manager.golf_ball.has_method("remove_landing_highlight"):
+				launch_manager.golf_ball.remove_landing_highlight()
+			
+			enter_draw_cards_phase()  # Start with club selection phase
+		else:
+			draw_cards_for_shot(3)
+			create_movement_buttons()
+			draw_cards_button.visible = false
+		return
+	
 	# Disable end turn button during NPC turn
 	end_turn_button.disabled = true
 	
@@ -1311,7 +1330,7 @@ func start_npc_turn_sequence() -> void:
 		draw_cards_button.visible = false
 
 func find_nearest_visible_npc() -> Node:
-	"""Find the nearest NPC that is visible to the player"""
+	"""Find the nearest NPC that is visible to the player and alive"""
 	var entities = get_node_or_null("Entities")
 	if not entities:
 		print("ERROR: No Entities node found!")
@@ -1325,6 +1344,19 @@ func find_nearest_visible_npc() -> Node:
 	
 	for npc in npcs:
 		if is_instance_valid(npc) and npc.has_method("get_grid_position"):
+			# Check if NPC is alive
+			var is_alive = true
+			if npc.has_method("get_is_dead"):
+				is_alive = not npc.get_is_dead()
+			elif npc.has_method("is_dead"):
+				is_alive = not npc.is_dead()
+			elif "is_dead" in npc:
+				is_alive = not npc.is_dead
+			
+			if not is_alive:
+				print("NPC ", npc.name, " is dead, skipping")
+				continue
+			
 			var npc_pos = npc.get_grid_position()
 			var distance = player_grid_pos.distance_to(npc_pos)
 			
@@ -1340,6 +1372,36 @@ func find_nearest_visible_npc() -> Node:
 	
 	print("Final nearest NPC: ", nearest_npc.name if nearest_npc else "None")
 	return nearest_npc
+
+func has_alive_npcs() -> bool:
+	"""Check if there are any alive NPCs on the map"""
+	var entities = get_node_or_null("Entities")
+	if not entities:
+		print("ERROR: No Entities node found!")
+		return false
+	
+	var npcs = entities.get_npcs()
+	print("Checking for alive NPCs among ", npcs.size(), " total NPCs")
+	
+	for npc in npcs:
+		if is_instance_valid(npc):
+			# Check if NPC is alive
+			var is_alive = true
+			if npc.has_method("get_is_dead"):
+				is_alive = not npc.get_is_dead()
+			elif npc.has_method("is_dead"):
+				is_alive = not npc.is_dead()
+			elif "is_dead" in npc:
+				is_alive = not npc.is_dead
+			
+			if is_alive:
+				print("Found alive NPC: ", npc.name)
+				return true
+		else:
+			print("Invalid NPC found, skipping")
+	
+	print("No alive NPCs found on the map")
+	return false
 
 func transition_camera_to_npc(npc: Node) -> void:
 	"""Transition camera to focus on the NPC"""
