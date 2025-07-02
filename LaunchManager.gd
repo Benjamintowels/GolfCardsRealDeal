@@ -50,6 +50,7 @@ var camera: Camera2D
 signal ball_launched(ball: Node2D)
 signal launch_phase_entered
 signal launch_phase_exited
+signal charging_state_changed(charging: bool, charging_height: bool)
 
 func _ready():
 	pass
@@ -510,6 +511,7 @@ func handle_input(event: InputEvent) -> bool:
 					is_charging = true
 					charge_time = 0.0
 					current_charge_mouse_pos = camera.get_global_mouse_position()
+					emit_signal("charging_state_changed", is_charging, is_charging_height)
 					return true
 			else:
 				if is_charging:
@@ -521,6 +523,7 @@ func handle_input(event: InputEvent) -> bool:
 					else:
 						launch_golf_ball(launch_direction, 0.0, launch_height)
 						hide_power_meter()
+					emit_signal("charging_state_changed", is_charging, is_charging_height)
 					return true
 				elif is_charging_height:
 					is_charging_height = false
@@ -528,6 +531,7 @@ func handle_input(event: InputEvent) -> bool:
 					launch_golf_ball(launch_direction, 0.0, launch_height)
 					hide_power_meter()
 					hide_height_meter()
+					emit_signal("charging_state_changed", is_charging, is_charging_height)
 					return true
 		elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
 			# Cancel launch phase
@@ -535,6 +539,7 @@ func handle_input(event: InputEvent) -> bool:
 			is_charging_height = false
 			hide_power_meter()
 			hide_height_meter()
+			emit_signal("charging_state_changed", is_charging, is_charging_height)
 			return true
 	
 	elif event is InputEventMouseMotion:

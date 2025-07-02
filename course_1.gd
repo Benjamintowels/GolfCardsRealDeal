@@ -403,7 +403,8 @@ func _ready() -> void:
 	# Connect signals
 	launch_manager.ball_launched.connect(_on_ball_launched)
 	launch_manager.launch_phase_entered.connect(_on_launch_phase_entered)
-	launch_manager.launch_phase_exited.connect(_on_launch_phase_exited)	
+	launch_manager.launch_phase_exited.connect(_on_launch_phase_exited)
+	launch_manager.charging_state_changed.connect(_on_charging_state_changed)	
 	
 	if obstacle_layer.get_parent():
 		obstacle_layer.get_parent().remove_child(obstacle_layer)
@@ -553,6 +554,11 @@ func _ready() -> void:
 	# Register any existing GangMembers with the Entities system
 	register_existing_gang_members()
 	
+	# Initialize player mouse facing system
+	if player_node and player_node.has_method("set_camera_reference"):
+		player_node.set_camera_reference(camera)
+		_update_player_mouse_facing_state()
+	
 	# Play birds tweeting sound when course loads
 	if birds_tweeting_sound:
 		birds_tweeting_sound.play()
@@ -585,6 +591,7 @@ func _input(event: InputEvent) -> void:
 				hide_aiming_circle()
 				hide_aiming_instruction()
 				game_phase = "move"  # Return to move phase
+				_update_player_mouse_facing_state()
 	elif game_phase == "launch":
 		# Handle launch input through LaunchManager
 		print("[DEBUG] In launch phase, handling input through LaunchManager")
@@ -1138,6 +1145,7 @@ func _on_golf_ball_landed(tile: Vector2i):
 			show_drive_distance_dialog()
 		)
 		game_phase = "move"
+		_update_player_mouse_facing_state()
 	else:
 		# Ball went in the hole - don't show drive distance dialog
 		# The hole completion dialog will be shown by the pin's hole_in_one signal
@@ -1466,6 +1474,7 @@ func _on_drive_distance_dialog_input(event: InputEvent) -> void:
 			drive_distance_dialog = null
 		
 		game_phase = "move"
+		_update_player_mouse_facing_state()
 		draw_cards_button.visible = true
 		draw_cards_button.text = "Draw Cards"
 		var dialog_player_sprite = player_node.get_node_or_null("Sprite2D")
@@ -1518,6 +1527,7 @@ func _on_golf_ball_out_of_bounds():
 	player_grid_pos = shot_start_grid_pos
 	update_player_position()
 	game_phase = "draw_cards"
+	_update_player_mouse_facing_state()
 
 func show_out_of_bounds_dialog():
 	var dialog = AcceptDialog.new()
@@ -1550,6 +1560,7 @@ func enter_launch_phase() -> void:
 	
 func enter_aiming_phase() -> void:
 	game_phase = "aiming"
+	_update_player_mouse_facing_state()
 	is_aiming_phase = true
 	
 	# Set the shot start position to where the player currently is
@@ -1724,6 +1735,7 @@ func reset_for_next_hole():
 	position_camera_on_pin()  # Add camera positioning for next hole
 	hole_score = 0
 	game_phase = "tee_select"
+	_update_player_mouse_facing_state()
 	chosen_landing_spot = Vector2.ZERO
 	selected_club = ""
 	update_hole_and_score_display()
@@ -1921,6 +1933,7 @@ func update_spin_indicator():
 func enter_draw_cards_phase() -> void:
 	"""Enter the club selection phase where player draws club cards"""
 	game_phase = "draw_cards"
+	_update_player_mouse_facing_state()
 	print("Entered draw cards phase - selecting club for shot")
 	
 	draw_cards_button.visible = true
@@ -2066,6 +2079,7 @@ func _on_player_moved_to_tile(new_grid_pos: Vector2i) -> void:
 func show_draw_club_cards_button() -> void:
 	"""Show the 'Draw Club Cards' button when player is on an active ball tile"""
 	game_phase = "ball_tile_choice"
+	_update_player_mouse_facing_state()
 	print("Player is on ball tile - showing 'Draw Club Cards' button")
 	
 	# Show the "Draw Club Cards" button
@@ -2307,6 +2321,7 @@ func restore_game_state():
 			game_phase = Global.saved_game_phase
 		else:
 			game_phase = "move"
+		_update_player_mouse_facing_state()
 		if deck_manager.hand.size() > 0:
 			create_movement_buttons()
 		update_deck_display()
@@ -2801,6 +2816,7 @@ func _on_scramble_complete(closest_ball_position: Vector2, closest_ball_tile: Ve
 	)
 	
 	game_phase = "move"
+	_update_player_mouse_facing_state()
 
 # LaunchManager signal handlers
 func _on_ball_launched(ball: Node2D):
@@ -2835,9 +2851,15 @@ func _on_ball_launched(ball: Node2D):
 
 func _on_launch_phase_entered():
 	game_phase = "launch"
+	_update_player_mouse_facing_state()
 
 func _on_launch_phase_exited():
 	game_phase = "ball_flying"
+	_update_player_mouse_facing_state()
+
+func _on_charging_state_changed(charging: bool, charging_height: bool) -> void:
+	"""Handle charging state changes from LaunchManager"""
+	_update_player_mouse_facing_state()
 
 func _on_npc_attacked(npc: Node, damage: int) -> void:
 	"""Handle when an NPC is attacked"""
@@ -2861,6 +2883,27 @@ func setup_global_death_sound() -> void:
 	global_death_sound.volume_db = 0.0
 	add_child(global_death_sound)
 	print("Global death sound setup complete")
+
+func _update_player_mouse_facing_state() -> void:
+	"""Update the player's mouse facing state based on current game phase and launch state"""
+	if not player_node or not player_node.has_method("set_game_phase"):
+		return
+	
+	# Update game phase
+	player_node.set_game_phase(game_phase)
+	
+	# Update launch state from LaunchManager
+	var is_charging = false
+	var is_charging_height = false
+	if launch_manager:
+		is_charging = launch_manager.is_charging
+		is_charging_height = launch_manager.is_charging_height
+	
+	player_node.set_launch_state(is_charging, is_charging_height)
+	
+	# Set camera reference if not already set
+	if player_node.has_method("set_camera_reference") and camera:
+		player_node.set_camera_reference(camera)
 
 # Debug mode variables and functions (DISABLED - collision heights are now working correctly)
 # var debug_mode_active := false

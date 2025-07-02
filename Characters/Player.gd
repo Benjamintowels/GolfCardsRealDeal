@@ -28,6 +28,12 @@ var is_alive: bool = true
 var collision_delay_distance: float = 100.0  # Distance ball must travel before player collision activates
 var ball_launch_position: Vector2 = Vector2.ZERO  # Store where ball was launched from
 
+# Mouse facing system
+var game_phase: String = "move"  # Will be updated by parent
+var is_charging: bool = false  # Will be updated by parent
+var is_charging_height: bool = false  # Will be updated by parent
+var camera: Camera2D = null  # Will be set by parent
+
 func _ready():
 	# Look for the character sprite (it's added as a direct child by the course script)
 	for child in get_children():
@@ -179,6 +185,47 @@ func move_to_grid(pos: Vector2i):
 func _process(delta):
 	# Update Y-sort every frame to stay in sync with camera movement
 	update_z_index_for_ysort([])
+	
+	# Handle mouse facing system
+	_update_mouse_facing()
+
+func _update_mouse_facing() -> void:
+	"""Update player sprite to face the mouse direction when appropriate"""
+	var sprite = get_character_sprite()
+	if not sprite:
+		return
+	
+	# Only face mouse when it's player's turn and not in launch charge mode
+	var should_face_mouse = (
+		game_phase == "move" or 
+		game_phase == "aiming" or 
+		game_phase == "draw_cards" or
+		game_phase == "ball_tile_choice"
+	) and not is_charging and not is_charging_height
+	
+	if not should_face_mouse:
+		return
+	
+	# Get mouse position in world space
+	if not camera:
+		return
+	
+	var mouse_world_pos = camera.get_global_mouse_position()
+	var player_world_pos = global_position
+	
+	# Calculate direction from player to mouse
+	var direction = mouse_world_pos - player_world_pos
+	
+	# Only update if mouse is not too close to player (to prevent jittering)
+	if direction.length() < 10.0:
+		return
+	
+	# Determine if mouse is to the left or right of player
+	var mouse_is_left = direction.x < 0
+	
+	# Flip the sprite horizontally based on mouse position
+	# Assuming the default sprite faces right, so we flip when mouse is on the left
+	sprite.flip_h = mouse_is_left
 
 # Ball collision methods
 func _setup_ball_collision() -> void:
@@ -367,3 +414,17 @@ func get_y_sort_point() -> float:
 		return ysort_point_node.global_position.y
 	else:
 		return global_position.y
+
+# Mouse facing system methods
+func set_game_phase(phase: String) -> void:
+	"""Set the current game phase for mouse facing logic"""
+	game_phase = phase
+
+func set_launch_state(charging: bool, charging_height: bool) -> void:
+	"""Set the launch charging state for mouse facing logic"""
+	is_charging = charging
+	is_charging_height = charging_height
+
+func set_camera_reference(camera_ref: Camera2D) -> void:
+	"""Set the camera reference for mouse position calculation"""
+	camera = camera_ref
