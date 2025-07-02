@@ -18,7 +18,7 @@ var character_sprite: Sprite2D = null
 var highlight_tween: Tween = null
 
 # Ball collision and health properties
-var height: float = 150.0  # Player height (below GangMember's 200.0)
+var height: float = 150.0  # Player height (ball needs 69.0 to pass over)
 var base_collision_area: Area2D
 var max_health: int = 100
 var current_health: int = 100

@@ -13,7 +13,7 @@ var current_npc_index: int = -1
 var is_npc_turn: bool = false
 
 # Base collision and height constants for NPCs
-const DEFAULT_NPC_HEIGHT = 200.0  # Half of tree height (400/2)
+const DEFAULT_NPC_HEIGHT = 200.0  # Default NPC height (ball needs 88.0 to pass over GangMember)
 const DEFAULT_BASE_COLLISION_WIDTH = 10.0
 const DEFAULT_BASE_COLLISION_HEIGHT = 6.5
 

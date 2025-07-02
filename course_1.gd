@@ -481,6 +481,9 @@ func _ready() -> void:
 	
 	# Setup global death sound
 	setup_global_death_sound()
+	
+	# Setup debug mode
+	setup_debug_mode()
 
 	var hud := $UILayer/HUD
 
@@ -2856,3 +2859,113 @@ func setup_global_death_sound() -> void:
 	global_death_sound.volume_db = 0.0
 	add_child(global_death_sound)
 	print("Global death sound setup complete")
+
+# Debug mode variables and functions
+var debug_mode_active := false
+var debug_ball: Node2D = null
+var debug_button: Button = null
+
+func setup_debug_mode() -> void:
+	"""Setup debug mode button and functionality"""
+	# Create debug button
+	debug_button = Button.new()
+	debug_button.name = "DebugModeButton"
+	debug_button.text = "Debug Height Mode"
+	debug_button.position = Vector2(10, 50)
+	debug_button.size = Vector2(150, 30)
+	debug_button.connect("pressed", _on_debug_mode_toggled)
+	
+	# Add to UI layer
+	if has_node("UILayer"):
+		get_node("UILayer").add_child(debug_button)
+		debug_button.z_index = 1000  # Keep on top
+		print("Debug mode button created")
+
+func _on_debug_mode_toggled() -> void:
+	"""Toggle debug mode on/off"""
+	if debug_mode_active:
+		_exit_debug_mode()
+	else:
+		_enter_debug_mode()
+
+func _enter_debug_mode() -> void:
+	"""Enter debug mode - create debug ball"""
+	if debug_mode_active:
+		return
+	
+	debug_mode_active = true
+	debug_button.text = "Exit Debug Mode"
+	
+	# Create debug ball
+	var debug_ball_scene = load("res://DebugBall.tscn")
+	if debug_ball_scene:
+		debug_ball = debug_ball_scene.instantiate()
+		if debug_ball:
+			print("Debug ball scene loaded and instantiated successfully")
+		else:
+			print("ERROR: Could not instantiate DebugBall.tscn")
+			debug_mode_active = false
+			debug_button.text = "Debug Height Mode"
+			return
+	else:
+		print("ERROR: Could not load DebugBall.tscn")
+		print("Please check that the file exists and is properly formatted")
+		debug_mode_active = false
+		debug_button.text = "Debug Height Mode"
+		return
+	
+	# Add to UI layer so it's always visible and on top
+	if has_node("UILayer"):
+		get_node("UILayer").add_child(debug_ball)
+		debug_ball.global_position = get_global_mouse_position()
+		
+		# Test collision setup
+		print("Debug ball added to UILayer at position:", debug_ball.global_position)
+		print("Debug ball collision layer:", debug_ball.get_node("Area2D").collision_layer)
+		print("Debug ball collision mask:", debug_ball.get_node("Area2D").collision_mask)
+		print("Debug ball parent:", debug_ball.get_parent().name)
+		
+		# Connect debug collision signal
+		if debug_ball.has_signal("debug_collision_detected"):
+			debug_ball.debug_collision_detected.connect(_on_debug_collision_detected)
+			print("Debug collision signal connected")
+		else:
+			print("WARNING: Debug ball does not have debug_collision_detected signal")
+		
+		print("Debug mode activated - Use W/S to adjust height, mouse to move")
+	else:
+		print("ERROR: UILayer not found for debug ball")
+		print("Available nodes:", get_children())
+		debug_mode_active = false
+		debug_button.text = "Debug Height Mode"
+		if debug_ball:
+			debug_ball.queue_free()
+			debug_ball = null
+
+func _exit_debug_mode() -> void:
+	"""Exit debug mode - remove debug ball"""
+	if not debug_mode_active:
+		return
+	
+	debug_mode_active = false
+	debug_button.text = "Debug Height Mode"
+	
+	# Remove debug ball
+	if debug_ball and is_instance_valid(debug_ball):
+		debug_ball.queue_free()
+		debug_ball = null
+	
+	print("Debug mode deactivated")
+
+func _on_debug_collision_detected(object_name: String, object_height: float, ball_height: float) -> void:
+	"""Handle debug collision detection"""
+	print("DEBUG COLLISION: Ball (%.1f) with %s (%.1f)" % [ball_height, object_name, object_height])
+	
+	# You can add additional debug output or logging here
+	# For example, save the collision data to a file for analysis
+
+func get_obstacle_at_position(grid_pos: Vector2i) -> Node:
+	"""Get obstacle at a specific grid position for debug ball collision detection"""
+	if obstacle_map.has(grid_pos):
+		return obstacle_map[grid_pos]
+	return null

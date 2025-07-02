@@ -29,7 +29,7 @@ var is_alive: bool = true
 var is_dead: bool = false
 
 # Collision and height properties
-var height: float = 200.0  # Half of tree height (400/2)
+var height: float = 200.0  # GangMember height (ball needs 88.0 to pass over)
 var dead_height: float = 50.0  # Lower height when dead (laying down)
 var base_collision_area: Area2D
 

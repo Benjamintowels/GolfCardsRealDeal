@@ -5,7 +5,7 @@ signal pin_flag_hit(ball: Node2D)  # New signal for pin flag hits
 
 # Pin flag reflection settings
 const HOLE_IN_HEIGHT_MAX = 5.0  # Maximum height for hole-in
-const PIN_FLAG_HEIGHT_MAX = 200.0  # Maximum height for pin flag reflection (increased from 100.0)
+const PIN_FLAG_HEIGHT_MAX = 100.0  # Updated height for proper collision detection
 
 func _ready():
 	# Connect to the Area2D's area_entered signal
