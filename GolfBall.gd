@@ -801,6 +801,9 @@ func update_visual_effects():
 	
 	# Update shadow size and opacity based on height
 	if shadow:
+		# Keep shadow at ground level (Vector2.ZERO) - never move it up with the ball
+		shadow.position = Vector2.ZERO
+		
 		var shadow_scale = 1.0 - (z / 800.0)  # Shadow gets smaller when ball is higher
 		shadow_scale = clamp(shadow_scale, 0.1, 0.8)  # Reduced max from 1.0 to 0.8 - shadow is smaller at max
 		

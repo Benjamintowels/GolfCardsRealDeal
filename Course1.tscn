@@ -1,4 +1,4 @@
-[gd_scene load_steps=20 format=3 uid="uid://dlq5ygh2wv33m"]
+[gd_scene load_steps=21 format=3 uid="uid://dlq5ygh2wv33m"]
 
 [ext_resource type="Script" uid="uid://d4hrfk75nrm45" path="res://course_1.gd" id="1_pe8tc"]
 [ext_resource type="Texture2D" uid="uid://cpe67sk2vh8me" path="res://EDGE.png" id="2_eymfu"]
@@ -19,11 +19,15 @@
 [ext_resource type="Script" uid="uid://b278n4knxowm2" path="res://Entities.gd" id="16_entities"]
 [ext_resource type="PackedScene" uid="uid://bqx80a02w3v4u" path="res://HealthBar.tscn" id="17_health_bar"]
 [ext_resource type="AudioStream" uid="uid://ccvh643uqte1h" path="res://Sounds/Birds.mp3" id="19_00plg"]
+[ext_resource type="Script" uid="uid://cnne1a0u85wtc" path="res://current_deck_manager.gd" id="20_current_deck_manager"]
 
 [node name="Course1" type="Control"]
 layout_mode = 3
 anchors_preset = 0
 script = ExtResource("1_pe8tc")
+
+[node name="CurrentDeckManager" type="Node" parent="."]
+script = ExtResource("20_current_deck_manager")
 
 [node name="ObstacleLayer" type="Control" parent="."]
 z_index = 2

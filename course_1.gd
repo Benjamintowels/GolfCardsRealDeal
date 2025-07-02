@@ -176,19 +176,6 @@ var club_data = {
 	}
 }
 
-# Bag pile for club cards
-var bag_pile: Array[CardData] = [
-	preload("res://Cards/Driver.tres"),
-	preload("res://Cards/Hybrid.tres"),
-	preload("res://Cards/Wood.tres"),
-	preload("res://Cards/Iron.tres"),
-	preload("res://Cards/Wooden.tres"),
-	preload("res://Cards/Putter.tres"),
-	preload("res://Cards/PitchingWedge.tres")
-]
-
-
-
 # Add these variables at the top (after var launch_power, etc.)
 var charge_time := 0.0  # Time spent charging (in seconds)
 var max_charge_time := 3.0  # Maximum time to fully charge (varies by distance)
@@ -201,7 +188,6 @@ var shop_dialog: Control = null
 
 # Smart Performance Optimizer
 var smart_optimizer: Node
-var original_process_enabled: bool = true  # Toggle for testing
 var shop_entrance_detected := false
 var shop_grid_pos := Vector2i(2, 6)  # Position of shop from map layout
 
@@ -316,37 +302,9 @@ func _get_tee_area_center() -> Vector2:
 	return center_world_pos
 
 func _process(delta):
-	if smart_optimizer and not original_process_enabled:
-		smart_optimizer.smart_process(delta, self)
-	else:
-		# Original _process code (keep this as backup)
-		original_process(delta)
+	smart_optimizer.smart_process(delta, self)
 
-func original_process(delta):
-	# Update LaunchManager
-	launch_manager.chosen_landing_spot = chosen_landing_spot
-	launch_manager.selected_club = selected_club
-	launch_manager.club_data = club_data
-	launch_manager.player_stats = player_stats
-	
-	if camera_following_ball and launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball):
-		var ball_center = launch_manager.golf_ball.global_position
-		var tween := get_tree().create_tween()
-		tween.tween_property(camera, "position", ball_center, 0.1).set_trans(Tween.TRANS_LINEAR)
-	
-	if card_hand_anchor and card_hand_anchor.z_index != 100:
-		card_hand_anchor.z_index = 100
-		card_hand_anchor.mouse_filter = Control.MOUSE_FILTER_STOP
-		set_process(false)  # stop checking after setting
-	
-	if is_aiming_phase and aiming_circle:
-		update_aiming_circle()
-	
-	# Update global Y-sort for all objects (trees, pins, etc.)
-	update_all_ysort_z_indices()
-	
-	# Update ball state for smart optimizer
-	update_ball_for_optimizer()
+
 
 func update_ball_for_optimizer():
 	"""Update ball state for the smart optimizer"""
@@ -361,7 +319,7 @@ func _ready() -> void:
 	if Global.putt_putt_mode:
 		print("=== PUTT PUTT MODE ENABLED ===")
 		print("Only putters will be available for club selection")
-		print("Available putters:", bag_pile.filter(func(card): 
+		print("Available putters:", deck_manager.club_draw_pile.filter(func(card): 
 			var club_info = club_data.get(card.name, {})
 			return club_info.get("is_putter", false)
 		).map(func(card): return card.name))
@@ -439,6 +397,9 @@ func _ready() -> void:
 	add_child(deck_manager)
 	deck_manager.deck_updated.connect(update_deck_display)
 	deck_manager.discard_recycled.connect(card_stack_display.animate_card_recycle)
+	
+	# Force sync with CurrentDeckManager immediately
+	deck_manager.sync_with_current_deck()
 	
 	# Setup movement controller after deck_manager is created
 	movement_controller.setup(
@@ -569,11 +530,9 @@ func _ready() -> void:
 		print("Smart optimizer test: Game state updated successfully")
 	
 	# Start with smart optimization enabled for better performance
-	original_process_enabled = false
 	print("Smart optimization is ENABLED by default for better performance.")
 	
-	# Create optimization toggle button
-	create_optimization_toggle_button()
+
 
 	is_placing_player = true
 	highlight_tee_tiles()
@@ -689,11 +648,7 @@ func _input(event: InputEvent) -> void:
 	if player_node:
 		player_flashlight_center = get_flashlight_center()
 
-	# Skip grid redraws when smart optimization is enabled - tiles are static
-	if original_process_enabled:
-		for y in grid_size.y:
-			for x in grid_size.x:
-				grid_tiles[y][x].get_node("TileDrawer").queue_redraw()
+	# Grid tiles are static with smart optimization - no need to redraw
 
 	queue_redraw()
 
@@ -1143,8 +1098,8 @@ func start_round_after_tee_selection() -> void:
 	
 	player_stats = Global.CHARACTER_STATS.get(Global.selected_character, {})
 	
-	deck_manager.initialize_deck(deck_manager.starter_deck)
-	print("Deck initialized with", deck_manager.draw_pile.size(), "cards")
+	deck_manager.initialize_separate_decks()
+	print("Separate decks initialized - Club cards:", deck_manager.club_draw_pile.size(), "Movement cards:", deck_manager.movement_draw_pile.size())
 
 	has_started = true
 	
@@ -1325,10 +1280,22 @@ func _on_end_turn_pressed() -> void:
 		weapon_handler.exit_weapon_mode()
 
 	var cards_to_discard = deck_manager.hand.size()
+	print("End turn: Discarding", cards_to_discard, "cards from hand")
 	
-	for card in deck_manager.hand:
+	# Create a copy of the hand to avoid modification during iteration
+	var hand_copy = deck_manager.hand.duplicate()
+	print("End turn: Hand copy contains", hand_copy.size(), "cards")
+	for card in hand_copy:
+		print("End turn: Discarding card:", card.name)
 		deck_manager.discard(card)
 	deck_manager.hand.clear()
+	print("End turn: Hand cleared, final hand size:", deck_manager.hand.size())
+	
+	# Debug: Print deck state after discarding
+	print("=== DECK STATE AFTER DISCARD ===")
+	deck_manager.debug_print_state()
+	print("=== END DECK STATE ===")
+	
 	movement_controller.clear_all_movement_ui()
 	attack_handler.clear_all_attack_ui()
 	weapon_handler.clear_all_weapon_ui()
@@ -1574,11 +1541,18 @@ func get_player_reference() -> Node:
 func update_deck_display() -> void:
 	var hud := get_node("UILayer/HUD")
 	hud.get_node("TurnLabel").text = "Turn: %d" % turn_count
-	hud.get_node("DrawLabel").text = "Draw Pile: %d" % deck_manager.draw_pile.size()
-	hud.get_node("DiscardLabel").text = "Discard Pile: %d" % deck_manager.discard_pile.size()
+	
+	# Calculate total cards in draw and discard piles
+	var total_draw_cards = deck_manager.movement_draw_pile.size() + deck_manager.club_draw_pile.size()
+	var total_discard_cards = deck_manager.movement_discard_pile.size() + deck_manager.club_discard_pile.size()
+	
+	hud.get_node("DrawLabel").text = "Draw Pile: %d" % total_draw_cards
+	hud.get_node("DiscardLabel").text = "Discard Pile: %d" % total_discard_cards
 	hud.get_node("ShotLabel").text = "Shots: %d" % hole_score
-	card_stack_display.update_draw_stack(deck_manager.draw_pile.size())
-	card_stack_display.update_discard_stack(deck_manager.discard_pile.size())
+	
+	# Update card stack display with total counts
+	card_stack_display.update_draw_stack(total_draw_cards)
+	card_stack_display.update_discard_stack(total_discard_cards)
 
 func display_selected_character() -> void:
 	var character_name = ""
@@ -1831,11 +1805,25 @@ func hide_aiming_instruction() -> void:
 		instruction_label.queue_free()
 
 func draw_cards_for_shot(card_count: int = 3) -> void:
+	print("=== DRAWING CARDS FOR SHOT ===")
+	print("Requested card count:", card_count)
 	var card_draw_modifier = player_stats.get("card_draw", 0)
 	var final_card_count = card_count + card_draw_modifier
 	final_card_count = max(1, final_card_count)
+	print("Final card count (with modifier):", final_card_count)
 	
-	deck_manager.draw_cards(final_card_count)
+	# Debug: Print deck state before drawing
+	print("=== DECK STATE BEFORE DRAWING ===")
+	deck_manager.debug_print_state()
+	print("=== END DECK STATE ===")
+	
+	deck_manager.draw_movement_cards_to_hand(final_card_count)
+	
+	# Debug: Print deck state after drawing
+	print("=== DECK STATE AFTER DRAWING ===")
+	deck_manager.debug_print_state()
+	print("=== END DECK STATE ===")
+	print("=== END DRAWING CARDS FOR SHOT ===")
 
 func start_shot_sequence() -> void:
 	enter_aiming_phase()
@@ -1942,7 +1930,7 @@ func show_hole_completion_dialog():
 		dialog.queue_free()
 		print("Hole completion dialog dismissed")
 		if current_hole < round_end_hole:
-			reset_for_next_hole()
+			show_reward_phase()
 		else:
 			if is_back_9_mode:
 				show_back_nine_complete_dialog()
@@ -1950,7 +1938,66 @@ func show_hole_completion_dialog():
 				show_front_nine_complete_dialog()
 	)
 
+func show_reward_phase():
+	"""Show the suitcase for reward selection"""
+	print("Starting reward phase...")
+	
+	# Create and show the suitcase
+	var suitcase_scene = preload("res://UI/SuitCase.tscn")
+	var suitcase = suitcase_scene.instantiate()
+	suitcase.name = "SuitCase"  # Give it a specific name for cleanup
+	$UILayer.add_child(suitcase)
+	
+	# Debug: Check suitcase position and visibility
+	print("Suitcase created and added to UILayer")
+	print("Suitcase position:", suitcase.position)
+	print("Suitcase global position:", suitcase.global_position)
+	print("Suitcase visible:", suitcase.visible)
+	print("Suitcase size:", suitcase.size)
+	
+	# Connect the suitcase opened signal
+	suitcase.suitcase_opened.connect(_on_suitcase_opened)
+
+func _on_suitcase_opened():
+	"""Handle when the suitcase is opened - show reward selection"""
+	print("Suitcase opened, showing reward selection...")
+	
+	# Create and show the reward selection dialog
+	var reward_dialog_scene = preload("res://RewardSelectionDialog.tscn")
+	var reward_dialog = reward_dialog_scene.instantiate()
+	reward_dialog.name = "RewardSelectionDialog"  # Give it a specific name for cleanup
+	$UILayer.add_child(reward_dialog)
+	
+	# Connect the reward selected signal
+	reward_dialog.reward_selected.connect(_on_reward_selected)
+	
+	# Show the reward selection
+	reward_dialog.show_reward_selection()
+
+func _on_reward_selected(reward_data: Resource, reward_type: String):
+	"""Handle when a reward is selected"""
+	print("Reward selected:", reward_data.name, "Type:", reward_type)
+	
+	if reward_type == "equipment":
+		var equip_data = reward_data as EquipmentData
+		# TODO: Apply equipment effect
+		print("Equipment selected:", equip_data.name)
+	
+	# Fade to next hole
+	FadeManager.fade_to_black(func(): reset_for_next_hole(), 0.5)
+
 func reset_for_next_hole():
+	# Clean up any existing reward UI
+	var existing_suitcase = $UILayer.get_node_or_null("SuitCase")
+	if existing_suitcase:
+		existing_suitcase.queue_free()
+		print("Cleaned up existing suitcase")
+	
+	var existing_reward_dialog = $UILayer.get_node_or_null("RewardSelectionDialog")
+	if existing_reward_dialog:
+		existing_reward_dialog.queue_free()
+		print("Cleaned up existing reward dialog")
+	
 	current_hole += 1
 	var round_end_hole = 0
 	if is_back_9_mode:
@@ -1963,20 +2010,8 @@ func reset_for_next_hole():
 	if player_node and is_instance_valid(player_node):
 		player_node.visible = false
 	
-	# Temporarily disable optimization during map building
-	var was_optimization_enabled = false
-	if smart_optimizer and not original_process_enabled:
-		was_optimization_enabled = true
-		print("Temporarily disabling optimization during map building")
-		original_process_enabled = true  # Use original process during map building
-	
 	map_manager.load_map_data(GolfCourseLayout.get_hole_layout(current_hole))
 	build_map.build_map_from_layout_with_randomization(map_manager.level_layout)
-	
-	# Re-enable optimization after map building
-	if was_optimization_enabled:
-		print("Re-enabling optimization after map building")
-		original_process_enabled = false
 	
 	# Ensure Y-sort objects are properly registered for pin detection
 	update_all_ysort_z_indices()
@@ -1997,7 +2032,7 @@ func reset_for_next_hole():
 	is_placing_player = true
 	highlight_tee_tiles()
 	show_tee_selection_instruction()
-	
+
 func show_course_complete_dialog():
 	var dialog = AcceptDialog.new()
 	dialog.title = "Course Complete!"
@@ -2201,10 +2236,27 @@ func enter_draw_cards_phase() -> void:
 	
 
 func draw_club_cards() -> void:
+	print("=== DRAWING CLUB CARDS ===")
 	for child in movement_buttons_container.get_children():
 		child.queue_free()
 	movement_buttons.clear()
-	var available_clubs = bag_pile.duplicate()
+	
+	# Debug: Print deck state before drawing club cards
+	print("=== DECK STATE BEFORE DRAWING CLUB CARDS ===")
+	deck_manager.debug_print_state()
+	print("=== END DECK STATE ===")
+	
+	# Actually draw club cards to hand first
+	deck_manager.draw_club_cards_to_hand(1)
+	
+	# Debug: Print deck state after drawing club cards
+	print("=== DECK STATE AFTER DRAWING CLUB CARDS ===")
+	deck_manager.debug_print_state()
+	print("=== END DECK STATE ===")
+	print("=== END DRAWING CLUB CARDS ===")
+	
+	# Then get available clubs from the hand
+	var available_clubs = deck_manager.hand.filter(func(card): return deck_manager.is_club_card(card))
 	if Global.putt_putt_mode:
 		available_clubs = available_clubs.filter(func(card): 
 			var club_info = club_data.get(card.name, {})
@@ -2298,6 +2350,18 @@ func _on_club_card_pressed(club_name: String, club_info: Dictionary, button: Tex
 	var strength_multiplier = 1.0 + (strength_modifier * 0.1)  # Same multiplier as power calculation
 	max_shot_distance = base_max_distance * strength_multiplier
 	card_click_sound.play()
+	
+	# Remove the selected club card from hand
+	var selected_card = null
+	for card in deck_manager.hand:
+		if card.name == club_name:
+			selected_card = card
+			break
+	
+	if selected_card:
+		deck_manager.hand.erase(selected_card)
+		print("Removed", club_name, "from hand. Hand size:", deck_manager.hand.size())
+	
 	for child in movement_buttons_container.get_children():
 		child.queue_free()
 	movement_buttons.clear()
@@ -2421,57 +2485,7 @@ func _on_shop_enter_no():
 	
 	exit_movement_mode()
 
-func show_shop_under_construction_dialog():
-	if shop_dialog:
-		shop_dialog.queue_free()
-	
-	shop_dialog = Control.new()
-	shop_dialog.name = "ShopUnderConstructionDialog"
-	shop_dialog.size = get_viewport_rect().size
-	shop_dialog.z_index = 500
-	shop_dialog.mouse_filter = Control.MOUSE_FILTER_STOP
-	
-	var background := ColorRect.new()
-	background.color = Color(0, 0, 0, 0.7)
-	background.size = shop_dialog.size
-	background.mouse_filter = Control.MOUSE_FILTER_STOP
-	shop_dialog.add_child(background)
-	
-	var dialog_box := ColorRect.new()
-	dialog_box.color = Color(0.2, 0.2, 0.2, 0.9)
-	dialog_box.size = Vector2(400, 200)
-	dialog_box.position = Vector2(400, 200)
-	dialog_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	shop_dialog.add_child(dialog_box)
-	
-	var title_label := Label.new()
-	title_label.text = "Shop Under Construction"
-	title_label.add_theme_font_size_override("font_size", 24)
-	title_label.add_theme_color_override("font_color", Color.ORANGE)
-	title_label.add_theme_constant_override("outline_size", 2)
-	title_label.add_theme_color_override("font_outline_color", Color.BLACK)
-	title_label.position = Vector2(100, 20)
-	title_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	dialog_box.add_child(title_label)
-	
-	var message_label := Label.new()
-	message_label.text = "Shop under construction, brb!\n\nClick to return to the course."
-	message_label.add_theme_font_size_override("font_size", 16)
-	message_label.add_theme_color_override("font_color", Color.WHITE)
-	message_label.position = Vector2(100, 80)
-	message_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	dialog_box.add_child(message_label)
-	
-	var instruction_label := Label.new()
-	instruction_label.text = "Click anywhere to continue"
-	instruction_label.add_theme_font_size_override("font_size", 14)
-	instruction_label.add_theme_color_override("font_color", Color.LIGHT_GRAY)
-	instruction_label.position = Vector2(120, 150)
-	instruction_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	dialog_box.add_child(instruction_label)
-	background.gui_input.connect(_on_shop_under_construction_input)
-	
-	$UILayer.add_child(shop_dialog)
+
 
 func _on_shop_under_construction_input(event: InputEvent):
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
@@ -2534,20 +2548,8 @@ func save_game_state():
 		
 func restore_game_state():
 	if Global.saved_game_state == "shop_entrance":
-		# Temporarily disable optimization during map building
-		var was_optimization_enabled = false
-		if smart_optimizer and not original_process_enabled:
-			was_optimization_enabled = true
-			print("Temporarily disabling optimization during saved positions map building")
-			original_process_enabled = true  # Use original process during map building
-		
 		map_manager.load_map_data(GolfCourseLayout.get_hole_layout(current_hole))
 		build_map.build_map_from_layout_with_saved_positions(map_manager.level_layout)
-		
-		# Re-enable optimization after map building
-		if was_optimization_enabled:
-			print("Re-enabling optimization after saved positions map building")
-			original_process_enabled = false
 		
 		# Debug: Check if pin was created
 		print("=== PIN CREATION DEBUG (Saved Positions) ===")
@@ -2755,8 +2757,8 @@ func find_child_by_name_recursive(node: Node, name: String) -> Node:
 func position_camera_on_pin(start_transition: bool = true):
 	"""Position camera on pin immediately after map building"""
 	
-	# Switch optimization back on at the checkpoint
-	if smart_optimizer and not original_process_enabled:
+	# Update game state for smart optimizer
+	if smart_optimizer:
 		smart_optimizer.update_game_state("tee_select", false, false, false)
 	
 	# Add a small delay to ensure everything is properly added to the scene
@@ -2952,7 +2954,7 @@ func get_movement_cards_for_inventory() -> Array[CardData]:
 	return movement_controller.get_movement_cards_for_inventory()
 
 func get_club_cards_for_inventory() -> Array[CardData]:
-	return bag_pile.duplicate()
+	return deck_manager.club_draw_pile.duplicate()
 
 
 	
@@ -3105,43 +3107,3 @@ func _update_player_mouse_facing_state() -> void:
 	# Set camera reference if not already set
 	if player_node.has_method("set_camera_reference") and camera:
 		player_node.set_camera_reference(camera)
-
-
-
-func create_optimization_toggle_button():
-	"""Create a button to toggle smart optimization on/off"""
-	var toggle_button = Button.new()
-	toggle_button.name = "OptimizationToggleButton"
-	toggle_button.text = "Disable Smart Optimization"
-	toggle_button.position = Vector2(10, 10)
-	toggle_button.size = Vector2(200, 30)
-	toggle_button.z_index = 1000  # Keep on top
-	toggle_button.connect("pressed", _on_optimization_toggle_pressed)
-	
-	# Add to UI layer
-	if has_node("UILayer"):
-		get_node("UILayer").add_child(toggle_button)
-		print("Optimization toggle button created")
-	else:
-		print("ERROR: UILayer not found for optimization button")
-
-func _on_optimization_toggle_pressed():
-	"""Handle optimization toggle button press"""
-	toggle_optimization()
-	
-	# Update button text
-	var toggle_button = get_node_or_null("UILayer/OptimizationToggleButton")
-	if toggle_button:
-		toggle_button.text = "Disable Smart Optimization" if not original_process_enabled else "Enable Smart Optimization"
-
-func toggle_optimization():
-	"""Toggle between smart optimization and original process"""
-	original_process_enabled = !original_process_enabled
-	print("Smart optimization ", "disabled" if original_process_enabled else "enabled")
-	
-	# Update the smart optimizer with current game state
-	if smart_optimizer:
-		var ball_active = (game_phase == "ball_flying" or game_phase == "launch")
-		var aiming = (game_phase == "aiming")
-		var launching = (game_phase == "launch")
-		smart_optimizer.update_game_state(game_phase, ball_active, aiming, launching)
