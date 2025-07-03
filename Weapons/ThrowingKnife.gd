@@ -108,19 +108,18 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 		
 		# Update the power variable to use the calculated value for physics
 		power = final_power
-	else:
-		print("No landing spot chosen - using normal power/height system")
-	
+
 	# Apply the resistance to the final velocity calculation
 	velocity = direction.normalized() * power
 	
-	print("=== KNIFE LAUNCH DEBUG ===")
-	print("Knife position:", global_position)
-	print("Launch direction:", direction)
-	print("Power:", power)
-	print("Final velocity:", velocity)
-	print("Height:", height)
-	print("=== END KNIFE LAUNCH DEBUG ===")
+	# Remove lines like:
+	# print("=== KNIFE LAUNCH DEBUG ===")
+	# print("Knife position:", global_position)
+	# print("Launch direction:", direction)
+	# print("Power:", power)
+	# print("Final velocity:", velocity)
+	# print("Height:", height)
+	# print("=== END KNIFE LAUNCH DEBUG ===")
 	
 	z = 0.0
 	vz = height  # Use the height parameter directly for vertical velocity
@@ -131,11 +130,12 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 	z += vz * 0.016  # Apply one frame of vertical movement (assuming 60 FPS)
 	vz -= gravity * 0.016  # Apply one frame of gravity
 	
-	print("=== KNIFE PHYSICS SETUP ===")
-	print("Initial z:", z)
-	print("Initial vz:", vz)
-	print("Height parameter:", height)
-	print("=== END KNIFE PHYSICS SETUP ===")
+	# Remove lines like:
+	# print("=== KNIFE PHYSICS SETUP ===")
+	# print("Initial z:", z)
+	# print("Initial vz:", vz)
+	# print("Height parameter:", height)
+	# print("=== END KNIFE PHYSICS SETUP ===")
 	
 	# Get references to sprite and shadow
 	sprite = $ThrowingKnife
@@ -144,7 +144,8 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 	# Set base scale from sprite's current scale
 	if sprite:
 		base_scale = sprite.scale
-		print("Set base_scale to:", base_scale)
+		# Remove lines like:
+		# print("Set base_scale to:", base_scale)
 	
 	# Set initial shadow position (same as knife but on ground)
 	if shadow:
@@ -160,10 +161,6 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 func _process(delta):
 	if landed_flag:
 		return
-	
-	# Debug: Print process calls occasionally
-	if Engine.get_process_frames() % 60 == 0:  # Every 60 frames
-		print("Knife _process called - landed_flag:", landed_flag, "z:", z, "vz:", vz, "velocity:", velocity)
 	
 	# Apply progressive height resistance during flight
 	if is_applying_height_resistance and z > 0.0:
@@ -201,10 +198,6 @@ func _process(delta):
 		if sprite:
 			sprite.rotation_degrees += rotation_speed * delta
 		
-		# Debug: Print vertical physics every few frames
-		if Engine.get_process_frames() % 30 == 0:  # Every 30 frames
-			print("Knife in air - z:", z, "vz:", vz, "position:", global_position)
-		
 		# Check for landing
 		if z <= 0.0:
 			z = 0.0
@@ -221,11 +214,12 @@ func _process(delta):
 				rotation_speed *= 0.7
 			else:
 				# Land
-				print("=== KNIFE LANDING ===")
-				print("Knife landed at position:", global_position)
-				print("Final z:", z)
-				print("Final vz:", vz)
-				print("=== END KNIFE LANDING ===")
+				# Remove lines like:
+				# print("=== KNIFE LANDING ===")
+				# print("Knife landed at position:", global_position)
+				# print("Final z:", z)
+				# print("Final vz:", vz)
+				# print("=== END KNIFE LANDING ===")
 				
 				landed_flag = true
 				velocity = Vector2.ZERO
@@ -244,7 +238,8 @@ func _process(delta):
 					emit_signal("landed", final_tile)
 				else:
 					# Fallback if no map manager or no world_to_map method
-					print("Warning: MapManager missing or missing world_to_map method")
+					# Remove lines like:
+					# print("Warning: MapManager missing or missing world_to_map method")
 					emit_signal("landed", Vector2i.ZERO)
 				
 				# Check for target hits
@@ -253,9 +248,6 @@ func _process(delta):
 	# Update visual effects
 	update_visual_effects()
 	
-	# Debug visual effects occasionally
-	if Engine.get_process_frames() % 60 == 0 and z > 0.0:  # Every 60 frames when in air
-		print("Knife visual effects - z:", z, "sprite scale:", sprite.scale if sprite else "no sprite", "shadow opacity:", shadow.modulate.a if shadow else "no shadow")
 
 func update_visual_effects():
 	if not sprite or not shadow:
@@ -312,10 +304,7 @@ func check_target_hits():
 					var knife_impact = get_node_or_null("KnifeImpact")
 					if knife_impact:
 						knife_impact.play()
-						print("Playing knife impact sound on collision")
-					else:
-						print("Warning: KnifeImpact sound not found")
-
+						
 func is_in_flight() -> bool:
 	"""Check if the knife is currently in flight"""
 	return not landed_flag and (z > 0.0 or velocity.length() > 0.1)

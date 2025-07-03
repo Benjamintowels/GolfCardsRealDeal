@@ -41,12 +41,8 @@ func get_manual_containers():
 	
 	if container1:
 		manual_containers.append(container1)
-		print("Found manual container 1 at position:", container1.position, "size:", container1.size)
 	if container2:
 		manual_containers.append(container2)
-		print("Found manual container 2 at position:", container2.position, "size:", container2.size)
-	
-	print("Found", manual_containers.size(), "manual containers")
 
 func load_shop_items():
 	"""Load all available equipment and cards for the shop"""
@@ -62,8 +58,6 @@ func load_shop_items():
 		preload("res://Cards/FireClub.tres"),
 		preload("res://Cards/IceClub.tres")
 	]
-	
-	print("Loaded", available_equipment.size(), "equipment items and", available_cards.size(), "cards for shop")
 
 func generate_shop_items():
 	"""Generate random shop items (1 equipment + 1 card)"""
@@ -73,15 +67,11 @@ func generate_shop_items():
 	if available_equipment.size() > 0:
 		var random_equipment = available_equipment[randi() % available_equipment.size()]
 		current_shop_items.append(random_equipment)
-		print("Selected equipment for shop:", random_equipment.name)
 	
 	# Randomly select 1 card
 	if available_cards.size() > 0:
 		var random_card = available_cards[randi() % available_cards.size()]
 		current_shop_items.append(random_card)
-		print("Selected card for shop:", random_card.name)
-	
-	print("Generated", current_shop_items.size(), "shop items")
 
 func display_shop_items():
 	"""Display shop items in the manual containers"""
@@ -106,8 +96,6 @@ func display_shop_items():
 		var item_display = create_shop_item_display(item, manual_container.size)
 		manual_container.add_child(item_display)
 		shop_item_containers.append(item_display)
-		
-		print("Added item", item.name, "to manual container", i + 1)
 
 func create_shop_item_display(item, container_size: Vector2) -> Control:
 	"""Create a display for a shop item (equipment or card)"""
@@ -188,8 +176,6 @@ func create_shop_item_display(item, container_size: Vector2) -> Control:
 func _on_shop_item_clicked(event: InputEvent, item):
 	"""Handle shop item clicks"""
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		print("Shop item clicked:", item.name)
-		
 		if item is EquipmentData:
 			# Add equipment to inventory
 			Global.add_equipment(item)
@@ -234,19 +220,8 @@ func play_shop_sound():
 	var trinkets_sound = $Trinkets
 	if trinkets_sound and trinkets_sound.stream:
 		trinkets_sound.play()
-		print("Playing shop trinkets sound")
-	else:
-		print("Warning: Trinkets sound not found or no stream")
 
 func _on_return_button_pressed():
 	"""Return to the course scene"""
-	print("Return button pressed - going back to course")
-	
-	# Stop the shop sound before leaving
-	var trinkets_sound = $Trinkets
-	if trinkets_sound and trinkets_sound.playing:
-		trinkets_sound.stop()
-		print("Stopped shop trinkets sound")
-	
 	# Use FadeManager for smooth transition
 	FadeManager.fade_to_black(func(): get_tree().change_scene_to_file("res://Course1.tscn"), 0.5) 

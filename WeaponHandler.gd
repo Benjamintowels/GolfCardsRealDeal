@@ -239,8 +239,6 @@ func launch_throwing_knife() -> void:
 		print("ERROR: Cannot launch knife - missing required references")
 		return
 	
-	print("=== LAUNCHING THROWING KNIFE VIA WEAPON HANDLER ===")
-	
 	# Get the mouse position as the target
 	var mouse_pos = camera.get_global_mouse_position()
 	
@@ -251,71 +249,31 @@ func launch_throwing_knife() -> void:
 	# Create a knife instance if it doesn't exist
 	var knife_instance = null
 	var knives = get_tree().get_nodes_in_group("knives")
-	print("=== KNIFE CREATION DEBUG ===")
-	print("Found", knives.size(), "existing knives in scene")
 	for knife in knives:
 		if is_instance_valid(knife):
 			knife_instance = knife
-			print("Using existing knife:", knife.name)
 			break
 	
 	if not knife_instance:
 		print("Creating new knife instance...")
-		print("Throwing knife scene:", throwing_knife_scene)
 		knife_instance = throwing_knife_scene.instantiate()
-		print("Knife instance created:", knife_instance)
-		print("Knife instance valid:", is_instance_valid(knife_instance))
 		# Add to the CameraContainer like the golf ball
 		if card_effect_handler and card_effect_handler.course:
 			var camera_container = card_effect_handler.course.get_node_or_null("CameraContainer")
 			if camera_container:
 				camera_container.add_child(knife_instance)
 				knife_instance.global_position = weapon_instance.global_position
-				print("Knife added to CameraContainer at position:", knife_instance.global_position)
-				print("Knife in scene tree after adding:", knife_instance.is_inside_tree())
-				print("Knife groups after adding:", knife_instance.get_groups())
 			else:
 				# Fallback to course if CameraContainer not found
 				card_effect_handler.course.add_child(knife_instance)
 				knife_instance.global_position = weapon_instance.global_position
-				print("Knife added to course (fallback) at position:", knife_instance.global_position)
-				print("Knife in scene tree after adding (fallback):", knife_instance.is_inside_tree())
-				print("Knife groups after adding (fallback):", knife_instance.get_groups())
 		else:
 			print("ERROR: Cannot find course to add knife")
-			print("card_effect_handler:", card_effect_handler)
-			print("card_effect_handler.course:", card_effect_handler.course if card_effect_handler else null)
 			return
-	print("=== END KNIFE CREATION DEBUG ===")
 	
 	# Set up the knife properties
 	knife_instance.cell_size = cell_size
 	knife_instance.map_manager = card_effect_handler.course.get_node_or_null("MapManager") if card_effect_handler else null
-	
-	# Play knife pick up sound when knife appears
-	var knife_pickup = knife_instance.get_node_or_null("BladePickUp")
-	if knife_pickup:
-		knife_pickup.play()
-		print("Playing knife pick up sound")
-	else:
-		print("Warning: BladePickUp sound not found on knife")
-	
-	print("=== KNIFE SETUP DEBUG ===")
-	print("Knife instance:", knife_instance)
-	print("Knife in scene tree:", knife_instance.is_inside_tree())
-	print("Knife groups:", knife_instance.get_groups())
-	print("Knife position:", knife_instance.global_position)
-	
-	# Check if knife is in the knives group
-	var knives_in_scene = get_tree().get_nodes_in_group("knives")
-	print("Total knives in scene after setup:", knives_in_scene.size())
-	for knife in knives_in_scene:
-		print("  - Knife in group:", knife.name, "valid:", is_instance_valid(knife))
-	print("=== END KNIFE SETUP DEBUG ===")
-	
-	# Add a small delay to ensure the knife is properly added to the scene tree
-	# Note: This function is not async, so we'll use a different approach
-	# The knife should be added to the scene tree immediately after add_child()
 	
 	# Enter knife mode in LaunchManager
 	launch_manager.enter_knife_mode()
@@ -352,11 +310,7 @@ func perform_raytrace() -> Node:
 	query.collide_with_bodies = false  # We're using Area2D HitBoxes
 	query.collide_with_areas = true
 	
-
-	
 	var result = space_state.intersect_ray(query)
-	
-
 	
 	if result:
 		# Bullet hit something
@@ -418,30 +372,10 @@ func perform_raytrace() -> Node:
 		print("✓ Fallback check found hit:", fallback_hit.name)
 		return fallback_hit
 	
-	# Additional debug: Try to find GangMembers manually
-	print("=== MANUAL GANGMEMBER SEARCH ===")
-	var entities_system = course.get_node_or_null("Entities")
-	if entities_system:
-		var npcs = entities_system.get_npcs()
-		print("Found", npcs.size(), "NPCs in Entities system")
-		for npc in npcs:
-			if is_instance_valid(npc):
-				print("NPC:", npc.name, "Position:", npc.global_position)
-				var hitbox = npc.get_node_or_null("HitBox")
-				if hitbox:
-					print("  - HitBox found:", hitbox.name, "Layer:", hitbox.collision_layer, "Mask:", hitbox.collision_mask)
-				else:
-					print("  - No HitBox found")
-	else:
-		print("No Entities system found")
-	print("=== END MANUAL SEARCH ===")
-	
 	return null
 
 func _fallback_distance_check(pistol_pos: Vector2, direction: Vector2) -> Node:
 	"""Fallback method to check for objects along the bullet path using distance calculations"""
-	print("Running fallback distance check...")
-	
 	# Check for HitBox Area2D nodes first
 	var hitboxes = get_tree().get_nodes_in_group("hitboxes")
 	if not hitboxes:
@@ -450,8 +384,6 @@ func _fallback_distance_check(pistol_pos: Vector2, direction: Vector2) -> Node:
 		for node in get_tree().get_nodes_in_group("."):
 			if node.name == "HitBox":
 				hitboxes.append(node)
-	
-
 	
 	# Check each HitBox
 	for hitbox in hitboxes:

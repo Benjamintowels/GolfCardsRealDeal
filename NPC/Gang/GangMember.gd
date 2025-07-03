@@ -138,19 +138,13 @@ func _create_health_bar() -> void:
 func _on_base_area_entered(area: Area2D) -> void:
 	"""Handle collisions with the base collision area"""
 	var ball = area.get_parent()
-	print("=== GANGMEMBER BASE COLLISION DETECTED ===")
-	print("Area name:", area.name)
-	print("Ball parent:", ball.name if ball else "No parent")
-	print("Ball type:", ball.get_class() if ball else "Unknown")
-	print("Ball position:", ball.global_position if ball else "Unknown")
-	
+
 	if ball and (ball.name == "GolfBall" or ball.name == "GhostBall"):
 		print("Valid ball detected:", ball.name)
 		# Handle the collision
 		_handle_ball_collision(ball)
 	else:
 		print("Invalid ball or non-ball object:", ball.name if ball else "Unknown")
-	print("=== END GANGMEMBER BASE COLLISION ===")
 
 func _handle_ball_collision(ball: Node2D) -> void:
 	"""Handle ball collisions - check height to determine if ball should pass through"""

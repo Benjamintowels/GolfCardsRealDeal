@@ -354,8 +354,6 @@ func _on_card_button_pressed(card_data: CardData):
 	
 	if is_replacement_mode and pending_reward:
 		show_replacement_confirmation(card_data)
-	else:
-		print("Not in replacement mode or no pending reward")
 
 func _on_card_clicked(event: InputEvent, card_data: CardData):
 	"""Handle card click in replacement mode (legacy function)"""
@@ -363,8 +361,6 @@ func _on_card_clicked(event: InputEvent, card_data: CardData):
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		if is_replacement_mode and pending_reward:
 			show_replacement_confirmation(card_data)
-	else:
-		print("Not a left mouse button press event")
 
 func show_replacement_confirmation(card_to_replace: CardData):
 	"""Show confirmation dialog for card replacement"""

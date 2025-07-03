@@ -14,7 +14,7 @@ var grid_cell_size: float = 100.0  # Size of each grid cell
 
 func _ready():
 	# Initialize the optimized Y-sort system
-	print("Optimized Y-sort system initialized")
+	pass
 
 func update_camera_position(camera_pos: Vector2):
 	"""Update camera position and trigger Y-sort updates if needed"""
@@ -23,7 +23,6 @@ func update_camera_position(camera_pos: Vector2):
 		last_camera_position = camera_pos
 		# Update all objects when camera moves significantly
 		update_all_objects_optimized()
-		print("Camera moved significantly - updating all Y-sorts")
 
 func update_object_y_sort_optimized(node: Node2D, object_type: String = "objects"):
 	"""Update a single object's Y-sort with cooldown and optimization"""

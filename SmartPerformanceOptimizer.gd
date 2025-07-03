@@ -32,7 +32,7 @@ var last_tree_update: float = 0.0
 var tree_update_interval: float = 0.1  # Only when ball is near trees
 
 func _ready():
-	print("Smart Performance Optimizer initialized")
+	pass
 
 func update_game_state(game_phase: String, ball_active: bool = false, aiming: bool = false, launching: bool = false):
 	"""Update the current game state to determine what optimizations to apply"""
@@ -46,8 +46,6 @@ func update_game_state(game_phase: String, ball_active: bool = false, aiming: bo
 	
 	# Determine if tree collision should be active
 	tree_collision_active = (ball_is_active and has_nearby_trees())
-	
-	print("Game state updated - Phase:", game_phase, " Ball active:", ball_is_active, " Collision detection:", collision_detection_active)
 
 func update_ball_state(ball_position: Vector2, ball_velocity: Vector2):
 	"""Update ball state to determine if Y-sort updates are needed"""

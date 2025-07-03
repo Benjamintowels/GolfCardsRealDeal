@@ -49,19 +49,6 @@ func _ready():
 	sprite = $Sprite2D
 	shadow = $Shadow
 	
-	# Debug collision setup
-	var area2d = get_node_or_null("Area2D")
-	if area2d:
-		print("GhostBall _ready - Area2D found, collision_layer:", area2d.collision_layer, "collision_mask:", area2d.collision_mask)
-		print("GhostBall Area2D monitoring:", area2d.monitoring, "monitorable:", area2d.monitorable)
-		# Connect to area_entered signal for debugging
-		area2d.connect("area_entered", _on_area_entered)
-		area2d.connect("area_exited", _on_area_exited)
-	else:
-		print("GhostBall _ready - ERROR: Area2D not found!")
-	
-	print("GhostBall _ready called at position:", position)
-	
 	# Make the ball transparent
 	if sprite:
 		sprite.modulate = Color(0.5, 0.8, 1.0, opacity)  # Blue tint for ghost ball
@@ -332,9 +319,6 @@ func _process(delta):
 
 func launch_ghost_ball():
 	"""Launch the ghost ball at 75% power"""
-	print("=== LAUNCHING GHOST BALL ===")
-	print("Ghost ball putting mode:", is_putting)
-	
 	# Reset ball state
 	landed_flag = false
 	bounce_count = 0
@@ -513,14 +497,6 @@ func set_velocity(new_velocity: Vector2) -> void:
 func get_height() -> float:
 	"""Return the ball's current height for collision handling"""
 	return z 
-
-func _on_area_entered(area):
-	print("Ghost ball collision detected with area:", area.name, "Parent:", area.get_parent().name if area.get_parent() else "No parent")
-	print("Ghost ball position:", global_position, "Height:", z)
-	print("Area position:", area.global_position)
-
-func _on_area_exited(area):
-	print("Ghost ball collision exited with area:", area.name, "Parent:", area.get_parent().name if area.get_parent() else "No parent")
 
 func check_nearby_tree_collisions() -> void:
 	"""OPTIMIZED: Ball checks for nearby tree collisions during flight"""

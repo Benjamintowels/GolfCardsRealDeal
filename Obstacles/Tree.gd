@@ -51,47 +51,9 @@ func _ready():
 	# Ensure z_index is properly set for Ysort
 	call_deferred("_update_ysort")
 
-func _verify_collision_setup():
-	"""Verify that collision layers are set correctly after the scene is fully set up"""
-	var trunk_base_area = get_node_or_null("TrunkBaseArea")
-	var leaves_area = get_node_or_null("Leaves")
-	
-	print("=== Tree collision setup verification ===")
-	if trunk_base_area:
-		print("TrunkBaseArea final collision_layer:", trunk_base_area.collision_layer)
-		print("TrunkBaseArea final collision_mask:", trunk_base_area.collision_mask)
-		print("TrunkBaseArea final monitoring:", trunk_base_area.monitoring)
-		print("TrunkBaseArea final monitorable:", trunk_base_area.monitorable)
-		# Verify the collision setup is correct
-		if trunk_base_area.collision_layer == 1 and trunk_base_area.collision_mask == 1:
-			print("✓ TrunkBaseArea collision setup is correct")
-		else:
-			print("✗ TrunkBaseArea collision setup is incorrect!")
-	else:
-		print("ERROR: TrunkBaseArea not found during verification!")
-	
-	if leaves_area:
-		print("Leaves final collision_layer:", leaves_area.collision_layer)
-		print("Leaves final collision_mask:", leaves_area.collision_mask)
-		print("Leaves final monitoring:", leaves_area.monitoring)
-		print("Leaves final monitorable:", leaves_area.monitorable)
-		# Verify the collision setup is correct
-		if leaves_area.collision_layer == 1 and leaves_area.collision_mask == 1:
-			print("✓ Leaves collision setup is correct")
-		else:
-			print("✗ Leaves collision setup is incorrect!")
-	else:
-		print("ERROR: Leaves area not found during verification!")
-	print("=== End collision setup verification ===")
-
 func _on_trunk_area_entered(area: Area2D):
 	"""Handle collisions with the trunk base area (ground-level collision)"""
 	var ball = area.get_parent()
-	print("=== TREE TRUNK COLLISION DETECTED ===")
-	print("Area name:", area.name)
-	print("Ball parent:", ball.name if ball else "No parent")
-	print("Ball type:", ball.get_class() if ball else "Unknown")
-	print("Ball position:", ball.global_position if ball else "Unknown")
 	
 	if ball and (ball.name == "GolfBall" or ball.name == "GhostBall"):
 		print("Valid ball detected:", ball.name)
@@ -99,7 +61,6 @@ func _on_trunk_area_entered(area: Area2D):
 		_handle_trunk_collision(ball)
 	else:
 		print("Invalid ball or non-ball object:", ball.name if ball else "Unknown")
-	print("=== END TREE TRUNK COLLISION ===")
 
 func _handle_trunk_collision(ball: Node2D):
 	"""Handle trunk base collisions - check height to determine if ball should pass through"""
@@ -213,32 +174,4 @@ func _update_ysort():
 	
 	# Debug: Compare with other objects (only once)
 	if not has_meta("ysort_comparison_printed"):
-		_debug_ysort_comparison()
 		set_meta("ysort_comparison_printed", true)
-
-func _debug_ysort_comparison():
-	"""Debug method to compare this Tree's Ysort with other objects"""
-	var tree_ysort = get_y_sort_point()
-	print("=== Tree Ysort Debug ===")
-	print("Tree global_position:", global_position)
-	print("Tree Ysort point:", tree_ysort)
-	print("Tree z_index:", z_index)
-	
-	# Try to find player and ball for comparison
-	var player = get_tree().get_first_node_in_group("player")
-	if player:
-		var player_ysort = player.global_position.y
-		if player.has_method("get_y_sort_point"):
-			player_ysort = player.get_y_sort_point()
-		print("Player Ysort point:", player_ysort)
-		print("Tree vs Player Ysort difference:", tree_ysort - player_ysort)
-	
-	var ball = get_tree().get_first_node_in_group("golf_ball")
-	if ball:
-		var ball_ysort = ball.global_position.y
-		if ball.has_method("get_y_sort_point"):
-			ball_ysort = ball.get_y_sort_point()
-		print("Ball Ysort point:", ball_ysort)
-		print("Tree vs Ball Ysort difference:", tree_ysort - ball_ysort)
-	
-	print("=== End Tree Ysort Debug ===")

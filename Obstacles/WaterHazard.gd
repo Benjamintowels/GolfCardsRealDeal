@@ -6,4 +6,4 @@ func _ready():
 	pass
 	
 func on_player_interact():
-	print("Splash! Player stepped in water at", grid_position)
+	pass

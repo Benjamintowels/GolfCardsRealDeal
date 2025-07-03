@@ -14,7 +14,7 @@ var ball_spatial_grid: Dictionary = {}
 var grid_cell_size: float = 200.0  # Larger cells for ball detection
 
 func _ready():
-	print("Optimized Tree collision system initialized")
+	pass
 
 func update_tree_collisions(delta: float):
 	"""Update tree collision detection with throttling"""
@@ -119,7 +119,6 @@ func check_and_play_leaves_sound(tree: Node2D, ball: Node2D):
 		var rustle = tree.get_node_or_null("LeavesRustle")
 		if rustle:
 			rustle.play()
-			print("✓ LeavesRustle sound played - ball passing through leaves near trunk")
 			# Mark when we last played the sound for this ball
 			ball.set_meta("last_leaves_rustle_time", current_time)
 
