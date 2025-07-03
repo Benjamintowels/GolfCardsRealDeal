@@ -220,6 +220,13 @@ offset_right = 105.0
 offset_bottom = 49.0
 text = "Kill Gang"
 
+[node name="BagUpgradeTestButton" type="Button" parent="UILayer"]
+offset_left = 29.0
+offset_top = 55.0
+offset_right = 105.0
+offset_bottom = 86.0
+text = "Bag Upgrade"
+
 [node name="SwingSoft" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("6_6eaol")
 

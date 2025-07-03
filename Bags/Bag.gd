@@ -14,7 +14,7 @@ var pending_reward: Resource = null
 var pending_reward_type: String = ""
 var replacement_confirmation_dialog: Control = null
 
-# Character-specific bag textures
+# Character-specific bag textures (make it accessible)
 var character_bag_textures = {
 	"Layla": {
 		1: preload("res://Bags/LaylaBag1.png"),
@@ -207,56 +207,73 @@ func show_deck_dialog():
 			# Ensure equipment appears on top by setting z_index
 			equipment_display.z_index = 1
 	
-	# Movement cards section (middle - 4x4 grid)
+	# --- DYNAMIC MOVEMENT GRID LAYOUT ---
+	# Determine columns based on bag level
+	var movement_columns = 4
+	match bag_level:
+		1:
+			movement_columns = 4
+		2:
+			movement_columns = 5
+		3:
+			movement_columns = 6
+		4:
+			movement_columns = 7
+	var movement_slots = get_movement_slots()
+	var movement_rows = int(ceil(float(movement_slots) / movement_columns))
+	var slot_width = 80 + 12  # slot + h_separation
+	var grid_width = movement_columns * slot_width - 12  # last column no separation
+	var grid_height = movement_rows * (100 + 12) - 12
+	var grid_x = 200  # left margin
+	var grid_y = 70
+	# Movement cards section (middle - dynamic grid)
 	var movement_label = Label.new()
 	movement_label.text = "Movement Cards"
 	movement_label.add_theme_font_size_override("font_size", 18)
 	movement_label.add_theme_color_override("font_color", Color.WHITE)
-	movement_label.position = Vector2(220, 50)
-	movement_label.size = Vector2(360, 30)
+	movement_label.position = Vector2(grid_x, 50)
+	movement_label.size = Vector2(grid_width, 30)
 	main_container.add_child(movement_label)
-	
 	var movement_grid = GridContainer.new()
-	movement_grid.columns = 4
-	movement_grid.position = Vector2(220, 70)
-	movement_grid.size = Vector2(360, 400)
+	movement_grid.columns = movement_columns
+	movement_grid.position = Vector2(grid_x, grid_y)
+	movement_grid.size = Vector2(grid_width, grid_height)
 	movement_grid.add_theme_constant_override("h_separation", 12)
 	movement_grid.add_theme_constant_override("v_separation", 12)
 	main_container.add_child(movement_grid)
-	
 	# Get movement cards and display them
 	var movement_cards = get_movement_cards()
-	var movement_slots = get_movement_slots()
-	
 	# Add movement card slots with placeholder for empty slots
 	for i in range(movement_slots):
 		var slot_container = create_slot_container()
 		movement_grid.add_child(slot_container)
-		
 		# Add placeholder as background
 		var placeholder = create_placeholder_slot()
 		slot_container.add_child(placeholder)
-		
 		# Add actual card on top if available
 		if i < movement_cards.size():
 			var should_be_clickable = is_replacement_mode and pending_reward_type == "card" and not is_club_card(pending_reward)
-			print("Movement card", movement_cards[i].name, "clickable:", should_be_clickable)
 			var card_display = create_card_display(movement_cards[i], 1, should_be_clickable)
 			slot_container.add_child(card_display)
-			# Ensure card appears on top by setting z_index
 			card_display.z_index = 1
-	
-	# Club cards section (right side - single column)
+	# --- END DYNAMIC MOVEMENT GRID LAYOUT ---
+	# Club cards section (right side - single column, dynamic position)
 	var club_label = Label.new()
 	club_label.text = "Club Cards"
 	club_label.add_theme_font_size_override("font_size", 18)
 	club_label.add_theme_color_override("font_color", Color.WHITE)
-	club_label.position = Vector2(620, 80)
+	# Place club section 40px right of movement grid, but not past dialog edge
+	var club_x = min(grid_x + grid_width + 40, 1000 - 160)  # 120px wide + margin
+	var club_label_y = 80
+	var club_container_y = 120
+	if bag_level == 4:
+		club_label_y = 10
+		club_container_y = 50
+	club_label.position = Vector2(club_x, club_label_y)
 	club_label.size = Vector2(120, 30)
 	main_container.add_child(club_label)
-	
 	var club_container = VBoxContainer.new()
-	club_container.position = Vector2(620, 120)
+	club_container.position = Vector2(club_x, club_container_y)
 	club_container.size = Vector2(120, 400)
 	main_container.add_child(club_container)
 	

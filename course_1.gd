@@ -25,6 +25,7 @@ extends Control
 @onready var damage_button: Button = $UILayer/HealthTestButtons/DamageButton
 @onready var heal_button: Button = $UILayer/HealthTestButtons/HealButton
 @onready var kill_gangmember_button: Button = $UILayer/KillGangMemberButton
+@onready var bag_upgrade_test_button: Button = $UILayer/BagUpgradeTestButton
 
 # Movement controller
 const MovementController := preload("res://MovementController.gd")
@@ -371,6 +372,8 @@ func _ready() -> void:
 		heal_button.pressed.connect(_on_heal_button_pressed)
 	if kill_gangmember_button:
 		kill_gangmember_button.pressed.connect(_on_kill_gangmember_button_pressed)
+	if bag_upgrade_test_button:
+		bag_upgrade_test_button.pressed.connect(_on_bag_upgrade_test_button_pressed)
 
 	create_grid()
 	create_player()
@@ -865,6 +868,26 @@ func _on_heal_button_pressed() -> void:
 func _on_kill_gangmember_button_pressed() -> void:
 	"""Handle kill GangMember button press"""
 	kill_nearest_gangmember()
+
+func _on_bag_upgrade_test_button_pressed() -> void:
+	"""Handle bag upgrade test button press"""
+	test_bag_upgrade()
+
+func test_bag_upgrade() -> void:
+	"""Test function to upgrade the bag by one level"""
+	var bag = get_node_or_null("UILayer/Bag")
+	if not bag:
+		print("No bag found for upgrade test")
+		return
+	
+	var current_level = bag.bag_level
+	var new_level = min(current_level + 1, 4)  # Cap at level 4
+	
+	if new_level > current_level:
+		bag.set_bag_level(new_level)
+		print("Bag upgraded from level", current_level, "to level", new_level)
+	else:
+		print("Bag is already at maximum level (4)")
 
 func kill_nearest_gangmember() -> void:
 	"""Kill the nearest GangMember to the player"""

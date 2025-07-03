@@ -1,5 +1,7 @@
 extends Control
 
+const BagData = preload("res://Bags/BagData.gd")
+
 signal reward_selected(reward_data: Resource, reward_type: String)
 signal advance_to_next_hole
 
@@ -43,6 +45,9 @@ var available_equipment: Array[EquipmentData] = [
 	preload("res://Equipment/GolfShoes.tres")
 ]
 
+# Available bag upgrades for rewards (will be populated dynamically)
+var available_bag_upgrades: Array[BagData] = []
+
 func _ready():
 	# Hide the dialog initially
 	visible = false
@@ -50,8 +55,48 @@ func _ready():
 	# Connect button signals
 	left_reward_button.pressed.connect(_on_left_reward_selected)
 	right_reward_button.pressed.connect(_on_right_reward_selected)
+	
+	# Initialize bag upgrades
+	initialize_bag_upgrades()
+
+func initialize_bag_upgrades():
+	"""Initialize available bag upgrades based on current character and bag level"""
+	available_bag_upgrades.clear()
+	
+	# Get current character and bag level
+	var bag = get_tree().current_scene.get_node_or_null("UILayer/Bag")
+	if not bag:
+		print("Warning: Bag not found for bag upgrade initialization")
+		return
+	
+	var current_character = bag.character_name
+	var current_bag_level = bag.bag_level
+	
+	print("Initializing bag upgrades for character:", current_character, "current level:", current_bag_level)
+	
+	# Create bag upgrades for higher levels only
+	for level in range(current_bag_level + 1, 5):  # Levels 2-4
+		var bag_upgrade = BagData.new()
+		bag_upgrade.name = "Bag Upgrade"
+		bag_upgrade.level = level
+		bag_upgrade.character = current_character
+		bag_upgrade.description = "Upgrade your bag to level %d" % level
+		
+		# Set the appropriate image based on character and level
+		if bag.character_bag_textures.has(current_character) and bag.character_bag_textures[current_character].has(level):
+			bag_upgrade.image = bag.character_bag_textures[current_character][level]
+			print("Created bag upgrade for level", level, "with image")
+		else:
+			print("Warning: No image found for", current_character, "level", level)
+		
+		available_bag_upgrades.append(bag_upgrade)
+	
+	print("Created", available_bag_upgrades.size(), "bag upgrades")
 
 func show_reward_selection():
+	# Initialize bag upgrades before generating rewards
+	initialize_bag_upgrades()
+	
 	# Generate two random rewards
 	var rewards = generate_random_rewards()
 	
@@ -120,6 +165,9 @@ func check_bag_slots(reward_data: Resource, reward_type: String) -> bool:
 			var equipped_items = equipment_manager.get_equipped_equipment()
 			var equipment_slots = bag.get_equipment_slots()
 			return equipped_items.size() < equipment_slots
+	elif reward_type == "bag_upgrade":
+		# Bag upgrades don't need slot checking - they just upgrade the bag
+		return true
 	
 	return true
 
@@ -238,30 +286,54 @@ func create_card_display(card_data: CardData, count: int) -> Control:
 func generate_random_rewards() -> Array:
 	var rewards = []
 	
-	# Randomly decide if we want 2 cards, 2 equipment, or 1 of each
-	var reward_type = randi() % 3  # 0 = 2 cards, 1 = 2 equipment, 2 = 1 of each
+	# Check if bag upgrades are available
+	var has_bag_upgrades = available_bag_upgrades.size() > 0
+	print("Generating rewards. Bag upgrades available:", has_bag_upgrades, "count:", available_bag_upgrades.size())
 	
-	if reward_type == 0:
-		# Two cards
-		var card1 = available_cards[randi() % available_cards.size()]
-		var card2 = available_cards[randi() % available_cards.size()]
-		rewards = [card1, "card", card2, "card"]
-	elif reward_type == 1:
-		# Two equipment (if we have enough)
-		if available_equipment.size() >= 2:
-			var equip1 = available_equipment[randi() % available_equipment.size()]
-			var equip2 = available_equipment[randi() % available_equipment.size()]
-			rewards = [equip1, "equipment", equip2, "equipment"]
-		else:
-			# Fallback to cards if not enough equipment
+	# Randomly decide reward types (now including bag upgrades)
+	var reward_options = []
+	reward_options.append("cards")  # 2 cards
+	reward_options.append("equipment")  # 2 equipment
+	reward_options.append("mixed")  # 1 card, 1 equipment
+	
+	if has_bag_upgrades:
+		reward_options.append("bag_upgrade")  # 1 bag upgrade
+		reward_options.append("mixed_bag")  # 1 bag upgrade, 1 other
+	
+	var reward_type = reward_options[randi() % reward_options.size()]
+	
+	match reward_type:
+		"cards":
+			# Two cards
 			var card1 = available_cards[randi() % available_cards.size()]
 			var card2 = available_cards[randi() % available_cards.size()]
 			rewards = [card1, "card", card2, "card"]
-	else:
-		# One card, one equipment
-		var card = available_cards[randi() % available_cards.size()]
-		var equipment = available_equipment[randi() % available_equipment.size()]
-		rewards = [card, "card", equipment, "equipment"]
+		"equipment":
+			# Two equipment (if we have enough)
+			if available_equipment.size() >= 2:
+				var equip1 = available_equipment[randi() % available_equipment.size()]
+				var equip2 = available_equipment[randi() % available_equipment.size()]
+				rewards = [equip1, "equipment", equip2, "equipment"]
+			else:
+				# Fallback to cards if not enough equipment
+				var card1 = available_cards[randi() % available_cards.size()]
+				var card2 = available_cards[randi() % available_cards.size()]
+				rewards = [card1, "card", card2, "card"]
+		"mixed":
+			# One card, one equipment
+			var card = available_cards[randi() % available_cards.size()]
+			var equipment = available_equipment[randi() % available_equipment.size()]
+			rewards = [card, "card", equipment, "equipment"]
+		"bag_upgrade":
+			# One bag upgrade, one card
+			var bag_upgrade = available_bag_upgrades[randi() % available_bag_upgrades.size()]
+			var card = available_cards[randi() % available_cards.size()]
+			rewards = [bag_upgrade, "bag_upgrade", card, "card"]
+		"mixed_bag":
+			# One bag upgrade, one equipment
+			var bag_upgrade = available_bag_upgrades[randi() % available_bag_upgrades.size()]
+			var equipment = available_equipment[randi() % available_equipment.size()]
+			rewards = [bag_upgrade, "bag_upgrade", equipment, "equipment"]
 	
 	return rewards
 
@@ -333,6 +405,46 @@ func setup_reward_button(button: Button, reward_data: Resource, reward_type: Str
 		name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		container.add_child(name_label)
+		
+	elif reward_type == "bag_upgrade":
+		var bag_data = reward_data as BagData
+		button.text = ""  # Clear button text since we're using custom display
+		
+		# Bag image
+		var image_rect = TextureRect.new()
+		image_rect.texture = bag_data.image
+		image_rect.size = Vector2(80, 80)  # Square aspect ratio for bag
+		image_rect.position = Vector2(10, 10)
+		image_rect.scale = Vector2(0.15, 0.15)
+		image_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		image_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		container.add_child(image_rect)
+		
+		# Bag upgrade name
+		var name_label = Label.new()
+		name_label.text = "Bag Upgrade"
+		name_label.add_theme_font_size_override("font_size", 12)
+		name_label.add_theme_color_override("font_color", Color.WHITE)
+		name_label.add_theme_constant_override("outline_size", 1)
+		name_label.add_theme_color_override("font_outline_color", Color.BLACK)
+		name_label.position = Vector2(5, 95)
+		name_label.size = Vector2(90, 20)
+		name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		container.add_child(name_label)
+		
+		# Level indicator
+		var level_label = Label.new()
+		level_label.text = "Level " + str(bag_data.level)
+		level_label.add_theme_font_size_override("font_size", 10)
+		level_label.add_theme_color_override("font_color", Color.YELLOW)
+		level_label.add_theme_constant_override("outline_size", 1)
+		level_label.add_theme_color_override("font_outline_color", Color.BLACK)
+		level_label.position = Vector2(5, 110)
+		level_label.size = Vector2(90, 15)
+		level_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		level_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		container.add_child(level_label)
 	
 	# Add hover effect
 	button.mouse_entered.connect(_on_reward_button_hover.bind(button, true))
@@ -373,6 +485,9 @@ func add_reward_to_inventory(reward_data: Resource, reward_type: String):
 	elif reward_type == "equipment":
 		add_equipment_to_manager(reward_data)
 		print("Added", reward_data.name, "to equipment")
+	elif reward_type == "bag_upgrade":
+		apply_bag_upgrade(reward_data)
+		print("Applied bag upgrade to level", reward_data.level)
 
 func add_card_to_current_deck(card_data: CardData):
 	"""Add a card to the CurrentDeckManager"""
@@ -391,6 +506,15 @@ func add_equipment_to_manager(equipment_data: EquipmentData):
 		print("RewardSelectionDialog: Added", equipment_data.name, "to EquipmentManager")
 	else:
 		print("RewardSelectionDialog: Warning - EquipmentManager not found")
+
+func apply_bag_upgrade(bag_data: BagData):
+	"""Apply a bag upgrade to the current bag"""
+	var bag = get_tree().current_scene.get_node_or_null("UILayer/Bag")
+	if bag:
+		bag.set_bag_level(bag_data.level)
+		print("RewardSelectionDialog: Upgraded bag to level", bag_data.level)
+	else:
+		print("RewardSelectionDialog: Warning - Bag not found")
 
 func _exit_tree():
 	"""Clean up when the dialog is removed"""
