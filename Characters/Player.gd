@@ -154,7 +154,8 @@ func end_movement_mode():
 func calculate_valid_movement_tiles():
 	
 	valid_movement_tiles.clear()
-	var total_range = movement_range + base_mobility
+	var equipment_mobility = get_equipment_mobility_bonus()
+	var total_range = movement_range + base_mobility + equipment_mobility
 	
 	
 	for y in grid_size.y:
@@ -457,3 +458,10 @@ func enable_collision_shape() -> void:
 func set_launch_mode(launch_mode: bool) -> void:
 	"""Set the launch mode state for mouse facing logic"""
 	is_in_launch_mode = launch_mode
+
+func get_equipment_mobility_bonus() -> int:
+	"""Get the mobility bonus from equipped equipment"""
+	var equipment_manager = get_tree().current_scene.get_node_or_null("EquipmentManager")
+	if equipment_manager:
+		return equipment_manager.get_mobility_bonus()
+	return 0

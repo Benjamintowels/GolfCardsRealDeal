@@ -164,7 +164,8 @@ func calculate_valid_movement_tiles() -> void:
 	valid_movement_tiles.clear()
 
 	var base_mobility = player_stats.get("base_mobility", 0)
-	var total_range = movement_range + base_mobility
+	var equipment_mobility = get_equipment_mobility_bonus()
+	var total_range = movement_range + base_mobility + equipment_mobility
 
 	for y in grid_size.y:
 		for x in grid_size.x:
@@ -299,3 +300,10 @@ func remove_button_from_list(button: TextureButton) -> void:
 	"""Remove a button from the movement buttons list"""
 	if button in movement_buttons:
 		movement_buttons.erase(button)
+
+func get_equipment_mobility_bonus() -> int:
+	"""Get the mobility bonus from equipped equipment"""
+	var equipment_manager = get_tree().current_scene.get_node_or_null("EquipmentManager")
+	if equipment_manager:
+		return equipment_manager.get_mobility_bonus()
+	return 0

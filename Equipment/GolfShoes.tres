@@ -11,5 +11,5 @@ name = "Golf Shoes"
 image = SubResource("CompressedTexture2D_7rag7")
 description = "Comfortable golf shoes that increase your mobility on the course."
 buff_type = "mobility"
-buff_value = 1
+buff_value = 2
 price = 150

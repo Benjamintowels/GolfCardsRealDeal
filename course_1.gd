@@ -20,7 +20,6 @@ extends Control
 @onready var draw_cards_button: Button = $UILayer/DrawCards
 @onready var mod_shot_room_button: Button
 @onready var bag: Control = $UILayer/Bag
-@onready var inventory_dialog: Control = $UILayer/InventoryDialog
 @onready var launch_manager = $LaunchManager
 @onready var health_bar: HealthBar = $UILayer/HealthBar
 @onready var damage_button: Button = $UILayer/HealthTestButtons/DamageButton
@@ -37,6 +36,7 @@ const WeaponHandler := preload("res://WeaponHandler.gd")
 var attack_handler: AttackHandler
 const GolfCourseLayout := preload("res://Maps/GolfCourseLayout.gd")
 const HealthBar := preload("res://HealthBar.gd")
+const EquipmentManager := preload("res://EquipmentManager.gd")
 
 var is_placing_player := true
 
@@ -397,6 +397,11 @@ func _ready() -> void:
 	add_child(deck_manager)
 	deck_manager.deck_updated.connect(update_deck_display)
 	deck_manager.discard_recycled.connect(card_stack_display.animate_card_recycle)
+	
+	# Add EquipmentManager
+	var equipment_manager = EquipmentManager.new()
+	equipment_manager.name = "EquipmentManager"
+	add_child(equipment_manager)
 	
 	# Force sync with CurrentDeckManager immediately
 	deck_manager.sync_with_current_deck()
@@ -2930,22 +2935,16 @@ func _on_inventory_choice(action: String):
 		dialog.queue_free()
 
 func setup_bag_and_inventory() -> void:
-	# Connect bag click signal
-	if bag and bag.has_signal("bag_clicked"):
-		bag.bag_clicked.connect(_on_bag_clicked)
-	
-	if inventory_dialog:
-		inventory_dialog.get_movement_cards = get_movement_cards_for_inventory
-		inventory_dialog.get_club_cards = get_club_cards_for_inventory
-		inventory_dialog.inventory_closed.connect(_on_inventory_closed)
+	# The bag now handles its own inventory display
+	# No need to connect to the old inventory dialog
 	
 	if bag and bag.has_method("set_bag_level"):
 		bag.set_bag_level(1)  # Always start with level 1
 		print("Bag initialized with level 1")
 
 func _on_bag_clicked() -> void:
-	if inventory_dialog:
-		inventory_dialog.show_inventory()
+	# The bag handles its own click events now
+	pass
 
 func _on_inventory_closed() -> void:
 	print("Inventory closed")

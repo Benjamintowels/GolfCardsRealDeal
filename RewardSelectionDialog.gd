@@ -136,19 +136,6 @@ func setup_reward_button(button: Button, reward_data: Resource, reward_type: Str
 		image_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		container.add_child(image_rect)
 		
-		# Card name
-		var name_label = Label.new()
-		name_label.text = card_data.name
-		name_label.add_theme_font_size_override("font_size", 12)
-		name_label.add_theme_color_override("font_color", Color.WHITE)
-		name_label.add_theme_constant_override("outline_size", 1)
-		name_label.add_theme_color_override("font_outline_color", Color.BLACK)
-		name_label.position = Vector2(5, 140)
-		name_label.size = Vector2(90, 20)
-		name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		container.add_child(name_label)
-		
 	elif reward_type == "equipment":
 		var equip_data = reward_data as EquipmentData
 		button.text = ""  # Clear button text since we're using custom display
@@ -170,24 +157,11 @@ func setup_reward_button(button: Button, reward_data: Resource, reward_type: Str
 		name_label.add_theme_color_override("font_color", Color.WHITE)
 		name_label.add_theme_constant_override("outline_size", 1)
 		name_label.add_theme_color_override("font_outline_color", Color.BLACK)
-		name_label.position = Vector2(5, 90)
+		name_label.position = Vector2(5, 15)
 		name_label.size = Vector2(90, 20)
 		name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		container.add_child(name_label)
-		
-		# Equipment description
-		var desc_label = Label.new()
-		desc_label.text = equip_data.description
-		desc_label.add_theme_font_size_override("font_size", 10)
-		desc_label.add_theme_color_override("font_color", Color.LIGHT_GRAY)
-		desc_label.add_theme_constant_override("outline_size", 1)
-		desc_label.add_theme_color_override("font_outline_color", Color.BLACK)
-		desc_label.position = Vector2(5, 110)
-		desc_label.size = Vector2(90, 30)
-		desc_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		desc_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		container.add_child(desc_label)
 	
 	# Add hover effect
 	button.mouse_entered.connect(_on_reward_button_hover.bind(button, true))
@@ -208,6 +182,10 @@ func _on_left_reward_selected():
 		# Add card to CurrentDeckManager
 		add_card_to_current_deck(left_reward_data)
 		print("Added", left_reward_data.name, "to current deck")
+	elif left_reward_type == "equipment":
+		# Add equipment to EquipmentManager
+		add_equipment_to_manager(left_reward_data)
+		print("Added", left_reward_data.name, "to equipment")
 	
 	reward_selected.emit(left_reward_data, left_reward_type)
 	visible = false
@@ -217,6 +195,10 @@ func _on_right_reward_selected():
 		# Add card to CurrentDeckManager
 		add_card_to_current_deck(right_reward_data)
 		print("Added", right_reward_data.name, "to current deck")
+	elif right_reward_type == "equipment":
+		# Add equipment to EquipmentManager
+		add_equipment_to_manager(right_reward_data)
+		print("Added", right_reward_data.name, "to equipment")
 	
 	reward_selected.emit(right_reward_data, right_reward_type)
 	visible = false
@@ -228,4 +210,13 @@ func add_card_to_current_deck(card_data: CardData):
 		current_deck_manager.add_card_to_deck(card_data)
 		print("RewardSelectionDialog: Added", card_data.name, "to CurrentDeckManager")
 	else:
-		print("RewardSelectionDialog: Warning - CurrentDeckManager not found") 
+		print("RewardSelectionDialog: Warning - CurrentDeckManager not found")
+
+func add_equipment_to_manager(equipment_data: EquipmentData):
+	"""Add equipment to the EquipmentManager"""
+	var equipment_manager = get_tree().current_scene.get_node_or_null("EquipmentManager")
+	if equipment_manager:
+		equipment_manager.add_equipment(equipment_data)
+		print("RewardSelectionDialog: Added", equipment_data.name, "to EquipmentManager")
+	else:
+		print("RewardSelectionDialog: Warning - EquipmentManager not found") 
