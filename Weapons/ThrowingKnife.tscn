@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3 uid="uid://bags75ux32be2"]
+[gd_scene load_steps=9 format=3 uid="uid://bags75ux32be2"]
 
 [ext_resource type="Texture2D" uid="uid://b714hho7b4xqc" path="res://GolfBall.png" id="1_3kcln"]
 [ext_resource type="Texture2D" uid="uid://defhvygns48g7" path="res://Weapons/knife.png" id="1_4xl02"]
@@ -6,6 +6,7 @@
 [ext_resource type="AudioStream" uid="uid://jwl5j6c0yc50" path="res://Sounds/ThrowKnifeWhoosh.mp3" id="4_3lwh2"]
 [ext_resource type="AudioStream" uid="uid://cpa2nhs0phl18" path="res://Sounds/KnifeImpact.mp3" id="5_j2xyt"]
 [ext_resource type="AudioStream" uid="uid://ewteb16eu7sl" path="res://Sounds/BladePickUp.mp3" id="6_p7ml2"]
+[ext_resource type="AudioStream" uid="uid://bau71e1lwtfjb" path="res://Sounds/BallLand.mp3" id="7_ball_land"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_3kcln"]
 radius = 37.0135
@@ -26,6 +27,12 @@ position = Vector2(0, 12.51)
 texture_filter = 1
 texture = ExtResource("1_4xl02")
 
+[node name="Blade" type="Marker2D" parent="ThrowingKnife"]
+position = Vector2(20.695, 0)
+
+[node name="Handle" type="Marker2D" parent="ThrowingKnife"]
+position = Vector2(-21.495, 0)
+
 [node name="Area2D" type="Area2D" parent="."]
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D"]
@@ -41,3 +48,7 @@ stream = ExtResource("5_j2xyt")
 
 [node name="BladePickUp" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("6_p7ml2")
+
+[node name="BallLand" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("7_ball_land")
+volume_db = 6.443

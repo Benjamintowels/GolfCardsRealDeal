@@ -617,7 +617,6 @@ func _input(event: InputEvent) -> void:
 				_update_player_mouse_facing_state()
 	elif game_phase == "launch":
 		# Handle launch input through LaunchManager
-		print("[DEBUG] In launch phase, handling input through LaunchManager")
 		if launch_manager.handle_input(event):
 			return
 	elif game_phase == "ball_flying":

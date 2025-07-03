@@ -523,7 +523,6 @@ func handle_input(event: InputEvent) -> bool:
 	
 	# Check if a ball is currently in flight - if so, don't allow new launches
 	if is_ball_in_flight():
-		print("Ball is in flight - ignoring launch input")
 		return false
 	
 	if event is InputEventMouseButton:

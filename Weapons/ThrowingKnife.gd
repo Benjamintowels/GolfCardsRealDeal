@@ -24,6 +24,15 @@ var rotation_speed := 720.0  # Degrees per second rotation
 var has_hit_target := false
 var target_hit := false
 
+# Dual-sided landing mechanics
+var blade_marker: Marker2D
+var handle_marker: Marker2D
+var is_handle_landing := false  # Track if handle side is facing down
+var handle_bounce_count := 0
+var max_handle_bounces := 2  # Handle can bounce up to 2 times
+var handle_bounce_factor := 0.98  # How much velocity is retained after handle bounce (increased for dramatic bounces)
+var min_handle_bounce_speed := 50.0  # Minimum speed for handle to bounce
+
 # Bounce mechanics (knives stick like sticky shots - no bounces)
 var bounce_count := 0
 var max_bounces := 0  # Knives don't bounce - they stick
@@ -63,6 +72,8 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 	target_hit = false
 	landed_flag = false
 	bounce_count = 0
+	handle_bounce_count = 0
+	is_handle_landing = false
 	
 	# Calculate height percentage for sweet spot check
 	var height_percentage = (height - MIN_LAUNCH_HEIGHT) / (MAX_LAUNCH_HEIGHT - MIN_LAUNCH_HEIGHT)
@@ -141,6 +152,10 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 	sprite = $ThrowingKnife
 	shadow = $Shadow
 	
+	# Get references to blade and handle markers
+	blade_marker = $ThrowingKnife/Blade
+	handle_marker = $ThrowingKnife/Handle
+	
 	# Set base scale from sprite's current scale
 	if sprite:
 		base_scale = sprite.scale
@@ -161,6 +176,10 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 func _process(delta):
 	if landed_flag:
 		return
+	
+	# Debug: Track knife state every few frames
+	if Engine.get_process_frames() % 30 == 0:  # Every 30 frames (about twice per second at 60 FPS)
+		print("KNIFE STATE: z=", z, " vz=", vz, " velocity=", velocity, " landed_flag=", landed_flag, " handle_bounces=", handle_bounce_count)
 	
 	# Apply progressive height resistance during flight
 	if is_applying_height_resistance and z > 0.0:
@@ -201,33 +220,56 @@ func _process(delta):
 		# Check for landing
 		if z <= 0.0:
 			z = 0.0
-			vz = 0.0
 			
-			# Handle bounce or landing
-			if bounce_count < max_bounces and velocity.length() > min_bounce_speed:
-				# Bounce
-				bounce_count += 1
-				vz = velocity.length() * bounce_factor * 0.5  # Reduced bounce height
-				velocity *= bounce_factor
+			# Determine which side is facing down
+			determine_landing_side()
+			
+			print("=== KNIFE LANDING CONDITIONS ===")
+			print("Is handle landing: ", is_handle_landing)
+			print("Handle bounce count: ", handle_bounce_count)
+			print("Max handle bounces: ", max_handle_bounces)
+			print("Velocity length: ", velocity.length())
+			print("Min handle bounce speed: ", min_handle_bounce_speed)
+			print("Should bounce: ", (is_handle_landing and handle_bounce_count < max_handle_bounces and velocity.length() > min_handle_bounce_speed))
+			print("=== END LANDING CONDITIONS ===")
+			
+			# Handle bounce or landing based on which side is down
+			if is_handle_landing and handle_bounce_count < max_handle_bounces and velocity.length() > min_handle_bounce_speed:
+				# Handle side landed - bounce like a golf ball
+				handle_bounce_count += 1
+				vz = velocity.length() * handle_bounce_factor * 6.0  # Much more dramatic bounce height - increased from 1.5 to 6.0
+				velocity *= handle_bounce_factor
 				
 				# Reduce rotation speed after bounce
 				rotation_speed *= 0.7
-			else:
-				# Land
-				# Remove lines like:
-				# print("=== KNIFE LANDING ===")
-				# print("Knife landed at position:", global_position)
-				# print("Final z:", z)
-				# print("Final vz:", vz)
-				# print("=== END KNIFE LANDING ===")
 				
+				print("HANDLE BOUNCE: Bounce count now ", handle_bounce_count, ", vz set to ", vz)
+				print("HANDLE BOUNCE: New velocity ", velocity, " (length: ", velocity.length(), ")")
+				print("HANDLE BOUNCE: New rotation speed ", rotation_speed)
+				
+				# Play golf ball bounce sound for handle landing
+				var ball_land_sound = get_node_or_null("BallLand")
+				if ball_land_sound:
+					ball_land_sound.play()
+					print("HANDLE BOUNCE: Played ball land sound")
+			else:
+				# Blade side landed or handle side exhausted bounces - stick in ground
+				vz = 0.0
 				landed_flag = true
 				velocity = Vector2.ZERO
 				rotation_speed = 0.0
 				
-				# Stop rotation and stick in ground
-				if sprite:
-					sprite.rotation_degrees = 0.0
+				print("KNIFE STICKING: Final landing at ", global_position)
+				print("KNIFE STICKING: Set landed_flag to true, velocity to zero")
+				
+				# Keep the final rotation for visual effect
+				# Don't reset rotation to 0 - let it stay at the final landing rotation
+				
+				# Play knife impact sound for blade landing
+				var knife_impact = get_node_or_null("KnifeImpact")
+				if knife_impact:
+					knife_impact.play()
+					print("KNIFE STICKING: Played knife impact sound")
 				
 				# Emit landed signals
 				emit_signal("knife_landed", global_position)
@@ -238,8 +280,86 @@ func _process(delta):
 					emit_signal("landed", final_tile)
 				else:
 					# Fallback if no map manager or no world_to_map method
-					# Remove lines like:
-					# print("Warning: MapManager missing or missing world_to_map method")
+					emit_signal("landed", Vector2i.ZERO)
+				
+				# Check for target hits
+				check_target_hits()
+	
+	elif vz > 0.0:
+		# Knife is bouncing up from ground (z = 0, vz > 0)
+		z += vz * delta
+		vz -= gravity * delta
+		
+		# Track maximum height for scaling reference
+		max_height = max(max_height, z)
+		
+		# Rotate the knife while in flight
+		if sprite:
+			sprite.rotation_degrees += rotation_speed * delta
+		
+		print("KNIFE BOUNCING: z=", z, " vz=", vz, " velocity=", velocity)
+		
+		# Check if knife has landed again
+		if z <= 0.0:
+			z = 0.0
+			
+			# Determine which side is facing down
+			determine_landing_side()
+			
+			print("=== KNIFE SECOND LANDING CONDITIONS ===")
+			print("Is handle landing: ", is_handle_landing)
+			print("Handle bounce count: ", handle_bounce_count)
+			print("Max handle bounces: ", max_handle_bounces)
+			print("Velocity length: ", velocity.length())
+			print("Min handle bounce speed: ", min_handle_bounce_speed)
+			print("Should bounce: ", (is_handle_landing and handle_bounce_count < max_handle_bounces and velocity.length() > min_handle_bounce_speed))
+			print("=== END SECOND LANDING CONDITIONS ===")
+			
+			# Handle bounce or landing based on which side is down
+			if is_handle_landing and handle_bounce_count < max_handle_bounces and velocity.length() > min_handle_bounce_speed:
+				# Handle side landed - bounce like a golf ball
+				handle_bounce_count += 1
+				vz = velocity.length() * handle_bounce_factor * 6.0  # Much more dramatic bounce height - increased from 1.5 to 6.0
+				velocity *= handle_bounce_factor
+				
+				# Reduce rotation speed after bounce
+				rotation_speed *= 0.7
+				
+				print("HANDLE SECOND BOUNCE: Bounce count now ", handle_bounce_count, ", vz set to ", vz)
+				print("HANDLE SECOND BOUNCE: New velocity ", velocity, " (length: ", velocity.length(), ")")
+				
+				# Play golf ball bounce sound for handle landing
+				var ball_land_sound = get_node_or_null("BallLand")
+				if ball_land_sound:
+					ball_land_sound.play()
+					print("HANDLE SECOND BOUNCE: Played ball land sound")
+			else:
+				# Blade side landed or handle side exhausted bounces - stick in ground
+				vz = 0.0
+				landed_flag = true
+				velocity = Vector2.ZERO
+				rotation_speed = 0.0
+				
+				print("KNIFE STICKING AFTER BOUNCE: Final landing at ", global_position)
+				
+				# Keep the final rotation for visual effect
+				# Don't reset rotation to 0 - let it stay at the final landing rotation
+				
+				# Play knife impact sound for blade landing
+				var knife_impact = get_node_or_null("KnifeImpact")
+				if knife_impact:
+					knife_impact.play()
+					print("KNIFE STICKING AFTER BOUNCE: Played knife impact sound")
+				
+				# Emit landed signals
+				emit_signal("knife_landed", global_position)
+				
+				# Emit landed signal for course compatibility (convert position to tile)
+				if map_manager and map_manager.has_method("world_to_map"):
+					var final_tile = map_manager.world_to_map(global_position)
+					emit_signal("landed", final_tile)
+				else:
+					# Fallback if no map manager or no world_to_map method
 					emit_signal("landed", Vector2i.ZERO)
 				
 				# Check for target hits
@@ -247,7 +367,36 @@ func _process(delta):
 	
 	# Update visual effects
 	update_visual_effects()
+
+func determine_landing_side():
+	"""Determine which side of the knife is facing down when landing"""
+	if not sprite or not blade_marker or not handle_marker:
+		is_handle_landing = false
+		print("Warning: Missing sprite or markers")
+		return
 	
+	# Get the global positions of the blade and handle markers
+	var blade_global_pos = blade_marker.global_position
+	var handle_global_pos = handle_marker.global_position
+	
+	print("=== KNIFE LANDING SIDE DETECTION ===")
+	print("Sprite rotation (degrees): ", sprite.rotation_degrees)
+	print("Blade marker global Y: ", blade_global_pos.y)
+	print("Handle marker global Y: ", handle_global_pos.y)
+	print("Blade marker local pos: ", blade_marker.position)
+	print("Handle marker local pos: ", handle_marker.position)
+	
+	# Compare Y positions - the higher Y value is facing down toward the ground
+	# Since the knife is rotating, we need to check which marker has the higher Y position
+	if handle_global_pos.y > blade_global_pos.y:
+		# Handle has higher Y - handle side is facing down
+		is_handle_landing = true
+		print("RESULT: Handle side is facing down (Y: ", handle_global_pos.y, " > ", blade_global_pos.y, ")")
+	else:
+		# Blade has higher Y - blade side is facing down
+		is_handle_landing = false
+		print("RESULT: Blade side is facing down (Y: ", blade_global_pos.y, " > ", handle_global_pos.y, ")")
+	print("=== END LANDING SIDE DETECTION ===")
 
 func update_visual_effects():
 	if not sprite or not shadow:
