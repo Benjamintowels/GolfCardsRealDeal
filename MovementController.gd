@@ -214,7 +214,8 @@ func exit_movement_mode() -> void:
 		if selected_card:
 			var card_discarded := false
 
-			if deck_manager.hand.has(selected_card):
+			# Don't discard club cards here - they're handled by the club card selection system
+			if deck_manager.hand.has(selected_card) and not deck_manager.is_club_card(selected_card):
 				print("Discarding movement card from hand:", selected_card.name)
 				deck_manager.discard(selected_card)
 				card_discarded = true
@@ -223,11 +224,14 @@ func exit_movement_mode() -> void:
 				if card_effect_handler and card_effect_handler.course and card_effect_handler.course.next_card_doubled:
 					card_effect_handler.course.next_card_doubled = false
 					print("Next card doubled effect consumed")
+			elif deck_manager.is_club_card(selected_card):
+				print("Club card selected - not discarding here (handled by club selection system)")
 			else:
 				print("Movement card not in hand:", selected_card.name)
 
-			card_stack_display.animate_card_discard(selected_card.name)
-			emit_signal("card_discarded", selected_card)
+			if card_discarded:
+				card_stack_display.animate_card_discard(selected_card.name)
+				emit_signal("card_discarded", selected_card)
 
 		if movement_buttons_container and movement_buttons_container.has_node(NodePath(active_button.name)):
 			movement_buttons_container.remove_child(active_button)

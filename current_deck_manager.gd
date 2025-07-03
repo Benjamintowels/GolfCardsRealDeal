@@ -17,7 +17,8 @@ var starter_deck: Array[CardData] = [
 	preload("res://Cards/KickB.tres"),
 	preload("res://Cards/KickB.tres"),
 	preload("res://Cards/Putter.tres"),
-	preload("res://Cards/Wooden.tres")
+	preload("res://Cards/Wooden.tres"),
+	preload("res://Cards/ThrowingKnife.tres")
 ]
 
 func _ready():

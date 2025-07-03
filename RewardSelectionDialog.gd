@@ -30,6 +30,7 @@ var available_cards: Array[CardData] = [
 	preload("res://Cards/FloridaScramble.tres"),
 	preload("res://Cards/KickB.tres"),
 	preload("res://Cards/PistolCard.tres"),
+	preload("res://Cards/ThrowingKnife.tres"),
 	preload("res://Cards/Putter.tres"),
 	preload("res://Cards/Wooden.tres"),
 	preload("res://Cards/Iron.tres"),
@@ -66,13 +67,10 @@ func initialize_bag_upgrades():
 	# Get current character and bag level
 	var bag = get_tree().current_scene.get_node_or_null("UILayer/Bag")
 	if not bag:
-		print("Warning: Bag not found for bag upgrade initialization")
 		return
 	
 	var current_character = bag.character_name
 	var current_bag_level = bag.bag_level
-	
-	print("Initializing bag upgrades for character:", current_character, "current level:", current_bag_level)
 	
 	# Create bag upgrades for higher levels only
 	for level in range(current_bag_level + 1, 5):  # Levels 2-4
@@ -85,13 +83,10 @@ func initialize_bag_upgrades():
 		# Set the appropriate image based on character and level
 		if bag.character_bag_textures.has(current_character) and bag.character_bag_textures[current_character].has(level):
 			bag_upgrade.image = bag.character_bag_textures[current_character][level]
-			print("Created bag upgrade for level", level, "with image")
 		else:
-			print("Warning: No image found for", current_character, "level", level)
+			pass
 		
 		available_bag_upgrades.append(bag_upgrade)
-	
-	print("Created", available_bag_upgrades.size(), "bag upgrades")
 
 func show_reward_selection():
 	# Initialize bag upgrades before generating rewards
@@ -141,7 +136,6 @@ func check_bag_slots(reward_data: Resource, reward_type: String) -> bool:
 	"""Check if there are available slots in the bag for the reward"""
 	var bag = get_tree().current_scene.get_node_or_null("UILayer/Bag")
 	if not bag:
-		print("Warning: Bag not found")
 		return true  # Allow if bag not found
 	
 	if reward_type == "card":
@@ -288,7 +282,6 @@ func generate_random_rewards() -> Array:
 	
 	# Check if bag upgrades are available
 	var has_bag_upgrades = available_bag_upgrades.size() > 0
-	print("Generating rewards. Bag upgrades available:", has_bag_upgrades, "count:", available_bag_upgrades.size())
 	
 	# Randomly decide reward types (now including bag upgrades)
 	var reward_options = []
@@ -481,40 +474,28 @@ func add_reward_to_inventory(reward_data: Resource, reward_type: String):
 	"""Add reward to the appropriate inventory"""
 	if reward_type == "card":
 		add_card_to_current_deck(reward_data)
-		print("Added", reward_data.name, "to current deck")
 	elif reward_type == "equipment":
 		add_equipment_to_manager(reward_data)
-		print("Added", reward_data.name, "to equipment")
 	elif reward_type == "bag_upgrade":
 		apply_bag_upgrade(reward_data)
-		print("Applied bag upgrade to level", reward_data.level)
 
 func add_card_to_current_deck(card_data: CardData):
 	"""Add a card to the CurrentDeckManager"""
 	var current_deck_manager = get_tree().current_scene.get_node_or_null("CurrentDeckManager")
 	if current_deck_manager:
 		current_deck_manager.add_card_to_deck(card_data)
-		print("RewardSelectionDialog: Added", card_data.name, "to CurrentDeckManager")
-	else:
-		print("RewardSelectionDialog: Warning - CurrentDeckManager not found")
 
 func add_equipment_to_manager(equipment_data: EquipmentData):
 	"""Add equipment to the EquipmentManager"""
 	var equipment_manager = get_tree().current_scene.get_node_or_null("EquipmentManager")
 	if equipment_manager:
 		equipment_manager.add_equipment(equipment_data)
-		print("RewardSelectionDialog: Added", equipment_data.name, "to EquipmentManager")
-	else:
-		print("RewardSelectionDialog: Warning - EquipmentManager not found")
 
 func apply_bag_upgrade(bag_data: BagData):
 	"""Apply a bag upgrade to the current bag"""
 	var bag = get_tree().current_scene.get_node_or_null("UILayer/Bag")
 	if bag:
 		bag.set_bag_level(bag_data.level)
-		print("RewardSelectionDialog: Upgraded bag to level", bag_data.level)
-	else:
-		print("RewardSelectionDialog: Warning - Bag not found")
 
 func _exit_tree():
 	"""Clean up when the dialog is removed"""

@@ -370,10 +370,7 @@ func _ready() -> void:
 		damage_button.pressed.connect(_on_damage_button_pressed)
 	if heal_button:
 		heal_button.pressed.connect(_on_heal_button_pressed)
-	if kill_gangmember_button:
-		kill_gangmember_button.pressed.connect(_on_kill_gangmember_button_pressed)
-	if bag_upgrade_test_button:
-		bag_upgrade_test_button.pressed.connect(_on_bag_upgrade_test_button_pressed)
+
 
 	create_grid()
 	create_player()
@@ -459,7 +456,8 @@ func _ready() -> void:
 		card_play_sound,
 		card_stack_display,
 		deck_manager,
-		card_effect_handler
+		card_effect_handler,
+		launch_manager
 	)
 	
 	# Set the movement controller reference for button cleanup
@@ -865,61 +863,6 @@ func _on_heal_button_pressed() -> void:
 	"""Handle heal button press"""
 	heal_player(20)
 
-func _on_kill_gangmember_button_pressed() -> void:
-	"""Handle kill GangMember button press"""
-	kill_nearest_gangmember()
-
-func _on_bag_upgrade_test_button_pressed() -> void:
-	"""Handle bag upgrade test button press"""
-	test_bag_upgrade()
-
-func test_bag_upgrade() -> void:
-	"""Test function to upgrade the bag by one level"""
-	var bag = get_node_or_null("UILayer/Bag")
-	if not bag:
-		print("No bag found for upgrade test")
-		return
-	
-	var current_level = bag.bag_level
-	var new_level = min(current_level + 1, 4)  # Cap at level 4
-	
-	if new_level > current_level:
-		bag.set_bag_level(new_level)
-		print("Bag upgraded from level", current_level, "to level", new_level)
-	else:
-		print("Bag is already at maximum level (4)")
-
-func kill_nearest_gangmember() -> void:
-	"""Kill the nearest GangMember to the player"""
-	var entities = get_node_or_null("Entities")
-	if not entities:
-		print("No Entities system found")
-		return
-	
-	var npcs = entities.get_npcs()
-	if npcs.size() == 0:
-		print("No NPCs found to kill")
-		return
-	
-	# Find the nearest GangMember
-	var nearest_npc = null
-	var nearest_distance = INF
-	
-	for npc in npcs:
-		if npc.has_method("get_grid_position") and npc.has_method("take_damage"):
-			var npc_pos = npc.get_grid_position()
-			var distance = player_grid_pos.distance_to(npc_pos)
-			if distance < nearest_distance:
-				nearest_distance = distance
-				nearest_npc = npc
-	
-	if nearest_npc:
-		print("Killing nearest GangMember at distance:", nearest_distance)
-		# Deal enough damage to kill the GangMember
-		nearest_npc.take_damage(nearest_npc.max_health)
-	else:
-		print("No valid GangMember found to kill")
-
 func handle_player_death() -> void:
 	"""Handle player death - fade to black and show death screen"""
 	print("Handling player death...")
@@ -1127,7 +1070,7 @@ func start_round_after_tee_selection() -> void:
 	player_stats = Global.CHARACTER_STATS.get(Global.selected_character, {})
 	
 	deck_manager.initialize_separate_decks()
-	print("Separate decks initialized - Club cards:", deck_manager.club_draw_pile.size(), "Movement cards:", deck_manager.movement_draw_pile.size())
+	print("Separate decks initialized - Club cards:", deck_manager.club_draw_pile.size(), "Action cards:", deck_manager.action_draw_pile.size())
 
 	has_started = true
 	
@@ -1245,6 +1188,7 @@ func _on_golf_ball_landed(tile: Vector2i):
 	print("DEBUG: Ball landed, hole_score before increment =", hole_score)
 	hole_score += 1
 	print("DEBUG: Ball landed, hole_score after increment =", hole_score)
+	print("Turning off camera following for golf ball")
 	camera_following_ball = false
 	ball_landing_tile = tile
 	
@@ -1579,15 +1523,19 @@ func update_deck_display() -> void:
 	var hud := get_node("UILayer/HUD")
 	hud.get_node("TurnLabel").text = "Turn: %d" % turn_count
 	
-	# Calculate total cards in draw and discard piles
-	var total_draw_cards = deck_manager.movement_draw_pile.size() + deck_manager.club_draw_pile.size()
-	var total_discard_cards = deck_manager.movement_discard_pile.size() + deck_manager.club_discard_pile.size()
+	# Show separate counts for club and action cards
+	var club_draw_count = deck_manager.club_draw_pile.size()
+	var club_discard_count = deck_manager.club_discard_pile.size()
+	var action_draw_count = deck_manager.action_draw_pile.size()
+	var action_discard_count = deck_manager.action_discard_pile.size()
 	
-	hud.get_node("DrawLabel").text = "Draw Pile: %d" % total_draw_cards
-	hud.get_node("DiscardLabel").text = "Discard Pile: %d" % total_discard_cards
+	hud.get_node("DrawLabel").text = "Club Draw: %d | Action Draw: %d" % [club_draw_count, action_draw_count]
+	hud.get_node("DiscardLabel").text = "Club Discard: %d | Action Discard: %d" % [club_discard_count, action_discard_count]
 	hud.get_node("ShotLabel").text = "Shots: %d" % hole_score
 	
-	# Update card stack display with total counts
+	# Update card stack display with total counts (for backward compatibility)
+	var total_draw_cards = action_draw_count + club_draw_count
+	var total_discard_cards = action_discard_count + club_discard_count
 	card_stack_display.update_draw_stack(total_draw_cards)
 	card_stack_display.update_discard_stack(total_discard_cards)
 
@@ -1859,7 +1807,7 @@ func draw_cards_for_shot(card_count: int = 3) -> void:
 	deck_manager.debug_print_state()
 	print("=== END DECK STATE ===")
 	
-	deck_manager.draw_movement_cards_to_hand(final_card_count)
+	deck_manager.draw_action_cards_to_hand(final_card_count)
 	
 	# Debug: Print deck state after drawing
 	print("=== DECK STATE AFTER DRAWING ===")
@@ -2311,8 +2259,13 @@ func draw_club_cards() -> void:
 	deck_manager.debug_print_state()
 	print("=== END DECK STATE ===")
 	
-	# Actually draw club cards to hand first
-	deck_manager.draw_club_cards_to_hand(1)
+	# Calculate how many club cards we need to draw
+	var base_club_count = 2  # Default number of clubs to show
+	var card_draw_modifier = player_stats.get("card_draw", 0)
+	var final_club_count = base_club_count + card_draw_modifier
+	
+	# Actually draw club cards to hand first - draw enough for the selection
+	deck_manager.draw_club_cards_to_hand(final_club_count)
 	
 	# Debug: Print deck state after drawing club cards
 	print("=== DECK STATE AFTER DRAWING CLUB CARDS ===")
@@ -2328,9 +2281,6 @@ func draw_club_cards() -> void:
 			return club_info.get("is_putter", false)
 		)
 	
-	var base_club_count = 2  # Default number of clubs to show
-	var card_draw_modifier = player_stats.get("card_draw", 0)
-	var final_club_count = base_club_count + card_draw_modifier
 	final_club_count = max(1, min(final_club_count, available_clubs.size()))
 	var selected_clubs: Array[CardData] = []
 	var bonus_cards: Array[CardData] = []
@@ -2416,16 +2366,28 @@ func _on_club_card_pressed(club_name: String, club_info: Dictionary, button: Tex
 	max_shot_distance = base_max_distance * strength_multiplier
 	card_click_sound.play()
 	
-	# Remove the selected club card from hand
+	# Find the selected club card
 	var selected_card = null
 	for card in deck_manager.hand:
 		if card.name == club_name:
 			selected_card = card
 			break
 	
+	# Discard the selected club card
 	if selected_card:
-		deck_manager.hand.erase(selected_card)
-		print("Removed", club_name, "from hand. Hand size:", deck_manager.hand.size())
+		deck_manager.discard(selected_card)
+		print("Discarded selected club card:", club_name, "to club discard pile")
+	
+	# Discard all remaining club cards from hand to club discard pile
+	var remaining_club_cards: Array[CardData] = []
+	for card in deck_manager.hand:
+		if deck_manager.is_club_card(card):
+			remaining_club_cards.append(card)
+	
+	print("DeckManager: Found", remaining_club_cards.size(), "remaining club cards to discard")
+	for card in remaining_club_cards:
+		deck_manager.discard(card)
+		print("Discarded remaining club card:", card.name, "to club discard pile")
 	
 	for child in movement_buttons_container.get_children():
 		child.queue_free()
@@ -3078,31 +3040,60 @@ func _on_scramble_complete(closest_ball_position: Vector2, closest_ball_tile: Ve
 func _on_ball_launched(ball: Node2D):
 	# Set up ball properties that require course_1.gd references
 	ball.map_manager = map_manager
-	play_swing_sound(ball.final_power if ball.has_method("get_final_power") else 0.0)
 	
-	# Set ball launch position for player collision delay system
-	if player_node and player_node.has_method("set_ball_launch_position"):
-		player_node.set_ball_launch_position(ball.global_position)
-		print("Ball launch position set for player collision delay:", ball.global_position)
+	# Check if this is a throwing knife or golf ball
+	var is_knife = ball.has_method("is_throwing_knife") and ball.is_throwing_knife()
 	
-	# Connect ball signals
-	ball.landed.connect(_on_golf_ball_landed)
-	ball.out_of_bounds.connect(_on_golf_ball_out_of_bounds)
-	ball.sand_landing.connect(_on_golf_ball_sand_landing)
-	
-	# Set camera following
-	camera_following_ball = true
-	
-	# Handle card effects
-	if sticky_shot_active and next_shot_modifier == "sticky_shot":
-		ball.sticky_shot_active = true
-		sticky_shot_active = false
-		next_shot_modifier = ""
-	
-	if bouncey_shot_active and next_shot_modifier == "bouncey_shot":
-		ball.bouncey_shot_active = true
-		bouncey_shot_active = false
-		next_shot_modifier = ""
+	if is_knife:
+		# Handle throwing knife
+		print("=== HANDLING THROWING KNIFE LAUNCH ===")
+		
+		# Play knife whoosh sound when launched
+		var knife_whoosh = ball.get_node_or_null("ThrowKnifeWhoosh")
+		if knife_whoosh:
+			knife_whoosh.play()
+			print("Playing knife whoosh sound")
+		else:
+			print("Warning: ThrowKnifeWhoosh sound not found on knife")
+		
+		# Connect knife signals
+		ball.landed.connect(_on_knife_landed)
+		ball.knife_hit_target.connect(_on_knife_hit_target)
+		
+		# Set camera following
+		camera_following_ball = true
+		
+	else:
+		# Handle golf ball
+		print("=== HANDLING GOLF BALL LAUNCH ===")
+		
+		# Play swing sound for golf ball
+		play_swing_sound(ball.final_power if ball.has_method("get_final_power") else 0.0)
+		
+		# Set ball launch position for player collision delay system
+		if player_node and player_node.has_method("set_ball_launch_position"):
+			player_node.set_ball_launch_position(ball.global_position)
+			print("Ball launch position set for player collision delay:", ball.global_position)
+		
+		# Connect ball signals
+		ball.landed.connect(_on_golf_ball_landed)
+		ball.out_of_bounds.connect(_on_golf_ball_out_of_bounds)
+		ball.sand_landing.connect(_on_golf_ball_sand_landing)
+		
+		# Set camera following
+		camera_following_ball = true
+		print("Camera following set to true for golf ball")
+		
+		# Handle card effects
+		if sticky_shot_active and next_shot_modifier == "sticky_shot":
+			ball.sticky_shot_active = true
+			sticky_shot_active = false
+			next_shot_modifier = ""
+		
+		if bouncey_shot_active and next_shot_modifier == "bouncey_shot":
+			ball.bouncey_shot_active = true
+			bouncey_shot_active = false
+			next_shot_modifier = ""
 
 func _on_launch_phase_entered():
 	game_phase = "launch"
@@ -3137,6 +3128,44 @@ func _on_npc_shot(npc: Node, damage: int) -> void:
 		if global_death_sound:
 			global_death_sound.play()
 			print("Playing global death sound")
+
+func _on_knife_landed(final_tile: Vector2i) -> void:
+	"""Handle when a throwing knife lands"""
+	print("Knife landed at tile:", final_tile)
+	
+	# Pause for 1 second to let player see where knife landed
+	var pause_timer = get_tree().create_timer(1.0)
+	pause_timer.timeout.connect(func():
+		# After pause, tween camera back to player
+		if player_node and camera:
+			var tween = get_tree().create_tween()
+			tween.tween_property(camera, "position", player_node.global_position, 0.5).set_trans(Tween.TRANS_LINEAR)
+			tween.tween_callback(func():
+				# Exit knife mode and reset camera following after tween completes
+				if launch_manager:
+					launch_manager.exit_knife_mode()
+					print("Exited knife mode after camera tween completed")
+				camera_following_ball = false
+			)
+		else:
+			# Fallback if no player or camera
+			if launch_manager:
+				launch_manager.exit_knife_mode()
+				print("Exited knife mode (fallback)")
+			camera_following_ball = false
+	)
+
+func _on_knife_hit_target(target: Node2D) -> void:
+	"""Handle when a throwing knife hits a target"""
+	print("Knife hit target:", target.name)
+	
+	# Play knife impact sound
+	var knife = target.get_parent() if target.get_parent() else target
+	if knife and knife.has_method("is_throwing_knife") and knife.is_throwing_knife():
+		var knife_impact = knife.get_node_or_null("KnifeImpact")
+		if knife_impact:
+			knife_impact.play()
+			print("Playing knife impact sound")
 
 func setup_global_death_sound() -> void:
 	"""Setup global death sound that can be heard from anywhere"""

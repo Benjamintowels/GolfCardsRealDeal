@@ -3,6 +3,7 @@ class_name LaunchManager
 
 # Launch variables
 var golf_ball: Node2D = null
+var throwing_knife: Node2D = null
 var power_meter: Control = null
 var height_meter: Control = null
 var launch_power := 0.0
@@ -10,6 +11,7 @@ var launch_height := 0.0
 var launch_direction := Vector2.ZERO
 var is_charging := false
 var is_charging_height := false
+var is_knife_mode := false  # Track if we're launching a knife instead of a ball
 
 # Launch constants
 const MAX_LAUNCH_POWER := 1200.0
@@ -56,6 +58,7 @@ signal charging_state_changed(charging: bool, charging_height: bool)
 
 # Ball state tracking
 var ball_in_flight := false
+var previous_golf_ball: Node2D = null  # Store golf ball reference when entering knife mode
 
 func _ready():
 	pass
@@ -149,9 +152,60 @@ func exit_launch_phase() -> void:
 	hide_height_meter()
 	is_charging = false
 	is_charging_height = false
+	is_knife_mode = false  # Reset knife mode
 	
 	# Reset ball in flight state when exiting launch phase
 	set_ball_in_flight(false)
+
+func enter_knife_mode() -> void:
+	"""Enter knife throwing mode using Hybrid club stats"""
+	is_knife_mode = true
+	selected_club = "Hybrid"  # Use Hybrid club stats for knife throwing
+	
+	# Store the current golf ball reference before entering knife mode
+	previous_golf_ball = golf_ball
+	print("Stored golf ball reference before entering knife mode:", previous_golf_ball)
+	
+	# Set up Hybrid club data for knife mode (overwrite any existing club_data)
+	club_data = {
+		"Hybrid": {
+			"max_distance": 1050.0,
+			"min_distance": 200.0,
+			"trailoff_forgiveness": 0.8,
+			"is_putter": false
+		}
+	}
+	
+	print("=== ENTERING KNIFE MODE ===")
+	print("Selected club:", selected_club)
+	print("Club data:", club_data)
+	print("Is knife mode:", is_knife_mode)
+	print("=== END KNIFE MODE DEBUG ===")
+	
+	enter_launch_phase()
+
+func exit_knife_mode() -> void:
+	"""Exit knife throwing mode"""
+	is_knife_mode = false
+	
+	# Restore golf ball reference from stored reference or find one in scene
+	if previous_golf_ball and is_instance_valid(previous_golf_ball):
+		golf_ball = previous_golf_ball
+		print("Restored golf ball reference from stored reference after exiting knife mode")
+	else:
+		# Fallback: find any valid ball in the scene
+		var balls = get_tree().get_nodes_in_group("balls")
+		for ball in balls:
+			if is_instance_valid(ball):
+				golf_ball = ball
+				print("Restored golf ball reference from scene after exiting knife mode")
+				break
+	
+	# Clear stored reference and throwing knife reference
+	previous_golf_ball = null
+	throwing_knife = null
+	
+	exit_launch_phase()
 
 func launch_golf_ball(launch_direction: Vector2, final_power: float, height: float, launch_spin: float = 0.0, spin_strength_category: int = 0):
 	"""Launch the golf ball with the specified parameters"""
@@ -180,6 +234,7 @@ func launch_golf_ball(launch_direction: Vector2, final_power: float, height: flo
 	
 	# Use the existing ball
 	golf_ball = existing_ball
+	print("Golf ball reference set to:", golf_ball.name)
 	
 	# Set ball properties
 	golf_ball.chosen_landing_spot = chosen_landing_spot
@@ -201,6 +256,111 @@ func launch_golf_ball(launch_direction: Vector2, final_power: float, height: flo
 	# Store reference and emit signal
 	self.golf_ball = golf_ball
 	emit_signal("ball_launched", golf_ball)
+
+func launch_throwing_knife(launch_direction: Vector2, final_power: float, height: float, launch_spin: float = 0.0, spin_strength_category: int = 0):
+	"""Launch the throwing knife with the specified parameters"""
+	print("=== LAUNCHING THROWING KNIFE ===")
+	print("Launch direction:", launch_direction)
+	print("Final power:", final_power)
+	print("Height:", height)
+	print("Spin:", launch_spin)
+	print("Spin strength category:", spin_strength_category)
+
+	# Clear golf ball reference when launching knife (it's already stored in enter_knife_mode)
+	golf_ball = null
+
+	# Find an available knife in the scene (not landed)
+	var existing_knife = null
+	var knives = get_tree().get_nodes_in_group("knives")
+	print("DEBUG: Found", knives.size(), "knives in 'knives' group")
+
+	# Debug: Check all nodes in the scene tree
+	print("=== SCENE TREE DEBUG ===")
+	var all_nodes = get_tree().get_nodes_in_group(".")
+	print("Total nodes in scene:", all_nodes.size())
+	for node in all_nodes:
+		if "knife" in node.name.lower() or "Knife" in node.name:
+			print("Found knife-related node:", node.name, "Groups:", node.get_groups())
+	print("=== END SCENE TREE DEBUG ===")
+
+	for knife in knives:
+		print("DEBUG: Checking knife:", knife.name, "valid:", is_instance_valid(knife), "type:", knife.get_class())
+		if is_instance_valid(knife):
+			# Check if this knife is available (not landed)
+			var is_available = false
+			if knife.has_method("is_in_flight"):
+				is_available = knife.is_in_flight()
+			elif "landed_flag" in knife:
+				is_available = not knife.landed_flag
+			else:
+				# If we can't determine if it's landed, assume it's available
+				is_available = true
+			
+			print("DEBUG: Knife", knife.name, "is_available:", is_available)
+			
+			if is_available:
+				existing_knife = knife
+				print("DEBUG: Found available knife at position:", knife.global_position)
+				break
+
+	if not existing_knife:
+		print("No available knife found - creating new knife instance")
+		# Create a new knife instance
+		var throwing_knife_scene = preload("res://Weapons/ThrowingKnife.tscn")
+		existing_knife = throwing_knife_scene.instantiate()
+		
+		# Add to the CameraContainer like golf balls
+		if card_effect_handler and card_effect_handler.course:
+			var camera_container = card_effect_handler.course.get_node_or_null("CameraContainer")
+			if camera_container:
+				camera_container.add_child(existing_knife)
+				existing_knife.global_position = player_node.global_position
+				print("Created and added knife to CameraContainer at position:", existing_knife.global_position)
+			else:
+				# Fallback to course if CameraContainer not found
+				card_effect_handler.course.add_child(existing_knife)
+				existing_knife.global_position = player_node.global_position
+				print("Created and added knife to course (fallback) at position:", existing_knife.global_position)
+		else:
+			print("ERROR: Cannot find course to add knife")
+			return
+
+	# Use the existing knife
+	throwing_knife = existing_knife
+
+	# Set knife properties using Hybrid club stats
+	var hybrid_club_info = {
+		"max_distance": 1050.0,
+		"min_distance": 200.0,
+		"trailoff_forgiveness": 0.8
+	}
+	throwing_knife.chosen_landing_spot = chosen_landing_spot
+	throwing_knife.set_club_info(hybrid_club_info)
+
+	# Calculate time percentage for the knife
+	var time_percent = charge_time / max_charge_time
+	time_percent = clamp(time_percent, 0.0, 1.0)
+	throwing_knife.set_time_percentage(time_percent)
+
+	# Calculate correct launch direction from knife to target
+	var direction = (chosen_landing_spot - throwing_knife.global_position).normalized()
+	
+	print("=== KNIFE DIRECTION DEBUG ===")
+	print("Chosen landing spot:", chosen_landing_spot)
+	print("Knife position:", throwing_knife.global_position)
+	print("Calculated direction:", direction)
+	print("Direction length:", direction.length())
+	print("=== END KNIFE DIRECTION DEBUG ===")
+
+	# Launch the knife
+	throwing_knife.launch(direction, final_power, height, launch_spin, spin_strength_category)
+
+	# Set ball in flight state (reusing the same system)
+	set_ball_in_flight(true)
+
+	# Store reference and emit signal
+	self.throwing_knife = throwing_knife
+	emit_signal("ball_launched", throwing_knife)  # Reuse ball_launched signal for compatibility
 
 func show_power_meter():
 	if power_meter:
@@ -379,24 +539,39 @@ func handle_input(event: InputEvent) -> bool:
 				if is_charging:
 					is_charging = false
 					var is_putting = club_data.get(selected_club, {}).get("is_putter", false)
+					print("=== HEIGHT METER DEBUG ===")
+					print("Selected club:", selected_club)
+					print("Club data keys:", club_data.keys())
+					print("Selected club data:", club_data.get(selected_club, {}))
+					print("Is putting:", is_putting)
+					print("Is knife mode:", is_knife_mode)
+					print("=== END HEIGHT METER DEBUG ===")
 					if not is_putting:
+						print("Showing height meter - not a putter")
 						is_charging_height = true
 						launch_height = MIN_LAUNCH_HEIGHT
 					else:
-						# Calculate final power and launch the ball
+						print("Not showing height meter - is a putter")
+						# Calculate final power and launch the projectile
 						var final_power = calculate_final_power()
 						launch_direction = calculate_launch_direction()
-						launch_golf_ball(launch_direction, final_power, launch_height)
+						if is_knife_mode:
+							launch_throwing_knife(launch_direction, final_power, launch_height)
+						else:
+							launch_golf_ball(launch_direction, final_power, launch_height)
 						hide_power_meter()
 					emit_signal("charging_state_changed", is_charging, is_charging_height)
 					return true
 				elif is_charging_height:
 					is_charging_height = false
 					# Don't reset launch_height here - keep the charged value
-					# Calculate final power and launch the ball
+					# Calculate final power and launch the projectile
 					var final_power = calculate_final_power()
 					launch_direction = calculate_launch_direction()
-					launch_golf_ball(launch_direction, final_power, launch_height)
+					if is_knife_mode:
+						launch_throwing_knife(launch_direction, final_power, launch_height)
+					else:
+						launch_golf_ball(launch_direction, final_power, launch_height)
 					hide_power_meter()
 					hide_height_meter()
 					emit_signal("charging_state_changed", is_charging, is_charging_height)
@@ -421,27 +596,37 @@ func handle_input(event: InputEvent) -> bool:
 
 func calculate_launch_direction() -> Vector2:
 	"""Calculate the launch direction based on the chosen landing spot or mouse position"""
-	# Get the ball's actual position for direction calculation
-	var ball_position = Vector2.ZERO
-	var balls = get_tree().get_nodes_in_group("balls")
-	for ball in balls:
-		if is_instance_valid(ball):
-			ball_position = ball.global_position
-			break
+	# Get the projectile's actual position for direction calculation
+	var projectile_position = Vector2.ZERO
 	
-	# Fallback to player center if no ball found
-	if ball_position == Vector2.ZERO:
+	if is_knife_mode:
+		# For knives, check knife instances
+		var knives = get_tree().get_nodes_in_group("knives")
+		for knife in knives:
+			if is_instance_valid(knife):
+				projectile_position = knife.global_position
+				break
+	else:
+		# For balls, check ball instances
+		var balls = get_tree().get_nodes_in_group("balls")
+		for ball in balls:
+			if is_instance_valid(ball):
+				projectile_position = ball.global_position
+				break
+	
+	# Fallback to player center if no projectile found
+	if projectile_position == Vector2.ZERO:
 		var sprite = player_node.get_node_or_null("Sprite2D")
 		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
-		ball_position = player_node.global_position + player_size / 2
+		projectile_position = player_node.global_position + player_size / 2
 	
 	if chosen_landing_spot != Vector2.ZERO:
 		# Use direction to the chosen landing spot
-		return (chosen_landing_spot - ball_position).normalized()
+		return (chosen_landing_spot - projectile_position).normalized()
 	else:
-		# Use direction from ball to mouse position
+		# Use direction from projectile to mouse position
 		var mouse_pos = camera.get_global_mouse_position()
-		return (mouse_pos - ball_position).normalized()
+		return (mouse_pos - projectile_position).normalized()
 
 func calculate_final_power() -> float:
 	"""Calculate the final power based on charge time and target distance"""
@@ -454,6 +639,7 @@ func calculate_final_power() -> float:
 	print("Time percent:", time_percent)
 	print("Chosen landing spot:", chosen_landing_spot)
 	print("Selected club:", selected_club)
+	print("Is knife mode:", is_knife_mode)
 	
 	if chosen_landing_spot != Vector2.ZERO:
 		var sprite = player_node.get_node_or_null("Sprite2D")
@@ -518,7 +704,7 @@ func calculate_final_power() -> float:
 	return final_power
 
 func is_ball_in_flight() -> bool:
-	"""Check if there's a ball currently in flight"""
+	"""Check if there's a ball or knife currently in flight"""
 	# Check if we have a golf ball reference and it's in flight
 	if golf_ball and is_instance_valid(golf_ball):
 		if golf_ball.has_method("is_in_flight"):
@@ -531,6 +717,17 @@ func is_ball_in_flight() -> bool:
 		elif "velocity" in golf_ball:
 			var velocity = golf_ball.velocity
 			return velocity.length() > 0.1  # Ball is moving
+	
+	# Check if we have a throwing knife reference and it's in flight
+	if throwing_knife and is_instance_valid(throwing_knife):
+		if throwing_knife.has_method("is_in_flight"):
+			return throwing_knife.is_in_flight()
+		elif throwing_knife.has_method("get_velocity"):
+			var velocity = throwing_knife.get_velocity()
+			return velocity.length() > 0.1  # Knife is moving
+		elif "velocity" in throwing_knife:
+			var velocity = throwing_knife.velocity
+			return velocity.length() > 0.1  # Knife is moving
 	
 	# Also check for any balls in the scene that might be in flight
 	var balls = get_tree().get_nodes_in_group("balls")
@@ -548,6 +745,22 @@ func is_ball_in_flight() -> bool:
 					return true
 			elif "velocity" in ball:
 				var velocity = ball.velocity
+				if velocity.length() > 0.1:
+					return true
+	
+	# Also check for any knives in the scene that might be in flight
+	var knives = get_tree().get_nodes_in_group("knives")
+	for knife in knives:
+		if is_instance_valid(knife):
+			if knife.has_method("is_in_flight"):
+				if knife.is_in_flight():
+					return true
+			elif knife.has_method("get_velocity"):
+				var velocity = knife.get_velocity()
+				if velocity.length() > 0.1:
+					return true
+			elif "velocity" in knife:
+				var velocity = knife.velocity
 				if velocity.length() > 0.1:
 					return true
 	

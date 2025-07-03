@@ -1,0 +1,43 @@
+[gd_scene load_steps=8 format=3 uid="uid://bags75ux32be2"]
+
+[ext_resource type="Texture2D" uid="uid://b714hho7b4xqc" path="res://GolfBall.png" id="1_3kcln"]
+[ext_resource type="Texture2D" uid="uid://defhvygns48g7" path="res://Weapons/knife.png" id="1_4xl02"]
+[ext_resource type="Script" uid="uid://u8w8yuxsxurq" path="res://Weapons/ThrowingKnife.gd" id="1_script"]
+[ext_resource type="AudioStream" uid="uid://jwl5j6c0yc50" path="res://Sounds/ThrowKnifeWhoosh.mp3" id="4_3lwh2"]
+[ext_resource type="AudioStream" uid="uid://cpa2nhs0phl18" path="res://Sounds/KnifeImpact.mp3" id="5_j2xyt"]
+[ext_resource type="AudioStream" uid="uid://ewteb16eu7sl" path="res://Sounds/BladePickUp.mp3" id="6_p7ml2"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_3kcln"]
+radius = 37.0135
+
+[node name="ThrowingKnife" type="Node2D" groups=["knives"]]
+script = ExtResource("1_script")
+
+[node name="Shadow" type="Sprite2D" parent="."]
+modulate = Color(0, 0, 0, 0.3)
+position = Vector2(0, 2.88)
+scale = Vector2(0.21, 0.125)
+texture = ExtResource("1_3kcln")
+
+[node name="YSortPoint" type="Node2D" parent="Shadow"]
+position = Vector2(0, 12.51)
+
+[node name="ThrowingKnife" type="Sprite2D" parent="."]
+texture_filter = 1
+texture = ExtResource("1_4xl02")
+
+[node name="Area2D" type="Area2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D"]
+position = Vector2(0.055, 1)
+scale = Vector2(0.215, 0.215)
+shape = SubResource("CircleShape2D_3kcln")
+
+[node name="ThrowKnifeWhoosh" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("4_3lwh2")
+
+[node name="KnifeImpact" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("5_j2xyt")
+
+[node name="BladePickUp" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("6_p7ml2")

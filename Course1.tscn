@@ -123,9 +123,9 @@ position = Vector2(250, 284)
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -160.0
+offset_left = -315.95
 offset_top = 20.0
-offset_right = -20.0
+offset_right = -175.95
 offset_bottom = 200.0
 
 [node name="TurnLabel" type="Label" parent="UILayer/HUD"]
@@ -212,20 +212,6 @@ text = "Heal 20 HP"
 [node name="InventoryDialog" parent="UILayer" instance=ExtResource("13_inventory")]
 visible = false
 z_index = 100
-
-[node name="KillGangMemberButton" type="Button" parent="UILayer"]
-offset_left = 29.0
-offset_top = 18.0
-offset_right = 105.0
-offset_bottom = 49.0
-text = "Kill Gang"
-
-[node name="BagUpgradeTestButton" type="Button" parent="UILayer"]
-offset_left = 29.0
-offset_top = 55.0
-offset_right = 105.0
-offset_bottom = 86.0
-text = "Bag Upgrade"
 
 [node name="SwingSoft" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("6_6eaol")

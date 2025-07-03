@@ -16,6 +16,7 @@ var obstacle_map: Dictionary
 var player_grid_pos: Vector2i
 var player_stats: Dictionary
 var camera: Camera2D
+var launch_manager: LaunchManager = null  # Reference to LaunchManager for knife throwing
 
 # Sound effects
 var card_click_sound: AudioStreamPlayer2D
@@ -34,6 +35,7 @@ var weapon_range := 1000.0  # Maximum shooting distance
 
 # Weapon scene references
 var pistol_scene = preload("res://Weapons/Pistol.tscn")
+var throwing_knife_scene = preload("res://Weapons/ThrowingKnife.tscn")
 var reticle_texture = preload("res://UI/Reticle.png")
 
 # Signals
@@ -59,7 +61,8 @@ func setup(
 	card_play_sound_ref: AudioStreamPlayer2D,
 	card_stack_display_ref: Control,
 	deck_manager_ref: DeckManager,
-	card_effect_handler_ref: Node
+	card_effect_handler_ref: Node,
+	launch_manager_ref: LaunchManager = null
 ):
 	player_node = player_node_ref
 	grid_tiles = grid_tiles_ref
@@ -74,6 +77,7 @@ func setup(
 	card_stack_display = card_stack_display_ref
 	deck_manager = deck_manager_ref
 	card_effect_handler = card_effect_handler_ref
+	launch_manager = launch_manager_ref
 
 # Reference to movement controller for button cleanup
 var movement_controller: Node = null
@@ -118,11 +122,16 @@ func enter_weapon_aiming_mode() -> void:
 	# Input is handled by the course's _input function
 
 func create_weapon_instance() -> void:
-	"""Create the weapon instance (pistol) in front of the player"""
+	"""Create the weapon instance (pistol or knife) in front of the player"""
 	if weapon_instance:
 		weapon_instance.queue_free()
 	
-	weapon_instance = pistol_scene.instantiate()
+	# Determine which weapon to create based on the selected card
+	var weapon_scene = pistol_scene  # Default to pistol
+	if selected_card and selected_card.name == "Throwing Knife":
+		weapon_scene = throwing_knife_scene
+	
+	weapon_instance = weapon_scene.instantiate()
 	player_node.add_child(weapon_instance)
 	
 	# Reset weapon sprite flip state
@@ -154,28 +163,55 @@ func update_weapon_rotation() -> void:
 		var y_offset = -33 
 		var weapon_offset = Vector2(37.955, y_offset)  # Base offset (right side)
 		var weapon_sprite = weapon_instance.get_node_or_null("Sprite2D")
+		
+		# Handle weapon positioning and flipping based on player direction
 		if player_sprite.flip_h:
 			weapon_offset.x = -37.955
 			if weapon_sprite:
-				weapon_sprite.flip_h = false
-				weapon_sprite.flip_v = true
+				# For knife, we might want different flip behavior
+				if selected_card and selected_card.name == "Throwing Knife":
+					weapon_sprite.flip_h = true
+					weapon_sprite.flip_v = false
+				else:
+					# Pistol behavior
+					weapon_sprite.flip_h = false
+					weapon_sprite.flip_v = true
 		else:
 			if weapon_sprite:
-				weapon_sprite.flip_h = false
-				weapon_sprite.flip_v = false
+				# For knife, we might want different flip behavior
+				if selected_card and selected_card.name == "Throwing Knife":
+					weapon_sprite.flip_h = false
+					weapon_sprite.flip_v = false
+				else:
+					# Pistol behavior
+					weapon_sprite.flip_h = false
+					weapon_sprite.flip_v = false
 		weapon_instance.position = weapon_offset
 
 func fire_weapon() -> void:
-	"""Fire the weapon and perform raytrace"""
+	"""Fire the weapon and perform raytrace or launch knife"""
 	if not weapon_instance or not player_node:
 		return
 	
-	# Play weapon sound from player node
-	var pistol_shot = player_node.get_node_or_null("PistolShot")
-	if pistol_shot:
-		pistol_shot.play()
+	# Check if this is a throwing knife and we have LaunchManager
+	if selected_card and selected_card.name == "Throwing Knife" and launch_manager:
+		# Use LaunchManager for knife throwing
+		launch_throwing_knife()
+		return
+	
+	# Otherwise use the original raytrace system for pistols
+	# Play weapon sound from player node based on weapon type
+	var weapon_sound = null
+	if selected_card and selected_card.name == "Throwing Knife":
+		# For now, use pistol sound for knife - you can add a knife sound later
+		weapon_sound = player_node.get_node_or_null("PistolShot")
 	else:
-		print("Warning: PistolShot sound not found on player node")
+		weapon_sound = player_node.get_node_or_null("PistolShot")
+	
+	if weapon_sound:
+		weapon_sound.play()
+	else:
+		print("Warning: Weapon sound not found on player node")
 	
 	# Perform raytrace
 	var hit_target = perform_raytrace()
@@ -195,6 +231,96 @@ func fire_weapon() -> void:
 			print("Warning: Target doesn't have take_damage method")
 	
 	# Exit weapon mode after firing
+	exit_weapon_mode()
+
+func launch_throwing_knife() -> void:
+	"""Launch a throwing knife using the LaunchManager system"""
+	if not launch_manager or not weapon_instance or not camera:
+		print("ERROR: Cannot launch knife - missing required references")
+		return
+	
+	print("=== LAUNCHING THROWING KNIFE VIA WEAPON HANDLER ===")
+	
+	# Get the mouse position as the target
+	var mouse_pos = camera.get_global_mouse_position()
+	
+	# Set up LaunchManager for knife mode
+	launch_manager.chosen_landing_spot = mouse_pos
+	launch_manager.player_stats = player_stats
+	
+	# Create a knife instance if it doesn't exist
+	var knife_instance = null
+	var knives = get_tree().get_nodes_in_group("knives")
+	print("=== KNIFE CREATION DEBUG ===")
+	print("Found", knives.size(), "existing knives in scene")
+	for knife in knives:
+		if is_instance_valid(knife):
+			knife_instance = knife
+			print("Using existing knife:", knife.name)
+			break
+	
+	if not knife_instance:
+		print("Creating new knife instance...")
+		print("Throwing knife scene:", throwing_knife_scene)
+		knife_instance = throwing_knife_scene.instantiate()
+		print("Knife instance created:", knife_instance)
+		print("Knife instance valid:", is_instance_valid(knife_instance))
+		# Add to the CameraContainer like the golf ball
+		if card_effect_handler and card_effect_handler.course:
+			var camera_container = card_effect_handler.course.get_node_or_null("CameraContainer")
+			if camera_container:
+				camera_container.add_child(knife_instance)
+				knife_instance.global_position = weapon_instance.global_position
+				print("Knife added to CameraContainer at position:", knife_instance.global_position)
+				print("Knife in scene tree after adding:", knife_instance.is_inside_tree())
+				print("Knife groups after adding:", knife_instance.get_groups())
+			else:
+				# Fallback to course if CameraContainer not found
+				card_effect_handler.course.add_child(knife_instance)
+				knife_instance.global_position = weapon_instance.global_position
+				print("Knife added to course (fallback) at position:", knife_instance.global_position)
+				print("Knife in scene tree after adding (fallback):", knife_instance.is_inside_tree())
+				print("Knife groups after adding (fallback):", knife_instance.get_groups())
+		else:
+			print("ERROR: Cannot find course to add knife")
+			print("card_effect_handler:", card_effect_handler)
+			print("card_effect_handler.course:", card_effect_handler.course if card_effect_handler else null)
+			return
+	print("=== END KNIFE CREATION DEBUG ===")
+	
+	# Set up the knife properties
+	knife_instance.cell_size = cell_size
+	knife_instance.map_manager = card_effect_handler.course.get_node_or_null("MapManager") if card_effect_handler else null
+	
+	# Play knife pick up sound when knife appears
+	var knife_pickup = knife_instance.get_node_or_null("BladePickUp")
+	if knife_pickup:
+		knife_pickup.play()
+		print("Playing knife pick up sound")
+	else:
+		print("Warning: BladePickUp sound not found on knife")
+	
+	print("=== KNIFE SETUP DEBUG ===")
+	print("Knife instance:", knife_instance)
+	print("Knife in scene tree:", knife_instance.is_inside_tree())
+	print("Knife groups:", knife_instance.get_groups())
+	print("Knife position:", knife_instance.global_position)
+	
+	# Check if knife is in the knives group
+	var knives_in_scene = get_tree().get_nodes_in_group("knives")
+	print("Total knives in scene after setup:", knives_in_scene.size())
+	for knife in knives_in_scene:
+		print("  - Knife in group:", knife.name, "valid:", is_instance_valid(knife))
+	print("=== END KNIFE SETUP DEBUG ===")
+	
+	# Add a small delay to ensure the knife is properly added to the scene tree
+	# Note: This function is not async, so we'll use a different approach
+	# The knife should be added to the scene tree immediately after add_child()
+	
+	# Enter knife mode in LaunchManager
+	launch_manager.enter_knife_mode()
+	
+	# Exit weapon mode (LaunchManager will handle the rest)
 	exit_weapon_mode()
 
 func perform_raytrace() -> Node:

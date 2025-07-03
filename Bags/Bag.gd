@@ -91,17 +91,13 @@ func show_inventory():
 
 func show_inventory_replacement_mode(reward_data: Resource, reward_type: String):
 	"""Show the inventory dialog in replacement mode"""
-	print("show_inventory_replacement_mode called with:", reward_data.name, "type:", reward_type)
 	
 	if is_inventory_open:
-		print("Inventory already open, returning")
 		return
 	
 	pending_reward = reward_data
 	pending_reward_type = reward_type
 	is_replacement_mode = true
-	
-	print("Set replacement mode to true, pending reward:", pending_reward.name)
 	
 	show_deck_dialog()
 	is_inventory_open = true
@@ -293,7 +289,6 @@ func show_deck_dialog():
 		# Add actual card on top if available
 		if i < club_cards.size():
 			var should_be_clickable = is_replacement_mode and pending_reward_type == "card" and is_club_card(pending_reward)
-			print("Club card", club_cards[i].name, "clickable:", should_be_clickable)
 			var card_display = create_card_display(club_cards[i], 1, should_be_clickable)
 			slot_container.add_child(card_display)
 			# Ensure card appears on top by setting z_index
@@ -312,7 +307,6 @@ func show_deck_dialog():
 func create_card_display(card_data: CardData, count: int, clickable: bool = false) -> Control:
 	"""Create a display for a single card with count"""
 	if clickable:
-		print("Creating clickable card display for:", card_data.name)
 		# Use TextureButton for clickable cards
 		var button = TextureButton.new()
 		button.name = "CardButton"
@@ -357,34 +351,23 @@ func create_card_display(card_data: CardData, count: int, clickable: bool = fals
 
 func _on_card_button_pressed(card_data: CardData):
 	"""Handle card button press in replacement mode"""
-	print("Card button pressed:", card_data.name)
-	print("Replacement mode:", is_replacement_mode, "Pending reward:", pending_reward.name if pending_reward else "None")
 	
 	if is_replacement_mode and pending_reward:
-		print("Showing replacement confirmation dialog")
 		show_replacement_confirmation(card_data)
 	else:
 		print("Not in replacement mode or no pending reward")
 
 func _on_card_clicked(event: InputEvent, card_data: CardData):
 	"""Handle card click in replacement mode (legacy function)"""
-	print("Card clicked! Event type:", event.get_class(), "Pressed:", event.pressed if event is InputEventMouseButton else "N/A")
 	
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		print("Left mouse button pressed on card:", card_data.name)
-		print("Replacement mode:", is_replacement_mode, "Pending reward:", pending_reward.name if pending_reward else "None")
-		
 		if is_replacement_mode and pending_reward:
-			print("Showing replacement confirmation dialog")
 			show_replacement_confirmation(card_data)
-		else:
-			print("Not in replacement mode or no pending reward")
 	else:
 		print("Not a left mouse button press event")
 
 func show_replacement_confirmation(card_to_replace: CardData):
 	"""Show confirmation dialog for card replacement"""
-	print("show_replacement_confirmation called with card:", card_to_replace.name if card_to_replace != null else "null")
 	
 	# Close any existing confirmation dialog first
 	if replacement_confirmation_dialog and is_instance_valid(replacement_confirmation_dialog):
@@ -506,50 +489,39 @@ func show_replacement_confirmation(card_to_replace: CardData):
 	button_container.add_child(no_button)
 	
 	# Add dialog to UI layer as last child to ensure it's on top
-	print("Adding replacement confirmation dialog to UI layer as last child")
 	var ui_layer = get_tree().current_scene.get_node_or_null("UILayer")
 	if ui_layer:
 		ui_layer.add_child(replacement_confirmation_dialog)
 		ui_layer.move_child(replacement_confirmation_dialog, ui_layer.get_child_count() - 1)
 		replacement_confirmation_dialog.visible = true
-		print("Replacement confirmation dialog should now be visible on top")
 		# Lower the z_index of the Bag inventory dialog if it exists
 		if inventory_dialog and is_instance_valid(inventory_dialog):
 			inventory_dialog.z_index = 1000
 	else:
-		print("ERROR: UI layer not found!")
 		get_tree().current_scene.add_child(replacement_confirmation_dialog)
 		replacement_confirmation_dialog.visible = true
 
 func _on_confirm_replacement(card_to_replace: CardData):
 	"""Confirm the card replacement"""
 	if not pending_reward or not card_to_replace:
-		print("Error: pending_reward or card_to_replace is null!")
 		close_replacement_confirmation()
 		return
 	# Remove the old card
 	var current_deck_manager = get_tree().current_scene.get_node_or_null("CurrentDeckManager")
 	if current_deck_manager:
 		current_deck_manager.remove_card_from_deck(card_to_replace)
-		print("Removed", card_to_replace.name, "from deck")
 	# Add the new card
 	if pending_reward_type == "card":
 		var card_data = pending_reward as CardData
 		current_deck_manager.add_card_to_deck(card_data)
-		print("Added", card_data.name, "to deck")
 	elif pending_reward_type == "equipment":
 		var equipment_data = pending_reward as EquipmentData
 		var equipment_manager = get_tree().current_scene.get_node_or_null("EquipmentManager")
 		if equipment_manager:
 			equipment_manager.add_equipment(equipment_data)
-			print("Added", equipment_data.name, "to equipment")
 	# Close dialogs
 	close_replacement_confirmation()
 	close_inventory()
-	# Emit signal to notify reward selection dialog
-	var reward_dialog = get_tree().current_scene.get_node_or_null("UILayer/RewardSelectionDialog")
-	if reward_dialog and reward_dialog.has_method("_on_replacement_completed"):
-		reward_dialog._on_replacement_completed(pending_reward, pending_reward_type)
 
 func _on_cancel_replacement_confirmation():
 	"""Cancel the replacement confirmation"""

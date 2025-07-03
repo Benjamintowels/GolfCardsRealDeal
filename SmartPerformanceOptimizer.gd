@@ -99,16 +99,32 @@ func smart_process(delta: float, course_instance):
 func update_essential_systems(course_instance):
 	"""Update systems that always need to run"""
 	# Update LaunchManager (essential for gameplay)
-	course_instance.launch_manager.chosen_landing_spot = course_instance.chosen_landing_spot
-	course_instance.launch_manager.selected_club = course_instance.selected_club
-	course_instance.launch_manager.club_data = course_instance.club_data
+	# Don't overwrite chosen_landing_spot, selected_club, or club_data if we're in knife mode
+	if not course_instance.launch_manager.is_knife_mode:
+		course_instance.launch_manager.chosen_landing_spot = course_instance.chosen_landing_spot
+		course_instance.launch_manager.selected_club = course_instance.selected_club
+		course_instance.launch_manager.club_data = course_instance.club_data
+	
 	course_instance.launch_manager.player_stats = course_instance.player_stats
 	
-	# Camera following (only when ball is active)
-	if course_instance.camera_following_ball and course_instance.launch_manager.golf_ball and is_instance_valid(course_instance.launch_manager.golf_ball):
-		var ball_center = course_instance.launch_manager.golf_ball.global_position
-		var tween := get_tree().create_tween()
-		tween.tween_property(course_instance.camera, "position", ball_center, 0.1).set_trans(Tween.TRANS_LINEAR)
+	# Camera following (when ball or knife is active)
+	if course_instance.camera_following_ball:
+		var target_position = Vector2.ZERO
+		var has_target = false
+
+		# Prioritize knife if it exists and is in flight
+		if course_instance.launch_manager.throwing_knife and is_instance_valid(course_instance.launch_manager.throwing_knife):
+			if course_instance.launch_manager.throwing_knife.is_in_flight():
+				target_position = course_instance.launch_manager.throwing_knife.global_position
+				has_target = true
+		# Otherwise, follow golf ball
+		elif course_instance.launch_manager.golf_ball and is_instance_valid(course_instance.launch_manager.golf_ball):
+			target_position = course_instance.launch_manager.golf_ball.global_position
+			has_target = true
+
+		if has_target:
+			var tween := get_tree().create_tween()
+			tween.tween_property(course_instance.camera, "position", target_position, 0.1).set_trans(Tween.TRANS_LINEAR)
 	
 	# Card hand anchor check (one-time setup)
 	if course_instance.card_hand_anchor and course_instance.card_hand_anchor.z_index != 100:

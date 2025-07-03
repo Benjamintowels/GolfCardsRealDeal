@@ -7,8 +7,8 @@ signal discard_recycled(count: int)
 # Separate piles for gameplay (drawing, discarding, hand)
 var club_draw_pile: Array[CardData] = []
 var club_discard_pile: Array[CardData] = []
-var movement_draw_pile: Array[CardData] = []
-var movement_discard_pile: Array[CardData] = []
+var action_draw_pile: Array[CardData] = []
+var action_discard_pile: Array[CardData] = []
 var hand: Array[CardData] = []
 
 # Legacy support - keep the old system for now
@@ -35,7 +35,13 @@ func _ready():
 func _on_current_deck_updated():
 	"""Called when CurrentDeckManager deck is updated"""
 	print("DeckManager: CurrentDeckManager deck updated, syncing separate decks")
-	sync_with_current_deck()
+	# Only sync if we haven't initialized separate decks yet
+	# This prevents overwriting our separate pile system during gameplay
+	if club_draw_pile.size() == 0 and action_draw_pile.size() == 0:
+		print("DeckManager: Separate decks not initialized yet, syncing from CurrentDeckManager")
+		sync_with_current_deck()
+	else:
+		print("DeckManager: Separate decks already initialized, skipping sync to preserve discard piles")
 
 func sync_with_current_deck():
 	"""Sync the separate deck system with CurrentDeckManager"""
@@ -61,8 +67,8 @@ func sync_with_current_deck():
 	# Clear existing piles
 	club_draw_pile.clear()
 	club_discard_pile.clear()
-	movement_draw_pile.clear()
-	movement_discard_pile.clear()
+	action_draw_pile.clear()
+	action_discard_pile.clear()
 	
 	# Sort cards into appropriate piles
 	for card in current_deck:
@@ -70,14 +76,20 @@ func sync_with_current_deck():
 			club_draw_pile.append(card)
 			print("DeckManager: Added", card.name, "to club pile")
 		else:
-			movement_draw_pile.append(card)
-			print("DeckManager: Added", card.name, "to movement pile")
+			action_draw_pile.append(card)
+			print("DeckManager: Added", card.name, "to action pile")
 	
 	# Shuffle the piles
 	club_draw_pile.shuffle()
-	movement_draw_pile.shuffle()
+	action_draw_pile.shuffle()
 	
-	print("DeckManager: Synced with CurrentDeckManager - Club cards:", club_draw_pile.size(), "Movement cards:", movement_draw_pile.size())
+	print("DeckManager: Synced with CurrentDeckManager - Club cards:", club_draw_pile.size(), "Action cards:", action_draw_pile.size())
+	print("DeckManager: DEBUG - Club draw pile contents after sync:")
+	for card in club_draw_pile:
+		print("  -", card.name)
+	print("DeckManager: DEBUG - Action draw pile contents after sync:")
+	for card in action_draw_pile:
+		print("  -", card.name)
 	emit_signal("deck_updated")
 
 func initialize_deck(cards: Array[CardData]) -> void:
@@ -93,10 +105,12 @@ func initialize_deck(cards: Array[CardData]) -> void:
 
 func initialize_separate_decks() -> void:
 	"""Initialize the separate deck system from CurrentDeckManager"""
+	print("DeckManager: initialize_separate_decks() called")
 	sync_with_current_deck()
 	hand.clear()
 	emit_signal("deck_updated")
-	print("Separate decks initialized from CurrentDeckManager")
+	print("DeckManager: Separate decks initialized from CurrentDeckManager")
+	print("DeckManager: Final state - Club draw:", club_draw_pile.size(), "Action draw:", action_draw_pile.size())
 
 func add_card_to_deck(card: CardData) -> void:
 	"""Add a card to the CurrentDeckManager (single source of truth)"""
@@ -115,14 +129,26 @@ func is_club_card(card: CardData) -> bool:
 func draw_from_club_deck(count: int = 1) -> Array[CardData]:
 	"""Draw cards from the club deck"""
 	print("DeckManager: Attempting to draw", count, "club cards. Club pile size:", club_draw_pile.size())
+	print("DeckManager: Club discard pile size:", club_discard_pile.size())
+	
+	# Check if we need to reshuffle to get enough cards
+	var total_available_cards = club_draw_pile.size() + club_discard_pile.size()
+	print("DeckManager: Total available club cards:", total_available_cards)
+	if club_draw_pile.size() < count and total_available_cards >= count:
+		print("DeckManager: Not enough cards in draw pile, reshuffling discard to get", count, "cards")
+		reshuffle_club_discard()
+	
 	var drawn_cards: Array[CardData] = []
 	for i in range(count):
+		print("DeckManager: Drawing card", i + 1, "of", count)
+		# If draw pile is empty, try to reshuffle discard pile
 		if club_draw_pile.is_empty():
 			print("DeckManager: Club pile empty, reshuffling discard")
 			reshuffle_club_discard()
-		if club_draw_pile.is_empty():
-			print("DeckManager: Club pile still empty after reshuffle")
-			break
+			# If still empty after reshuffle, we can't draw more cards
+			if club_draw_pile.is_empty():
+				print("DeckManager: Club pile still empty after reshuffle - no more cards available")
+				break
 		
 		var index := randi() % club_draw_pile.size()
 		var card := club_draw_pile[index]
@@ -134,35 +160,44 @@ func draw_from_club_deck(count: int = 1) -> Array[CardData]:
 	emit_signal("deck_updated")
 	return drawn_cards
 
-func draw_from_movement_deck(count: int = 3) -> Array[CardData]:
-	"""Draw cards from the movement deck"""
-	print("DeckManager: Attempting to draw", count, "movement cards. Movement pile size:", movement_draw_pile.size())
+func draw_from_action_deck(count: int = 3) -> Array[CardData]:
+	"""Draw cards from the action deck"""
+	print("DeckManager: Attempting to draw", count, "action cards. Action pile size:", action_draw_pile.size())
+	
+	# Check if we need to reshuffle to get enough cards
+	var total_available_cards = action_draw_pile.size() + action_discard_pile.size()
+	if action_draw_pile.size() < count and total_available_cards >= count:
+		print("DeckManager: Not enough cards in draw pile, reshuffling discard to get", count, "cards")
+		reshuffle_action_discard()
+	
 	var drawn_cards: Array[CardData] = []
 	for i in range(count):
-		if movement_draw_pile.is_empty():
-			print("DeckManager: Movement pile empty, reshuffling discard")
-			reshuffle_movement_discard()
-		if movement_draw_pile.is_empty():
-			print("DeckManager: Movement pile still empty after reshuffle")
-			break
+		# If draw pile is empty, try to reshuffle discard pile
+		if action_draw_pile.is_empty():
+			print("DeckManager: Action pile empty, reshuffling discard")
+			reshuffle_action_discard()
+			# If still empty after reshuffle, we can't draw more cards
+			if action_draw_pile.is_empty():
+				print("DeckManager: Action pile still empty after reshuffle - no more cards available")
+				break
 		
-		var index := randi() % movement_draw_pile.size()
-		var card := movement_draw_pile[index]
-		movement_draw_pile.remove_at(index)
+		var index := randi() % action_draw_pile.size()
+		var card := action_draw_pile[index]
+		action_draw_pile.remove_at(index)
 		drawn_cards.append(card)
-		print("DeckManager: Drew movement card:", card.name)
+		print("DeckManager: Drew action card:", card.name)
 	
-	print("DeckManager: Drew", drawn_cards.size(), "movement cards total")
+	print("DeckManager: Drew", drawn_cards.size(), "action cards total")
 	emit_signal("deck_updated")
 	return drawn_cards
 
-func draw_movement_cards_to_hand(count: int = 3) -> void:
-	"""Draw movement cards and add them directly to the hand"""
-	var drawn_cards = draw_from_movement_deck(count)
+func draw_action_cards_to_hand(count: int = 3) -> void:
+	"""Draw action cards and add them directly to the hand"""
+	var drawn_cards = draw_from_action_deck(count)
 	for card in drawn_cards:
 		hand.append(card)
 	emit_signal("deck_updated")
-	print("Added", drawn_cards.size(), "movement cards to hand. Hand size:", hand.size())
+	print("Added", drawn_cards.size(), "action cards to hand. Hand size:", hand.size())
 
 func draw_club_cards_to_hand(count: int = 1) -> void:
 	"""Draw club cards and add them directly to the hand"""
@@ -177,24 +212,28 @@ func draw_club_cards_to_hand(count: int = 1) -> void:
 func reshuffle_club_discard() -> void:
 	"""Reshuffle club discard pile into draw pile"""
 	var count := club_discard_pile.size()
+	print("DeckManager: reshuffle_club_discard() called - discard pile size:", count)
 	if count == 0:
+		print("DeckManager: Club discard pile is empty, nothing to reshuffle")
 		return
 	
+	print("DeckManager: Reshuffling", count, "club cards from discard to draw pile")
 	club_draw_pile = club_discard_pile.duplicate()
 	club_draw_pile.shuffle()
 	club_discard_pile.clear()
+	print("DeckManager: Club draw pile now has", club_draw_pile.size(), "cards")
 	emit_signal("deck_updated")
 	emit_signal("discard_recycled", count)
 
-func reshuffle_movement_discard() -> void:
-	"""Reshuffle movement discard pile into draw pile"""
-	var count := movement_discard_pile.size()
+func reshuffle_action_discard() -> void:
+	"""Reshuffle action discard pile into draw pile"""
+	var count := action_discard_pile.size()
 	if count == 0:
 		return
 	
-	movement_draw_pile = movement_discard_pile.duplicate()
-	movement_draw_pile.shuffle()
-	movement_discard_pile.clear()
+	action_draw_pile = action_discard_pile.duplicate()
+	action_draw_pile.shuffle()
+	action_discard_pile.clear()
 	emit_signal("deck_updated")
 	emit_signal("discard_recycled", count)
 
@@ -222,10 +261,10 @@ func discard(card: CardData) -> void:
 	# Sort card into appropriate discard pile
 	if is_club_card(card):
 		club_discard_pile.append(card)
-		print("DeckManager: Added", card.name, "to club discard pile")
+		print("DeckManager: Added", card.name, "to club discard pile (total club discard:", club_discard_pile.size(), ")")
 	else:
-		movement_discard_pile.append(card)
-		print("DeckManager: Added", card.name, "to movement discard pile")
+		action_discard_pile.append(card)
+		print("DeckManager: Added", card.name, "to action discard pile (total action discard:", action_discard_pile.size(), ")")
 	
 	# Also maintain legacy discard pile for compatibility
 	discard_pile.append(card)
@@ -248,8 +287,8 @@ func debug_print_state() -> void:
 	print("Legacy Discard Pile:", discard_pile.size())
 	print("Club Draw Pile:", club_draw_pile.size())
 	print("Club Discard Pile:", club_discard_pile.size())
-	print("Movement Draw Pile:", movement_draw_pile.size())
-	print("Movement Discard Pile:", movement_discard_pile.size())
+	print("Action Draw Pile:", action_draw_pile.size())
+	print("Action Discard Pile:", action_discard_pile.size())
 	print("Hand:", hand.size())
 	print("------------------")
 
