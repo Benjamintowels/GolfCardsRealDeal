@@ -1954,7 +1954,8 @@ func show_hole_completion_dialog():
 			if is_back_9_mode:
 				show_back_nine_complete_dialog()
 			else:
-				show_front_nine_complete_dialog()
+				# For hole 9, show reward phase first, then front nine completion
+				show_reward_phase()
 	)
 
 func show_reward_phase():
@@ -2006,15 +2007,25 @@ func _on_reward_selected(reward_data: Resource, reward_type: String):
 		# TODO: Apply equipment effect
 		print("Equipment selected:", equip_data.name)
 	
-	# Fade to next hole
-	FadeManager.fade_to_black(func(): reset_for_next_hole(), 0.5)
+	# Special handling for hole 9 - show front nine completion dialog
+	if current_hole == 8 and not is_back_9_mode:  # Hole 9 (index 8) in front 9 mode
+		print("Hole 9 completed, showing front nine completion dialog")
+		show_front_nine_complete_dialog()
+	else:
+		# Fade to next hole
+		FadeManager.fade_to_black(func(): reset_for_next_hole(), 0.5)
 
 func _on_advance_to_next_hole():
 	"""Handle when the advance button is pressed"""
 	print("Advance to next hole button pressed")
 	
-	# Fade to next hole
-	FadeManager.fade_to_black(func(): reset_for_next_hole(), 0.5)
+	# Special handling for hole 9 - show front nine completion dialog
+	if current_hole == 8 and not is_back_9_mode:  # Hole 9 (index 8) in front 9 mode
+		print("Hole 9 completed, showing front nine completion dialog")
+		show_front_nine_complete_dialog()
+	else:
+		# Fade to next hole
+		FadeManager.fade_to_black(func(): reset_for_next_hole(), 0.5)
 
 func reset_for_next_hole():
 	# Clean up any existing reward UI
@@ -2116,7 +2127,7 @@ func show_front_nine_complete_dialog():
 	else:
 		score_text += "Final Result: %+d (Under Par) ✓\n" % round_vs_par
 	
-	score_text += "\nClick to return to main menu."
+	score_text += "\nClick to continue to the Back 9!"
 	
 	var dialog = AcceptDialog.new()
 	dialog.title = "Front 9 Complete!"
@@ -2128,7 +2139,8 @@ func show_front_nine_complete_dialog():
 	dialog.popup_centered()
 	dialog.confirmed.connect(func():
 		dialog.queue_free()
-		get_tree().reload_current_scene()
+		# Transition to mid-game shop scene
+		FadeManager.fade_to_black(func(): get_tree().change_scene_to_file("res://MidGameShop.tscn"), 0.5)
 	)
 
 func show_back_nine_complete_dialog():
