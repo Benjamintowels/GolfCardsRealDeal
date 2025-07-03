@@ -117,7 +117,12 @@ func create_movement_buttons() -> void:
 		movement_buttons.append(btn)
 
 func _on_movement_card_pressed(card: CardData, button: TextureButton) -> void:
+	print("=== MOVEMENT CARD PRESSED ===")
+	print("Card:", card.name, "Effect type:", card.effect_type)
+	print("Card in hand:", deck_manager.hand.has(card))
+	
 	if selected_card == card:
+		print("Card already selected, returning")
 		return
 	card_click_sound.play()
 	hide_all_movement_highlights()
@@ -125,12 +130,14 @@ func _on_movement_card_pressed(card: CardData, button: TextureButton) -> void:
 
 	# Check if this is a weapon card first
 	if card.effect_type == "Weapon" and weapon_handler:
+		print("Handling as weapon card")
 		# Pass the button reference to the weapon handler for cleanup
 		weapon_handler._on_weapon_card_pressed(card, button)
 		return
 	
 	# Check if this is an attack card first
 	if card.effect_type == "Attack" and attack_handler:
+		print("Handling as attack card")
 		# Pass the button reference to the attack handler for cleanup
 		attack_handler._on_attack_card_pressed(card, button)
 		return
@@ -159,6 +166,7 @@ func _on_movement_card_pressed(card: CardData, button: TextureButton) -> void:
 	
 	emit_signal("movement_mode_entered")
 	emit_signal("card_selected", card)
+	print("=== END MOVEMENT CARD PRESSED ===")
 
 func calculate_valid_movement_tiles() -> void:
 	valid_movement_tiles.clear()
@@ -194,6 +202,10 @@ func hide_all_movement_highlights() -> void:
 			grid_tiles[y][x].get_node("MovementHighlight").visible = false
 
 func exit_movement_mode() -> void:
+	print("=== EXITING MOVEMENT MODE ===")
+	print("Selected card:", selected_card.name if selected_card else "None")
+	print("Card in hand:", deck_manager.hand.has(selected_card) if selected_card else "N/A")
+	
 	is_movement_mode = false
 	hide_all_movement_highlights()
 	valid_movement_tiles.clear()
@@ -203,6 +215,7 @@ func exit_movement_mode() -> void:
 			var card_discarded := false
 
 			if deck_manager.hand.has(selected_card):
+				print("Discarding movement card from hand:", selected_card.name)
 				deck_manager.discard(selected_card)
 				card_discarded = true
 				
@@ -211,7 +224,7 @@ func exit_movement_mode() -> void:
 					card_effect_handler.course.next_card_doubled = false
 					print("Next card doubled effect consumed")
 			else:
-				print("Card not in hand:", selected_card.name)
+				print("Movement card not in hand:", selected_card.name)
 
 			card_stack_display.animate_card_discard(selected_card.name)
 			emit_signal("card_discarded", selected_card)
@@ -226,6 +239,7 @@ func exit_movement_mode() -> void:
 	selected_card_label = ""
 	selected_card = null
 	
+	print("=== END EXITING MOVEMENT MODE ===")
 	emit_signal("movement_mode_exited")
 
 func handle_tile_click(x: int, y: int) -> bool:

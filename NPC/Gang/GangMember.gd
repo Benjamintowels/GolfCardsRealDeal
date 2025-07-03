@@ -592,6 +592,13 @@ func _handle_player_collision(approach_direction: Vector2i = Vector2i.ZERO) -> v
 			course.player_grid_pos = pushback_pos
 			print("Course player_grid_pos updated to: ", course.player_grid_pos)
 		
+		# Update the attack handler's player position if it exists
+		if course and course.has_method("get_attack_handler"):
+			var attack_handler = course.get_attack_handler()
+			if attack_handler and attack_handler.has_method("update_player_position"):
+				attack_handler.update_player_position(pushback_pos)
+				print("Attack handler player position updated to: ", pushback_pos)
+		
 		# Update the course's player position reference
 		if course and course.has_method("update_player_position"):
 			course.update_player_position()

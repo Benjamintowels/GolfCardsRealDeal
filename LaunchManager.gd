@@ -54,6 +54,8 @@ signal charging_state_changed(charging: bool, charging_height: bool)
 
 # Add this variable to track if this is a tee shot
 
+# Ball state tracking
+var ball_in_flight := false
 
 func _ready():
 	pass
@@ -147,6 +149,9 @@ func exit_launch_phase() -> void:
 	hide_height_meter()
 	is_charging = false
 	is_charging_height = false
+	
+	# Reset ball in flight state when exiting launch phase
+	set_ball_in_flight(false)
 
 func launch_golf_ball(launch_direction: Vector2, final_power: float, height: float, launch_spin: float = 0.0, spin_strength_category: int = 0):
 	"""Launch the golf ball with the specified parameters"""
@@ -189,6 +194,9 @@ func launch_golf_ball(launch_direction: Vector2, final_power: float, height: flo
 	
 	# Launch the ball
 	golf_ball.launch(launch_direction, final_power, height, launch_spin, spin_strength_category)
+	
+	# Set ball in flight state
+	set_ball_in_flight(true)
 	
 	# Store reference and emit signal
 	self.golf_ball = golf_ball
@@ -353,6 +361,11 @@ func hide_height_meter():
 func handle_input(event: InputEvent) -> bool:
 	"""Handle input events for launch mechanics. Returns true if event was handled."""
 	
+	# Check if a ball is currently in flight - if so, don't allow new launches
+	if is_ball_in_flight():
+		print("Ball is in flight - ignoring launch input")
+		return false
+	
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			if event.pressed:
@@ -503,6 +516,46 @@ func calculate_final_power() -> float:
 	print("=== END POWER CALCULATION DEBUG ===")
 	
 	return final_power
+
+func is_ball_in_flight() -> bool:
+	"""Check if there's a ball currently in flight"""
+	# Check if we have a golf ball reference and it's in flight
+	if golf_ball and is_instance_valid(golf_ball):
+		if golf_ball.has_method("is_in_flight"):
+			return golf_ball.is_in_flight()
+		elif "in_flight" in golf_ball:
+			return golf_ball.in_flight
+		elif golf_ball.has_method("get_velocity"):
+			var velocity = golf_ball.get_velocity()
+			return velocity.length() > 0.1  # Ball is moving
+		elif "velocity" in golf_ball:
+			var velocity = golf_ball.velocity
+			return velocity.length() > 0.1  # Ball is moving
+	
+	# Also check for any balls in the scene that might be in flight
+	var balls = get_tree().get_nodes_in_group("balls")
+	for ball in balls:
+		if is_instance_valid(ball):
+			if ball.has_method("is_in_flight"):
+				if ball.is_in_flight():
+					return true
+			elif "in_flight" in ball:
+				if ball.in_flight:
+					return true
+			elif ball.has_method("get_velocity"):
+				var velocity = ball.get_velocity()
+				if velocity.length() > 0.1:
+					return true
+			elif "velocity" in ball:
+				var velocity = ball.velocity
+				if velocity.length() > 0.1:
+					return true
+	
+	return false
+
+func set_ball_in_flight(in_flight: bool) -> void:
+	"""Set the ball in flight state"""
+	ball_in_flight = in_flight
 
 func cleanup():
 	"""Clean up launch manager resources"""

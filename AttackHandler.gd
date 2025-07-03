@@ -85,7 +85,12 @@ func create_attack_buttons() -> void:
 	pass
 
 func _on_attack_card_pressed(card: CardData, button: TextureButton) -> void:
+	print("=== ATTACK CARD PRESSED ===")
+	print("Card:", card.name, "Effect type:", card.effect_type)
+	print("Card in hand:", deck_manager.hand.has(card))
+	
 	if selected_card == card:
+		print("Card already selected, returning")
 		return
 	card_click_sound.play()
 	hide_all_attack_highlights()
@@ -101,9 +106,11 @@ func _on_attack_card_pressed(card: CardData, button: TextureButton) -> void:
 	
 	emit_signal("attack_mode_entered")
 	emit_signal("card_selected", card)
+	print("=== END ATTACK CARD PRESSED ===")
 
 func calculate_valid_attack_tiles() -> void:
 	valid_attack_tiles.clear()
+	print("Calculating valid attack tiles - Player at:", player_grid_pos, "Attack range:", attack_range)
 
 	for y in grid_size.y:
 		for x in grid_size.x:
@@ -113,6 +120,9 @@ func calculate_valid_attack_tiles() -> void:
 				# Check if there's an NPC at this position
 				if has_npc_at_position(pos):
 					valid_attack_tiles.append(pos)
+					print("Found valid attack tile at:", pos)
+	
+	print("Total valid attack tiles found:", valid_attack_tiles.size())
 
 func calculate_grid_distance(a: Vector2i, b: Vector2i) -> int:
 	return abs(a.x - b.x) + abs(a.y - b.y)
@@ -120,18 +130,22 @@ func calculate_grid_distance(a: Vector2i, b: Vector2i) -> int:
 func has_npc_at_position(pos: Vector2i) -> bool:
 	"""Check if there's an NPC at the given grid position"""
 	if not card_effect_handler or not card_effect_handler.course:
+		print("No card_effect_handler or course found for NPC check at:", pos)
 		return false
 	
 	var entities = card_effect_handler.course.get_node_or_null("Entities")
 	if not entities:
+		print("No Entities found for NPC check at:", pos)
 		return false
 	
 	var npcs = entities.get_npcs()
 	for npc in npcs:
 		if is_instance_valid(npc) and npc.has_method("get_grid_position"):
 			if npc.get_grid_position() == pos:
+				print("Found NPC at position:", pos, "NPC:", npc.name)
 				return true
 	
+	print("No NPC found at position:", pos)
 	return false
 
 func get_npc_at_position(pos: Vector2i) -> Node:
@@ -176,17 +190,24 @@ func hide_all_attack_highlights() -> void:
 				attack_highlight.visible = false
 
 func exit_attack_mode() -> void:
+	print("=== EXITING ATTACK MODE ===")
+	print("Selected card:", selected_card.name if selected_card else "None")
+	print("Card in hand:", deck_manager.hand.has(selected_card) if selected_card else "N/A")
+	
 	is_attack_mode = false
 	hide_all_attack_highlights()
 	valid_attack_tiles.clear()
 
 	if selected_card:
 		if deck_manager.hand.has(selected_card):
+			print("Discarding card from hand:", selected_card.name)
 			deck_manager.discard(selected_card)
 			card_stack_display.animate_card_discard(selected_card.name)
 			emit_signal("card_discarded", selected_card)
 		else:
 			print("Card not in hand:", selected_card.name)
+	
+	print("=== END EXITING ATTACK MODE ===")
 
 	# Clean up the button directly
 	if active_button and active_button.is_inside_tree():
@@ -209,18 +230,20 @@ func exit_attack_mode() -> void:
 func handle_tile_click(x: int, y: int) -> bool:
 	"""Handle tile click and return true if attack was successful"""
 	var clicked := Vector2i(x, y)
+	print("Attack tile click at:", clicked, "Attack mode:", is_attack_mode, "Valid tiles:", valid_attack_tiles)
 	
 	if is_attack_mode and clicked in valid_attack_tiles:
 		var npc = get_npc_at_position(clicked)
 		if npc:
+			print("Performing attack on NPC at:", clicked)
 			perform_attack(npc, clicked)
 			card_play_sound.play()
 			return true
 		else:
-			print("No NPC found at attack position")
+			print("No NPC found at attack position:", clicked)
 			return false
 	else:
-		print("Invalid attack tile or not in attack mode")
+		print("Invalid attack tile or not in attack mode - Clicked:", clicked, "Valid tiles:", valid_attack_tiles, "Attack mode:", is_attack_mode)
 		return false
 
 func perform_attack(npc: Node, target_pos: Vector2i) -> void:
@@ -342,6 +365,11 @@ func get_attack_cards_for_inventory() -> Array[CardData]:
 func update_player_position(new_grid_pos: Vector2i) -> void:
 	"""Update the stored player grid position"""
 	player_grid_pos = new_grid_pos
+	
+	# If we're in attack mode, recalculate valid attack tiles with the new position
+	if is_attack_mode:
+		calculate_valid_attack_tiles()
+		show_attack_highlights()
 
 func is_in_attack_mode() -> bool:
 	return is_attack_mode

@@ -1225,6 +1225,11 @@ func _on_golf_ball_landed(tile: Vector2i):
 	camera_following_ball = false
 	ball_landing_tile = tile
 	
+	# Reset ball in flight state in launch manager
+	if launch_manager and launch_manager.has_method("set_ball_in_flight"):
+		launch_manager.set_ball_in_flight(false)
+		print("Ball in flight state reset to false")
+	
 	# Update smart optimizer state
 	if smart_optimizer:
 		smart_optimizer.update_game_state("move", false, false, false)
@@ -1543,6 +1548,10 @@ func get_player_reference() -> Node:
 	print("get_player_reference called - player_node: ", player_node.name if player_node else "None")
 	return player_node
 
+func get_attack_handler() -> Node:
+	"""Get the attack handler reference for NPCs to use"""
+	return attack_handler
+
 func update_deck_display() -> void:
 	var hud := get_node("UILayer/HUD")
 	hud.get_node("TurnLabel").text = "Turn: %d" % turn_count
@@ -1701,6 +1710,11 @@ func _on_golf_ball_out_of_bounds():
 	if water_plunk_sound and water_plunk_sound.stream:
 		water_plunk_sound.play()
 	camera_following_ball = false
+	
+	# Reset ball in flight state in launch manager
+	if launch_manager and launch_manager.has_method("set_ball_in_flight"):
+		launch_manager.set_ball_in_flight(false)
+		print("Ball in flight state reset to false (out of bounds)")
 	
 	# Re-enable player collision shape after ball goes out of bounds
 	if player_node and player_node.has_method("enable_collision_shape"):
@@ -2895,6 +2909,11 @@ func get_layout_at_position(pos: Vector2i) -> String:
 
 func _on_hole_in_one(score: int):
 	"""Handle hole completion when ball goes in the hole"""
+	# Reset ball in flight state in launch manager
+	if launch_manager and launch_manager.has_method("set_ball_in_flight"):
+		launch_manager.set_ball_in_flight(false)
+		print("Ball in flight state reset to false (hole completion)")
+	
 	show_hole_completion_dialog()
 
 func _on_pin_flag_hit(ball: Node2D):
