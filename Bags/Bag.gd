@@ -9,6 +9,10 @@ var bag_level: int = 1
 var character_name: String = "Benny"  # Default character
 var inventory_dialog: Control = null
 var is_inventory_open: bool = false
+var is_replacement_mode: bool = false
+var pending_reward: Resource = null
+var pending_reward_type: String = ""
+var replacement_confirmation_dialog: Control = null
 
 # Character-specific bag textures
 var character_bag_textures = {
@@ -73,11 +77,31 @@ func close_inventory():
 		inventory_dialog.queue_free()
 		inventory_dialog = null
 	is_inventory_open = false
+	is_replacement_mode = false
+	pending_reward = null
+	pending_reward_type = ""
 
 func show_inventory():
 	"""Show the inventory dialog"""
 	if is_inventory_open:
 		return
+	
+	show_deck_dialog()
+	is_inventory_open = true
+
+func show_inventory_replacement_mode(reward_data: Resource, reward_type: String):
+	"""Show the inventory dialog in replacement mode"""
+	print("show_inventory_replacement_mode called with:", reward_data.name, "type:", reward_type)
+	
+	if is_inventory_open:
+		print("Inventory already open, returning")
+		return
+	
+	pending_reward = reward_data
+	pending_reward_type = reward_type
+	is_replacement_mode = true
+	
+	print("Set replacement mode to true, pending reward:", pending_reward.name)
 	
 	show_deck_dialog()
 	is_inventory_open = true
@@ -127,7 +151,10 @@ func show_deck_dialog():
 	
 	# Title
 	var title = Label.new()
-	title.text = "Inventory"
+	if is_replacement_mode:
+		title.text = "Select Card to Replace"
+	else:
+		title.text = "Inventory"
 	title.add_theme_font_size_override("font_size", 24)
 	title.add_theme_color_override("font_color", Color.WHITE)
 	title.position = Vector2(20, 20)
@@ -212,7 +239,9 @@ func show_deck_dialog():
 		
 		# Add actual card on top if available
 		if i < movement_cards.size():
-			var card_display = create_card_display(movement_cards[i], 1)
+			var should_be_clickable = is_replacement_mode and pending_reward_type == "card" and not is_club_card(pending_reward)
+			print("Movement card", movement_cards[i].name, "clickable:", should_be_clickable)
+			var card_display = create_card_display(movement_cards[i], 1, should_be_clickable)
 			slot_container.add_child(card_display)
 			# Ensure card appears on top by setting z_index
 			card_display.z_index = 1
@@ -246,7 +275,9 @@ func show_deck_dialog():
 		
 		# Add actual card on top if available
 		if i < club_cards.size():
-			var card_display = create_card_display(club_cards[i], 1)
+			var should_be_clickable = is_replacement_mode and pending_reward_type == "card" and is_club_card(pending_reward)
+			print("Club card", club_cards[i].name, "clickable:", should_be_clickable)
+			var card_display = create_card_display(club_cards[i], 1, should_be_clickable)
 			slot_container.add_child(card_display)
 			# Ensure card appears on top by setting z_index
 			card_display.z_index = 1
@@ -261,23 +292,257 @@ func show_deck_dialog():
 		get_tree().current_scene.add_child(dialog)
 		inventory_dialog = dialog
 
-func create_card_display(card_data: CardData, count: int) -> Control:
+func create_card_display(card_data: CardData, count: int, clickable: bool = false) -> Control:
 	"""Create a display for a single card with count"""
-	var container = Control.new()
-	container.custom_minimum_size = Vector2(80, 100)
-	container.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	container.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	if clickable:
+		print("Creating clickable card display for:", card_data.name)
+		# Use TextureButton for clickable cards
+		var button = TextureButton.new()
+		button.name = "CardButton"
+		button.custom_minimum_size = Vector2(80, 100)
+		button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		button.texture_normal = card_data.image
+		button.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
+		button.scale = Vector2(0.075, 0.075)
+		button.mouse_filter = Control.MOUSE_FILTER_STOP
+		button.pressed.connect(_on_card_button_pressed.bind(card_data))
+		
+		# Add hover effect
+		var hover_overlay = ColorRect.new()
+		hover_overlay.color = Color(1, 1, 0, 0.3)  # Yellow highlight
+		hover_overlay.size = Vector2(80, 100)
+		hover_overlay.visible = false
+		hover_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		button.add_child(hover_overlay)
+		
+		button.mouse_entered.connect(func(): hover_overlay.visible = true)
+		button.mouse_exited.connect(func(): hover_overlay.visible = false)
+		
+		return button
+	else:
+		# Use regular Control for non-clickable cards
+		var container = Control.new()
+		container.custom_minimum_size = Vector2(80, 100)
+		container.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		container.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		
+		# Card image
+		var image_rect = TextureRect.new()
+		image_rect.texture = card_data.image
+		image_rect.size = Vector2(80, 100)
+		image_rect.position = Vector2(0, 0)
+		image_rect.scale = Vector2(0.075, 0.075)
+		image_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		container.add_child(image_rect)
+		
+		return container
+
+func _on_card_button_pressed(card_data: CardData):
+	"""Handle card button press in replacement mode"""
+	print("Card button pressed:", card_data.name)
+	print("Replacement mode:", is_replacement_mode, "Pending reward:", pending_reward.name if pending_reward else "None")
 	
-	# Card image
-	var image_rect = TextureRect.new()
-	image_rect.texture = card_data.image
-	image_rect.size = Vector2(80, 100)
-	image_rect.position = Vector2(0, 0)
-	image_rect.scale = Vector2(0.075, 0.075)
-	image_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	container.add_child(image_rect)
+	if is_replacement_mode and pending_reward:
+		print("Showing replacement confirmation dialog")
+		show_replacement_confirmation(card_data)
+	else:
+		print("Not in replacement mode or no pending reward")
+
+func _on_card_clicked(event: InputEvent, card_data: CardData):
+	"""Handle card click in replacement mode (legacy function)"""
+	print("Card clicked! Event type:", event.get_class(), "Pressed:", event.pressed if event is InputEventMouseButton else "N/A")
 	
-	return container
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		print("Left mouse button pressed on card:", card_data.name)
+		print("Replacement mode:", is_replacement_mode, "Pending reward:", pending_reward.name if pending_reward else "None")
+		
+		if is_replacement_mode and pending_reward:
+			print("Showing replacement confirmation dialog")
+			show_replacement_confirmation(card_data)
+		else:
+			print("Not in replacement mode or no pending reward")
+	else:
+		print("Not a left mouse button press event")
+
+func show_replacement_confirmation(card_to_replace: CardData):
+	"""Show confirmation dialog for card replacement"""
+	print("show_replacement_confirmation called with card:", card_to_replace.name if card_to_replace != null else "null")
+	
+	# Close any existing confirmation dialog first
+	if replacement_confirmation_dialog and is_instance_valid(replacement_confirmation_dialog):
+		replacement_confirmation_dialog.queue_free()
+	
+	replacement_confirmation_dialog = Control.new()
+	replacement_confirmation_dialog.name = "ReplacementConfirmationDialog"
+	replacement_confirmation_dialog.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	replacement_confirmation_dialog.z_index = 2000  # Set to 2000 for topmost
+	replacement_confirmation_dialog.mouse_filter = Control.MOUSE_FILTER_STOP
+	
+	# Background
+	var background = ColorRect.new()
+	background.color = Color(0, 0, 0, 0.9)
+	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	background.mouse_filter = Control.MOUSE_FILTER_STOP
+	background.z_index = 2000
+	replacement_confirmation_dialog.add_child(background)
+	
+	# Main container
+	var main_container = Control.new()
+	main_container.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	main_container.custom_minimum_size = Vector2(600, 300)
+	main_container.position = Vector2(-300, -150)
+	main_container.z_index = 2000
+	replacement_confirmation_dialog.add_child(main_container)
+	
+	# Panel background
+	var panel = ColorRect.new()
+	panel.color = Color(0.2, 0.2, 0.2, 0.95)
+	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	panel.z_index = 2000
+	main_container.add_child(panel)
+	
+	# Border
+	var border = ColorRect.new()
+	border.color = Color(0.8, 0.8, 0.8, 0.6)
+	border.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	border.position = Vector2(-2, -2)
+	border.size += Vector2(4, 4)
+	border.z_index = 2000
+	main_container.add_child(border)
+	
+	# Title
+	var title = Label.new()
+	title.text = "Replace Card"
+	title.add_theme_font_size_override("font_size", 20)
+	title.add_theme_color_override("font_color", Color.WHITE)
+	title.position = Vector2(20, 20)
+	title.size = Vector2(560, 40)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.z_index = 2000
+	main_container.add_child(title)
+	
+	# Message
+	var message = Label.new()
+	message.text = "Are you sure you want to replace '" + (card_to_replace.name if card_to_replace != null else "null") + "' with '" + (pending_reward.name if pending_reward != null else "null") + "'?"
+	message.add_theme_font_size_override("font_size", 14)
+	message.add_theme_color_override("font_color", Color.WHITE)
+	message.position = Vector2(20, 80)
+	message.size = Vector2(560, 60)
+	message.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	message.z_index = 2000
+	main_container.add_child(message)
+	
+	# Card comparison
+	var card_comparison = HBoxContainer.new()
+	card_comparison.position = Vector2(150, 160)
+	card_comparison.size = Vector2(300, 80)
+	card_comparison.z_index = 2000
+	main_container.add_child(card_comparison)
+	
+	# Old card
+	var old_card_label = Label.new()
+	old_card_label.text = "Old: " + (card_to_replace.name if card_to_replace != null else "null")
+	old_card_label.add_theme_font_size_override("font_size", 12)
+	old_card_label.add_theme_color_override("font_color", Color.RED)
+	old_card_label.z_index = 2000
+	card_comparison.add_child(old_card_label)
+	
+	# Arrow
+	var arrow_label = Label.new()
+	arrow_label.text = " → "
+	arrow_label.add_theme_font_size_override("font_size", 16)
+	arrow_label.add_theme_color_override("font_color", Color.WHITE)
+	arrow_label.z_index = 2000
+	card_comparison.add_child(arrow_label)
+	
+	# New card
+	var new_card_label = Label.new()
+	new_card_label.text = "New: " + (pending_reward.name if pending_reward != null else "null")
+	new_card_label.add_theme_font_size_override("font_size", 12)
+	new_card_label.add_theme_color_override("font_color", Color.GREEN)
+	new_card_label.z_index = 2000
+	card_comparison.add_child(new_card_label)
+	
+	# Buttons
+	var button_container = HBoxContainer.new()
+	button_container.position = Vector2(200, 220)
+	button_container.size = Vector2(200, 40)
+	button_container.z_index = 2000
+	main_container.add_child(button_container)
+	
+	# Yes button
+	var yes_button = Button.new()
+	yes_button.text = "Yes"
+	yes_button.size = Vector2(80, 40)
+	yes_button.pressed.connect(_on_confirm_replacement.bind(card_to_replace))
+	yes_button.z_index = 2000
+	button_container.add_child(yes_button)
+	
+	# No button
+	var no_button = Button.new()
+	no_button.text = "No"
+	no_button.size = Vector2(80, 40)
+	no_button.pressed.connect(_on_cancel_replacement_confirmation)
+	no_button.z_index = 2000
+	button_container.add_child(no_button)
+	
+	# Add dialog to UI layer as last child to ensure it's on top
+	print("Adding replacement confirmation dialog to UI layer as last child")
+	var ui_layer = get_tree().current_scene.get_node_or_null("UILayer")
+	if ui_layer:
+		ui_layer.add_child(replacement_confirmation_dialog)
+		ui_layer.move_child(replacement_confirmation_dialog, ui_layer.get_child_count() - 1)
+		replacement_confirmation_dialog.visible = true
+		print("Replacement confirmation dialog should now be visible on top")
+		# Lower the z_index of the Bag inventory dialog if it exists
+		if inventory_dialog and is_instance_valid(inventory_dialog):
+			inventory_dialog.z_index = 1000
+	else:
+		print("ERROR: UI layer not found!")
+		get_tree().current_scene.add_child(replacement_confirmation_dialog)
+		replacement_confirmation_dialog.visible = true
+
+func _on_confirm_replacement(card_to_replace: CardData):
+	"""Confirm the card replacement"""
+	if not pending_reward or not card_to_replace:
+		print("Error: pending_reward or card_to_replace is null!")
+		close_replacement_confirmation()
+		return
+	# Remove the old card
+	var current_deck_manager = get_tree().current_scene.get_node_or_null("CurrentDeckManager")
+	if current_deck_manager:
+		current_deck_manager.remove_card_from_deck(card_to_replace)
+		print("Removed", card_to_replace.name, "from deck")
+	# Add the new card
+	if pending_reward_type == "card":
+		var card_data = pending_reward as CardData
+		current_deck_manager.add_card_to_deck(card_data)
+		print("Added", card_data.name, "to deck")
+	elif pending_reward_type == "equipment":
+		var equipment_data = pending_reward as EquipmentData
+		var equipment_manager = get_tree().current_scene.get_node_or_null("EquipmentManager")
+		if equipment_manager:
+			equipment_manager.add_equipment(equipment_data)
+			print("Added", equipment_data.name, "to equipment")
+	# Close dialogs
+	close_replacement_confirmation()
+	close_inventory()
+	# Emit signal to notify reward selection dialog
+	var reward_dialog = get_tree().current_scene.get_node_or_null("UILayer/RewardSelectionDialog")
+	if reward_dialog and reward_dialog.has_method("_on_replacement_completed"):
+		reward_dialog._on_replacement_completed(pending_reward, pending_reward_type)
+
+func _on_cancel_replacement_confirmation():
+	"""Cancel the replacement confirmation"""
+	close_replacement_confirmation()
+
+func close_replacement_confirmation():
+	"""Close the replacement confirmation dialog"""
+	if replacement_confirmation_dialog and is_instance_valid(replacement_confirmation_dialog):
+		replacement_confirmation_dialog.queue_free()
+		replacement_confirmation_dialog = null
 
 func get_deck_size() -> int:
 	"""Get the current deck size from CurrentDeckManager"""
@@ -339,14 +604,40 @@ func create_equipment_display(equipment_data: EquipmentData) -> Control:
 	name_label.size = Vector2(110, 20)
 	container.add_child(name_label)
 	
-	# Equipment description
+	# Equipment description (hidden by default)
 	var desc_label = Label.new()
 	desc_label.text = equipment_data.description
 	desc_label.add_theme_font_size_override("font_size", 10)
 	desc_label.add_theme_color_override("font_color", Color.LIGHT_GRAY)
-	desc_label.position = Vector2(60, 30)
-	desc_label.size = Vector2(110, 20)
+	desc_label.position = Vector2(65, 30)
+	desc_label.size = Vector2(310, 20)
+	desc_label.visible = false  # Hidden by default
+	
+	# Add black background to description for better readability
+	var desc_bg = ColorRect.new()
+	desc_bg.color = Color(0, 0, 0, 0.8)
+	desc_bg.size = Vector2(220, 24)
+	desc_bg.position = Vector2(60, 28)
+	desc_bg.visible = false  # Hidden by default
+	container.add_child(desc_bg)
 	container.add_child(desc_label)
+	
+	# Make container mouse filterable for hover detection
+	container.mouse_filter = Control.MOUSE_FILTER_STOP
+	
+	# Connect mouse enter/exit signals for hover effect
+	container.mouse_entered.connect(func():
+		desc_bg.visible = true
+		desc_label.visible = true
+		# Ensure description appears on top by setting high z_index
+		desc_bg.z_index = 1000
+		desc_label.z_index = 1001
+	)
+	
+	container.mouse_exited.connect(func():
+		desc_bg.visible = false
+		desc_label.visible = false
+	)
 	
 	return container
 
@@ -373,6 +664,7 @@ func get_club_cards() -> Array[CardData]:
 func _exit_tree():
 	"""Clean up when the bag is removed from the scene"""
 	close_inventory()
+	close_replacement_confirmation()
 
 func get_equipment_slots() -> int:
 	"""Get the number of equipment slots based on bag level"""
@@ -408,6 +700,11 @@ func create_slot_container() -> Control:
 	container.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	container.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	return container
+
+func is_club_card(card_data: CardData) -> bool:
+	"""Check if a card is a club card based on its name"""
+	var club_names = ["Putter", "Wooden", "Iron", "Hybrid", "Driver", "PitchingWedge", "FireClub", "IceClub"]
+	return club_names.has(card_data.name)
 
 func create_placeholder_slot() -> Control:
 	"""Create a placeholder slot using CardSlot.png"""

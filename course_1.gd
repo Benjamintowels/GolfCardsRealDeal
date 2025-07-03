@@ -1989,18 +1989,29 @@ func _on_suitcase_opened():
 	
 	# Connect the reward selected signal
 	reward_dialog.reward_selected.connect(_on_reward_selected)
+	reward_dialog.advance_to_next_hole.connect(_on_advance_to_next_hole)
 	
 	# Show the reward selection
 	reward_dialog.show_reward_selection()
 
 func _on_reward_selected(reward_data: Resource, reward_type: String):
 	"""Handle when a reward is selected"""
+	if reward_data == null:
+		print("ERROR: reward_data is null in _on_reward_selected! reward_type:", reward_type)
+		return
 	print("Reward selected:", reward_data.name, "Type:", reward_type)
 	
 	if reward_type == "equipment":
 		var equip_data = reward_data as EquipmentData
 		# TODO: Apply equipment effect
 		print("Equipment selected:", equip_data.name)
+	
+	# Fade to next hole
+	FadeManager.fade_to_black(func(): reset_for_next_hole(), 0.5)
+
+func _on_advance_to_next_hole():
+	"""Handle when the advance button is pressed"""
+	print("Advance to next hole button pressed")
 	
 	# Fade to next hole
 	FadeManager.fade_to_black(func(): reset_for_next_hole(), 0.5)
