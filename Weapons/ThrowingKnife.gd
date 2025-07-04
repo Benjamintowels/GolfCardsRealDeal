@@ -33,6 +33,9 @@ var max_handle_bounces := 2  # Handle can bounce up to 2 times
 var handle_bounce_factor := 0.98  # How much velocity is retained after handle bounce (increased for dramatic bounces)
 var min_handle_bounce_speed := 50.0  # Minimum speed for handle to bounce
 
+# Clamp for bounce height
+const MAX_BOUNCE_VZ := 600.0
+
 # Bounce mechanics (knives stick like sticky shots - no bounces)
 var bounce_count := 0
 var max_bounces := 0  # Knives don't bounce - they stick
@@ -168,10 +171,455 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 		shadow.z_index = -1
 		shadow.modulate = Color(0, 0, 0, 0.3)  # Semi-transparent black
 	
+	# Setup collision detection
+	_setup_collision_detection()
+	
 	update_visual_effects()
 	
 	# Store time percentage for sweet spot detection
 	self.time_percentage = time_percentage
+
+func _setup_collision_detection() -> void:
+	"""Setup collision detection for the knife"""
+	var area = $Area2D
+	if area:
+		# Connect to area signals for collision detection
+		if not area.area_entered.is_connected(_on_area_entered):
+			area.area_entered.connect(_on_area_entered)
+		if not area.area_exited.is_connected(_on_area_exited):
+			area.area_exited.connect(_on_area_exited)
+		
+		# Set collision layer to 1 so objects can detect it
+		area.collision_layer = 1
+		# Set collision mask to 1 so it can detect objects on layer 1
+		area.collision_mask = 1
+		
+		print("✓ Knife collision detection setup complete")
+	else:
+		print("✗ ERROR: Area2D not found on knife!")
+
+func _on_area_entered(area: Area2D) -> void:
+	"""Handle collisions with objects when knife enters their collision area"""
+	if landed_flag:
+		return  # Don't handle collisions if knife has already landed
+	
+	var object = area.get_parent()
+	if not object:
+		return
+	
+	print("=== KNIFE OBJECT COLLISION DETECTED ===")
+	print("Object:", object.name)
+	print("Knife height:", z)
+	print("Knife velocity:", velocity)
+	print("=== END KNIFE OBJECT COLLISION ===")
+	
+	# Check if this is a tree collision
+	if object.has_method("_handle_trunk_collision"):
+		print("Tree collision detected - handling trunk collision")
+		_handle_tree_collision(object)
+		return
+	
+	# Check if this is an NPC collision (GangMember)
+	if object.has_method("_handle_ball_collision"):
+		print("NPC collision detected - handling ball collision")
+		_handle_npc_collision(object)
+		return
+	
+	# Check if this is a player collision
+	if object.has_method("take_damage") and object.name == "Player":
+		print("Player collision detected - handling player collision")
+		_handle_player_collision(object)
+		return
+
+func _on_area_exited(area: Area2D) -> void:
+	"""Handle when knife exits an object's collision area"""
+	# Area exit handling if needed
+	pass
+
+func _handle_tree_collision(tree: Node2D) -> void:
+	"""Handle collision with a tree"""
+	print("Handling tree collision - checking knife height")
+	
+	# Define tree height - knife must be above this to pass through
+	var tree_height = 500.0  # Tree height (knife needs 505.0 to pass over)
+	
+	if z > tree_height:
+		# Knife is above the tree entirely - let it pass through
+		print("Knife is above tree entirely (height:", z, "> tree_height:", tree_height, ") - passing through")
+		return
+	else:
+		# Knife is within or below tree height - handle collision
+		print("Knife is within tree height (height:", z, "<= tree_height:", tree_height, ") - handling collision")
+		
+		# Determine which side is facing the tree
+		determine_landing_side()
+		
+		# Handle collision based on which side hits the tree
+		if is_handle_landing and handle_bounce_count < max_handle_bounces and velocity.length() > min_handle_bounce_speed:
+			# Handle side hit tree - bounce off
+			print("Handle side hit tree - bouncing off")
+			_handle_tree_bounce(tree)
+		else:
+			# Blade side hit tree or handle side exhausted bounces - stick in tree
+			print("Blade side hit tree or handle exhausted - sticking in tree")
+			_handle_tree_stick(tree)
+
+func _handle_tree_bounce(tree: Node2D) -> void:
+	"""Handle bouncing off a tree (handle side collision)"""
+	handle_bounce_count += 1
+	
+	# Calculate bounce velocity (similar to ground bounce but with tree reflection)
+	var tree_center = tree.global_position
+	var knife_pos = global_position
+	
+	# Calculate the direction from tree center to knife
+	var to_knife_direction = (knife_pos - tree_center).normalized()
+	
+	# Reflect the velocity across the tree center
+	var reflected_velocity = velocity - 2 * velocity.dot(to_knife_direction) * to_knife_direction
+	
+	# Reduce speed slightly to prevent infinite bouncing
+	reflected_velocity *= handle_bounce_factor
+	
+	# Add a small amount of randomness to prevent infinite loops
+	var random_angle = randf_range(-0.1, 0.1)
+	reflected_velocity = reflected_velocity.rotated(random_angle)
+	
+	# Apply the reflected velocity
+	velocity = reflected_velocity
+	
+	# Set vertical velocity for bounce
+	vz = clamp(velocity.length() * handle_bounce_factor * 6.0, 0, MAX_BOUNCE_VZ)  # Dramatic bounce height, clamped
+	
+	# Reverse rotation direction and reduce speed after bounce
+	rotation_speed = -rotation_speed * 0.7
+	
+	print("Tree bounce - New velocity:", velocity, "New vz:", vz, "Reversed rotation speed:", rotation_speed)
+	
+	# Play tree thunk sound
+	var thunk = tree.get_node_or_null("TrunkThunk")
+	if thunk:
+		thunk.play()
+		print("✓ Tree thunk sound played")
+
+func _handle_tree_stick(tree: Node2D) -> void:
+	"""Handle sticking in a tree (blade side collision)"""
+	# Stop the knife
+	vz = 0.0
+	landed_flag = true
+	velocity = Vector2.ZERO
+	rotation_speed = 0.0
+	
+	print("Knife sticking in tree at:", global_position)
+	
+	# Keep the final rotation for visual effect
+	# Don't reset rotation to 0 - let it stay at the final landing rotation
+	
+	# Play knife impact sound
+	var knife_impact = get_node_or_null("KnifeImpact")
+	if knife_impact:
+		knife_impact.play()
+		print("✓ Knife impact sound played")
+	
+	# Emit landed signals
+	emit_signal("knife_landed", global_position)
+	
+	# Emit landed signal for course compatibility (convert position to tile)
+	if map_manager and map_manager.has_method("world_to_map"):
+		var final_tile = map_manager.world_to_map(global_position)
+		emit_signal("landed", final_tile)
+	else:
+		# Fallback if no map manager or no world_to_map method
+		emit_signal("landed", Vector2i.ZERO)
+	
+	# Check for target hits
+	check_target_hits()
+
+func _handle_npc_collision(npc: Node2D) -> void:
+	"""Handle collision with an NPC (GangMember)"""
+	print("Handling NPC collision - checking knife height")
+	
+	# Get NPC height
+	var npc_height = 200.0  # Default NPC height
+	if npc.has_method("get_height"):
+		npc_height = npc.get_height()
+	elif "height" in npc:
+		npc_height = npc.height
+	
+	print("Knife height:", z, "NPC height:", npc_height)
+	
+	# Check if knife is above NPC entirely
+	if z > npc_height:
+		# Knife is above NPC entirely - let it pass through
+		print("Knife is above NPC entirely (height:", z, "> NPC height:", npc_height, ") - passing through")
+		return
+	else:
+		# Knife is within or below NPC height - handle collision
+		print("Knife is within NPC height (height:", z, "<= NPC height:", npc_height, ") - handling collision")
+		
+		# Determine which side is facing the NPC
+		determine_landing_side()
+		
+		# Handle collision based on which side hits the NPC
+		if is_handle_landing and handle_bounce_count < max_handle_bounces and velocity.length() > min_handle_bounce_speed:
+			# Handle side hit NPC - bounce off
+			print("Handle side hit NPC - bouncing off")
+			_handle_npc_bounce(npc)
+		else:
+			# Blade side hit NPC or handle side exhausted bounces - stick in NPC
+			print("Blade side hit NPC or handle exhausted - sticking in NPC")
+			_handle_npc_stick(npc)
+
+func _handle_npc_bounce(npc: Node2D) -> void:
+	"""Handle bouncing off an NPC (handle side collision)"""
+	handle_bounce_count += 1
+	
+	# Calculate bounce velocity (similar to ground bounce but with NPC reflection)
+	var npc_center = npc.global_position
+	var knife_pos = global_position
+	
+	# Calculate the direction from NPC center to knife
+	var to_knife_direction = (knife_pos - npc_center).normalized()
+	
+	# Reflect the velocity across the NPC center
+	var reflected_velocity = velocity - 2 * velocity.dot(to_knife_direction) * to_knife_direction
+	
+	# Reduce speed slightly to prevent infinite bouncing
+	reflected_velocity *= handle_bounce_factor
+	
+	# Add a small amount of randomness to prevent infinite loops
+	var random_angle = randf_range(-0.1, 0.1)
+	reflected_velocity = reflected_velocity.rotated(random_angle)
+	
+	# Apply the reflected velocity
+	velocity = reflected_velocity
+	
+	# Set vertical velocity for bounce
+	vz = clamp(velocity.length() * handle_bounce_factor * 6.0, 0, MAX_BOUNCE_VZ)  # Dramatic bounce height, clamped
+	
+	# Reverse rotation direction and reduce speed after bounce
+	rotation_speed = -rotation_speed * 0.7
+	
+	print("NPC bounce - New velocity:", velocity, "New vz:", vz, "Reversed rotation speed:", rotation_speed)
+	
+	# Play collision sound
+	_play_collision_sound()
+
+func _handle_npc_stick(npc: Node2D) -> void:
+	"""Handle sticking in an NPC (blade side collision)"""
+	# Stop the knife
+	vz = 0.0
+	landed_flag = true
+	velocity = Vector2.ZERO
+	rotation_speed = 0.0
+	
+	print("Knife sticking in NPC at:", global_position)
+	
+	# Keep the final rotation for visual effect
+	# Don't reset rotation to 0 - let it stay at the final landing rotation
+	
+	# Play knife impact sound
+	var knife_impact = get_node_or_null("KnifeImpact")
+	if knife_impact:
+		knife_impact.play()
+		print("✓ Knife impact sound played")
+	
+	# Deal damage to the NPC
+	if npc.has_method("take_damage"):
+		# Calculate damage based on knife velocity
+		var damage = _calculate_knife_damage(velocity.length())
+		npc.take_damage(damage)
+		print("Dealt", damage, "damage to NPC")
+	
+	# Emit landed signals
+	emit_signal("knife_landed", global_position)
+	
+	# Emit landed signal for course compatibility (convert position to tile)
+	if map_manager and map_manager.has_method("world_to_map"):
+		var final_tile = map_manager.world_to_map(global_position)
+		emit_signal("landed", final_tile)
+	else:
+		# Fallback if no map manager or no world_to_map method
+		emit_signal("landed", Vector2i.ZERO)
+	
+	# Check for target hits
+	check_target_hits()
+
+func _handle_player_collision(player: Node2D) -> void:
+	"""Handle collision with the player"""
+	print("Handling player collision - checking knife height")
+	
+	# Get player height
+	var player_height = 200.0  # Default player height
+	if player.has_method("get_height"):
+		player_height = player.get_height()
+	elif "height" in player:
+		player_height = player.height
+	
+	print("Knife height:", z, "Player height:", player_height)
+	
+	# Check if knife is above player entirely
+	if z > player_height:
+		# Knife is above player entirely - let it pass through
+		print("Knife is above player entirely (height:", z, "> player height:", player_height, ") - passing through")
+		return
+	else:
+		# Knife is within or below player height - handle collision
+		print("Knife is within player height (height:", z, "<= player height:", player_height, ") - handling collision")
+		
+		# Determine which side is facing the player
+		determine_landing_side()
+		
+		# Handle collision based on which side hits the player
+		if is_handle_landing and handle_bounce_count < max_handle_bounces and velocity.length() > min_handle_bounce_speed:
+			# Handle side hit player - bounce off
+			print("Handle side hit player - bouncing off")
+			_handle_player_bounce(player)
+		else:
+			# Blade side hit player or handle side exhausted bounces - stick in player
+			print("Blade side hit player or handle exhausted - sticking in player")
+			_handle_player_stick(player)
+
+func _handle_player_bounce(player: Node2D) -> void:
+	"""Handle bouncing off the player (handle side collision)"""
+	handle_bounce_count += 1
+	
+	# Calculate bounce velocity (similar to ground bounce but with player reflection)
+	var player_center = player.global_position
+	var knife_pos = global_position
+	
+	# Calculate the direction from player center to knife
+	var to_knife_direction = (knife_pos - player_center).normalized()
+	
+	# Reflect the velocity across the player center
+	var reflected_velocity = velocity - 2 * velocity.dot(to_knife_direction) * to_knife_direction
+	
+	# Reduce speed slightly to prevent infinite bouncing
+	reflected_velocity *= handle_bounce_factor
+	
+	# Add a small amount of randomness to prevent infinite loops
+	var random_angle = randf_range(-0.1, 0.1)
+	reflected_velocity = reflected_velocity.rotated(random_angle)
+	
+	# Apply the reflected velocity
+	velocity = reflected_velocity
+	
+	# Set vertical velocity for bounce
+	vz = clamp(velocity.length() * handle_bounce_factor * 6.0, 0, MAX_BOUNCE_VZ)  # Dramatic bounce height, clamped
+	
+	# Reverse rotation direction and reduce speed after bounce
+	rotation_speed = -rotation_speed * 0.7
+	
+	print("Player bounce - New velocity:", velocity, "New vz:", vz, "Reversed rotation speed:", rotation_speed)
+	
+	# Play collision sound
+	_play_collision_sound()
+
+func _handle_player_stick(player: Node2D) -> void:
+	"""Handle sticking in the player (blade side collision)"""
+	# Stop the knife
+	vz = 0.0
+	landed_flag = true
+	velocity = Vector2.ZERO
+	rotation_speed = 0.0
+	
+	print("Knife sticking in player at:", global_position)
+	
+	# Keep the final rotation for visual effect
+	# Don't reset rotation to 0 - let it stay at the final landing rotation
+	
+	# Play knife impact sound
+	var knife_impact = get_node_or_null("KnifeImpact")
+	if knife_impact:
+		knife_impact.play()
+		print("✓ Knife impact sound played")
+	
+	# Deal damage to the player
+	if player.has_method("take_damage"):
+		# Calculate damage based on knife velocity
+		var damage = _calculate_knife_damage(velocity.length())
+		player.take_damage(damage)
+		print("Dealt", damage, "damage to player")
+	
+	# Emit landed signals
+	emit_signal("knife_landed", global_position)
+	
+	# Emit landed signal for course compatibility (convert position to tile)
+	if map_manager and map_manager.has_method("world_to_map"):
+		var final_tile = map_manager.world_to_map(global_position)
+		emit_signal("landed", final_tile)
+	else:
+		# Fallback if no map manager or no world_to_map method
+		emit_signal("landed", Vector2i.ZERO)
+	
+	# Check for target hits
+	check_target_hits()
+
+func _calculate_knife_damage(velocity_magnitude: float) -> int:
+	"""Calculate damage based on knife velocity magnitude"""
+	# Define velocity ranges for damage scaling (similar to ball damage)
+	const MIN_VELOCITY = 25.0  # Minimum velocity for 1 damage
+	const MAX_VELOCITY = 1200.0  # Maximum velocity for 88 damage
+	
+	# Clamp velocity to our defined range
+	var clamped_velocity = clamp(velocity_magnitude, MIN_VELOCITY, MAX_VELOCITY)
+	
+	# Calculate damage percentage (0.0 to 1.0)
+	var damage_percentage = (clamped_velocity - MIN_VELOCITY) / (MAX_VELOCITY - MIN_VELOCITY)
+	
+	# Scale damage from 1 to 88
+	var damage = 1 + (damage_percentage * 87)
+	
+	# Return as integer
+	var final_damage = int(damage)
+	
+	print("=== KNIFE DAMAGE CALCULATION ===")
+	print("Raw velocity magnitude:", velocity_magnitude)
+	print("Clamped velocity:", clamped_velocity)
+	print("Damage percentage:", damage_percentage)
+	print("Calculated damage:", damage)
+	print("Final damage (int):", final_damage)
+	print("=== END KNIFE DAMAGE CALCULATION ===")
+	
+	return final_damage
+
+func _play_collision_sound() -> void:
+	"""Play a collision sound effect"""
+	# Try to find an audio player in the course
+	var course = _find_course_script()
+	if course:
+		var audio_players = course.get_tree().get_nodes_in_group("audio_players")
+		if audio_players.size() > 0:
+			var audio_player = audio_players[0]
+			if audio_player.has_method("play"):
+				audio_player.play()
+				return
+		
+		# Try to find Push sound specifically
+		var push_sound = course.get_node_or_null("Push")
+		if push_sound and push_sound is AudioStreamPlayer2D:
+			push_sound.play()
+			return
+	
+	# Fallback: create a temporary audio player
+	var temp_audio = AudioStreamPlayer2D.new()
+	var sound_file = load("res://Sounds/Push.mp3")
+	if sound_file:
+		temp_audio.stream = sound_file
+		temp_audio.volume_db = -10.0  # Slightly quieter
+		add_child(temp_audio)
+		temp_audio.play()
+		# Remove the audio player after it finishes
+		temp_audio.finished.connect(func(): temp_audio.queue_free())
+
+func _find_course_script() -> Node:
+	"""Find the course_1.gd script by searching up the scene tree"""
+	var current_node = self
+	while current_node:
+		if current_node.get_script() and current_node.get_script().resource_path.ends_with("course_1.gd"):
+			return current_node
+		current_node = current_node.get_parent()
+	return null
 
 func _process(delta):
 	if landed_flag:
@@ -203,6 +651,11 @@ func _process(delta):
 	
 	# Update Y-sorting based on new position
 	update_y_sort()
+	
+	# OPTIMIZED: Knife handles its own object collision detection during flight
+	# Only check for object collisions when knife is in the air (during flight)
+	if z > 0.0:
+		check_nearby_object_collisions()
 	
 	# Update vertical physics (arc and bounce)
 	if z > 0.0:
@@ -237,10 +690,10 @@ func _process(delta):
 			if is_handle_landing and handle_bounce_count < max_handle_bounces and velocity.length() > min_handle_bounce_speed:
 				# Handle side landed - bounce like a golf ball
 				handle_bounce_count += 1
-				vz = velocity.length() * handle_bounce_factor * 6.0  # Much more dramatic bounce height - increased from 1.5 to 6.0
+				vz = clamp(velocity.length() * handle_bounce_factor * 6.0, 0, MAX_BOUNCE_VZ)  # Dramatic bounce height, clamped
 				velocity *= handle_bounce_factor
 				
-				# Reduce rotation speed after bounce
+				# Reduce rotation speed after bounce (keep same direction)
 				rotation_speed *= 0.7
 				
 				print("HANDLE BOUNCE: Bounce count now ", handle_bounce_count, ", vz set to ", vz)
@@ -319,14 +772,15 @@ func _process(delta):
 			if is_handle_landing and handle_bounce_count < max_handle_bounces and velocity.length() > min_handle_bounce_speed:
 				# Handle side landed - bounce like a golf ball
 				handle_bounce_count += 1
-				vz = velocity.length() * handle_bounce_factor * 6.0  # Much more dramatic bounce height - increased from 1.5 to 6.0
+				vz = clamp(velocity.length() * handle_bounce_factor * 6.0, 0, MAX_BOUNCE_VZ)  # Dramatic bounce height, clamped
 				velocity *= handle_bounce_factor
 				
-				# Reduce rotation speed after bounce
+				# Reduce rotation speed after bounce (keep same direction)
 				rotation_speed *= 0.7
 				
 				print("HANDLE SECOND BOUNCE: Bounce count now ", handle_bounce_count, ", vz set to ", vz)
 				print("HANDLE SECOND BOUNCE: New velocity ", velocity, " (length: ", velocity.length(), ")")
+				print("HANDLE SECOND BOUNCE: New rotation speed ", rotation_speed)
 				
 				# Play golf ball bounce sound for handle landing
 				var ball_land_sound = get_node_or_null("BallLand")
@@ -367,6 +821,72 @@ func _process(delta):
 	
 	# Update visual effects
 	update_visual_effects()
+
+func check_nearby_object_collisions() -> void:
+	"""OPTIMIZED: Knife checks for nearby object collisions during flight"""
+	# This is a backup collision detection system for objects that might be missed by Area2D
+	# due to fast movement or timing issues
+	
+	# Check for nearby trees
+	var trees = get_tree().get_nodes_in_group("trees")
+	if not trees.is_empty():
+		_check_nearby_tree_collisions(trees)
+	
+	# Check for nearby NPCs
+	var entities = _find_course_script()
+	if entities and entities.has_node("Entities"):
+		var entities_manager = entities.get_node("Entities")
+		if entities_manager and entities_manager.has_method("get_npcs"):
+			var npcs = entities_manager.get_npcs()
+			_check_nearby_npc_collisions(npcs)
+
+func _check_nearby_tree_collisions(trees: Array) -> void:
+	"""Check for collisions with nearby trees"""
+	var knife_ground_pos = global_position
+	
+	for tree in trees:
+		if not is_instance_valid(tree):
+			continue
+		
+		var distance_to_tree = knife_ground_pos.distance_to(tree.global_position)
+		if distance_to_tree <= 150.0:  # Only check trees within 150 pixels
+			# Check if knife is at the right height to collide with tree
+			var tree_height = 500.0  # Tree height
+			
+			if z <= tree_height:
+				# Knife is within tree height - check for collision
+				var trunk_radius = 120.0
+				if distance_to_tree <= trunk_radius:
+					# Knife is within trunk radius - handle collision
+					print("Knife detected tree collision via proximity check")
+					_handle_tree_collision(tree)
+					return
+
+func _check_nearby_npc_collisions(npcs: Array) -> void:
+	"""Check for collisions with nearby NPCs"""
+	var knife_ground_pos = global_position
+	
+	for npc in npcs:
+		if not is_instance_valid(npc):
+			continue
+		
+		var distance_to_npc = knife_ground_pos.distance_to(npc.global_position)
+		if distance_to_npc <= 100.0:  # Only check NPCs within 100 pixels
+			# Check if knife is at the right height to collide with NPC
+			var npc_height = 200.0  # Default NPC height
+			if npc.has_method("get_height"):
+				npc_height = npc.get_height()
+			elif "height" in npc:
+				npc_height = npc.height
+			
+			if z <= npc_height:
+				# Knife is within NPC height - check for collision
+				var npc_collision_radius = 50.0  # NPC collision radius
+				if distance_to_npc <= npc_collision_radius:
+					# Knife is within NPC collision radius - handle collision
+					print("Knife detected NPC collision via proximity check")
+					_handle_npc_collision(npc)
+					return
 
 func determine_landing_side():
 	"""Determine which side of the knife is facing down when landing"""
@@ -461,6 +981,10 @@ func is_in_flight() -> bool:
 func get_velocity() -> Vector2:
 	"""Get the current velocity of the knife"""
 	return velocity
+
+func set_velocity(new_velocity: Vector2) -> void:
+	"""Set the velocity of the knife for collision handling"""
+	velocity = new_velocity
 
 func get_ground_position() -> Vector2:
 	"""Return the knife's position on the ground (ignoring height) for Y-sorting"""

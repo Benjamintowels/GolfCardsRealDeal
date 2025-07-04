@@ -55,47 +55,79 @@ func _on_trunk_area_entered(area: Area2D):
 	"""Handle collisions with the trunk base area (ground-level collision)"""
 	var ball = area.get_parent()
 	
-	if ball and (ball.name == "GolfBall" or ball.name == "GhostBall"):
-		print("Valid ball detected:", ball.name)
+	if ball and (ball.name == "GolfBall" or ball.name == "GhostBall" or ball.has_method("is_throwing_knife")):
+		print("Valid ball/knife detected:", ball.name)
 		# Handle the collision - always reflect for ground-level trunk collisions
 		_handle_trunk_collision(ball)
 	else:
-		print("Invalid ball or non-ball object:", ball.name if ball else "Unknown")
+		print("Invalid ball/knife or non-ball object:", ball.name if ball else "Unknown")
 
 func _handle_trunk_collision(ball: Node2D):
 	"""Handle trunk base collisions - check height to determine if ball should pass through"""
-	print("Handling trunk collision - checking ball height")
+	print("Handling trunk collision - checking ball/knife height")
 	
-	# Get ball height
+	# Get ball/knife height
 	var ball_height = 0.0
 	if ball.has_method("get_height"):
 		ball_height = ball.get_height()
 	elif "z" in ball:
 		ball_height = ball.z
 	
-	print("Ball height:", ball_height)
+	print("Ball/knife height:", ball_height)
 	
-	# Define tree height - ball must be above this to pass through
-	var tree_height = 500.0  # Tree height (ball needs 505.0 to pass over)
+	# Define tree height - ball/knife must be above this to pass through
+	var tree_height = 500.0  # Tree height (ball/knife needs 505.0 to pass over)
 	
 	if ball_height > tree_height:
-		# Ball is above the tree entirely - let it pass through
-		print("Ball is above tree entirely (height:", ball_height, "> tree_height:", tree_height, ") - passing through")
+		# Ball/knife is above the tree entirely - let it pass through
+		print("Ball/knife is above tree entirely (height:", ball_height, "> tree_height:", tree_height, ") - passing through")
 		return
 	else:
-		# Ball is within or below tree height - reflect it off the trunk
-		print("Ball is within tree height (height:", ball_height, "<= tree_height:", tree_height, ") - reflecting")
+		# Ball/knife is within or below tree height - handle collision
+		print("Ball/knife is within tree height (height:", ball_height, "<= tree_height:", tree_height, ") - handling collision")
 		
-		# Play trunk thunk sound
-		var thunk = get_node_or_null("TrunkThunk")
-		if thunk:
-			thunk.play()
-			print("✓ TrunkThunk sound played")
+		# Check if this is a throwing knife
+		if ball.has_method("is_throwing_knife") and ball.is_throwing_knife():
+			# Handle knife collision with tree
+			_handle_knife_trunk_collision(ball)
 		else:
-			print("✗ TrunkThunk sound not found!")
-		
-		# Reflect the ball
-		_reflect_ball_pinball(ball)
+			# Handle regular ball collision
+			_handle_ball_trunk_collision(ball)
+
+func _handle_knife_trunk_collision(knife: Node2D):
+	"""Handle knife collision with tree trunk"""
+	print("Handling knife trunk collision")
+	
+	# Play trunk thunk sound
+	var thunk = get_node_or_null("TrunkThunk")
+	if thunk:
+		thunk.play()
+		print("✓ TrunkThunk sound played")
+	else:
+		print("✗ TrunkThunk sound not found!")
+	
+	# Let the knife handle its own collision logic
+	# The knife will determine if it should bounce or stick based on which side hits
+	if knife.has_method("_handle_tree_collision"):
+		knife._handle_tree_collision(self)
+	else:
+		# Fallback: just reflect the knife
+		_reflect_knife_pinball(knife)
+
+func _handle_ball_trunk_collision(ball: Node2D):
+	"""Handle ball collision with tree trunk"""
+	print("Handling ball trunk collision")
+	
+	# Play trunk thunk sound
+	var thunk = get_node_or_null("TrunkThunk")
+	if thunk:
+		thunk.play()
+		print("✓ TrunkThunk sound played")
+	else:
+		print("✗ TrunkThunk sound not found!")
+	
+	# Reflect the ball
+	_reflect_ball_pinball(ball)
 
 func _reflect_ball_pinball(ball: Node2D):
 	"""Special reflection for low-height collisions with trunk base - creates pinball effect"""
@@ -132,6 +164,42 @@ func _reflect_ball_pinball(ball: Node2D):
 		ball.set_velocity(reflected_velocity)
 	elif "velocity" in ball:
 		ball.velocity = reflected_velocity
+
+func _reflect_knife_pinball(knife: Node2D):
+	"""Special reflection for knife collisions with trunk base - creates pinball effect"""
+	# Get the knife's current velocity
+	var knife_velocity = Vector2.ZERO
+	if knife.has_method("get_velocity"):
+		knife_velocity = knife.get_velocity()
+	elif "velocity" in knife:
+		knife_velocity = knife.velocity
+	
+	print("Reflecting knife with velocity:", knife_velocity)
+	
+	var knife_pos = knife.global_position
+	var tree_center = global_position
+	
+	# Calculate the direction from tree center to knife
+	var to_knife_direction = (knife_pos - tree_center).normalized()
+	
+	# Simple reflection: reflect the velocity across the tree center
+	# This creates a more predictable pinball effect
+	var reflected_velocity = knife_velocity - 2 * knife_velocity.dot(to_knife_direction) * to_knife_direction
+	
+	# Reduce speed slightly to prevent infinite bouncing
+	reflected_velocity *= 0.8
+	
+	# Add a small amount of randomness to prevent infinite loops
+	var random_angle = randf_range(-0.1, 0.1)
+	reflected_velocity = reflected_velocity.rotated(random_angle)
+	
+	print("Reflected knife velocity:", reflected_velocity)
+	
+	# Apply the reflected velocity to the knife
+	if knife.has_method("set_velocity"):
+		knife.set_velocity(reflected_velocity)
+	elif "velocity" in knife:
+		knife.velocity = reflected_velocity
 
 func set_transparent(is_transparent: bool):
 	var sprite = get_node_or_null("Sprite2D")

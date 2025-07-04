@@ -272,17 +272,17 @@ func _on_base_area_entered(area: Area2D) -> void:
 		print("Ghost ball detected - ignoring collision completely")
 		return
 	
-	if ball and ball.name == "GolfBall":
-		print("Valid ball detected:", ball.name)
+	if ball and (ball.name == "GolfBall" or ball.has_method("is_throwing_knife")):
+		print("Valid ball/knife detected:", ball.name)
 		# Handle the collision
 		_handle_ball_collision(ball)
 	else:
-		print("Invalid ball or non-ball object:", ball.name if ball else "Unknown")
+		print("Invalid ball/knife or non-ball object:", ball.name if ball else "Unknown")
 	print("=== END PLAYER BASE COLLISION ===")
 
 func _handle_ball_collision(ball: Node2D) -> void:
-	"""Handle ball collisions - check height and delay to determine if ball should cause damage"""
-	print("Handling ball collision - checking ball height and delay")
+	"""Handle ball/knife collisions - check height and delay to determine if ball/knife should cause damage"""
+	print("Handling ball/knife collision - checking ball/knife height and delay")
 	
 	# Check if this is a ghost ball (shouldn't deal damage)
 	var is_ghost_ball = false
@@ -298,6 +298,56 @@ func _handle_ball_collision(ball: Node2D) -> void:
 		# Ghost balls only reflect, no damage
 		_apply_ball_reflection(ball)
 		return
+	
+	# Check if this is a throwing knife
+	if ball.has_method("is_throwing_knife") and ball.is_throwing_knife():
+		# Handle knife collision with player
+		_handle_knife_collision(ball)
+		return
+	
+	# Handle regular ball collision
+	_handle_regular_ball_collision(ball)
+
+func _handle_knife_collision(knife: Node2D) -> void:
+	"""Handle knife collision with player"""
+	print("Handling knife collision with player")
+	
+	# Get knife height
+	var knife_height = 0.0
+	if knife.has_method("get_height"):
+		knife_height = knife.get_height()
+	elif "z" in knife:
+		knife_height = knife.z
+	
+	print("Knife height:", knife_height, "Player height:", height)
+	
+	# Check if knife is above player entirely
+	if knife_height > height:
+		# Knife is above player entirely - let it pass through
+		print("Knife is above player entirely (height:", knife_height, "> player height:", height, ") - passing through")
+		return
+	
+	# Check collision delay - knife must travel minimum distance from launch position
+	var knife_distance_from_launch = knife.global_position.distance_to(ball_launch_position)
+	if knife_distance_from_launch < collision_delay_distance:
+		print("Knife too close to launch position (", knife_distance_from_launch, "<", collision_delay_distance, ") - no damage")
+		_apply_knife_reflection(knife)
+		return
+	
+	# Knife is within player height and past delay - handle collision
+	print("Knife is within player height and past delay - handling collision")
+	
+	# Let the knife handle its own collision logic
+	# The knife will determine if it should bounce or stick based on which side hits
+	if knife.has_method("_handle_player_collision"):
+		knife._handle_player_collision(self)
+	else:
+		# Fallback: just reflect the knife
+		_apply_knife_reflection(knife)
+
+func _handle_regular_ball_collision(ball: Node2D) -> void:
+	"""Handle regular ball collision with player"""
+	print("Handling regular ball collision with player")
 	
 	# Get ball height
 	var ball_height = 0.0
@@ -321,7 +371,7 @@ func _handle_ball_collision(ball: Node2D) -> void:
 		_apply_ball_reflection(ball)
 		return
 	
-	# Ball is within player height and past delay distance - handle collision
+	# Ball is within player height and past delay - handle collision
 	print("Ball is within player height and past delay - handling collision")
 	
 	# Calculate damage based on ball velocity
@@ -465,3 +515,38 @@ func get_equipment_mobility_bonus() -> int:
 	if equipment_manager:
 		return equipment_manager.get_mobility_bonus()
 	return 0
+
+func _apply_knife_reflection(knife: Node2D) -> void:
+	"""Apply reflection effect to a knife (fallback method)"""
+	# Get the knife's current velocity
+	var knife_velocity = Vector2.ZERO
+	if knife.has_method("get_velocity"):
+		knife_velocity = knife.get_velocity()
+	elif "velocity" in knife:
+		knife_velocity = knife.velocity
+	
+	print("Applying knife reflection with velocity:", knife_velocity)
+	
+	var knife_pos = knife.global_position
+	var player_center = global_position
+	
+	# Calculate the direction from player center to knife
+	var to_knife_direction = (knife_pos - player_center).normalized()
+	
+	# Simple reflection: reflect the velocity across the player center
+	var reflected_velocity = knife_velocity - 2 * knife_velocity.dot(to_knife_direction) * to_knife_direction
+	
+	# Reduce speed slightly to prevent infinite bouncing
+	reflected_velocity *= 0.8
+	
+	# Add a small amount of randomness to prevent infinite loops
+	var random_angle = randf_range(-0.1, 0.1)
+	reflected_velocity = reflected_velocity.rotated(random_angle)
+	
+	print("Reflected knife velocity:", reflected_velocity)
+	
+	# Apply the reflected velocity to the knife
+	if knife.has_method("set_velocity"):
+		knife.set_velocity(reflected_velocity)
+	elif "velocity" in knife:
+		knife.velocity = reflected_velocity

@@ -139,40 +139,102 @@ func _on_base_area_entered(area: Area2D) -> void:
 	"""Handle collisions with the base collision area"""
 	var ball = area.get_parent()
 
-	if ball and (ball.name == "GolfBall" or ball.name == "GhostBall"):
-		print("Valid ball detected:", ball.name)
+	if ball and (ball.name == "GolfBall" or ball.name == "GhostBall" or ball.has_method("is_throwing_knife")):
+		print("Valid ball/knife detected:", ball.name)
 		# Handle the collision
 		_handle_ball_collision(ball)
 	else:
-		print("Invalid ball or non-ball object:", ball.name if ball else "Unknown")
+		print("Invalid ball/knife or non-ball object:", ball.name if ball else "Unknown")
 
 func _handle_ball_collision(ball: Node2D) -> void:
-	"""Handle ball collisions - check height to determine if ball should pass through"""
-	print("Handling ball collision - checking ball height")
+	"""Handle ball/knife collisions - check height to determine if ball/knife should pass through"""
+	print("Handling ball/knife collision - checking ball/knife height")
 	
-	# Get ball height
+	# Get ball/knife height
 	var ball_height = 0.0
 	if ball.has_method("get_height"):
 		ball_height = ball.get_height()
 	elif "z" in ball:
 		ball_height = ball.z
 	
-	print("Ball height:", ball_height, "GangMember height:", height)
+	print("Ball/knife height:", ball_height, "GangMember height:", height)
 	
-	# Check if ball is above GangMember entirely
+	# Check if ball/knife is above GangMember entirely
 	if ball_height > height:
-		# Ball is above GangMember entirely - let it pass through
-		print("Ball is above GangMember entirely (height:", ball_height, "> GangMember height:", height, ") - passing through")
+		# Ball/knife is above GangMember entirely - let it pass through
+		print("Ball/knife is above GangMember entirely (height:", ball_height, "> GangMember height:", height, ") - passing through")
 		return
 	else:
-		# Ball is within or below GangMember height - handle collision
-		print("Ball is within GangMember height (height:", ball_height, "<= GangMember height:", height, ") - handling collision")
+		# Ball/knife is within or below GangMember height - handle collision
+		print("Ball/knife is within GangMember height (height:", ball_height, "<= GangMember height:", height, ") - handling collision")
 		
-		# Play collision sound effect
-		_play_collision_sound()
-		
-		# Apply collision effect to the ball
-		_apply_ball_collision_effect(ball)
+		# Check if this is a throwing knife
+		if ball.has_method("is_throwing_knife") and ball.is_throwing_knife():
+			# Handle knife collision with GangMember
+			_handle_knife_collision(ball)
+		else:
+			# Handle regular ball collision
+			_handle_regular_ball_collision(ball)
+
+func _handle_knife_collision(knife: Node2D) -> void:
+	"""Handle knife collision with GangMember"""
+	print("Handling knife collision with GangMember")
+	
+	# Play collision sound effect
+	_play_collision_sound()
+	
+	# Let the knife handle its own collision logic
+	# The knife will determine if it should bounce or stick based on which side hits
+	if knife.has_method("_handle_npc_collision"):
+		knife._handle_npc_collision(self)
+	else:
+		# Fallback: just reflect the knife
+		_apply_knife_reflection(knife)
+
+func _handle_regular_ball_collision(ball: Node2D) -> void:
+	"""Handle regular ball collision with GangMember"""
+	print("Handling regular ball collision with GangMember")
+	
+	# Play collision sound effect
+	_play_collision_sound()
+	
+	# Apply collision effect to the ball
+	_apply_ball_collision_effect(ball)
+
+func _apply_knife_reflection(knife: Node2D) -> void:
+	"""Apply reflection effect to a knife (fallback method)"""
+	# Get the knife's current velocity
+	var knife_velocity = Vector2.ZERO
+	if knife.has_method("get_velocity"):
+		knife_velocity = knife.get_velocity()
+	elif "velocity" in knife:
+		knife_velocity = knife.velocity
+	
+	print("Applying knife reflection with velocity:", knife_velocity)
+	
+	var knife_pos = knife.global_position
+	var gang_member_center = global_position
+	
+	# Calculate the direction from GangMember center to knife
+	var to_knife_direction = (knife_pos - gang_member_center).normalized()
+	
+	# Simple reflection: reflect the velocity across the GangMember center
+	var reflected_velocity = knife_velocity - 2 * knife_velocity.dot(to_knife_direction) * to_knife_direction
+	
+	# Reduce speed slightly to prevent infinite bouncing
+	reflected_velocity *= 0.8
+	
+	# Add a small amount of randomness to prevent infinite loops
+	var random_angle = randf_range(-0.1, 0.1)
+	reflected_velocity = reflected_velocity.rotated(random_angle)
+	
+	print("Reflected knife velocity:", reflected_velocity)
+	
+	# Apply the reflected velocity to the knife
+	if knife.has_method("set_velocity"):
+		knife.set_velocity(reflected_velocity)
+	elif "velocity" in knife:
+		knife.velocity = reflected_velocity
 
 func _apply_ball_collision_effect(ball: Node2D) -> void:
 	"""Apply collision effect to the ball (bounce, damage, etc.)"""
