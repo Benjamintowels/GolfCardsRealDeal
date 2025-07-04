@@ -130,9 +130,9 @@ func enter_weapon_aiming_mode() -> void:
 		# Set up camera to follow mouse during knife aiming
 		course.is_aiming_phase = true
 		
-		# Set a temporary club for knife aiming (use Hybrid for good range)
+		# Set a temporary club for knife aiming (use ThrowingKnife for character-specific range)
 		var original_club = course.selected_club
-		course.selected_club = "Hybrid"
+		course.selected_club = "ThrowingKnife"
 		
 		# Show aiming circle with knife reticle image
 		show_knife_aiming_circle()

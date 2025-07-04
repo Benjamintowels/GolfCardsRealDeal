@@ -79,8 +79,8 @@ var max_height := 0.0
 # Height sweet spot constants (matching LaunchManager.gd)
 const HEIGHT_SWEET_SPOT_MIN := 0.3 # 30% of max height
 const HEIGHT_SWEET_SPOT_MAX := 0.5 # 50% of max height
-const MAX_LAUNCH_HEIGHT := 8000.0
-const MIN_LAUNCH_HEIGHT := 1000.0
+const MAX_LAUNCH_HEIGHT := 2000.0
+const MIN_LAUNCH_HEIGHT := 500.0
 
 # Power constants (matching course_1.gd)
 const MAX_LAUNCH_POWER := 1200.0

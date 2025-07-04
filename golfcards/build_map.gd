@@ -144,17 +144,30 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 	randomize()
 	random_seed_value = current_hole * 1000 + randi()
 	seed(random_seed_value)
+	
+	# For hole 1, force shop placement near tees for testing
+	if current_hole == 0 and include_shop:
+		# Place shop at position (3, 4) which is near the tees at (5,5)-(7,7)
+		# This puts the shop entrance at (3,4) and blocks (4,4) to the right
+		positions.shop = Vector2i(3, 4)
+		placed_objects.append(positions.shop)
+		print("✓ Shop forced to position (3,4) for hole 1 testing")
+	
+	# Get valid positions for trees and other objects
 	var valid_positions: Array = []
 	for y in layout.size():
 		for x in layout[y].size():
 			var pos = Vector2i(x, y)
 			if is_valid_position_for_object(pos, layout):
 				valid_positions.append(pos)
-	if include_shop and valid_positions.size() > 0:
+	
+	# Handle shop placement for non-hole-1 cases
+	if current_hole != 0 and include_shop and valid_positions.size() > 0:
 		var shop_index = randi() % valid_positions.size()
 		positions.shop = valid_positions[shop_index]
 		placed_objects.append(positions.shop)
 		valid_positions.remove_at(shop_index)
+	
 	var trees_placed = 0
 	while trees_placed < num_trees and valid_positions.size() > 0:
 		var tree_index = randi() % valid_positions.size()
@@ -349,6 +362,7 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 				ysort_objects.append({"node": shop, "grid_pos": object_positions.shop})
 				obstacle_layer.add_child(shop)
 				shop_grid_pos = object_positions.shop
+				print("✓ Shop placed at grid position:", shop_grid_pos)
 				var right_of_shop_pos = object_positions.shop + Vector2i(1, 0)
 				var blocker_scene = preload("res://Obstacles/InvisibleBlocker.tscn")
 				var blocker = blocker_scene.instantiate()

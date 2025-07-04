@@ -128,17 +128,27 @@ func setup(grid_size_: Vector2i, cell_size_: int, base_mobility_: int, obstacle_
 	print("Setup complete, deferring highlight sprite creation...")
 	call_deferred("create_highlight_sprite")
 
-func set_grid_position(pos: Vector2i, ysort_objects: Array = []):
+func set_grid_position(pos: Vector2i, ysort_objects: Array = [], shop_grid_pos: Vector2i = Vector2i.ZERO):
 	grid_pos = pos
 	self.position = Vector2(pos.x, pos.y) * cell_size + Vector2(cell_size / 2, cell_size / 2)
 	# OPTIMIZED: Always update Y-sort when player moves
 	# Camera panning doesn't change Y-sort relationships in 2.5D perspective
-	update_z_index_for_ysort(ysort_objects)
+	update_z_index_for_ysort(ysort_objects, shop_grid_pos)
 
-func update_z_index_for_ysort(ysort_objects: Array) -> void:
+func update_z_index_for_ysort(ysort_objects: Array, shop_grid_pos: Vector2i = Vector2i.ZERO) -> void:
 	"""Update player Y-sort using the simple global system"""
 	# Use the global Y-sort system for characters
 	Global.update_object_y_sort(self, "characters")
+	
+	# Special case: If player is on shop entrance tile, ensure they appear on top of the shop
+	if shop_grid_pos != Vector2i.ZERO and grid_pos == shop_grid_pos:
+		# Force player to appear above shop by setting a higher z_index
+		# The shop typically has z_index around 1000-1100, so we'll set player to 1200+
+		var current_z = z_index
+		var shop_entrance_z = 1200  # Higher than typical shop z_index
+		if current_z < shop_entrance_z:
+			z_index = shop_entrance_z
+			print("✓ Player z_index boosted to", z_index, "for shop entrance")
 
 func start_movement_mode(card, movement_range_: int):
 	selected_card = card

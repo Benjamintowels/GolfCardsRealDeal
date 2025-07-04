@@ -55,9 +55,9 @@ const HEIGHT_SWEET_SPOT_MAX := 0.5 # 50% of max height
 const MAX_LAUNCH_HEIGHT := 2000.0
 const MIN_LAUNCH_HEIGHT := 500.0
 
-# Power constants (using Hybrid club stats)
-const MAX_LAUNCH_POWER := 1050.0  # Hybrid max distance
-const MIN_LAUNCH_POWER := 200.0   # Hybrid min distance
+# Power constants (will be overridden by club_info from character stats)
+var MAX_LAUNCH_POWER := 300.0  # Default max distance (will be set by club_info)
+var MIN_LAUNCH_POWER := 200.0   # Default min distance (will be set by club_info)
 
 # Progressive height resistance variables
 var initial_height_percentage := 0.0
@@ -986,6 +986,16 @@ func get_height() -> float:
 # Method to set club info (called by LaunchManager)
 func set_club_info(info: Dictionary):
 	club_info = info
+	
+	# Update power constants based on character-specific club data
+	MAX_LAUNCH_POWER = info.get("max_distance", 300.0)
+	MIN_LAUNCH_POWER = info.get("min_distance", 200.0)
+	
+	print("=== THROWING KNIFE CLUB INFO SET ===")
+	print("Max distance:", MAX_LAUNCH_POWER)
+	print("Min distance:", MIN_LAUNCH_POWER)
+	print("Club info:", info)
+	print("=== END THROWING KNIFE CLUB INFO ===")
 
 # Method to set time percentage (called by LaunchManager)
 func set_time_percentage(percentage: float):

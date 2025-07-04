@@ -158,18 +158,24 @@ func exit_launch_phase() -> void:
 	set_ball_in_flight(false)
 
 func enter_knife_mode() -> void:
-	"""Enter knife throwing mode using Hybrid club stats"""
+	"""Enter knife throwing mode using character-specific throwing knife stats"""
 	is_knife_mode = true
-	selected_club = "Hybrid"  # Use Hybrid club stats for knife throwing
+	selected_club = "ThrowingKnife"  # Use ThrowingKnife club stats for knife throwing
 	
 	# Store the current golf ball reference before entering knife mode
 	previous_golf_ball = golf_ball
 	print("Stored golf ball reference before entering knife mode:", previous_golf_ball)
 	
-	# Set up Hybrid club data for knife mode (overwrite any existing club_data)
+	# Create character-specific throwing knife data based on strength
+	var character_strength = player_stats.get("strength", 0)
+	var base_max_distance = 300.0  # Base distance for strength 0 (Benny)
+	var strength_multiplier = 1.0 + (character_strength * 0.25)  # +25% per strength point
+	var max_distance = base_max_distance * strength_multiplier
+	
+	# Set up character-specific throwing knife data
 	club_data = {
-		"Hybrid": {
-			"max_distance": 1050.0,
+		"ThrowingKnife": {
+			"max_distance": max_distance,
 			"min_distance": 200.0,
 			"trailoff_forgiveness": 0.8,
 			"is_putter": false
@@ -177,6 +183,10 @@ func enter_knife_mode() -> void:
 	}
 	
 	print("=== ENTERING KNIFE MODE ===")
+	print("Character strength:", character_strength)
+	print("Base max distance:", base_max_distance)
+	print("Strength multiplier:", strength_multiplier)
+	print("Final max distance:", max_distance)
 	print("Selected club:", selected_club)
 	print("Club data:", club_data)
 	print("Is knife mode:", is_knife_mode)
@@ -328,14 +338,14 @@ func launch_throwing_knife(launch_direction: Vector2, final_power: float, height
 	# Use the existing knife
 	throwing_knife = existing_knife
 
-	# Set knife properties using Hybrid club stats
-	var hybrid_club_info = {
-		"max_distance": 1050.0,
+	# Set knife properties using character-specific throwing knife stats
+	var knife_club_info = club_data.get("ThrowingKnife", {
+		"max_distance": 300.0,
 		"min_distance": 200.0,
 		"trailoff_forgiveness": 0.8
-	}
+	})
 	throwing_knife.chosen_landing_spot = chosen_landing_spot
-	throwing_knife.set_club_info(hybrid_club_info)
+	throwing_knife.set_club_info(knife_club_info)
 
 	# Calculate time percentage for the knife
 	var time_percent = charge_time / max_charge_time

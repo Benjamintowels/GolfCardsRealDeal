@@ -38,9 +38,9 @@ var sprite: Sprite2D
 var shadow: Sprite2D
 var base_scale := Vector2.ONE
 
-# Height and power constants (matching GolfBall.gd)
-const MAX_LAUNCH_HEIGHT := 8000.0
-const MIN_LAUNCH_HEIGHT := 1000.0
+# Height and power constants (matching LaunchManager.gd)
+const MAX_LAUNCH_HEIGHT := 2000.0
+const MIN_LAUNCH_HEIGHT := 500.0
 const MAX_LAUNCH_POWER := 1200.0
 const MIN_LAUNCH_POWER := 300.0
 
@@ -376,9 +376,9 @@ func launch_ghost_ball():
 			height = 0.0
 			print("Ghost ball: Putter mode - height set to 0")
 		else:
-			# Calculate height at 50% (sweet spot height) - use same range as real ball
+			# Calculate height at 50% (sweet spot height) - use same constants as LaunchManager
 			var height_percentage = 0.5  # 50% height (sweet spot)
-			height = 400.0 + (2000.0 - 400.0) * height_percentage  # Same range as real ball: 400-2000
+			height = MIN_LAUNCH_HEIGHT + (MAX_LAUNCH_HEIGHT - MIN_LAUNCH_HEIGHT) * height_percentage
 		
 	else:
 		# Default values if no landing spot
@@ -389,7 +389,7 @@ func launch_ghost_ball():
 		if is_putting:
 			height = 0.0
 		else:
-			height = 400.0 + (2000.0 - 400.0) * 0.5  # 50% height with same range as real ball
+			height = MIN_LAUNCH_HEIGHT + (MAX_LAUNCH_HEIGHT - MIN_LAUNCH_HEIGHT) * 0.5  # 50% height with same constants as LaunchManager
 	
 	# Set initial velocity and ensure ball starts in the air
 	velocity = direction * power

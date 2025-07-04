@@ -190,7 +190,7 @@ var shop_dialog: Control = null
 # Smart Performance Optimizer
 var smart_optimizer: Node
 var shop_entrance_detected := false
-var shop_grid_pos := Vector2i(2, 6)  # Position of shop from map layout
+var shop_grid_pos := Vector2i(3, 4)  # Position of shop from map layout (forced for hole 1 testing)
 
 var has_started := false
 
@@ -303,9 +303,8 @@ func _get_tee_area_center() -> Vector2:
 	return center_world_pos
 
 func _process(delta):
-	smart_optimizer.smart_process(delta, self)
-
-
+	if smart_optimizer:
+		smart_optimizer.smart_process(delta, self)
 
 func update_ball_for_optimizer():
 	"""Update ball state for the smart optimizer"""
@@ -548,6 +547,9 @@ func _ready() -> void:
 	map_manager.load_map_data(GolfCourseLayout.get_hole_layout(current_hole))
 	build_map.build_map_from_layout_with_randomization(map_manager.level_layout)
 	
+	# Sync shop grid position with build_map
+	shop_grid_pos = build_map.shop_grid_pos
+	
 	# Debug: Check if pin was created
 	print("=== PIN CREATION DEBUG ===")
 	print("ysort_objects size after map building:", ysort_objects.size())
@@ -762,7 +764,7 @@ func create_player() -> void:
 	
 	if player_node and is_instance_valid(player_node):
 		player_node.position = Vector2(player_grid_pos.x, player_grid_pos.y) * cell_size + Vector2(2, 2)
-		player_node.set_grid_position(player_grid_pos)
+		player_node.set_grid_position(player_grid_pos, ysort_objects, shop_grid_pos)
 		player_node.visible = true
 		update_player_position()
 		return
@@ -804,7 +806,7 @@ func create_player() -> void:
 	var base_mobility = player_stats.get("base_mobility", 0)
 	player_node.setup(grid_size, cell_size, base_mobility, obstacle_map)
 	
-	player_node.set_grid_position(player_grid_pos)
+	player_node.set_grid_position(player_grid_pos, ysort_objects, shop_grid_pos)
 
 	player_node.player_clicked.connect(_on_player_input)
 	player_node.moved_to_tile.connect(_on_player_moved_to_tile)
@@ -2026,6 +2028,9 @@ func reset_for_next_hole():
 	map_manager.load_map_data(GolfCourseLayout.get_hole_layout(current_hole))
 	build_map.build_map_from_layout_with_randomization(map_manager.level_layout)
 	
+	# Sync shop grid position with build_map
+	shop_grid_pos = build_map.shop_grid_pos
+	
 	# Ensure Y-sort objects are properly registered for pin detection
 	update_all_ysort_z_indices()
 	print("Y-sort updated after map building")
@@ -2577,7 +2582,7 @@ func save_game_state():
 func restore_game_state():
 	if Global.saved_game_state == "shop_entrance":
 		map_manager.load_map_data(GolfCourseLayout.get_hole_layout(current_hole))
-		build_map.build_map_from_layout_with_saved_positions(map_manager.level_layout)
+		build_map_from_layout_with_saved_positions(map_manager.level_layout)
 		
 		# Debug: Check if pin was created
 		print("=== PIN CREATION DEBUG (Saved Positions) ===")
@@ -2849,12 +2854,16 @@ func build_map_from_layout_with_saved_positions(layout: Array) -> void:
 	# Create object positions dictionary from saved data
 	var object_positions = {
 		"trees": Global.saved_tree_positions.duplicate(),
-		"shop": Global.saved_shop_position  # Use the saved shop position
+		"shop": Global.saved_shop_position,  # Use the saved shop position
+		"gang_members": []  # Empty array for gang members (not saved/restored)
 	}
 	print("[DEBUG] About to place trees at positions:", object_positions.trees)
 	
 	# Place objects at saved positions
 	build_map.place_objects_at_positions(object_positions, layout)
+	
+	# Sync shop grid position with build_map
+	shop_grid_pos = build_map.shop_grid_pos
 	
 	# Place pin at saved position
 	if Global.saved_pin_position != Vector2i.ZERO:
