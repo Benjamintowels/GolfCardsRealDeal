@@ -131,6 +131,13 @@ func _on_movement_card_pressed(card: CardData, button: TextureButton) -> void:
 	# Check if this is a weapon card first
 	if card.effect_type == "Weapon" and weapon_handler:
 		print("Handling as weapon card")
+		# Clear any existing modes first to prevent double discarding
+		if is_in_movement_mode():
+			print("Clearing movement mode before switching to weapon card")
+			exit_movement_mode()
+		if weapon_handler.is_in_weapon_mode():
+			print("Clearing existing weapon mode before switching to new weapon card")
+			weapon_handler.clear_all_weapon_ui()
 		# Pass the button reference to the weapon handler for cleanup
 		weapon_handler._on_weapon_card_pressed(card, button)
 		return
@@ -138,6 +145,13 @@ func _on_movement_card_pressed(card: CardData, button: TextureButton) -> void:
 	# Check if this is an attack card first
 	if card.effect_type == "Attack" and attack_handler:
 		print("Handling as attack card")
+		# Clear any existing modes first to prevent double discarding
+		if is_in_movement_mode():
+			print("Clearing movement mode before switching to attack card")
+			exit_movement_mode()
+		if attack_handler.is_in_attack_mode():
+			print("Clearing existing attack mode before switching to new attack card")
+			attack_handler.clear_all_attack_ui()
 		# Pass the button reference to the attack handler for cleanup
 		attack_handler._on_attack_card_pressed(card, button)
 		return
@@ -145,6 +159,14 @@ func _on_movement_card_pressed(card: CardData, button: TextureButton) -> void:
 	# Check if this is a special effect card first
 	if card_effect_handler and card_effect_handler.handle_card_effect(card):
 		return  # Effect was handled by the effect handler
+	
+	# Clear any existing attack or weapon modes before entering movement mode
+	if attack_handler and attack_handler.is_in_attack_mode():
+		print("Clearing attack mode before entering movement mode")
+		attack_handler.clear_all_attack_ui()
+	if weapon_handler and weapon_handler.is_in_weapon_mode():
+		print("Clearing weapon mode before entering movement mode")
+		weapon_handler.clear_all_weapon_ui()
 	
 	is_movement_mode = true
 	active_button = button

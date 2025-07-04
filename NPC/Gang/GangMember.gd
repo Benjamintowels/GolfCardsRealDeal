@@ -33,6 +33,30 @@ var height: float = 200.0  # GangMember height (ball needs 88.0 to pass over)
 var dead_height: float = 50.0  # Lower height when dead (laying down)
 var base_collision_area: Area2D
 
+# Headshot mechanics
+const HEADSHOT_MIN_HEIGHT = 150.0  # Minimum height for headshot (150-200 range)
+const HEADSHOT_MAX_HEIGHT = 200.0  # Maximum height for headshot (150-200 range)
+const HEADSHOT_MULTIPLIER = 1.5    # Damage multiplier for headshots
+
+func _is_headshot(ball_height: float) -> bool:
+	"""Check if a ball/knife hit is a headshot based on height"""
+	# Headshot occurs when the ball/knife hits in the head region (150-200 height)
+	return ball_height >= HEADSHOT_MIN_HEIGHT and ball_height <= HEADSHOT_MAX_HEIGHT
+
+func get_headshot_info() -> Dictionary:
+	"""Get information about the headshot system for debugging and UI"""
+	return {
+		"min_height": HEADSHOT_MIN_HEIGHT,
+		"max_height": HEADSHOT_MAX_HEIGHT,
+		"multiplier": HEADSHOT_MULTIPLIER,
+		"total_height": height,
+		"headshot_range": HEADSHOT_MAX_HEIGHT - HEADSHOT_MIN_HEIGHT
+	}
+
+func test_headshot_at_height(test_height: float) -> bool:
+	"""Test if a given height would be a headshot (for debugging)"""
+	return _is_headshot(test_height)
+
 # Health bar
 var health_bar: HealthBar
 var health_bar_container: Control
@@ -392,9 +416,27 @@ func _apply_ball_collision_effect(ball: Node2D) -> void:
 	
 	print("Applying collision effect to ball with velocity:", ball_velocity)
 	
-	# Calculate damage based on ball velocity
-	var damage = _calculate_velocity_damage(ball_velocity.length())
-	print("Ball collision damage calculated:", damage)
+	# Get ball height for headshot detection
+	var ball_height = 0.0
+	if ball.has_method("get_height"):
+		ball_height = ball.get_height()
+	elif "z" in ball:
+		ball_height = ball.z
+	
+	# Check if this is a headshot
+	var is_headshot = _is_headshot(ball_height)
+	var damage_multiplier = HEADSHOT_MULTIPLIER if is_headshot else 1.0
+	
+	# Calculate base damage based on ball velocity
+	var base_damage = _calculate_velocity_damage(ball_velocity.length())
+	
+	# Apply headshot multiplier if applicable
+	var damage = int(base_damage * damage_multiplier)
+	
+	if is_headshot:
+		print("HEADSHOT! Ball height:", ball_height, "Base damage:", base_damage, "Final damage:", damage)
+	else:
+		print("Body shot. Ball height:", ball_height, "Damage:", damage)
 	
 	# Check if this damage will kill the GangMember
 	var will_kill = damage >= current_health
@@ -406,7 +448,7 @@ func _apply_ball_collision_effect(ball: Node2D) -> void:
 		print("Damage will kill GangMember! Overkill damage:", overkill_damage)
 		
 		# Apply damage to the GangMember (this will set health to negative)
-		take_damage(damage)
+		take_damage(damage, is_headshot)
 		
 		# Apply velocity dampening based on overkill damage
 		var dampened_velocity = _calculate_kill_dampening(ball_velocity, overkill_damage)
@@ -419,7 +461,7 @@ func _apply_ball_collision_effect(ball: Node2D) -> void:
 			ball.velocity = dampened_velocity
 	else:
 		# Normal collision - apply damage and reflect
-		take_damage(damage)
+		take_damage(damage, is_headshot)
 		
 		var ball_pos = ball.global_position
 		var gang_member_center = global_position
@@ -1335,7 +1377,7 @@ class DeadState extends BaseState:
 		pass
 
 # Health and damage methods
-func take_damage(amount: int) -> void:
+func take_damage(amount: int, is_headshot: bool = false) -> void:
 	"""Take damage and handle death if health reaches 0"""
 	if not is_alive:
 		print("GangMember is already dead, ignoring damage")
@@ -1350,8 +1392,11 @@ func take_damage(amount: int) -> void:
 	if health_bar:
 		health_bar.set_health(display_health, max_health)
 	
-	# Flash red to indicate damage
-	flash_damage()
+	# Flash appropriate effect based on damage type
+	if is_headshot:
+		flash_headshot()
+	else:
+		flash_damage()
 	
 	if current_health <= 0 and not is_dead:
 		print("GangMember health reached 0, calling die()")
@@ -1442,6 +1487,18 @@ func flash_damage() -> void:
 	var original_modulate = sprite.modulate
 	var tween = create_tween()
 	tween.tween_property(sprite, "modulate", Color(1, 0, 0, 1), 0.1)
+	tween.tween_property(sprite, "modulate", original_modulate, 0.2)
+
+func flash_headshot() -> void:
+	"""Flash the GangMember with a special headshot effect"""
+	if not sprite:
+		return
+	
+	var original_modulate = sprite.modulate
+	var tween = create_tween()
+	# Flash with a bright gold color for headshots
+	tween.tween_property(sprite, "modulate", Color(1, 0.84, 0, 1), 0.15)  # Bright gold
+	tween.tween_property(sprite, "modulate", Color(1, 0.65, 0, 1), 0.1)   # Deeper gold
 	tween.tween_property(sprite, "modulate", original_modulate, 0.2)
 
 func play_death_effect() -> void:

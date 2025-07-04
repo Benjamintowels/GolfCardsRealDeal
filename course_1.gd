@@ -1243,8 +1243,10 @@ func highlight_tee_tiles():
 
 func exit_movement_mode() -> void:
 	movement_controller.exit_movement_mode()
-	attack_handler.exit_attack_mode()
-	weapon_handler.exit_weapon_mode()
+	if attack_handler.is_in_attack_mode():
+		attack_handler.exit_attack_mode()
+	if weapon_handler.is_in_weapon_mode():
+		weapon_handler.exit_weapon_mode()
 	update_deck_display()
 
 func _on_end_turn_pressed() -> void:

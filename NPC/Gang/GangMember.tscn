@@ -52,6 +52,7 @@ stream = ExtResource("4_lgk6o")
 volume_db = 2.93
 
 [node name="HitBox" type="Area2D" parent="."]
+visible = false
 
 [node name="HitBoxShape" type="CollisionShape2D" parent="HitBox"]
 position = Vector2(-1, -36)

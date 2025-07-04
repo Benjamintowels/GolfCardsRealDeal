@@ -209,6 +209,19 @@ func _setup_collision_detection() -> void:
 	else:
 		print("✗ ERROR: Area2D not found on knife!")
 
+func _disable_collision_detection() -> void:
+	"""Disable collision detection when knife has landed"""
+	var area = $Area2D
+	if area:
+		# Disable collision detection completely
+		area.monitoring = false
+		area.monitorable = false
+		area.collision_layer = 0
+		area.collision_mask = 0
+		print("✓ Knife collision detection disabled (landed)")
+	else:
+		print("✗ ERROR: Area2D not found on knife!")
+
 func _on_area_entered(area: Area2D) -> void:
 	"""Handle collisions with objects when knife enters their collision area"""
 	if landed_flag:
@@ -331,6 +344,9 @@ func _handle_tree_stick(tree: Node2D) -> void:
 	
 	# Check for target hits
 	check_target_hits()
+	
+	# Disable collision detection since knife has landed
+	_disable_collision_detection()
 
 func _handle_npc_collision(npc: Node2D) -> void:
 	"""Handle collision with an NPC (GangMember)"""
@@ -410,9 +426,22 @@ func _handle_npc_stick(npc: Node2D) -> void:
 	
 	# Deal damage to the NPC
 	if npc.has_method("take_damage"):
-		# Calculate damage based on knife velocity
-		var damage = _calculate_knife_damage(velocity.length())
-		npc.take_damage(damage)
+		# Calculate base damage based on knife velocity
+		var base_damage = _calculate_knife_damage(velocity.length())
+		
+		# Check for headshot if the NPC supports it
+		var final_damage = base_damage
+		var is_headshot = false
+		if npc.has_method("_is_headshot"):
+			is_headshot = npc._is_headshot(z)
+			if is_headshot:
+				# Apply headshot multiplier (assuming 1.5x like GangMember)
+				final_damage = int(base_damage * 1.5)
+				print("KNIFE HEADSHOT! Height:", z, "Base damage:", base_damage, "Final damage:", final_damage)
+			else:
+				print("Knife body shot. Height:", z, "Damage:", final_damage)
+		
+		npc.take_damage(final_damage, is_headshot)
 	
 	# Attach knife sprite to NPC if it's a GangMember
 	if npc.has_method("attach_knife_sprite") and sprite:
@@ -515,9 +544,22 @@ func _handle_player_stick(player: Node2D) -> void:
 	
 	# Deal damage to the player
 	if player.has_method("take_damage"):
-		# Calculate damage based on knife velocity
-		var damage = _calculate_knife_damage(velocity.length())
-		player.take_damage(damage)
+		# Calculate base damage based on knife velocity
+		var base_damage = _calculate_knife_damage(velocity.length())
+		
+		# Check for headshot if the player supports it
+		var final_damage = base_damage
+		var is_headshot = false
+		if player.has_method("_is_headshot"):
+			is_headshot = player._is_headshot(z)
+			if is_headshot:
+				# Apply headshot multiplier (assuming 1.5x like GangMember)
+				final_damage = int(base_damage * 1.5)
+				print("KNIFE HEADSHOT ON PLAYER! Height:", z, "Base damage:", base_damage, "Final damage:", final_damage)
+			else:
+				print("Knife body shot on player. Height:", z, "Damage:", final_damage)
+		
+		player.take_damage(final_damage, is_headshot)
 	
 	# Emit landed signals
 	emit_signal("knife_landed", global_position)
@@ -532,6 +574,9 @@ func _handle_player_stick(player: Node2D) -> void:
 	
 	# Check for target hits
 	check_target_hits()
+	
+	# Disable collision detection since knife has landed
+	_disable_collision_detection()
 
 func _calculate_knife_damage(velocity_magnitude: float) -> int:
 	"""Calculate damage based on knife velocity magnitude"""
@@ -690,6 +735,9 @@ func _process(delta):
 				
 				# Check for target hits
 				check_target_hits()
+				
+				# Disable collision detection since knife has landed
+				_disable_collision_detection()
 	
 	elif vz > 0.0:
 		# Knife is bouncing up from ground (z = 0, vz > 0)
@@ -754,8 +802,11 @@ func _process(delta):
 					# Fallback if no map manager or no world_to_map method
 					emit_signal("landed", Vector2i.ZERO)
 				
-				# Check for target hits
-				check_target_hits()
+					# Check for target hits
+	check_target_hits()
+	
+	# Disable collision detection since knife has landed
+	_disable_collision_detection()
 	
 	# Update visual effects
 	update_visual_effects()
