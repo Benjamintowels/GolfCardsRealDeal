@@ -66,6 +66,17 @@ func update_ball_state(ball_position: Vector2, ball_velocity: Vector2):
 		collision_detection_radius = 400.0  # Larger radius when ball is moving
 	else:
 		collision_detection_radius = 200.0  # Smaller radius when stationary
+	
+	# Also update Y-sort for any knives in flight
+	update_knife_ysort()
+
+func update_knife_ysort():
+	"""Update Y-sort for any knives in flight"""
+	var knives = get_tree().get_nodes_in_group("knives")
+	for knife in knives:
+		if is_instance_valid(knife) and knife.has_method("is_in_flight") and knife.is_in_flight():
+			# Use the knife's own update_y_sort method
+			knife.update_y_sort()
 
 func update_camera_state(camera_position: Vector2):
 	"""Update camera state to determine if Y-sort updates are needed"""
@@ -104,6 +115,17 @@ func update_essential_systems(course_instance):
 		course_instance.launch_manager.club_data = course_instance.club_data
 	
 	course_instance.launch_manager.player_stats = course_instance.player_stats
+	
+	# Update ball state for Y-sorting (including knives)
+	if course_instance.launch_manager.golf_ball and is_instance_valid(course_instance.launch_manager.golf_ball):
+		var ball_pos = course_instance.launch_manager.golf_ball.global_position
+		var ball_velocity = course_instance.launch_manager.golf_ball.velocity if "velocity" in course_instance.launch_manager.golf_ball else Vector2.ZERO
+		update_ball_state(ball_pos, ball_velocity)
+	elif course_instance.launch_manager.throwing_knife and is_instance_valid(course_instance.launch_manager.throwing_knife):
+		# Update knife state for Y-sorting
+		var knife_pos = course_instance.launch_manager.throwing_knife.global_position
+		var knife_velocity = course_instance.launch_manager.throwing_knife.velocity if "velocity" in course_instance.launch_manager.throwing_knife else Vector2.ZERO
+		update_ball_state(knife_pos, knife_velocity)
 	
 	# Camera following (when ball or knife is active)
 	if course_instance.camera_following_ball:

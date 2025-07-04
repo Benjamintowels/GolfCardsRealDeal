@@ -55,16 +55,26 @@ func _on_trunk_area_entered(area: Area2D):
 	"""Handle collisions with the trunk base area (ground-level collision)"""
 	var ball = area.get_parent()
 	
+	print("=== TREE TRUNK AREA ENTERED ===")
+	print("Area name:", area.name)
+	print("Ball parent:", ball.name if ball else "No parent")
+	print("Ball type:", ball.get_class() if ball else "Unknown")
+	print("Ball position:", ball.global_position if ball else "Unknown")
+	
 	if ball and (ball.name == "GolfBall" or ball.name == "GhostBall" or ball.has_method("is_throwing_knife")):
-		print("Valid ball/knife detected:", ball.name)
+		print("✓ Valid ball/knife detected:", ball.name)
 		# Handle the collision - always reflect for ground-level trunk collisions
 		_handle_trunk_collision(ball)
 	else:
-		print("Invalid ball/knife or non-ball object:", ball.name if ball else "Unknown")
+		print("✗ Invalid ball/knife or non-ball object:", ball.name if ball else "Unknown")
+	
+	print("=== END TREE TRUNK AREA ENTERED ===")
 
 func _handle_trunk_collision(ball: Node2D):
 	"""Handle trunk base collisions - check height to determine if ball should pass through"""
-	print("Handling trunk collision - checking ball/knife height")
+	print("=== HANDLING TRUNK COLLISION ===")
+	print("Ball/knife name:", ball.name)
+	print("Ball/knife type:", ball.get_class())
 	
 	# Get ball/knife height
 	var ball_height = 0.0
@@ -74,25 +84,31 @@ func _handle_trunk_collision(ball: Node2D):
 		ball_height = ball.z
 	
 	print("Ball/knife height:", ball_height)
+	print("Tree height threshold:", 500.0)
 	
 	# Define tree height - ball/knife must be above this to pass through
 	var tree_height = 500.0  # Tree height (ball/knife needs 505.0 to pass over)
 	
 	if ball_height > tree_height:
 		# Ball/knife is above the tree entirely - let it pass through
-		print("Ball/knife is above tree entirely (height:", ball_height, "> tree_height:", tree_height, ") - passing through")
+		print("✓ Ball/knife is above tree entirely (height:", ball_height, "> tree_height:", tree_height, ") - passing through")
+		print("=== END TRUNK COLLISION (PASSED THROUGH) ===")
 		return
 	else:
 		# Ball/knife is within or below tree height - handle collision
-		print("Ball/knife is within tree height (height:", ball_height, "<= tree_height:", tree_height, ") - handling collision")
+		print("✗ Ball/knife is within tree height (height:", ball_height, "<= tree_height:", tree_height, ") - handling collision")
 		
 		# Check if this is a throwing knife
 		if ball.has_method("is_throwing_knife") and ball.is_throwing_knife():
 			# Handle knife collision with tree
+			print("Handling knife trunk collision")
 			_handle_knife_trunk_collision(ball)
 		else:
 			# Handle regular ball collision
+			print("Handling ball trunk collision")
 			_handle_ball_trunk_collision(ball)
+		
+		print("=== END TRUNK COLLISION (COLLIDED) ===")
 
 func _handle_knife_trunk_collision(knife: Node2D):
 	"""Handle knife collision with tree trunk"""

@@ -3104,6 +3104,10 @@ func _on_launch_phase_exited():
 	# Disable player collision shape during ball flight
 	if player_node and player_node.has_method("disable_collision_shape"):
 		player_node.disable_collision_shape()
+	
+	# Update smart optimizer for ball flying phase
+	if smart_optimizer:
+		smart_optimizer.update_game_state("ball_flying", true, false, false)
 
 func _on_charging_state_changed(charging: bool, charging_height: bool) -> void:
 	"""Handle charging state changes from LaunchManager"""
@@ -3131,6 +3135,10 @@ func _on_npc_shot(npc: Node, damage: int) -> void:
 func _on_knife_landed(final_tile: Vector2i) -> void:
 	"""Handle when a throwing knife lands"""
 	print("Knife landed at tile:", final_tile)
+	
+	# Update smart optimizer state immediately when knife lands
+	if smart_optimizer:
+		smart_optimizer.update_game_state("move", false, false, false)
 	
 	# Pause for 1 second to let player see where knife landed
 	var pause_timer = get_tree().create_timer(1.0)

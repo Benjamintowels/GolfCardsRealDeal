@@ -112,14 +112,87 @@ func _on_weapon_card_pressed(card: CardData, button: TextureButton) -> void:
 func enter_weapon_aiming_mode() -> void:
 	"""Enter weapon aiming mode with mouse tracking"""
 	
-	# Change mouse cursor to reticle
-	var reticle_texture = preload("res://UI/Reticle.png")
-	Input.set_custom_mouse_cursor(reticle_texture, Input.CURSOR_ARROW, Vector2(16, 16))
+	# Change mouse cursor based on weapon type
+	if selected_card and selected_card.name == "Throwing Knife":
+		# Hide mouse cursor for knife aiming (only use aiming circle)
+		Input.set_custom_mouse_cursor(null)
+	else:
+		# Use regular reticle for pistol aiming
+		var reticle_texture = preload("res://UI/Reticle.png")
+		Input.set_custom_mouse_cursor(reticle_texture, Input.CURSOR_ARROW, Vector2(16, 16))
 	
 	# Create weapon instance
 	create_weapon_instance()
 	
+	# For knife mode, set up camera following like normal shot placement
+	if selected_card and selected_card.name == "Throwing Knife" and card_effect_handler and card_effect_handler.course:
+		var course = card_effect_handler.course
+		# Set up camera to follow mouse during knife aiming
+		course.is_aiming_phase = true
+		
+		# Set a temporary club for knife aiming (use Hybrid for good range)
+		var original_club = course.selected_club
+		course.selected_club = "Hybrid"
+		
+		# Show aiming circle with knife reticle image
+		show_knife_aiming_circle()
+		
+		# Show knife-specific aiming instruction
+		show_knife_aiming_instruction()
+		
+		# Store original club to restore later
+		set_meta("original_club", original_club)
+		
+		# Position camera on player initially
+		var sprite = player_node.get_node_or_null("Sprite2D")
+		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
+		var player_center = player_node.global_position + player_size / 2
+		var tween := get_tree().create_tween()
+		tween.tween_property(course.camera, "position", player_center, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	
 	# Input is handled by the course's _input function
+
+func show_knife_aiming_circle() -> void:
+	"""Show aiming circle with knife reticle image"""
+	if not card_effect_handler or not card_effect_handler.course:
+		return
+	
+	var course = card_effect_handler.course
+	
+	# Use the course's show_aiming_circle function but override the texture
+	course.show_aiming_circle()
+	
+	# Replace the target circle texture with knife reticle texture
+	if course.aiming_circle:
+		var circle = course.aiming_circle.get_node_or_null("CircleVisual")
+		if circle:
+			var knife_reticle_texture = preload("res://UI/knifeReticle.png")
+			circle.texture = knife_reticle_texture
+			print("Replaced aiming circle texture with knife reticle")
+
+func show_knife_aiming_instruction() -> void:
+	"""Show knife-specific aiming instruction"""
+	if not card_effect_handler or not card_effect_handler.course:
+		return
+	
+	var course = card_effect_handler.course
+	var existing_instruction = course.get_node_or_null("UILayer/AimingInstructionLabel")
+	if existing_instruction:
+		existing_instruction.queue_free()
+	
+	var instruction_label := Label.new()
+	instruction_label.name = "AimingInstructionLabel"
+	instruction_label.text = "Move mouse to set knife target\nLeft click to throw, Right click to cancel"
+	
+	instruction_label.add_theme_font_size_override("font_size", 18)
+	instruction_label.add_theme_color_override("font_color", Color.YELLOW)
+	instruction_label.add_theme_constant_override("outline_size", 2)
+	instruction_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	
+	instruction_label.position = Vector2(400, 50)
+	instruction_label.z_index = 200
+	
+	course.get_node("UILayer").add_child(instruction_label)
 
 func create_weapon_instance() -> void:
 	"""Create the weapon instance (pistol or knife) in front of the player"""
@@ -239,11 +312,15 @@ func launch_throwing_knife() -> void:
 		print("ERROR: Cannot launch knife - missing required references")
 		return
 	
-	# Get the mouse position as the target
-	var mouse_pos = camera.get_global_mouse_position()
+	# Get the landing spot from the aiming circle if available, otherwise use mouse position
+	var landing_spot = camera.get_global_mouse_position()  # Default to mouse position
+	if card_effect_handler and card_effect_handler.course:
+		var course = card_effect_handler.course
+		if course.chosen_landing_spot != Vector2.ZERO:
+			landing_spot = course.chosen_landing_spot
 	
 	# Set up LaunchManager for knife mode
-	launch_manager.chosen_landing_spot = mouse_pos
+	launch_manager.chosen_landing_spot = landing_spot
 	launch_manager.player_stats = player_stats
 	
 	# Create a knife instance if it doesn't exist
@@ -464,6 +541,18 @@ func exit_weapon_mode() -> void:
 	# Clear debug line
 	clear_debug_line()
 	
+	# Clean up knife aiming mode if it was active
+	if selected_card and selected_card.name == "Throwing Knife" and card_effect_handler and card_effect_handler.course:
+		var course = card_effect_handler.course
+		course.is_aiming_phase = false
+		course.hide_aiming_circle()
+		course.hide_aiming_instruction()
+		
+		# Restore original club if it was stored
+		if has_meta("original_club"):
+			course.selected_club = get_meta("original_club")
+			remove_meta("original_club")
+	
 	# Input is handled by the course's _input function
 	
 	selected_card = null
@@ -547,13 +636,20 @@ func handle_input(event: InputEvent) -> bool:
 	# Handle mouse movement for aiming
 	if event is InputEventMouseMotion:
 		update_weapon_rotation()
-		# Show debug trajectory when aiming
-		if weapon_instance and camera:
-			var pistol_pos = weapon_instance.global_position
-			var mouse_pos = camera.get_global_mouse_position()
-			var direction = (mouse_pos - pistol_pos).normalized()
-			var ray_end = pistol_pos + direction * weapon_range
-			update_debug_line(pistol_pos, ray_end)
+		
+		# For knife mode, update aiming circle like normal shot placement
+		if selected_card and selected_card.name == "Throwing Knife" and card_effect_handler and card_effect_handler.course:
+			var course = card_effect_handler.course
+			if course.is_aiming_phase and course.aiming_circle:
+				course.update_aiming_circle()
+		else:
+			# Show debug trajectory when aiming (for pistol)
+			if weapon_instance and camera:
+				var pistol_pos = weapon_instance.global_position
+				var mouse_pos = camera.get_global_mouse_position()
+				var direction = (mouse_pos - pistol_pos).normalized()
+				var ray_end = pistol_pos + direction * weapon_range
+				update_debug_line(pistol_pos, ray_end)
 		return true
 	
 	# Handle left click for firing

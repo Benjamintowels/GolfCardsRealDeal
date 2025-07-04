@@ -37,6 +37,9 @@ var base_collision_area: Area2D
 var health_bar: HealthBar
 var health_bar_container: Control
 
+# Knife attachment system
+var attached_knives: Array[Node2D] = []  # Array to track attached knife sprites
+
 # State Machine
 enum State {PATROL, CHASE, DEAD}
 var current_state: State = State.PATROL
@@ -190,6 +193,105 @@ func _handle_knife_collision(knife: Node2D) -> void:
 	else:
 		# Fallback: just reflect the knife
 		_apply_knife_reflection(knife)
+
+func attach_knife_sprite(knife_sprite: Sprite2D, knife_position: Vector2, knife_rotation: float) -> void:
+	"""Attach a knife sprite to the GangMember at the specified position and rotation"""
+	# Create a new Node2D to hold the knife sprite
+	var knife_holder = Node2D.new()
+	knife_holder.name = "AttachedKnife_" + str(attached_knives.size())
+	
+	# Calculate the local position relative to the GangMember
+	var local_position = knife_position - global_position
+	knife_holder.position = local_position
+	knife_holder.rotation = knife_rotation
+	
+	# Store the original position for proper mirroring when the GangMember flips
+	knife_holder.set_meta("original_position", local_position)
+	
+	# Create a copy of the knife sprite
+	var knife_sprite_copy = Sprite2D.new()
+	knife_sprite_copy.texture = knife_sprite.texture
+	knife_sprite_copy.scale = knife_sprite.scale
+	knife_sprite_copy.modulate = knife_sprite.modulate
+	knife_sprite_copy.z_index = knife_sprite.z_index
+	
+	# Add the knife sprite to the holder
+	knife_holder.add_child(knife_sprite_copy)
+	
+	# Add the holder to the GangMember
+	add_child(knife_holder)
+	
+	# Track the attached knife
+	attached_knives.append(knife_holder)
+	
+	# Add visual feedback - slightly tint the GangMember when they have knives
+	if sprite and attached_knives.size() == 1:
+		# First knife - add a subtle red tint
+		sprite.modulate = Color(1.1, 0.9, 0.9, 1.0)
+
+func remove_knife_sprite(knife_holder: Node2D) -> void:
+	"""Remove a specific knife sprite from the GangMember"""
+	if knife_holder in attached_knives:
+		attached_knives.erase(knife_holder)
+		knife_holder.queue_free()
+		
+		# Reset visual feedback if no more knives
+		if sprite and attached_knives.is_empty():
+			sprite.modulate = Color.WHITE
+
+func clear_all_attached_knives() -> void:
+	"""Remove all attached knife sprites from the GangMember"""
+	for knife_holder in attached_knives:
+		knife_holder.queue_free()
+	attached_knives.clear()
+	
+	# Reset visual feedback
+	if sprite:
+		sprite.modulate = Color.WHITE
+
+func get_attached_knives_count() -> int:
+	"""Get the number of knives currently attached to this GangMember"""
+	return attached_knives.size()
+
+func has_attached_knives() -> bool:
+	"""Check if this GangMember has any knives attached"""
+	return not attached_knives.is_empty()
+
+func dislodge_random_knife() -> bool:
+	"""Randomly dislodge one knife from the GangMember (for gameplay mechanics)"""
+	if attached_knives.is_empty():
+		return false
+	
+	# Randomly select a knife to dislodge
+	var random_index = randi() % attached_knives.size()
+	var knife_to_remove = attached_knives[random_index]
+	
+	remove_knife_sprite(knife_to_remove)
+	return true
+
+func dislodge_all_knives() -> void:
+	"""Dislodge all knives from the GangMember (for gameplay mechanics)"""
+	if attached_knives.is_empty():
+		return
+	
+	clear_all_attached_knives()
+
+func get_knife_attachment_info() -> Dictionary:
+	"""Get information about attached knives for debugging"""
+	var info = {
+		"knife_count": attached_knives.size(),
+		"has_knives": not attached_knives.is_empty(),
+		"knife_positions": []
+	}
+	
+	for knife_holder in attached_knives:
+		info.knife_positions.append({
+			"local_position": knife_holder.position,
+			"rotation": knife_holder.rotation,
+			"name": knife_holder.name
+		})
+	
+	return info
 
 func _handle_regular_ball_collision(ball: Node2D) -> void:
 	"""Handle regular ball collision with GangMember"""
@@ -941,7 +1043,52 @@ func _update_sprite_facing() -> void:
 		elif facing_direction.x > 0:
 			dead_sprite.flip_h = false
 	
+	# Update attached knives to flip with the GangMember
+	_update_attached_knives_facing()
+	
 	print("Updated sprite facing - Direction: ", facing_direction, ", Flip H: ", sprite.flip_h)
+
+func _update_attached_knives_facing() -> void:
+	"""Update the facing direction of all attached knives when the GangMember flips"""
+	if attached_knives.is_empty():
+		return
+	
+	for knife_holder in attached_knives:
+		if not is_instance_valid(knife_holder):
+			continue
+		
+		# Get the knife sprite (first child of the knife holder)
+		var knife_sprite = knife_holder.get_child(0) if knife_holder.get_child_count() > 0 else null
+		if not knife_sprite or not (knife_sprite is Sprite2D):
+			continue
+		
+		# Get the original position for proper mirroring
+		var original_position = knife_holder.get_meta("original_position", Vector2.ZERO)
+		
+		# Flip the knife sprite horizontally to match the GangMember
+		if facing_direction.x < 0:
+			knife_sprite.flip_h = true
+		elif facing_direction.x > 0:
+			knife_sprite.flip_h = false
+		
+		# Mirror the position horizontally when the GangMember flips
+		# This ensures the knife appears on the correct side of the GangMember
+		if facing_direction.x < 0:
+			# Facing left - mirror the X position from original
+			knife_holder.position.x = -original_position.x
+			knife_holder.position.y = original_position.y
+		elif facing_direction.x > 0:
+			# Facing right - use original position
+			knife_holder.position = original_position
+		
+		print("Updated knife facing - Holder: ", knife_holder.name, ", Original Pos: ", original_position, ", New Pos: ", knife_holder.position, ", Flip H: ", knife_sprite.flip_h)
+	
+	print("Updated ", attached_knives.size(), " attached knives for facing direction: ", facing_direction)
+
+func force_update_knife_facing() -> void:
+	"""Force update the facing of all attached knives (useful for debugging or edge cases)"""
+	print("Force updating knife facing for ", attached_knives.size(), " knives")
+	_update_attached_knives_facing()
 
 func _face_player() -> void:
 	"""Make the GangMember face the player"""
@@ -975,6 +1122,9 @@ func _update_dead_sprite_facing() -> void:
 		dead_sprite.flip_h = true
 	elif facing_direction.x > 0:
 		dead_sprite.flip_h = false
+	
+	# Update attached knives to flip with the dead GangMember
+	_update_attached_knives_facing()
 	
 	print("Updated dead sprite facing - Direction: ", facing_direction, ", Flip H: ", dead_sprite.flip_h)
 
@@ -1230,6 +1380,9 @@ func die() -> void:
 	# Play death groan sound
 	print("Calling _play_death_sound()")
 	_play_death_sound()
+	
+	# Clear all attached knives when the GangMember dies
+	clear_all_attached_knives()
 	
 	# Switch to dead state
 	current_state = State.DEAD

@@ -166,13 +166,17 @@ func update_object_y_sort(node: Node2D, object_type: String = "objects"):
 
 func update_ball_y_sort(ball_node: Node2D):
 	"""
-	Special Y-sort handling for ball sprites
+	Special Y-sort handling for ball sprites and throwing knives
 	Uses the ball's Shadow/YSortPoint position for Y-sorting
 	"""
 	if not ball_node or not is_instance_valid(ball_node):
 		return
 
+	# Check for different sprite node names (Sprite2D for golf balls, ThrowingKnife for knives)
 	var ball_sprite = ball_node.get_node_or_null("Sprite2D")
+	if not ball_sprite:
+		ball_sprite = ball_node.get_node_or_null("ThrowingKnife")
+	
 	var ysort_point = ball_node.get_node_or_null("Shadow/YSortPoint")
 	var ball_shadow = ball_node.get_node_or_null("Shadow")
 
