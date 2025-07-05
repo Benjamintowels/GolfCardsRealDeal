@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dew7o75riveac"
-path="res://.godot/imported/Pin.png-805977316a4ce8c22f3cf3d021b68739.ctex"
+uid="uid://bypolpr6cd5hp"
+path="res://.godot/imported/OilDrum.png-d9e98f4583e29697850d1578e3b12f99.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Obstacles/Pin.png"
-dest_files=["res://.godot/imported/Pin.png-805977316a4ce8c22f3cf3d021b68739.ctex"]
+source_file="res://Interactables/OilDrum.png"
+dest_files=["res://.godot/imported/OilDrum.png-d9e98f4583e29697850d1578e3b12f99.ctex"]
 
 [params]
 

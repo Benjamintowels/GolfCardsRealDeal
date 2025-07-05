@@ -13,7 +13,7 @@ var knife_impact_sound: AudioStreamPlayer2D
 var knife_whoosh_sound: AudioStreamPlayer2D
 
 var velocity := Vector2.ZERO
-var gravity := 2000.0
+var gravity := 1200.0  # Adjusted for pixel perfect system (was 2000.0)
 var z := 0.0 # Height above ground
 var vz := 0.0 # Vertical velocity (for arc)
 var landed_flag := false
@@ -52,8 +52,8 @@ var max_height := 0.0
 # Height sweet spot constants (matching LaunchManager.gd)
 const HEIGHT_SWEET_SPOT_MIN := 0.3 # 30% of max height
 const HEIGHT_SWEET_SPOT_MAX := 0.5 # 50% of max height
-const MAX_LAUNCH_HEIGHT := 2000.0
-const MIN_LAUNCH_HEIGHT := 500.0
+const MAX_LAUNCH_HEIGHT := 384.0   # 8 cells (48 * 8) for pixel perfect system - knives fly lower than balls
+const MIN_LAUNCH_HEIGHT := 144.0   # 3 cells (48 * 3) for pixel perfect system
 
 # Power constants (will be overridden by club_info from character stats)
 var MAX_LAUNCH_POWER := 300.0  # Default max distance (will be set by club_info)
@@ -138,7 +138,10 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 	# print("=== END KNIFE LAUNCH DEBUG ===")
 	
 	z = 0.0
-	vz = height  # Use the height parameter directly for vertical velocity
+	# Calculate initial vertical velocity to achieve the desired maximum height
+	# Using physics formula: z_max = vz_initial^2 / (2 * gravity)
+	# So: vz_initial = sqrt(2 * gravity * height)
+	vz = sqrt(2.0 * gravity * height)  # This will make the knife reach the exact height specified
 	landed_flag = false
 	max_height = 0.0
 	
@@ -205,7 +208,6 @@ func _setup_collision_detection() -> void:
 		# Set collision mask to 1 so it can detect objects on layer 1
 		area.collision_mask = 1
 		
-		print("✓ Knife collision detection setup complete")
 	else:
 		print("✗ ERROR: Area2D not found on knife!")
 
@@ -218,7 +220,6 @@ func _disable_collision_detection() -> void:
 		area.monitorable = false
 		area.collision_layer = 0
 		area.collision_mask = 0
-		print("✓ Knife collision detection disabled (landed)")
 	else:
 		print("✗ ERROR: Area2D not found on knife!")
 
@@ -231,6 +232,15 @@ func _on_area_entered(area: Area2D) -> void:
 	if not object:
 		return
 	
+	print("=== KNIFE COLLISION DETECTED ===")
+	print("Knife position:", global_position)
+	print("Knife height (z):", z)
+	print("Collision object:", object.name if object else "Unknown")
+	print("Object has _handle_ball_collision:", object.has_method("_handle_ball_collision") if object else false)
+	print("Object has _handle_trunk_collision:", object.has_method("_handle_trunk_collision") if object else false)
+	print("Object has take_damage:", object.has_method("take_damage") if object else false)
+	print("=== END KNIFE COLLISION DEBUG ===")
+	
 	# Prevent duplicate collision handling for the same object
 	if last_collision_object == object:
 		return
@@ -240,16 +250,19 @@ func _on_area_entered(area: Area2D) -> void:
 	
 	# Check if this is a tree collision
 	if object.has_method("_handle_trunk_collision"):
+		print("Handling tree collision")
 		_handle_tree_collision(object)
 		return
 	
 	# Check if this is an NPC collision (GangMember)
 	if object.has_method("_handle_ball_collision"):
+		print("Handling NPC collision")
 		_handle_npc_collision(object)
 		return
 	
 	# Check if this is a player collision
 	if object.has_method("take_damage") and object.name == "Player":
+		print("Handling player collision")
 		_handle_player_collision(object)
 		return
 
@@ -260,10 +273,10 @@ func _on_area_exited(area: Area2D) -> void:
 
 func _handle_tree_collision(tree: Node2D) -> void:
 	"""Handle collision with a tree"""
-	# Define tree height - knife must be above this to pass through
-	var tree_height = 500.0  # Tree height (knife needs 505.0 to pass over)
+	# Use standardized height for tree collision detection
+	var tree_height = Global.get_object_height_from_marker(tree)
 	
-	if z > tree_height:
+	if Global.is_object_above_height(z, tree_height):
 		# Knife is above the tree entirely - let it pass through
 		return
 	else:
@@ -350,15 +363,13 @@ func _handle_tree_stick(tree: Node2D) -> void:
 
 func _handle_npc_collision(npc: Node2D) -> void:
 	"""Handle collision with an NPC (GangMember)"""
-	# Get NPC height
-	var npc_height = 200.0  # Default NPC height
+	# Use standardized height for NPC collision detection
+	var npc_height = Global.get_object_height_from_marker(npc)
 	if npc.has_method("get_height"):
 		npc_height = npc.get_height()
-	elif "height" in npc:
-		npc_height = npc.height
 	
 	# Check if knife is above NPC entirely
-	if z > npc_height:
+	if Global.is_object_above_height(z, npc_height):
 		# Knife is above NPC entirely - let it pass through
 		return
 	else:
@@ -468,15 +479,8 @@ func _handle_npc_stick(npc: Node2D) -> void:
 
 func _handle_player_collision(player: Node2D) -> void:
 	"""Handle collision with the player"""
-	# Get player height
-	var player_height = 200.0  # Default player height
-	if player.has_method("get_height"):
-		player_height = player.get_height()
-	elif "height" in player:
-		player_height = player.height
-	
-	# Check if knife is above player entirely
-	if z > player_height:
+	# Use enhanced height collision detection with TopHeight markers
+	if Global.is_object_above_obstacle(self, player):
 		# Knife is above player entirely - let it pass through
 		return
 	else:
@@ -846,12 +850,12 @@ func _check_nearby_tree_collisions(trees: Array) -> void:
 		
 		var distance_to_tree = knife_ground_pos.distance_to(tree.global_position)
 		if distance_to_tree <= 150.0:  # Only check trees within 150 pixels
-			# Check if knife is at the right height to collide with tree
-			var tree_height = 500.0  # Tree height
+			# Use standardized height for tree collision detection
+			var tree_height = Global.get_object_height_from_marker(tree)
 			
 			# Only check for collision if knife is within tree height
 			# If knife is above tree height, let it pass through
-			if z <= tree_height:
+			if not Global.is_object_above_height(z, tree_height):
 				# Knife is within tree height - check for collision
 				var trunk_radius = 120.0
 				if distance_to_tree <= trunk_radius:
@@ -869,16 +873,14 @@ func _check_nearby_npc_collisions(npcs: Array) -> void:
 		
 		var distance_to_npc = knife_ground_pos.distance_to(npc.global_position)
 		if distance_to_npc <= 100.0:  # Only check NPCs within 100 pixels
-			# Check if knife is at the right height to collide with NPC
-			var npc_height = 200.0  # Default NPC height
+			# Use standardized height for NPC collision detection
+			var npc_height = Global.get_object_height_from_marker(npc)
 			if npc.has_method("get_height"):
 				npc_height = npc.get_height()
-			elif "height" in npc:
-				npc_height = npc.height
 			
 			# Only check for collision if knife is within NPC height
 			# If knife is above NPC height, let it pass through
-			if z <= npc_height:
+			if not Global.is_object_above_height(z, npc_height):
 				# Knife is within NPC height - check for collision
 				var npc_collision_radius = 50.0  # NPC collision radius
 				if distance_to_npc <= npc_collision_radius:
@@ -909,34 +911,8 @@ func update_visual_effects():
 	if not sprite or not shadow:
 		return
 	
-	# Scale the knife based on height (bigger when higher) - adjusted for knife height range
-	var height_scale = 1.0 + (z / 1500.0)  # More conservative scaling for knife's higher z values
-	
-	sprite.scale = base_scale * height_scale
-	
-	# Move the knife up based on height - scaled down to keep it on screen
-	sprite.position.y = -(z / 3.0)  # Scale down vertical movement to keep knife visible
-	
-	# Update shadow size and opacity based on height - like golf ball
-	# Keep shadow at ground level (Vector2.ZERO) - never move it up with the knife
-	shadow.position = Vector2.ZERO
-	
-	var shadow_scale = 1.0 - (z / 2000.0)  # Shadow gets smaller when knife is higher - adjusted for knife height
-	shadow_scale = clamp(shadow_scale, 0.1, 0.8)  # Shadow is smaller at max height
-	
-	shadow.scale = Vector2(0.21, 0.125) * shadow_scale
-	
-	# Shadow opacity also changes with height
-	var shadow_alpha = 0.3 - (z / 2000.0)  # Less opaque when knife is higher - adjusted for knife height
-	shadow_alpha = clamp(shadow_alpha, 0.05, 0.3)  # Keep some visibility
-	
-	shadow.modulate = Color(0, 0, 0, shadow_alpha)
-	
-	# Ensure shadow is always behind the knife sprite
-	shadow.z_index = sprite.z_index - 1
-	# Keep shadow visible even if knife is behind objects
-	if shadow.z_index <= -5:
-		shadow.z_index = 1
+	# Use standardized height visual effects
+	Global.apply_standard_height_visual_effects(sprite, shadow, z, base_scale)
 
 func update_y_sort():
 	"""Update the knife's z_index using the same global Y-sort system as the golf ball"""

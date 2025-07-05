@@ -76,27 +76,15 @@ func _handle_trunk_collision(ball: Node2D):
 	print("Ball/knife name:", ball.name)
 	print("Ball/knife type:", ball.get_class())
 	
-	# Get ball/knife height
-	var ball_height = 0.0
-	if ball.has_method("get_height"):
-		ball_height = ball.get_height()
-	elif "z" in ball:
-		ball_height = ball.z
-	
-	print("Ball/knife height:", ball_height)
-	print("Tree height threshold:", 500.0)
-	
-	# Define tree height - ball/knife must be above this to pass through
-	var tree_height = 500.0  # Tree height (ball/knife needs 505.0 to pass over)
-	
-	if ball_height > tree_height:
+	# Use enhanced height collision detection with TopHeight markers
+	if Global.is_object_above_obstacle(ball, self):
 		# Ball/knife is above the tree entirely - let it pass through
-		print("✓ Ball/knife is above tree entirely (height:", ball_height, "> tree_height:", tree_height, ") - passing through")
+		print("✓ Ball/knife is above tree entirely - passing through")
 		print("=== END TRUNK COLLISION (PASSED THROUGH) ===")
 		return
 	else:
 		# Ball/knife is within or below tree height - handle collision
-		print("✗ Ball/knife is within tree height (height:", ball_height, "<= tree_height:", tree_height, ") - handling collision")
+		print("✗ Ball/knife is within tree height - handling collision")
 		
 		# Check if this is a throwing knife
 		if ball.has_method("is_throwing_knife") and ball.is_throwing_knife():

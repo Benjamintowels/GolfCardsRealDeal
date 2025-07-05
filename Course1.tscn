@@ -75,6 +75,13 @@ offset_right = 123.0
 offset_bottom = 31.0
 text = "ModShot"
 
+[node name="DebugTopHeightButton" type="Button" parent="UILayer"]
+offset_left = 20.0
+offset_top = 20.0
+offset_right = 200.0
+offset_bottom = 50.0
+text = "Debug TopHeight Markers"
+
 [node name="EndRoundButton" type="Button" parent="UILayer"]
 z_index = 5
 offset_left = 1050.0
@@ -243,3 +250,5 @@ texture = ExtResource("2_eymfu")
 [node name="BirdsTweeting" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("19_00plg")
 volume_db = -0.732
+
+[connection signal="pressed" from="UILayer/DebugTopHeightButton" to="." method="_on_debug_top_height_button_pressed"]

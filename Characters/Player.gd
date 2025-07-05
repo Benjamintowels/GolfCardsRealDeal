@@ -18,7 +18,6 @@ var character_sprite: Sprite2D = null
 var highlight_tween: Tween = null
 
 # Ball collision and health properties
-var height: float = 150.0  # Player height (ball needs 69.0 to pass over)
 var base_collision_area: Area2D
 var max_health: int = 100
 var current_health: int = 100
@@ -56,7 +55,29 @@ func _ready():
 	# Setup ball collision area
 	_setup_ball_collision()
 	
-	print("[Player.gd] Player ready with height:", height, "and health:", current_health, "/", max_health)
+	# Connect to character scene's Area2D for collision detection
+	_connect_character_collision()
+	
+	print("[Player.gd] Player ready with health:", current_health, "/", max_health)
+	
+	# Debug visual height
+	var char_sprite = get_character_sprite()
+	if char_sprite:
+		Global.debug_visual_height(char_sprite, "Player")
+
+func _connect_character_collision() -> void:
+	"""Connect to the character scene's Area2D for collision detection"""
+	var character_area = _find_character_area2d()
+	if character_area:
+		# Disconnect any existing connections to avoid duplicates
+		if character_area.area_entered.is_connected(_on_character_area_entered):
+			character_area.area_entered.disconnect(_on_character_area_entered)
+		
+		# Connect to the character's Area2D
+		character_area.area_entered.connect(_on_character_area_entered)
+		print("✓ Connected to character Area2D for collision detection")
+	else:
+		print("⚠ No character Area2D found for collision detection")
 
 func get_character_sprite() -> Sprite2D:
 	# First check direct children
@@ -247,31 +268,14 @@ func _update_mouse_facing() -> void:
 # Ball collision methods
 func _setup_ball_collision() -> void:
 	"""Setup the base collision area for ball detection"""
-	# Create base collision area
-	base_collision_area = Area2D.new()
-	base_collision_area.name = "BaseCollisionArea"
-	add_child(base_collision_area)
-	
-	# Create collision shape
-	var collision_shape = CollisionShape2D.new()
-	var shape = CircleShape2D.new()
-	shape.radius = 12.0  # Slightly larger than player collision
-	collision_shape.shape = shape
-	collision_shape.position = Vector2(0, 25)  # Offset from player center to base
-	base_collision_area.add_child(collision_shape)
-	
-	# Set collision layer to 1 so golf balls can detect it
-	base_collision_area.collision_layer = 1
-	# Set collision mask to 1 so it can detect golf balls on layer 1
-	base_collision_area.collision_mask = 1
-	# Connect to area_entered signal for collision detection
-	base_collision_area.connect("area_entered", _on_base_area_entered)
-	print("✓ Player base collision area setup complete")
+	# Collision is now handled by the character scene's Area2D
+	# No need to create additional collision areas
+	print("✓ Player collision handled by character scene Area2D")
 
-func _on_base_area_entered(area: Area2D) -> void:
-	"""Handle collisions with the base collision area"""
+func _on_character_area_entered(area: Area2D) -> void:
+	"""Handle collisions with the character's collision area"""
 	var ball = area.get_parent()
-	print("=== PLAYER BASE COLLISION DETECTED ===")
+	print("=== PLAYER CHARACTER COLLISION DETECTED ===")
 	print("Area name:", area.name)
 	print("Ball parent:", ball.name if ball else "No parent")
 	print("Ball type:", ball.get_class() if ball else "Unknown")
@@ -288,7 +292,7 @@ func _on_base_area_entered(area: Area2D) -> void:
 		_handle_ball_collision(ball)
 	else:
 		print("Invalid ball/knife or non-ball object:", ball.name if ball else "Unknown")
-	print("=== END PLAYER BASE COLLISION ===")
+	print("=== END PLAYER CHARACTER COLLISION ===")
 
 func _handle_ball_collision(ball: Node2D) -> void:
 	"""Handle ball/knife collisions - check height and delay to determine if ball/knife should cause damage"""
@@ -322,19 +326,10 @@ func _handle_knife_collision(knife: Node2D) -> void:
 	"""Handle knife collision with player"""
 	print("Handling knife collision with player")
 	
-	# Get knife height
-	var knife_height = 0.0
-	if knife.has_method("get_height"):
-		knife_height = knife.get_height()
-	elif "z" in knife:
-		knife_height = knife.z
-	
-	print("Knife height:", knife_height, "Player height:", height)
-	
-	# Check if knife is above player entirely
-	if knife_height > height:
+	# Use enhanced height collision detection with TopHeight markers
+	if Global.is_object_above_obstacle(knife, self):
 		# Knife is above player entirely - let it pass through
-		print("Knife is above player entirely (height:", knife_height, "> player height:", height, ") - passing through")
+		print("Knife is above player entirely - passing through")
 		return
 	
 	# Check collision delay - knife must travel minimum distance from launch position
@@ -359,19 +354,10 @@ func _handle_regular_ball_collision(ball: Node2D) -> void:
 	"""Handle regular ball collision with player"""
 	print("Handling regular ball collision with player")
 	
-	# Get ball height
-	var ball_height = 0.0
-	if ball.has_method("get_height"):
-		ball_height = ball.get_height()
-	elif "z" in ball:
-		ball_height = ball.z
-	
-	print("Ball height:", ball_height, "Player height:", height)
-	
-	# Check if ball is above player entirely
-	if ball_height > height:
+	# Use enhanced height collision detection with TopHeight markers
+	if Global.is_object_above_obstacle(ball, self):
 		# Ball is above player entirely - let it pass through
-		print("Ball is above player entirely (height:", ball_height, "> player height:", height, ") - passing through")
+		print("Ball is above player entirely - passing through")
 		return
 	
 	# Check collision delay - ball must travel minimum distance from launch position
@@ -503,17 +489,33 @@ func set_camera_reference(camera_ref: Camera2D) -> void:
 
 func disable_collision_shape() -> void:
 	"""Disable the player's collision shape during launch mode"""
-	if base_collision_area:
-		base_collision_area.monitoring = false
-		base_collision_area.monitorable = false
-		print("[Player.gd] Collision shape disabled for launch mode")
+	# Find the character's Area2D and disable it
+	var character_area = _find_character_area2d()
+	if character_area:
+		character_area.monitoring = false
+		character_area.monitorable = false
+		print("[Player.gd] Character collision shape disabled for launch mode")
 
 func enable_collision_shape() -> void:
 	"""Enable the player's collision shape after ball lands"""
-	if base_collision_area:
-		base_collision_area.monitoring = true
-		base_collision_area.monitorable = true
-		print("[Player.gd] Collision shape enabled after ball landing")
+	# Find the character's Area2D and enable it
+	var character_area = _find_character_area2d()
+	if character_area:
+		character_area.monitoring = true
+		character_area.monitorable = true
+		print("[Player.gd] Character collision shape enabled after ball landing")
+
+func _find_character_area2d() -> Area2D:
+	"""Find the Area2D in the character scene"""
+	for child in get_children():
+		if child is Area2D:
+			return child
+		elif child is Node2D:
+			# Check Node2D children
+			for grandchild in child.get_children():
+				if grandchild is Area2D:
+					return grandchild
+	return null
 
 func set_launch_mode(launch_mode: bool) -> void:
 	"""Set the launch mode state for mouse facing logic"""

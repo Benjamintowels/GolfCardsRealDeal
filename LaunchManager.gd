@@ -17,9 +17,9 @@ var is_knife_mode := false  # Track if we're launching a knife instead of a ball
 const MAX_LAUNCH_POWER := 1200.0
 const MIN_LAUNCH_POWER := 300.0
 const POWER_CHARGE_RATE := 300.0 # units per second
-const MAX_LAUNCH_HEIGHT := 2000.0  # Increased for better arc
-const MIN_LAUNCH_HEIGHT := 500.0  # Increased minimum height
-const HEIGHT_CHARGE_RATE := 1000.0 # Increased charge rate for faster height charging
+const MAX_LAUNCH_HEIGHT := 480.0   # 10 cells (48 * 10) for pixel perfect system
+const MIN_LAUNCH_HEIGHT := 144.0   # 3 cells (48 * 3) for pixel perfect system
+const HEIGHT_CHARGE_RATE := 600.0  # Adjusted for pixel perfect system (was 1000.0)
 const HEIGHT_SWEET_SPOT_MIN := 0.3 # 30% of max height - lower sweet spot for better arc
 const HEIGHT_SWEET_SPOT_MAX := 0.5 # 50% of max height - narrower sweet spot
 
@@ -318,6 +318,10 @@ func launch_throwing_knife(launch_direction: Vector2, final_power: float, height
 		# Create a new knife instance
 		var throwing_knife_scene = preload("res://Weapons/ThrowingKnife.tscn")
 		existing_knife = throwing_knife_scene.instantiate()
+		
+		# Add knife to groups for smart optimization
+		existing_knife.add_to_group("knives")
+		existing_knife.add_to_group("collision_objects")
 		
 		# Add to the CameraContainer like golf balls
 		if card_effect_handler and card_effect_handler.course:

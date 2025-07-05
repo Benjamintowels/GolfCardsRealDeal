@@ -1,13 +1,27 @@
-[gd_scene load_steps=2 format=3 uid="uid://dhsqc6186gu42"]
+[gd_scene load_steps=3 format=3 uid="uid://dhsqc6186gu42"]
 
-[ext_resource type="Texture2D" uid="uid://cj5ys81w05bua" path="res://Characters/LaylaChar.png" id="1_tghli"]
+[ext_resource type="Texture2D" uid="uid://mbo7cabs6iva" path="res://Characters/LaylaChar.png" id="1_tghli"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_tghli"]
+radius = 7.64385
 
 [node name="Layla" type="Node2D"]
-position = Vector2(0, -37.71)
-scale = Vector2(0.055, 0.055)
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(0, -39.925)
 texture = ExtResource("1_tghli")
 
 [node name="YSortPoint" type="Node2D" parent="Sprite2D"]
-position = Vector2(0, 522)
+position = Vector2(0, 33.925)
+
+[node name="TopHeight" type="Marker2D" parent="."]
+position = Vector2(0, -80)
+
+[node name="Area2D" type="Area2D" parent="."]
+position = Vector2(0, -39.925)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D"]
+position = Vector2(2.01, 37)
+scale = Vector2(1.445, 1.445)
+shape = SubResource("CircleShape2D_tghli")

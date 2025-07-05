@@ -29,7 +29,6 @@ var is_alive: bool = true
 var is_dead: bool = false
 
 # Collision and height properties
-var height: float = 200.0  # GangMember height (ball needs 88.0 to pass over)
 var dead_height: float = 50.0  # Lower height when dead (laying down)
 var base_collision_area: Area2D
 
@@ -49,7 +48,7 @@ func get_headshot_info() -> Dictionary:
 		"min_height": HEADSHOT_MIN_HEIGHT,
 		"max_height": HEADSHOT_MAX_HEIGHT,
 		"multiplier": HEADSHOT_MULTIPLIER,
-		"total_height": height,
+		"total_height": Global.get_object_height_from_marker(self),
 		"headshot_range": HEADSHOT_MAX_HEIGHT - HEADSHOT_MIN_HEIGHT
 	}
 
@@ -166,6 +165,15 @@ func _on_base_area_entered(area: Area2D) -> void:
 	"""Handle collisions with the base collision area"""
 	var ball = area.get_parent()
 
+	print("=== GANGMEMBER COLLISION DETECTED ===")
+	print("GangMember position:", global_position)
+	print("Collision area parent:", ball.name if ball else "None")
+	print("Ball is GolfBall:", ball.name == "GolfBall" if ball else false)
+	print("Ball is GhostBall:", ball.name == "GhostBall" if ball else false)
+	print("Ball has is_throwing_knife:", ball.has_method("is_throwing_knife") if ball else false)
+	print("Ball is throwing knife:", ball.is_throwing_knife() if ball and ball.has_method("is_throwing_knife") else false)
+	print("=== END GANGMEMBER COLLISION DEBUG ===")
+
 	if ball and (ball.name == "GolfBall" or ball.name == "GhostBall" or ball.has_method("is_throwing_knife")):
 		print("Valid ball/knife detected:", ball.name)
 		# Handle the collision
@@ -177,23 +185,14 @@ func _handle_ball_collision(ball: Node2D) -> void:
 	"""Handle ball/knife collisions - check height to determine if ball/knife should pass through"""
 	print("Handling ball/knife collision - checking ball/knife height")
 	
-	# Get ball/knife height
-	var ball_height = 0.0
-	if ball.has_method("get_height"):
-		ball_height = ball.get_height()
-	elif "z" in ball:
-		ball_height = ball.z
-	
-	print("Ball/knife height:", ball_height, "GangMember height:", height)
-	
-	# Check if ball/knife is above GangMember entirely
-	if ball_height > height:
+	# Use enhanced height collision detection with TopHeight markers
+	if Global.is_object_above_obstacle(ball, self):
 		# Ball/knife is above GangMember entirely - let it pass through
-		print("Ball/knife is above GangMember entirely (height:", ball_height, "> GangMember height:", height, ") - passing through")
+		print("Ball/knife is above GangMember entirely - passing through")
 		return
 	else:
 		# Ball/knife is within or below GangMember height - handle collision
-		print("Ball/knife is within GangMember height (height:", ball_height, "<= GangMember height:", height, ") - handling collision")
+		print("Ball/knife is within GangMember height - handling collision")
 		
 		# Check if this is a throwing knife
 		if ball.has_method("is_throwing_knife") and ball.is_throwing_knife():
@@ -568,6 +567,10 @@ func setup(member_type: String, pos: Vector2i, cell_size_param: int = 48) -> voi
 	update_z_index_for_ysort()
 	
 	print("GangMember setup: ", member_type, " at ", pos)
+	
+	# Debug visual height
+	if sprite:
+		Global.debug_visual_height(sprite, "GangMember")
 
 func _load_sprite_for_type(type: String) -> void:
 	"""Load the appropriate sprite texture based on gang member type"""
@@ -1173,7 +1176,7 @@ func _update_dead_sprite_facing() -> void:
 # Height and collision shape methods for Entities system
 func get_height() -> float:
 	"""Get the height of this GangMember for collision detection"""
-	return height
+	return Global.get_object_height_from_marker(self)
 
 func get_y_sort_point() -> float:
 	var ysort_point_node = get_node_or_null("YsortPoint")
@@ -1361,8 +1364,7 @@ class DeadState extends BaseState:
 		print("GangMember entering dead state")
 		# Change sprite to dead version
 		gang_member._change_to_dead_sprite()
-		# Lower height for collision detection
-		gang_member.height = gang_member.dead_height
+		# Height is now handled by TopHeight marker - no need to set height property
 		# Hide health bar
 		if gang_member.health_bar_container:
 			gang_member.health_bar_container.visible = false

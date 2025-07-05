@@ -334,6 +334,10 @@ func launch_throwing_knife() -> void:
 	if not knife_instance:
 		print("Creating new knife instance...")
 		knife_instance = throwing_knife_scene.instantiate()
+		
+		# Add knife to groups for smart optimization
+		knife_instance.add_to_group("knives")
+		knife_instance.add_to_group("collision_objects")
 		# Add to the CameraContainer like the golf ball
 		if card_effect_handler and card_effect_handler.course:
 			var camera_container = card_effect_handler.course.get_node_or_null("CameraContainer")

@@ -1,13 +1,26 @@
-[gd_scene load_steps=2 format=3 uid="uid://1ivjyhoug6fo"]
+[gd_scene load_steps=3 format=3 uid="uid://1ivjyhoug6fo"]
 
-[ext_resource type="Texture2D" uid="uid://bgps7nghqxf2o" path="res://Characters/ClarkChar.png" id="1_pt0yq"]
+[ext_resource type="Texture2D" uid="uid://y1fqw4fcat3c" path="res://Characters/ClarkChar.png" id="1_pt0yq"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_pt0yq"]
+radius = 9.02312
 
 [node name="Clark" type="Node2D"]
-position = Vector2(0, -39.97)
-scale = Vector2(0.055, 0.055)
+texture_filter = 1
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
+position = Vector2(0, -57)
 texture = ExtResource("1_pt0yq")
 
 [node name="YSortPoint" type="Node2D" parent="Sprite2D"]
-position = Vector2(0, 599.455)
+position = Vector2(0, 48)
+
+[node name="TopHeight" type="Marker2D" parent="."]
+position = Vector2(0, -55)
+
+[node name="Area2D" type="Area2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D"]
+position = Vector2(-0.855, -8)
+scale = Vector2(1.445, 1.445)
+shape = SubResource("CircleShape2D_pt0yq")

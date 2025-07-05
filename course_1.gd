@@ -763,7 +763,6 @@ func create_player() -> void:
 		print("Health bar initialized: %d/%d HP" % [current_hp, max_hp])
 	
 	if player_node and is_instance_valid(player_node):
-		player_node.position = Vector2(player_grid_pos.x, player_grid_pos.y) * cell_size + Vector2(2, 2)
 		player_node.set_grid_position(player_grid_pos, ysort_objects, shop_grid_pos)
 		player_node.visible = true
 		update_player_position()
@@ -772,29 +771,33 @@ func create_player() -> void:
 	var player_scene = preload("res://Characters/Player1.tscn")
 	player_node = player_scene.instantiate()
 	player_node.name = "Player"
-	player_node.position = Vector2(player_grid_pos.x, player_grid_pos.y) * cell_size + Vector2(2, 2)
+	
+	# Add player to groups for smart optimization
+	player_node.add_to_group("players")
+	player_node.add_to_group("collision_objects")
+	
 	grid_container.add_child(player_node)
 
 	var char_scene_path = ""
-	var char_scale = Vector2.ONE  # Default scale
+	var char_scale = Vector2.ONE  # Default scale - no scaling needed since sprites are properly sized
 	var char_offset = Vector2.ZERO  # Default offset
 	match Global.selected_character:
 		1:
 			char_scene_path = "res://Characters/LaylaChar.tscn"
-			char_scale = Vector2(0.055, 0.055)
-			char_offset = Vector2(0, -36.815)
+			char_scale = Vector2.ONE  # No scaling needed
+			char_offset = Vector2.ZERO  # No offset needed
 		2:
 			char_scene_path = "res://Characters/BennyChar.tscn"
-			char_scale = Vector2(0.055, 0.055)
-			char_offset = Vector2(0, -36.815)
+			char_scale = Vector2.ONE  # No scaling needed
+			char_offset = Vector2.ZERO  # No offset needed
 		3:
 			char_scene_path = "res://Characters/ClarkChar.tscn"
-			char_scale = Vector2(0.055, 0.055)
-			char_offset = Vector2(0, -36.815)
+			char_scale = Vector2.ONE  # No scaling needed
+			char_offset = Vector2.ZERO  # No offset needed
 		_:
 			char_scene_path = "res://Characters/BennyChar.tscn" # Default to Benny if unknown
-			char_scale = Vector2(0.055, 0.055)
-			char_offset = Vector2(0, -36.815)
+			char_scale = Vector2.ONE  # No scaling needed
+			char_offset = Vector2.ZERO  # No offset needed
 	if char_scene_path != "":
 		var char_scene = load(char_scene_path)
 		if char_scene:
@@ -891,8 +894,6 @@ func update_player_position() -> void:
 		return
 	var sprite = player_node.get_node_or_null("Sprite2D")
 	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
-
-	player_node.position = Vector2(player_grid_pos.x, player_grid_pos.y) * cell_size + Vector2(2, 2)
 
 	player_node.set_grid_position(player_grid_pos, ysort_objects)
 	
@@ -3218,3 +3219,32 @@ func _update_player_mouse_facing_state() -> void:
 	# Set camera reference if not already set
 	if player_node.has_method("set_camera_reference") and camera:
 		player_node.set_camera_reference(camera)
+
+func _on_debug_top_height_button_pressed() -> void:
+	"""Handle debug TopHeight markers button press"""
+	print("=== DEBUG TOPHEIGHT MARKERS BUTTON PRESSED ===")
+	
+	# Call the global debug function to scan all TopHeight markers
+	Global.debug_all_top_height_markers()
+	
+	# Also debug specific objects in the scene
+	var player = get_node_or_null("Player")
+	if player:
+		Global.debug_top_height_marker(player)
+	
+	var trees = get_tree().get_nodes_in_group("trees")
+	for tree in trees:
+		if is_instance_valid(tree):
+			Global.debug_top_height_marker(tree)
+	
+	var gang_members = get_tree().get_nodes_in_group("gang_members")
+	for gang_member in gang_members:
+		if is_instance_valid(gang_member):
+			Global.debug_top_height_marker(gang_member)
+	
+	var pins = get_tree().get_nodes_in_group("pins")
+	for pin in pins:
+		if is_instance_valid(pin):
+			Global.debug_top_height_marker(pin)
+	
+	print("=== END DEBUG TOPHEIGHT MARKERS ===")

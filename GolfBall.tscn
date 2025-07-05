@@ -1,27 +1,30 @@
-[gd_scene load_steps=6 format=3 uid="uid://ccplraisoursi"]
+[gd_scene load_steps=7 format=3 uid="uid://ccplraisoursi"]
 
-[ext_resource type="Texture2D" uid="uid://b714hho7b4xqc" path="res://GolfBall.png" id="1_c77dq"]
+[ext_resource type="Texture2D" uid="uid://cvys8vcc4i6hi" path="res://GolfBall.png" id="1_c77dq"]
 [ext_resource type="Script" uid="uid://bn6hvthphgj16" path="res://GolfBall.gd" id="1_coy0q"]
 [ext_resource type="AudioStream" uid="uid://bau71e1lwtfjb" path="res://Sounds/BallLand.mp3" id="3_vgy6a"]
 [ext_resource type="AudioStream" uid="uid://ded2rplabwxm3" path="res://Sounds/CrowdClap1.mp3" id="4_k5viu"]
 
+[sub_resource type="CompressedTexture2D" id="CompressedTexture2D_k5viu"]
+load_path = "res://.godot/imported/GolfBall.png-0516230eae0ffabe6c6d009b86188c92.ctex"
+
 [sub_resource type="CircleShape2D" id="CircleShape2D_coy0q"]
-radius = 37.0135
+radius = 7.24983
 
 [node name="GolfBall" type="CharacterBody2D"]
-scale = Vector2(0.22, 0.22)
 script = ExtResource("1_coy0q")
 
 [node name="Shadow" type="Sprite2D" parent="."]
 modulate = Color(0, 0, 0, 0.3)
 z_index = -1
-scale = Vector2(0.985, 0.5)
-texture = ExtResource("1_c77dq")
+scale = Vector2(0.175, 0.089)
+texture = SubResource("CompressedTexture2D_k5viu")
 
 [node name="YSortPoint" type="Node2D" parent="Shadow"]
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 z_index = 1
+texture_filter = 1
 texture = ExtResource("1_c77dq")
 
 [node name="Area2D" type="Area2D" parent="."]
@@ -36,3 +39,6 @@ volume_db = 6.443
 
 [node name="BallStop" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("4_k5viu")
+
+[node name="TopHeight" type="Marker2D" parent="."]
+position = Vector2(0, -7.561)

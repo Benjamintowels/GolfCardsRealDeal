@@ -31,17 +31,17 @@ func _ready():
 	else:
 		print("No HoleArea found - hole-in detection may not work properly")
 	
-	# Set collision height based on Marker2D position (if it exists)
-	var top_marker = get_node_or_null("TopMarker")
-	if top_marker:
+	# Set collision height based on TopHeight Marker2D position (if it exists)
+	var top_height_marker = get_node_or_null("TopHeight")
+	if top_height_marker:
 		# Convert the marker's Y position to ball height units
 		# The marker's Y position is negative (up), so we take the absolute value
-		PIN_FLAG_HEIGHT_MAX = abs(top_marker.position.y)
-		print("Pin collision height set to:", PIN_FLAG_HEIGHT_MAX, "based on TopMarker position")
+		PIN_FLAG_HEIGHT_MAX = abs(top_height_marker.position.y)
+		print("Pin collision height set to:", PIN_FLAG_HEIGHT_MAX, "based on TopHeight marker position")
 	else:
-		# Fallback to default value
-		PIN_FLAG_HEIGHT_MAX = 400.0
-		print("No TopMarker found, using default collision height:", PIN_FLAG_HEIGHT_MAX)
+		# If TopHeight marker is missing, set PIN_FLAG_HEIGHT_MAX = 0 and print error
+		PIN_FLAG_HEIGHT_MAX = 0
+		print("No TopHeight marker found, using collision height: 0")
 
 # Returns the Y-sorting reference point (base of pin)
 func get_y_sort_point() -> float:

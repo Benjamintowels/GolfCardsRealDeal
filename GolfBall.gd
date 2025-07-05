@@ -13,7 +13,7 @@ var ball_land_sound: AudioStreamPlayer2D
 var ball_stop_sound: AudioStreamPlayer2D
 
 var velocity := Vector2.ZERO
-var gravity := 2000.0
+var gravity := 1200.0  # Adjusted for pixel perfect system (was 2000.0)
 var z := 0.0 # Height above ground
 var vz := 0.0 # Vertical velocity (for arc)
 var landed_flag := false
@@ -79,8 +79,8 @@ var max_height := 0.0
 # Height sweet spot constants (matching LaunchManager.gd)
 const HEIGHT_SWEET_SPOT_MIN := 0.3 # 30% of max height
 const HEIGHT_SWEET_SPOT_MAX := 0.5 # 50% of max height
-const MAX_LAUNCH_HEIGHT := 2000.0
-const MIN_LAUNCH_HEIGHT := 500.0
+const MAX_LAUNCH_HEIGHT := 480.0   # 10 cells (48 * 10) for pixel perfect system
+const MIN_LAUNCH_HEIGHT := 144.0   # 3 cells (48 * 3) for pixel perfect system
 
 # Power constants (matching course_1.gd)
 const MAX_LAUNCH_POWER := 1200.0
@@ -234,7 +234,10 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 		var initial_spin = spin * 0.1
 		velocity += perp.normalized() * initial_spin
 	z = 0.0
-	vz = height  # Use the height parameter directly for vertical velocity
+	# Calculate initial vertical velocity to achieve the desired maximum height
+	# Using physics formula: z_max = vz_initial^2 / (2 * gravity)
+	# So: vz_initial = sqrt(2 * gravity * height)
+	vz = sqrt(2.0 * gravity * height)  # This will make the ball reach the exact height specified
 	landed_flag = false
 	max_height = 0.0
 	
@@ -251,11 +254,13 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 	# Store initial height and calculate first bounce height
 	initial_height = height
 	initial_launch_height = height  # Store for roll calculations
-	first_bounce_height = height * 0.6  # First bounce is 60% of initial height (increased from 40%)
+	# Calculate bounce height using the same physics formula
+	# For 60% of initial height, we need 60% of the initial velocity
+	first_bounce_height = sqrt(2.0 * gravity * height * 0.6)  # First bounce is 60% of initial height
 	
 	# Apply Bouncey effect to increase bounce height if active
 	if bouncey_shot_active:
-		first_bounce_height = height * 1.2  # Bouncey effect: 120% of initial height for much higher bounces
+		first_bounce_height = sqrt(2.0 * gravity * height * 1.2)  # Bouncey effect: Increased bounce height to 120% of initial height
 		print("Bouncey effect: Increased bounce height to", first_bounce_height, "(120% of initial height)")
 	
 	# Calculate roll distance based on height (higher shots roll less, lower shots roll more)
@@ -379,6 +384,7 @@ func _process(delta):
 		# Ball is in the air
 		z += vz * delta
 		vz -= gravity * delta
+		
 		if is_rolling:
 			is_rolling = false
 		
@@ -473,7 +479,9 @@ func _process(delta):
 						bounce_height = first_bounce_height
 					else:
 						# Subsequent bounces: reduce by bounce factor each time
-						bounce_height = first_bounce_height * pow(bounce_factor, bounce_count - 1)
+						# Calculate the height percentage for this bounce
+						var bounce_height_percentage = pow(bounce_factor, bounce_count - 1)
+						bounce_height = sqrt(2.0 * gravity * initial_height * bounce_height_percentage)
 					# Set vertical velocity for the bounce
 					vz = bounce_height
 					# Reduce horizontal velocity slightly on bounce
@@ -551,7 +559,9 @@ func _process(delta):
 						bounce_height = first_bounce_height
 					else:
 						# Subsequent bounces: reduce by bounce factor each time
-						bounce_height = first_bounce_height * pow(bounce_factor, bounce_count - 1)
+						# Calculate the height percentage for this bounce
+						var bounce_height_percentage = pow(bounce_factor, bounce_count - 1)
+						bounce_height = sqrt(2.0 * gravity * initial_height * bounce_height_percentage)
 					# Set vertical velocity for the bounce
 					vz = bounce_height
 					# Reduce horizontal velocity slightly on bounce
@@ -629,7 +639,9 @@ func _process(delta):
 						bounce_height = first_bounce_height
 					else:
 						# Subsequent bounces: reduce by bounce factor each time
-						bounce_height = first_bounce_height * pow(bounce_factor, bounce_count - 1)
+						# Calculate the height percentage for this bounce
+						var bounce_height_percentage = pow(bounce_factor, bounce_count - 1)
+						bounce_height = sqrt(2.0 * gravity * initial_height * bounce_height_percentage)
 					# Set vertical velocity for the bounce
 					vz = bounce_height
 					# Reduce horizontal velocity slightly on bounce
@@ -767,17 +779,16 @@ func update_visual_effects():
 	if not sprite:
 		return
 	
-	# Scale the ball based on height (bigger when higher)
-	var height_scale = 1.0 + (z / 500.0)  # Scale factor based on height
+	# Use standardized height visual effects
+	Global.apply_standard_height_visual_effects(sprite, shadow, z, base_scale)
 	
-	# Add slight scaling effect when rolling
+	# Add rolling-specific effects
 	if is_rolling:
-		height_scale *= 0.9  # Slightly smaller when rolling
-	
-	sprite.scale = base_scale * height_scale
-	
-	# Move the ball up based on height
-	sprite.position.y = -z  # Negative because we want to move up
+		# Slightly smaller when rolling
+		sprite.scale *= 0.9
+		if shadow:
+			shadow.scale *= 1.1
+			shadow.modulate = Color(0, 0, 0, 0.4)  # More opaque when rolling
 	
 	# Add rotation based on velocity
 	var speed = velocity.length()
@@ -798,38 +809,6 @@ func update_visual_effects():
 			# Add a slight wobble effect for high-speed shots
 			var wobble = sin(sprite.rotation * 10) * 0.02
 			sprite.rotation += wobble
-	
-	# Update shadow size and opacity based on height
-	if shadow:
-		# Keep shadow at ground level (Vector2.ZERO) - never move it up with the ball
-		shadow.position = Vector2.ZERO
-		
-		var shadow_scale = 1.0 - (z / 800.0)  # Shadow gets smaller when ball is higher
-		shadow_scale = clamp(shadow_scale, 0.1, 0.8)  # Reduced max from 1.0 to 0.8 - shadow is smaller at max
-		
-		# Shadow is more prominent when rolling
-		if is_rolling:
-			shadow_scale *= 1.1  # Reduced from 1.2 to 1.1 - less dramatic increase when rolling
-			shadow_scale = clamp(shadow_scale, 0.1, 1.0)  # Reduced max from 1.5 to 1.0
-		
-		shadow.scale = base_scale * shadow_scale
-		
-		# Shadow opacity also changes with height
-		var shadow_alpha = 0.3 - (z / 1000.0)  # Less opaque when ball is higher
-		shadow_alpha = clamp(shadow_alpha, 0.05, 0.3)  # Keep some visibility
-		
-		# Shadow is more opaque when rolling
-		if is_rolling:
-			shadow_alpha = 0.4
-		
-		shadow.modulate = Color(0, 0, 0, shadow_alpha)
-		
-		# Ensure shadow is always behind the ball sprite
-		if sprite:
-			shadow.z_index = sprite.z_index - 1
-			# Keep shadow visible even if ball is behind objects
-			if shadow.z_index <= -5:
-				shadow.z_index = 1
 
 func update_tile_friction() -> void:
 	if map_manager == null:
@@ -934,9 +913,15 @@ func _on_area_entered(area):
 		notify_course_of_collision()
 	# Check if this is a Tree collision
 	elif area.get_parent() and area.get_parent().has_method("_handle_trunk_collision"):
-		# Tree collision detected - let the tree handle the collision
-		area.get_parent()._handle_trunk_collision(self)
+		# Tree collision detected - check for roof bounce
+		_handle_tree_collision_with_roof_bounce(area.get_parent())
 		# Notify course to re-enable player collision since ball hit tree
+		notify_course_of_collision()
+	# Check if this is a Shop collision
+	elif area.get_parent() and area.get_parent().has_method("_handle_shop_collision"):
+		# Shop collision detected - check for roof bounce
+		_handle_shop_collision_with_roof_bounce(area.get_parent())
+		# Notify course to re-enable player collision since ball hit shop
 		notify_course_of_collision()
 
 func _on_area_exited(area):
@@ -1110,7 +1095,7 @@ func check_nearby_tree_collisions() -> void:
 		if distance_to_trunk <= trunk_radius:
 			# Check if ball is at the right height to pass through leaves
 			var ball_height = z
-			var tree_height = 400.0
+			var tree_height = Global.get_object_height_from_marker(tree)  # Use actual tree height from marker
 			var min_leaves_height = 60.0
 			
 			if ball_height > min_leaves_height and ball_height < tree_height:
@@ -1126,3 +1111,103 @@ func check_nearby_tree_collisions() -> void:
 						print("✓ LeavesRustle sound played - ball passing through leaves near trunk")
 						# Mark when we last played the sound for this ball-tree combination
 						set_meta(sound_key, current_time)
+
+func _handle_shop_collision_with_roof_bounce(shop: Node2D) -> void:
+	"""
+	Handle shop collision with roof bounce mechanic.
+	If ball is descending and would land inside shop, bounce it off the roof.
+	"""
+	print("=== HANDLING SHOP COLLISION WITH ROOF BOUNCE ===")
+	print("Ball height:", z)
+	print("Ball vertical velocity (vz):", vz)
+	print("Ball is descending:", vz < 0)
+	
+	# Check if ball is descending (negative vertical velocity)
+	if vz < 0:
+		# Ball is coming down - check if it would land inside the shop
+		var shop_height = Global.get_object_height_from_marker(shop)
+		var ball_collision_height = z  # Use actual z value for pixel perfect system
+		
+		print("Shop height:", shop_height)
+		print("Ball collision height:", ball_collision_height)
+		
+		# If ball is above shop but descending, and would land inside shop area
+		if ball_collision_height > shop_height:
+			print("✓ Ball is above shop and descending - applying roof bounce")
+			_apply_roof_bounce(shop, shop_height)
+			return
+	
+	# If not descending or not above shop, use normal shop collision
+	print("Using normal shop collision handling")
+	shop._handle_shop_collision(self)
+
+func _apply_roof_bounce(obstacle: Node2D, obstacle_height: float) -> void:
+	"""
+	Apply a roof bounce to the ball, keeping it above the obstacle.
+	This prevents Y-sorting glitches when balls land inside collision areas.
+	"""
+	print("=== APPLYING ROOF BOUNCE ===")
+	
+	# Calculate the minimum height the ball should be at to stay above the obstacle
+	var min_safe_height = obstacle_height  # Use actual obstacle height for pixel perfect system
+	
+	# Set ball to minimum safe height above the obstacle
+	z = min_safe_height + 10.0  # Add 10 pixels buffer
+	
+	# Reverse vertical velocity to bounce upward
+	vz = abs(vz) * 0.7  # Bounce with 70% of original downward velocity
+	
+	# Reduce horizontal velocity slightly to prevent infinite bouncing
+	velocity *= 0.9
+	
+	# Ensure ball stays above the obstacle for a few frames
+	# This prevents immediate re-entry into the collision area
+	call_deferred("_ensure_ball_stays_above_obstacle", obstacle, obstacle_height)
+	
+	print("Ball bounced to height:", z)
+	print("New vertical velocity:", vz)
+	print("=== END ROOF BOUNCE ===")
+
+func _ensure_ball_stays_above_obstacle(obstacle: Node2D, obstacle_height: float) -> void:
+	"""
+	Ensure the ball stays above the obstacle for a few frames after roof bounce.
+	"""
+	# Create a timer to monitor the ball's position
+	var safety_timer = get_tree().create_timer(0.5)  # Monitor for 0.5 seconds
+	safety_timer.timeout.connect(func():
+		# Check if ball is still above the obstacle
+		var ball_collision_height = z  # Use actual z value for pixel perfect system
+		if ball_collision_height <= obstacle_height:
+			# Ball has fallen back into collision area - bounce again
+			print("Ball fell back into collision area - applying safety bounce")
+			_apply_roof_bounce(obstacle, obstacle_height)
+	)
+
+func _handle_tree_collision_with_roof_bounce(tree: Node2D) -> void:
+	"""
+	Handle tree collision with roof bounce mechanic.
+	If ball is descending and would land inside tree, bounce it off the roof.
+	"""
+	print("=== HANDLING TREE COLLISION WITH ROOF BOUNCE ===")
+	print("Ball height:", z)
+	print("Ball vertical velocity (vz):", vz)
+	print("Ball is descending:", vz < 0)
+	
+	# Check if ball is descending (negative vertical velocity)
+	if vz < 0:
+		# Ball is coming down - check if it would land inside the tree
+		var tree_height = Global.get_object_height_from_marker(tree)
+		var ball_collision_height = z  # Use actual z value for pixel perfect system
+		
+		print("Tree height:", tree_height)
+		print("Ball collision height:", ball_collision_height)
+		
+		# If ball is above tree but descending, and would land inside tree area
+		if ball_collision_height > tree_height:
+			print("✓ Ball is above tree and descending - applying roof bounce")
+			_apply_roof_bounce(tree, tree_height)
+			return
+	
+	# If not descending or not above tree, use normal tree collision
+	print("Using normal tree collision handling")
+	tree._handle_trunk_collision(self)

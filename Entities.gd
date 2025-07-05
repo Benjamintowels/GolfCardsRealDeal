@@ -128,7 +128,8 @@ func get_npc_base_collision_shape(npc: Node) -> Dictionary:
 
 func is_npc_in_range_of_ball(npc: Node, ball_position: Vector2, ball_height: float = 0.0) -> bool:
 	"""Check if an NPC is in collision range of a ball"""
-	var npc_height = get_npc_height(npc)
+	# Use enhanced height collision detection with TopHeight markers
+	var npc_height = Global.get_object_height_from_marker(npc)
 	var npc_y_sort_point = get_npc_y_sort_point(npc)
 	
 	# Check if ball is within NPC's height range

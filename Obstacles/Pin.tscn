@@ -1,7 +1,8 @@
-[gd_scene load_steps=7 format=3 uid="uid://sblupej8nqta"]
+[gd_scene load_steps=8 format=3 uid="uid://sblupej8nqta"]
 
-[ext_resource type="Texture2D" uid="uid://crwn4in1hrdek" path="res://Obstacles/Pin.png" id="1_d4e4i"]
+[ext_resource type="Texture2D" uid="uid://dew7o75riveac" path="res://Obstacles/Pin.png" id="1_d4e4i"]
 [ext_resource type="Script" uid="uid://bwf6bw8ok5ff0" path="res://Obstacles/Pin.gd" id="1_ttkiq"]
+[ext_resource type="Texture2D" uid="uid://duykv8ftfb470" path="res://Obstacles/Pinhole.png" id="2_fuhma"]
 [ext_resource type="AudioStream" uid="uid://dfrtmllm00d87" path="res://Sounds/HoleIn.mp3" id="3_3su5t"]
 [ext_resource type="AudioStream" uid="uid://tu1sai3fw4ju" path="res://Sounds/HitFlag.mp3" id="4_sfb8c"]
 
@@ -14,24 +15,25 @@ radius = 7.22954
 [node name="Pin" type="Node2D"]
 z_index = 1000
 texture_filter = 1
-scale = Vector2(0.075, 0.075)
 script = ExtResource("1_ttkiq")
+
+[node name="Pinhole" type="Sprite2D" parent="."]
+texture = ExtResource("2_fuhma")
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 texture_filter = 1
-position = Vector2(75.125, -384.08)
+position = Vector2(16.77, -58)
 texture = ExtResource("1_d4e4i")
 
 [node name="YSortPoint" type="Node2D" parent="Sprite2D"]
-position = Vector2(4.875, 384.08)
+position = Vector2(-17, 51)
 
 [node name="FlagArea" type="Area2D" parent="."]
 position = Vector2(-7.988, 13.333)
 scale = Vector2(0.595, 0.595)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="FlagArea"]
-position = Vector2(0, 62.355)
-scale = Vector2(5.495, 5.495)
+position = Vector2(13.4252, -25.7697)
 shape = SubResource("CircleShape2D_ttkiq")
 
 [node name="HoleIn" type="AudioStreamPlayer2D" parent="."]
@@ -40,12 +42,12 @@ stream = ExtResource("3_3su5t")
 [node name="HitFlag" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("4_sfb8c")
 
-[node name="Marker2D" type="Marker2D" parent="."]
-position = Vector2(0, -1200)
+[node name="TopHeight" type="Marker2D" parent="."]
+position = Vector2(3, -116)
 
 [node name="HoleArea" type="Area2D" parent="."]
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="HoleArea"]
-position = Vector2(-13.3333, 80)
-scale = Vector2(12.295, 6.295)
+position = Vector2(1, 0)
+scale = Vector2(1.48, 0.758)
 shape = SubResource("CircleShape2D_sfb8c")

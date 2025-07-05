@@ -150,7 +150,7 @@ func update_essential_systems(course_instance):
 	if course_instance.card_hand_anchor and course_instance.card_hand_anchor.z_index != 100:
 		course_instance.card_hand_anchor.z_index = 100
 		course_instance.card_hand_anchor.mouse_filter = Control.MOUSE_FILTER_STOP
-		course_instance.set_process(false)  # stop checking after setting
+		# Don't disable the course's process function as it's needed for the game loop
 	
 	# Aiming circle update (only during aiming)
 	if course_instance.is_aiming_phase and course_instance.aiming_circle:

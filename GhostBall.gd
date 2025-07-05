@@ -9,7 +9,7 @@ var club_info: Dictionary = {}
 var is_putting: bool = false  # Flag for putter-only rolling mechanics
 
 var velocity := Vector2.ZERO
-var gravity := 2000.0
+var gravity := 1200.0  # Adjusted for pixel perfect system (was 2000.0)
 var z := 0.0 # Height above ground
 var vz := 0.0 # Vertical velocity (for arc)
 var landed_flag := false
@@ -38,9 +38,9 @@ var sprite: Sprite2D
 var shadow: Sprite2D
 var base_scale := Vector2.ONE
 
-# Height and power constants (matching LaunchManager.gd)
-const MAX_LAUNCH_HEIGHT := 2000.0
-const MIN_LAUNCH_HEIGHT := 500.0
+# Height constants (matching LaunchManager)
+const MAX_LAUNCH_HEIGHT := 480.0   # 10 cells (48 * 10) for pixel perfect system
+const MIN_LAUNCH_HEIGHT := 144.0   # 3 cells (48 * 3) for pixel perfect system
 const MAX_LAUNCH_POWER := 1200.0
 const MIN_LAUNCH_POWER := 300.0
 
@@ -52,8 +52,8 @@ func _ready():
 	# Make the ball transparent
 	if sprite:
 		sprite.modulate = Color(0.5, 0.8, 1.0, opacity)  # Blue tint for ghost ball
-		# Set a smaller base scale to make it more subtle
-		base_scale = Vector2(0.4, 0.4)  # Reduced from 0.5 to 0.4
+		# No scaling needed since sprites are properly sized
+		base_scale = Vector2.ONE  # No scaling needed
 		sprite.scale = base_scale
 	if shadow:
 		shadow.modulate = Color(0, 0, 0, opacity * 0.3)
@@ -152,9 +152,12 @@ func _process(delta):
 					# Calculate bounce height based on bounce count
 					var bounce_height = 0.0
 					if bounce_count == 1:
-						bounce_height = 400.0  # First bounce height
+						# Calculate bounce height using physics formula for 144.0 height
+						bounce_height = sqrt(2.0 * gravity * 144.0)  # First bounce height (3 cells for pixel perfect system)
 					else:
-						bounce_height = 400.0 * pow(bounce_factor, bounce_count - 1)
+						# Calculate the height percentage for this bounce
+						var bounce_height_percentage = pow(bounce_factor, bounce_count - 1)
+						bounce_height = sqrt(2.0 * gravity * 144.0 * bounce_height_percentage)  # 3 cells for pixel perfect system
 					# Set vertical velocity for the bounce
 					vz = bounce_height
 					# Reduce horizontal velocity slightly on bounce
@@ -189,9 +192,9 @@ func _process(delta):
 					# Calculate bounce height based on bounce count
 					var bounce_height = 0.0
 					if bounce_count == 1:
-						bounce_height = 400.0  # First bounce height
+						bounce_height = 144.0  # First bounce height (3 cells for pixel perfect system)
 					else:
-						bounce_height = 400.0 * pow(bounce_factor, bounce_count - 1)
+						bounce_height = 144.0 * pow(bounce_factor, bounce_count - 1)  # 3 cells for pixel perfect system
 					# Set vertical velocity for the bounce
 					vz = bounce_height
 					# Reduce horizontal velocity slightly on bounce
@@ -259,9 +262,9 @@ func _process(delta):
 					# Calculate bounce height based on bounce count
 					var bounce_height = 0.0
 					if bounce_count == 1:
-						bounce_height = 400.0  # First bounce height
+						bounce_height = 144.0  # First bounce height (3 cells for pixel perfect system)
 					else:
-						bounce_height = 400.0 * pow(bounce_factor, bounce_count - 1)
+						bounce_height = 144.0 * pow(bounce_factor, bounce_count - 1)  # 3 cells for pixel perfect system
 					# Set vertical velocity for the bounce
 					vz = bounce_height
 					# Reduce horizontal velocity slightly on bounce
@@ -393,7 +396,10 @@ func launch_ghost_ball():
 	
 	# Set initial velocity and ensure ball starts in the air
 	velocity = direction * power
-	vz = height
+	# Calculate initial vertical velocity to achieve the desired maximum height
+	# Using physics formula: z_max = vz_initial^2 / (2 * gravity)
+	# So: vz_initial = sqrt(2 * gravity * height)
+	vz = sqrt(2.0 * gravity * height)  # This will make the ball reach the exact height specified
 	
 	# For putters, start on the ground (z = 0)
 	# For other clubs, start slightly above ground
@@ -406,40 +412,32 @@ func update_visual_effects():
 	if not sprite:
 		return
 	
-	# Scale the ball based on height (bigger when higher) - but keep it reasonable
-	var height_scale = 1.0 + (z / 1000.0)  # Reduced scale factor to prevent oversized ball
-	height_scale = clamp(height_scale, 0.8, 1.5)  # Clamp to reasonable range
+	# Ghost ball has its own physics-based height system
+	# Apply height-based positioning directly to the sprite
+	sprite.position.y = -z  # Move sprite up based on height (negative because Y increases downward)
 	
-	# Add slight scaling effect when rolling
-	if is_rolling:
-		height_scale *= 0.9  # Slightly smaller when rolling
+	# Apply ghost ball specific visual effects
+	sprite.modulate = Color(0.5, 0.8, 1.0, opacity)  # Blue tint for ghost ball
+	sprite.scale = base_scale  # Use base scale without height scaling
 	
-	sprite.scale = base_scale * height_scale
-	
-	# Move the ball up based on height
-	sprite.position.y = -z  # Negative because we want to move up
-	
-	# Update shadow size and opacity based on height
+	# Update shadow effects
 	if shadow:
-		var shadow_scale = 1.0 - (z / 800.0)  # Shadow gets smaller when ball is higher
-		shadow_scale = clamp(shadow_scale, 0.1, 0.8)  # Reduced max from 1.0 to 0.8
+		# Keep shadow at ground level
+		shadow.position = Vector2.ZERO
+		shadow.scale = base_scale
 		
-		# Shadow is more prominent when rolling
-		if is_rolling:
-			shadow_scale *= 1.1  # Reduced from 1.2 to 1.1
-			shadow_scale = clamp(shadow_scale, 0.1, 1.0)  # Reduced max from 1.5 to 1.0
-		
-		shadow.scale = base_scale * shadow_scale
-		
-		# Shadow opacity also changes with height
-		var shadow_alpha = 0.3 - (z / 1000.0)  # Less opaque when ball is higher
-		shadow_alpha = clamp(shadow_alpha, 0.05, 0.3)  # Keep some visibility
-		
-		# Shadow is more opaque when rolling
-		if is_rolling:
-			shadow_alpha = 0.4
-		
+		# Shadow opacity changes with height (more transparent when higher)
+		var shadow_alpha = 0.3 - (z / 500.0)  # Opacity change per 500 units for pixel perfect system
+		shadow_alpha = clamp(shadow_alpha, 0.05, 0.3)
 		shadow.modulate = Color(0, 0, 0, shadow_alpha * opacity)
+	
+	# Add rolling-specific effects
+	if is_rolling:
+		# Slightly smaller when rolling
+		sprite.scale *= 0.9
+		if shadow:
+			shadow.scale *= 1.1
+			shadow.modulate = Color(0, 0, 0, 0.4 * opacity)  # More opaque when rolling
 
 func set_landing_spot(spot: Vector2):
 	"""Set the target landing spot for the ghost ball"""
@@ -530,7 +528,7 @@ func check_nearby_tree_collisions() -> void:
 		if distance_to_trunk <= trunk_radius:
 			# Check if ball is at the right height to pass through leaves
 			var ball_height = z
-			var tree_height = 400.0
+			var tree_height = Global.get_object_height_from_marker(tree)  # Use actual tree height from marker
 			var min_leaves_height = 60.0
 			
 			if ball_height > min_leaves_height and ball_height < tree_height:
@@ -545,4 +543,143 @@ func check_nearby_tree_collisions() -> void:
 						rustle.play()
 						print("✓ LeavesRustle sound played - ball passing through leaves near trunk")
 						# Mark when we last played the sound for this ball-tree combination
-						set_meta(sound_key, current_time) 
+						set_meta(sound_key, current_time)
+
+func _on_area_entered(area):
+	# Check if this is a Pin collision
+	if area.get_parent() and area.get_parent().name == "Pin":
+		# Pin collision detected - the pin will handle hole completion
+		pass
+	# Check if this is an NPC collision (GangMember)
+	elif area.get_parent() and area.get_parent().has_method("_handle_ball_collision"):
+		# NPC collision detected - let the NPC handle the collision
+		# The NPC will check ball height and apply appropriate effects
+		area.get_parent()._handle_ball_collision(self)
+	# Check if this is a Player collision
+	elif area.get_parent() and area.get_parent().has_method("take_damage"):
+		# Player collision detected - handle player damage
+		_handle_player_collision(area.get_parent())
+		# Notify course to re-enable player collision since ball hit player
+		notify_course_of_collision()
+	# Check if this is a Tree collision
+	elif area.get_parent() and area.get_parent().has_method("_handle_trunk_collision"):
+		# Tree collision detected - check for roof bounce
+		_handle_tree_collision_with_roof_bounce(area.get_parent())
+		# Notify course to re-enable player collision since ball hit tree
+		notify_course_of_collision()
+	# Check if this is a Shop collision
+	elif area.get_parent() and area.get_parent().has_method("_handle_shop_collision"):
+		# Shop collision detected - check for roof bounce
+		_handle_shop_collision_with_roof_bounce(area.get_parent())
+		# Notify course to re-enable player collision since ball hit shop
+		notify_course_of_collision()
+
+func _handle_tree_collision_with_roof_bounce(tree: Node2D) -> void:
+	"""
+	Handle tree collision with roof bounce mechanic.
+	If ball is descending and would land inside tree, bounce it off the roof.
+	"""
+	print("=== HANDLING TREE COLLISION WITH ROOF BOUNCE (GHOST) ===")
+	print("Ghost ball height:", z)
+	print("Ghost ball vertical velocity (vz):", vz)
+	print("Ghost ball is descending:", vz < 0)
+	
+	# Check if ball is descending (negative vertical velocity)
+	if vz < 0:
+		# Ball is coming down - check if it would land inside the tree
+		var tree_height = Global.get_object_height_from_marker(tree)
+		var ball_collision_height = z  # Use actual z value for pixel perfect system
+		
+		print("Tree height:", tree_height)
+		print("Ghost ball collision height:", ball_collision_height)
+		
+		# If ball is above tree but descending, and would land inside tree area
+		if ball_collision_height > tree_height:
+			print("✓ Ghost ball is above tree and descending - applying roof bounce")
+			_apply_roof_bounce(tree, tree_height)
+			return
+	
+	# If not descending or not above tree, use normal tree collision
+	print("Using normal tree collision handling for ghost ball")
+	tree._handle_trunk_collision(self)
+
+func _handle_shop_collision_with_roof_bounce(shop: Node2D) -> void:
+	"""
+	Handle shop collision with roof bounce mechanic.
+	If ball is descending and would land inside shop, bounce it off the roof.
+	"""
+	print("=== HANDLING SHOP COLLISION WITH ROOF BOUNCE (GHOST) ===")
+	print("Ghost ball height:", z)
+	print("Ghost ball vertical velocity (vz):", vz)
+	print("Ghost ball is descending:", vz < 0)
+	
+	# Check if ball is descending (negative vertical velocity)
+	if vz < 0:
+		# Ball is coming down - check if it would land inside the shop
+		var shop_height = Global.get_object_height_from_marker(shop)
+		var ball_collision_height = z  # Use actual z value for pixel perfect system
+		
+		print("Shop height:", shop_height)
+		print("Ghost ball collision height:", ball_collision_height)
+		
+		# If ball is above shop but descending, and would land inside shop area
+		if ball_collision_height > shop_height:
+			print("✓ Ghost ball is above shop and descending - applying roof bounce")
+			_apply_roof_bounce(shop, shop_height)
+			return
+	
+	# If not descending or not above shop, use normal shop collision
+	print("Using normal shop collision handling for ghost ball")
+	shop._handle_shop_collision(self)
+
+func _apply_roof_bounce(obstacle: Node2D, obstacle_height: float) -> void:
+	"""
+	Apply a roof bounce to the ghost ball, keeping it above the obstacle.
+	This prevents Y-sorting glitches when balls land inside collision areas.
+	"""
+	print("=== APPLYING ROOF BOUNCE (GHOST) ===")
+	
+	# Calculate the minimum height the ball should be at to stay above the obstacle
+	var min_safe_height = obstacle_height  # Use actual obstacle height for pixel perfect system
+	
+	# Set ball to minimum safe height above the obstacle
+	z = min_safe_height + 10.0  # Add 10 pixels buffer
+	
+	# Reverse vertical velocity to bounce upward
+	vz = abs(vz) * 0.7  # Bounce with 70% of original downward velocity
+	
+	# Reduce horizontal velocity slightly to prevent infinite bouncing
+	velocity *= 0.9
+	
+	# Ensure ball stays above the obstacle for a few frames
+	# This prevents immediate re-entry into the collision area
+	call_deferred("_ensure_ball_stays_above_obstacle", obstacle, obstacle_height)
+	
+	print("Ghost ball bounced to height:", z)
+	print("New vertical velocity:", vz)
+	print("=== END ROOF BOUNCE (GHOST) ===")
+
+func _ensure_ball_stays_above_obstacle(obstacle: Node2D, obstacle_height: float) -> void:
+	"""
+	Ensure the ghost ball stays above the obstacle for a few frames after roof bounce.
+	"""
+	# Create a timer to monitor the ball's position
+	var safety_timer = get_tree().create_timer(0.5)  # Monitor for 0.5 seconds
+	safety_timer.timeout.connect(func():
+		# Check if ball is still above the obstacle
+		var ball_collision_height = z  # Use actual z value for pixel perfect system
+		if ball_collision_height <= obstacle_height:
+			# Ball has fallen back into collision area - bounce again
+			print("Ghost ball fell back into collision area - applying safety bounce")
+			_apply_roof_bounce(obstacle, obstacle_height)
+	)
+
+func _handle_player_collision(player: Node2D) -> void:
+	"""Handle collision with player - ghost balls don't deal damage"""
+	# Ghost balls don't deal damage to players
+	pass
+
+func notify_course_of_collision() -> void:
+	"""Notify the course that the ghost ball has collided with something"""
+	# Ghost balls don't need to notify the course of collisions
+	pass 

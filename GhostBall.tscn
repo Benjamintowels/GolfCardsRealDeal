@@ -1,23 +1,26 @@
-[gd_scene load_steps=4 format=3 uid="uid://bq8x7y203w4v5"]
+[gd_scene load_steps=5 format=3 uid="uid://bq8x7y203w4v5"]
 
 [ext_resource type="Script" uid="uid://b06de20303qlw" path="res://GhostBall.gd" id="1_ghost"]
-[ext_resource type="Texture2D" uid="uid://b714hho7b4xqc" path="res://GolfBall.png" id="2_ball"]
+[ext_resource type="Texture2D" uid="uid://cvys8vcc4i6hi" path="res://GolfBall.png" id="2_ball"]
+
+[sub_resource type="CompressedTexture2D" id="CompressedTexture2D_k5viu"]
+load_path = "res://.godot/imported/GolfBall.png-0516230eae0ffabe6c6d009b86188c92.ctex"
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_ghost"]
-radius = 37.0135
+radius = 6.93108
 
 [node name="GhostBall" type="Node2D"]
-scale = Vector2(0.665, 0.665)
 script = ExtResource("1_ghost")
 
 [node name="Shadow" type="Sprite2D" parent="."]
 modulate = Color(0, 0, 0, 0.3)
-scale = Vector2(1, 0.535)
-texture = ExtResource("2_ball")
+scale = Vector2(0.175, 0.094)
+texture = SubResource("CompressedTexture2D_k5viu")
 
 [node name="YSortPoint" type="Node2D" parent="Shadow"]
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
+texture_filter = 1
 texture = ExtResource("2_ball")
 
 [node name="Area2D" type="Area2D" parent="."]

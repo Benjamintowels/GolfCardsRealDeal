@@ -297,6 +297,7 @@ func build_map_from_layout_base(layout: Array, place_pin: bool = true) -> void:
 				pin.set_meta("card_effect_handler", card_effect_handler)
 				
 				# Add pin to groups for smart optimization
+				pin.add_to_group("pins")
 				pin.add_to_group("collision_objects")
 				
 				obstacle_layer.add_child(pin)
@@ -357,6 +358,7 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 					shop.set("grid_position", object_positions.shop)
 				
 				# Add shop to groups for smart optimization
+				shop.add_to_group("shops")
 				shop.add_to_group("collision_objects")
 				
 				ysort_objects.append({"node": shop, "grid_pos": object_positions.shop})
@@ -394,6 +396,10 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		var random_type = gang_types[randi() % gang_types.size()]
 		if gang_member.has_method("setup"):
 			gang_member.setup(random_type, gang_pos, cell_size)
+		
+		# Add gang member to groups for smart optimization
+		gang_member.add_to_group("gang_members")
+		gang_member.add_to_group("collision_objects")
 		
 		ysort_objects.append({"node": gang_member, "grid_pos": gang_pos})
 		obstacle_layer.add_child(gang_member)

@@ -95,15 +95,16 @@ func process_single_tree_collision(tree: Node2D, nearby_balls: Array):
 		if distance_to_trunk > trunk_radius:
 			continue
 		
+		# Use enhanced height collision detection with TopHeight markers
+		var tree_height = Global.get_object_height_from_marker(tree)
+		var min_leaves_height = 60.0
+		
 		# Get ball height
 		var ball_height = 0.0
 		if ball.has_method("get_height"):
 			ball_height = ball.get_height()
 		elif "z" in ball:
 			ball_height = ball.z
-		
-		var tree_height = 400.0
-		var min_leaves_height = 60.0
 		
 		# Check if ball should trigger leaves rustle
 		if ball_height > min_leaves_height and ball_height < tree_height:

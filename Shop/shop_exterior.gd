@@ -61,29 +61,15 @@ func _handle_shop_collision(ball: Node2D):
 	print("Ball/knife name:", ball.name)
 	print("Ball/knife type:", ball.get_class())
 	
-	# Get ball/knife height
-	var ball_height = 0.0
-	if ball.has_method("get_height"):
-		ball_height = ball.get_height()
-		print("Got height via get_height() method:", ball_height)
-	elif "z" in ball:
-		ball_height = ball.z
-		print("Got height via z property:", ball_height)
-	else:
-		print("WARNING: Could not determine ball height!")
-	
-	print("Ball/knife height:", ball_height)
-	print("Shop height threshold:", height)
-	print("Height difference (ball - shop):", ball_height - height)
-	
-	if ball_height > height:
+	# Use enhanced height collision detection with TopHeight markers
+	if Global.is_object_above_obstacle(ball, self):
 		# Ball/knife is above the shop entirely - let it pass through
-		print("✓ Ball/knife is above shop entirely (height:", ball_height, "> shop_height:", height, ") - passing through")
+		print("✓ Ball/knife is above shop entirely - passing through")
 		print("=== END SHOP COLLISION (PASSED THROUGH) ===")
 		return
 	else:
 		# Ball/knife is within or below shop height - handle collision
-		print("✗ Ball/knife is within shop height (height:", ball_height, "<= shop_height:", height, ") - handling collision")
+		print("✗ Ball/knife is within shop height - handling collision")
 		
 		# Check if this is a throwing knife
 		if ball.has_method("is_throwing_knife") and ball.is_throwing_knife():
