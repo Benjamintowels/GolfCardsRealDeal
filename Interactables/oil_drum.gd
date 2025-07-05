@@ -1,0 +1,207 @@
+extends Node2D
+
+# Oil drum interactable object
+# This will work with the roof system and Y-sort system
+
+func _ready():
+	# Add to groups for smart optimization
+	add_to_group("interactables")
+	add_to_group("collision_objects")
+	
+	# Set up collision layers for the main Area2D node
+	var main_area = get_node_or_null("Area2D")
+	if main_area:
+		# Connect to area_entered signal for collision detection
+		main_area.connect("area_entered", _on_area_entered)
+		# Set collision layer to 1 so golf balls can detect it
+		main_area.collision_layer = 1
+		# Set collision mask to 1 so it can detect golf balls on layer 1
+		main_area.collision_mask = 1
+		print("✓ Oil drum Area2D setup complete for collision detection")
+	else:
+		print("✗ ERROR: Oil drum Area2D not found!")
+	
+	# Update Y-sort on ready
+	call_deferred("_update_ysort")
+
+func get_y_sort_point() -> float:
+	"""
+	Get the Y-sort reference point for the oil drum.
+	Uses the base of the oil drum (ground level) for consistent Y-sorting.
+	"""
+	# The oil drum sprite is positioned with negative Y offset
+	# The base is at the bottom of the sprite
+	var sprite = get_node_or_null("OilDrumUpright")
+	if sprite:
+		# Get the actual height of the oil drum sprite
+		var drum_height = sprite.texture.get_height() * sprite.scale.y
+		# The base is at the bottom of the sprite, so add the height to the sprite's Y position
+		return sprite.global_position.y + drum_height
+	else:
+		# Fallback calculation based on sprite position
+		return global_position.y + 30.0  # Approximate oil drum height
+
+func _update_ysort():
+	"""Update the Oil Drum's z_index for proper Y-sorting"""
+	# Force update the Ysort using the global system
+	Global.update_object_y_sort(self, "objects")
+	
+	# Only print debug info once
+	if not has_meta("ysort_update_printed"):
+		print("Oil Drum Ysort updated - z_index:", z_index, " global_position:", global_position)
+		set_meta("ysort_update_printed", true)
+
+func get_collision_radius() -> float:
+	"""
+	Get the collision radius for this oil drum.
+	Used by the roof bounce system to determine when ball has exited collision area.
+	"""
+	return 50.0  # Oil drum collision radius
+
+func _on_area_entered(area: Area2D):
+	"""Handle collisions with the oil drum area"""
+	var ball = area.get_parent()
+	
+	print("=== OIL DRUM AREA ENTERED ===")
+	print("Area name:", area.name)
+	print("Ball parent:", ball.name if ball else "No parent")
+	print("Ball type:", ball.get_class() if ball else "Unknown")
+	print("Ball position:", ball.global_position if ball else "Unknown")
+	print("Oil drum position:", global_position)
+	print("Distance to oil drum:", ball.global_position.distance_to(global_position) if ball else "Unknown")
+	
+	if ball and (ball.name == "GolfBall" or ball.name == "GhostBall" or ball.has_method("is_throwing_knife")):
+		print("✓ Valid ball/knife detected:", ball.name)
+		# Handle the collision
+		_handle_collision(ball)
+	else:
+		print("✗ Invalid ball/knife or non-ball object:", ball.name if ball else "Unknown")
+	
+	print("=== END OIL DRUM AREA ENTERED ===")
+
+func _handle_collision(ball: Node2D):
+	"""Handle oil drum collisions - check height to determine if ball should pass through"""
+	print("=== HANDLING OIL DRUM COLLISION ===")
+	print("Ball/knife name:", ball.name)
+	print("Ball/knife type:", ball.get_class())
+	
+	# Check if this is a throwing knife
+	if ball.has_method("is_throwing_knife") and ball.is_throwing_knife():
+		# Handle knife collision with oil drum
+		print("Handling knife oil drum collision")
+		_handle_knife_collision(ball)
+		print("=== END OIL DRUM COLLISION (KNIFE) ===")
+		return
+	
+	# Check if ball has the new roof bounce system AND is above the oil drum
+	if ball.has_method("_handle_roof_bounce_collision") and ball.has_method("get_height"):
+		var ball_height = ball.get_height()
+		var oil_drum_height = Global.get_object_height_from_marker(self)
+		
+		print("Ball height:", ball_height)
+		print("Oil drum height:", oil_drum_height)
+		
+		if ball_height > oil_drum_height:
+			print("Using new roof bounce system for", ball.name, "- ball is above oil drum")
+			# Let the ball decide if it should bounce or pass through
+			ball._handle_roof_bounce_collision(self)
+			print("=== END OIL DRUM COLLISION (ROOF BOUNCE) ===")
+			return
+		else:
+			print("Ball is below oil drum height - using normal collision handling")
+	
+	# Use enhanced height collision detection with TopHeight markers (old system)
+	if Global.is_object_above_obstacle(ball, self):
+		# Ball/knife is above the oil drum entirely - let it pass through
+		print("✓ Ball/knife is above oil drum entirely - passing through")
+		print("=== END OIL DRUM COLLISION (PASSED THROUGH) ===")
+		return
+	else:
+		# Ball/knife is within or below oil drum height - handle collision
+		print("✗ Ball/knife is within oil drum height - handling collision")
+		
+		# Handle regular ball collision
+		print("Handling ball oil drum collision")
+		_handle_ball_collision(ball)
+		
+		print("=== END OIL DRUM COLLISION (COLLIDED) ===")
+
+func _handle_knife_collision(knife: Node2D):
+	"""Handle knife collision with oil drum"""
+	print("Handling knife oil drum collision")
+	
+	# Check if knife is above the oil drum - if so, let it pass through
+	if knife.has_method("get_height"):
+		var knife_height = knife.get_height()
+		var oil_drum_height = Global.get_object_height_from_marker(self)
+		
+		print("Knife height:", knife_height)
+		print("Oil drum height:", oil_drum_height)
+		
+		if knife_height > oil_drum_height:
+			print("✓ Knife is above oil drum - letting it pass through")
+			return  # Let the knife pass through without any collision handling
+		else:
+			print("✗ Knife is below oil drum height - handling collision")
+	
+	# Let the knife handle its own collision logic
+	# The knife will determine if it should bounce or stick based on which side hits
+	if knife.has_method("_handle_shop_collision"):
+		knife._handle_shop_collision(self)
+	else:
+		# Fallback: just reflect the knife
+		_reflect_knife(knife)
+
+func _reflect_knife(knife: Node2D):
+	"""Special reflection for knife collisions with oil drum - creates pinball effect"""
+	# Get the knife's current velocity
+	var knife_velocity = Vector2.ZERO
+	if knife.has_method("get_velocity"):
+		knife_velocity = knife.get_velocity()
+	elif "velocity" in knife:
+		knife_velocity = knife.velocity
+	
+	print("Reflecting knife with velocity:", knife_velocity)
+	
+	var knife_pos = knife.global_position
+	var oil_drum_center = global_position
+	
+	# Calculate the direction from oil drum center to knife
+	var to_knife_direction = (knife_pos - oil_drum_center).normalized()
+	
+	# Simple reflection: reflect the velocity across the oil drum center
+	# This creates a more predictable pinball effect
+	var reflected_velocity = knife_velocity - 2 * knife_velocity.dot(to_knife_direction) * to_knife_direction
+	
+	# Reduce speed slightly to prevent infinite bouncing
+	reflected_velocity *= 0.8
+	
+	# Add a small amount of randomness to prevent infinite loops
+	var random_angle = randf_range(-0.1, 0.1)
+	reflected_velocity = reflected_velocity.rotated(random_angle)
+	
+	print("Reflected knife velocity:", reflected_velocity)
+	
+	# Apply the reflected velocity to the knife
+	if knife.has_method("set_velocity"):
+		knife.set_velocity(reflected_velocity)
+	elif "velocity" in knife:
+		knife.velocity = reflected_velocity
+
+func _handle_ball_collision(ball: Node2D) -> void:
+	"""
+	Handle collision with golf ball.
+	This will be called by the ball's collision detection system.
+	"""
+	print("Oil drum collision with ball!")
+	
+	# Play collision sound if available
+	var collision_sound = get_node_or_null("CollisionSound")
+	if collision_sound:
+		collision_sound.play()
+	
+	# Apply bounce effect to the ball
+	if ball.has_method("set_velocity"):
+		var current_velocity = ball.get_velocity()
+		var bounce_velocity = current_velocity * 0.8  # 80% of original velocity
+		ball.set_velocity(bounce_velocity)

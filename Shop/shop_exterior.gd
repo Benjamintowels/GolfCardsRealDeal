@@ -16,7 +16,7 @@ func _ready():
 	
 	if shop_base_area:
 		# Use area_entered for shop collisions (since golf ball uses Area2D for all collisions)
-		shop_base_area.connect("area_entered", _on_shop_area_entered)
+		shop_base_area.connect("area_entered", _on_area_entered)
 		# Set collision layer to 1 so golf balls can detect it
 		shop_base_area.collision_layer = 1
 		# Set collision mask to 1 so it can detect golf balls on layer 1
@@ -31,7 +31,7 @@ func _ready():
 	# Ensure z_index is properly set for Ysort
 	call_deferred("_update_ysort")
 
-func _on_shop_area_entered(area: Area2D):
+func _on_area_entered(area: Area2D):
 	"""Handle collisions with the shop base area (ground-level collision)"""
 	var ball = area.get_parent()
 	
@@ -46,13 +46,13 @@ func _on_shop_area_entered(area: Area2D):
 	if ball and (ball.name == "GolfBall" or ball.name == "GhostBall" or ball.has_method("is_throwing_knife")):
 		print("✓ Valid ball/knife detected:", ball.name)
 		# Handle the collision - always reflect for ground-level shop collisions
-		_handle_shop_collision(ball)
+		_handle_collision(ball)
 	else:
 		print("✗ Invalid ball/knife or non-ball object:", ball.name if ball else "Unknown")
 	
 	print("=== END SHOP AREA ENTERED ===")
 
-func _handle_shop_collision(ball: Node2D):
+func _handle_collision(ball: Node2D):
 	"""Handle shop base collisions - check height to determine if ball should pass through"""
 	print("=== HANDLING SHOP COLLISION ===")
 	print("Ball/knife name:", ball.name)
@@ -62,7 +62,7 @@ func _handle_shop_collision(ball: Node2D):
 	if ball.has_method("is_throwing_knife") and ball.is_throwing_knife():
 		# Handle knife collision with shop
 		print("Handling knife shop collision")
-		_handle_knife_shop_collision(ball)
+		_handle_knife_collision(ball)
 		print("=== END SHOP COLLISION (KNIFE) ===")
 		return
 	
@@ -95,11 +95,11 @@ func _handle_shop_collision(ball: Node2D):
 		
 		# Handle regular ball collision with old system
 		print("Handling ball shop collision")
-		_handle_ball_shop_collision(ball)
+		_handle_ball_collision(ball)
 		
 		print("=== END SHOP COLLISION (COLLIDED) ===")
 
-func _handle_knife_shop_collision(knife: Node2D):
+func _handle_knife_collision(knife: Node2D):
 	"""Handle knife collision with shop"""
 	print("Handling knife shop collision")
 	
@@ -123,17 +123,17 @@ func _handle_knife_shop_collision(knife: Node2D):
 		knife._handle_shop_collision(self)
 	else:
 		# Fallback: just reflect the knife
-		_reflect_knife_pinball(knife)
+		_reflect_knife(knife)
 
-func _handle_ball_shop_collision(ball: Node2D):
+func _handle_ball_collision(ball: Node2D):
 	"""Handle ball collision with shop (old system only)"""
 	print("Handling ball shop collision with old system")
 	
 	# This function is only called for balls without the roof bounce system
 	# Reflect the ball (old system)
-	_reflect_ball_pinball(ball)
+	_reflect_ball(ball)
 
-func _reflect_ball_pinball(ball: Node2D):
+func _reflect_ball(ball: Node2D):
 	"""Special reflection for low-height collisions with shop base - creates pinball effect"""
 	# Get the ball's current velocity
 	var ball_velocity = Vector2.ZERO
@@ -169,7 +169,7 @@ func _reflect_ball_pinball(ball: Node2D):
 	elif "velocity" in ball:
 		ball.velocity = reflected_velocity
 
-func _reflect_knife_pinball(knife: Node2D):
+func _reflect_knife(knife: Node2D):
 	"""Special reflection for knife collisions with shop base - creates pinball effect"""
 	# Get the knife's current velocity
 	var knife_velocity = Vector2.ZERO

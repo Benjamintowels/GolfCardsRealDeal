@@ -212,6 +212,7 @@ var object_scene_map := {
 	"SHOP": preload("res://Shop/ShopExterior.tscn"),
 	"BLOCK": preload("res://Obstacles/InvisibleBlocker.tscn"),
 	"GANG": preload("res://NPC/Gang/GangMember.tscn"),
+	"OIL": preload("res://Interactables/OilDrum.tscn"),
 }
 
 var object_to_tile_mapping := {
@@ -219,6 +220,7 @@ var object_to_tile_mapping := {
 	"P": "G",
 	"SHOP": "Base",
 	"GANG": "G",
+	"OIL": "Base",
 }
 
 # Add these variables after the existing object_scene_map and object_to_tile_mapping
@@ -263,8 +265,10 @@ func clear_existing_objects() -> void:
 				# Also check if it has the hole_in_one signal (pin-specific)
 				if obstacle.has_signal("hole_in_one"):
 					is_pin = true
+			# Check for oil drums by name or script
+			var is_oil_drum = obstacle.name == "OilDrum" or (obstacle.get_script() and "oil_drum.gd" in str(obstacle.get_script().get_path()))
 			
-			if is_tree or is_shop or is_pin:
+			if is_tree or is_shop or is_pin or is_oil_drum:
 				keys_to_remove.append(pos)
 	
 	for pos in keys_to_remove:

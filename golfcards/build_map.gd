@@ -135,11 +135,12 @@ func is_valid_position_for_object(pos: Vector2i, layout: Array) -> bool:
 			return false
 	return true
 
-func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include_shop: bool = true, num_gang_members: int = 1) -> Dictionary:
+func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include_shop: bool = true, num_gang_members: int = 1, num_oil_drums: int = 3) -> Dictionary:
 	var positions = {
 		"trees": [],
 		"shop": Vector2i.ZERO,
-		"gang_members": []
+		"gang_members": [],
+		"oil_drums": []
 	}
 	randomize()
 	random_seed_value = current_hole * 1000 + randi()
@@ -200,13 +201,40 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 		gang_members_placed += 1
 		green_positions.remove_at(gang_index)
 	
+	# Place Oil Drums on fairway tiles
+	var fairway_positions: Array = []
+	for y in layout.size():
+		for x in layout[y].size():
+			if layout[y][x] == "F":
+				fairway_positions.append(Vector2i(x, y))
+	
+	var oil_drums_placed = 0
+	while oil_drums_placed < num_oil_drums and fairway_positions.size() > 0:
+		var oil_index = randi() % fairway_positions.size()
+		var oil_pos = fairway_positions[oil_index]
+		
+		# Check spacing from other placed objects
+		var valid = true
+		for placed_pos in placed_objects:
+			var distance = max(abs(oil_pos.x - placed_pos.x), abs(oil_pos.y - placed_pos.y))
+			if distance < 6:  # Slightly closer spacing than trees
+				valid = false
+				break
+		
+		if valid:
+			positions.oil_drums.append(oil_pos)
+			placed_objects.append(oil_pos)
+			oil_drums_placed += 1
+		
+		fairway_positions.remove_at(oil_index)
+	
 	return positions
 
 func build_map_from_layout_with_randomization(layout: Array) -> void:
 	randomize()
 	clear_existing_objects()
 	build_map_from_layout_base(layout)
-	var object_positions = get_random_positions_for_objects(layout, 8, true, 1)
+	var object_positions = get_random_positions_for_objects(layout, 8, true, 1, 3)
 	place_objects_at_positions(object_positions, layout)
 	# position_camera_on_pin()  # This should be called from the main scene if needed
 
@@ -403,6 +431,36 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		
 		ysort_objects.append({"node": gang_member, "grid_pos": gang_pos})
 		obstacle_layer.add_child(gang_member)
+	
+	# Place Oil Drums
+	print("=== PLACING OIL DRUMS ===")
+	print("Oil drum positions:", object_positions.oil_drums)
+	for oil_pos in object_positions.oil_drums:
+		var scene: PackedScene = object_scene_map["OIL"]
+		if scene == null:
+			push_error("🚫 Oil Drum scene is null")
+			continue
+		print("✓ Oil Drum scene loaded successfully")
+		var oil_drum: Node2D = scene.instantiate() as Node2D
+		if oil_drum == null:
+			push_error("❌ Oil Drum instantiation failed at (%d,%d)" % [oil_pos.x, oil_pos.y])
+			continue
+		print("✓ Oil Drum instantiated successfully")
+		var world_pos: Vector2 = Vector2(oil_pos.x, oil_pos.y) * cell_size
+		oil_drum.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
+		if oil_drum.has_meta("grid_position") or "grid_position" in oil_drum:
+			oil_drum.set("grid_position", oil_pos)
+		else:
+			push_warning("⚠️ Oil Drum missing 'grid_position'. Type: %s" % oil_drum.get_class())
+		
+		# Add oil drum to groups for smart optimization
+		oil_drum.add_to_group("interactables")
+		oil_drum.add_to_group("collision_objects")
+		
+		ysort_objects.append({"node": oil_drum, "grid_pos": oil_pos})
+		obstacle_layer.add_child(oil_drum)
+		print("✓ Oil Drum placed at grid position:", oil_pos, "world position:", world_pos)
+	print("=== END PLACING OIL DRUMS ===")
 	
 	update_all_ysort_z_indices() 
 

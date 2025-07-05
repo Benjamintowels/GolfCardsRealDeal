@@ -1,0 +1,42 @@
+[gd_scene load_steps=5 format=3 uid="uid://ecl87per4al0"]
+
+[ext_resource type="Texture2D" uid="uid://bypolpr6cd5hp" path="res://Interactables/OilDrum.png" id="1_loocf"]
+[ext_resource type="Script" uid="uid://bwhij2855urxp" path="res://Interactables/oil_drum.gd" id="1_rcn5n"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_loocf"]
+size = Vector2(16, 58)
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_mt8sc"]
+radius = 17.4642
+
+[node name="OilDrum" type="Node2D"]
+script = ExtResource("1_rcn5n")
+
+[node name="OilDrumUpright" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(0, -29.725)
+texture = ExtResource("1_loocf")
+
+[node name="OilDrumTippedOver" type="Sprite2D" parent="."]
+visible = false
+texture_filter = 1
+position = Vector2(0, -19)
+rotation = 1.5708
+texture = ExtResource("1_loocf")
+
+[node name="Area2D" type="Area2D" parent="OilDrumTippedOver"]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="OilDrumTippedOver/Area2D"]
+position = Vector2(11, -3.93403e-07)
+shape = SubResource("RectangleShape2D_loocf")
+
+[node name="TopHeight" type="Marker2D" parent="."]
+position = Vector2(0, -59)
+
+[node name="Area2D" type="Area2D" parent="."]
+position = Vector2(0, -29.725)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D"]
+position = Vector2(0, 22.725)
+scale = Vector2(1, 0.38)
+shape = SubResource("CircleShape2D_mt8sc")
