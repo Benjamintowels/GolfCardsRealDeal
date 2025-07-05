@@ -121,6 +121,10 @@ var roof_bounce_active: bool = false  # Whether we're currently on a roof
 var last_collision_object: Node2D = null  # Last object we collided with
 var collision_exit_timer: Timer = null  # Timer to handle collision exit
 
+# Wall collision system variables
+var last_wall_collision_time: float = 0.0  # Time of last wall collision
+var wall_collision_cooldown: float = 0.1  # Cooldown between wall collisions (seconds)
+
 # Call this to launch the ball
 func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, spin_strength_category: int = 0):
 	# Reset landing highlight and signal flag for new shot
@@ -257,6 +261,9 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 	last_collision_object = null
 	if collision_exit_timer:
 		collision_exit_timer.stop()
+	
+	# Reset wall collision system for new shot
+	last_wall_collision_time = 0.0
 	
 	# Special handling for putters - start rolling immediately
 	if is_putting:
@@ -674,6 +681,9 @@ func _process(delta):
 				reset_shot_effects()
 				sand_landing.emit()
 				return
+			
+			# Check for wall/shop collisions while rolling (pinball effect)
+			check_rolling_wall_collisions()
 			
 			# Update friction based on current tile type
 			update_tile_friction()
@@ -1231,12 +1241,16 @@ func _handle_roof_bounce_collision(object: Node2D) -> void:
 	else:
 		print("✗ Ball is not above object - using normal collision")
 		# Use normal collision handling based on object type
-		if object.has_method("_handle_trunk_collision"):
-			object._handle_trunk_collision(self)
-		elif object.has_method("_handle_shop_collision"):
-			object._handle_shop_collision(self)
-		elif object.has_method("_handle_ball_collision"):
-			object._handle_ball_collision(self)
+		# But only if we're not already in a roof bounce collision to prevent infinite recursion
+		if not roof_bounce_active:
+			if object.has_method("_handle_trunk_collision"):
+				object._handle_trunk_collision(self)
+			elif object.has_method("_handle_shop_collision"):
+				object._handle_shop_collision(self)
+			elif object.has_method("_handle_ball_collision"):
+				object._handle_ball_collision(self)
+		else:
+			print("Skipping object collision call to prevent infinite recursion")
 
 func _activate_roof_bounce(object: Node2D, object_height: float) -> void:
 	"""
@@ -1394,3 +1408,56 @@ func debug_roof_bounce_state() -> void:
 	print("Last collision object:", last_collision_object.name if last_collision_object else "None")
 	print("Collision exit timer active:", collision_exit_timer.time_left > 0 if collision_exit_timer else "No timer")
 	print("=== END ROOF BOUNCE STATE DEBUG ===")
+
+func check_rolling_wall_collisions() -> void:
+	"""
+	Check for wall/shop collisions while rolling (pinball effect).
+	"""
+	# Check cooldown to prevent multiple bounces
+	var current_time = Time.get_ticks_msec() / 1000.0  # Convert to seconds
+	if current_time - last_wall_collision_time < wall_collision_cooldown:
+		return  # Still in cooldown
+	
+	# Get all shop objects in the scene
+	var shops = get_tree().get_nodes_in_group("shops")
+	
+	for shop in shops:
+		# Check if ball is within shop collision area
+		var ball_pos = global_position
+		var shop_pos = shop.global_position
+		var distance = ball_pos.distance_to(shop_pos)
+		
+		# Use shop's collision radius
+		var collision_radius = 150.0  # Default shop collision radius
+		if shop.has_method("get_collision_radius"):
+			collision_radius = shop.get_collision_radius()
+		
+		# If ball is within shop collision area, bounce it off
+		if distance <= collision_radius:
+			print("Rolling ball hit shop wall - pinball bounce!")
+			
+			# Update collision time
+			last_wall_collision_time = current_time
+			
+			# Calculate bounce direction (away from shop center)
+			var bounce_direction = (ball_pos - shop_pos).normalized()
+			
+			# Reflect velocity across the bounce direction
+			var reflected_velocity = velocity - 2 * velocity.dot(bounce_direction) * bounce_direction
+			
+			# Reduce speed slightly to prevent infinite bouncing
+			reflected_velocity *= 0.8
+			
+			# Add a small amount of randomness to prevent infinite loops
+			var random_angle = randf_range(-0.1, 0.1)
+			reflected_velocity = reflected_velocity.rotated(random_angle)
+			
+			# Apply the reflected velocity
+			velocity = reflected_velocity
+			
+			# Play collision sound if available
+			if ball_land_sound and ball_land_sound.stream:
+				ball_land_sound.play()
+			
+			print("Ball bounced off shop wall with velocity:", velocity)
+			break  # Only handle one collision per frame

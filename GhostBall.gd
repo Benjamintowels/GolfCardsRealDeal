@@ -634,12 +634,16 @@ func _handle_roof_bounce_collision(object: Node2D) -> void:
 	else:
 		print("✗ Ghost ball is not above object - using normal collision")
 		# Use normal collision handling based on object type
-		if object.has_method("_handle_trunk_collision"):
-			object._handle_trunk_collision(self)
-		elif object.has_method("_handle_shop_collision"):
-			object._handle_shop_collision(self)
-		elif object.has_method("_handle_ball_collision"):
-			object._handle_ball_collision(self)
+		# But only if we're not already in a roof bounce collision to prevent infinite recursion
+		if not roof_bounce_active:
+			if object.has_method("_handle_trunk_collision"):
+				object._handle_trunk_collision(self)
+			elif object.has_method("_handle_shop_collision"):
+				object._handle_shop_collision(self)
+			elif object.has_method("_handle_ball_collision"):
+				object._handle_ball_collision(self)
+		else:
+			print("Skipping object collision call to prevent infinite recursion")
 
 func _activate_roof_bounce(object: Node2D, object_height: float) -> void:
 	"""

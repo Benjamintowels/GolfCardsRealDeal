@@ -272,6 +272,12 @@ func _on_area_entered(area: Area2D) -> void:
 		_handle_roof_bounce_collision(object)
 		return
 	
+	# Check if this is a Shop collision
+	if object.has_method("_handle_shop_collision"):
+		print("Handling shop collision with roof bounce system")
+		_handle_roof_bounce_collision(object)
+		return
+	
 	# Check if this is a player collision
 	if object.has_method("take_damage") and object.name == "Player":
 		print("Handling player collision")
@@ -711,8 +717,6 @@ func _process(delta):
 			# Determine which side is facing down
 			determine_landing_side()
 			
-
-			
 			# Handle bounce or landing based on which side is down
 			if is_handle_landing and handle_bounce_count < max_handle_bounces and velocity.length() > min_handle_bounce_speed:
 				# Handle side landed - bounce like a golf ball
@@ -760,7 +764,7 @@ func _process(delta):
 				_disable_collision_detection()
 	
 	elif vz > 0.0:
-		# Knife is bouncing up from ground (z = 0, vz > 0)
+		# Knife is bouncing up from ground
 		z += vz * delta
 		vz -= gravity * delta
 		
@@ -771,16 +775,12 @@ func _process(delta):
 		if sprite:
 			sprite.rotation_degrees += rotation_speed * delta
 		
-
-		
 		# Check if knife has landed again (using current ground level)
 		if z <= current_ground_level:
 			z = current_ground_level
 			
 			# Determine which side is facing down
 			determine_landing_side()
-			
-
 			
 			# Handle bounce or landing based on which side is down
 			if is_handle_landing and handle_bounce_count < max_handle_bounces and velocity.length() > min_handle_bounce_speed:
@@ -822,11 +822,11 @@ func _process(delta):
 					# Fallback if no map manager or no world_to_map method
 					emit_signal("landed", Vector2i.ZERO)
 				
-					# Check for target hits
-	check_target_hits()
-	
-	# Disable collision detection since knife has landed
-	_disable_collision_detection()
+				# Check for target hits
+				check_target_hits()
+				
+				# Disable collision detection since knife has landed
+				_disable_collision_detection()
 	
 	# Update visual effects
 	update_visual_effects()
@@ -1023,10 +1023,16 @@ func _handle_roof_bounce_collision(object: Node2D) -> void:
 	else:
 		print("✗ Knife is not above object - using normal collision")
 		# Use normal collision handling based on object type
-		if object.has_method("_handle_trunk_collision"):
-			_handle_tree_collision(object)
-		elif object.has_method("_handle_ball_collision"):
-			_handle_npc_collision(object)
+		# But only if we're not already in a roof bounce collision to prevent infinite recursion
+		if not roof_bounce_active:
+			if object.has_method("_handle_trunk_collision"):
+				object._handle_trunk_collision(self)
+			elif object.has_method("_handle_ball_collision"):
+				object._handle_ball_collision(self)
+			elif object.has_method("_handle_shop_collision"):
+				object._handle_shop_collision(self)
+		else:
+			print("Skipping object collision call to prevent infinite recursion")
 
 func _activate_roof_bounce(object: Node2D, object_height: float) -> void:
 	"""

@@ -66,13 +66,22 @@ func _handle_shop_collision(ball: Node2D):
 		print("=== END SHOP COLLISION (KNIFE) ===")
 		return
 	
-	# Check if ball has the new roof bounce system
-	if ball.has_method("_handle_roof_bounce_collision"):
-		print("Using new roof bounce system for", ball.name)
-		# Let the ball decide if it should bounce or pass through
-		ball._handle_roof_bounce_collision(self)
-		print("=== END SHOP COLLISION (ROOF BOUNCE) ===")
-		return
+	# Check if ball has the new roof bounce system AND is above the shop
+	if ball.has_method("_handle_roof_bounce_collision") and ball.has_method("get_height"):
+		var ball_height = ball.get_height()
+		var shop_height = Global.get_object_height_from_marker(self)
+		
+		print("Ball height:", ball_height)
+		print("Shop height:", shop_height)
+		
+		if ball_height > shop_height:
+			print("Using new roof bounce system for", ball.name, "- ball is above shop")
+			# Let the ball decide if it should bounce or pass through
+			ball._handle_roof_bounce_collision(self)
+			print("=== END SHOP COLLISION (ROOF BOUNCE) ===")
+			return
+		else:
+			print("Ball is below shop height - using normal collision handling")
 	
 	# Use enhanced height collision detection with TopHeight markers (old system)
 	if Global.is_object_above_obstacle(ball, self):
@@ -93,6 +102,20 @@ func _handle_shop_collision(ball: Node2D):
 func _handle_knife_shop_collision(knife: Node2D):
 	"""Handle knife collision with shop"""
 	print("Handling knife shop collision")
+	
+	# Check if knife is above the shop - if so, let it pass through
+	if knife.has_method("get_height"):
+		var knife_height = knife.get_height()
+		var shop_height = Global.get_object_height_from_marker(self)
+		
+		print("Knife height:", knife_height)
+		print("Shop height:", shop_height)
+		
+		if knife_height > shop_height:
+			print("✓ Knife is above shop - letting it pass through")
+			return  # Let the knife pass through without any collision handling
+		else:
+			print("✗ Knife is below shop height - handling collision")
 	
 	# Let the knife handle its own collision logic
 	# The knife will determine if it should bounce or stick based on which side hits
