@@ -247,3 +247,10 @@ func _update_ysort():
 	# Debug: Compare with other objects (only once)
 	if not has_meta("ysort_comparison_printed"):
 		set_meta("ysort_comparison_printed", true)
+
+func get_collision_radius() -> float:
+	"""
+	Get the collision radius for this tree.
+	Used by the roof bounce system to determine when ball has exited collision area.
+	"""
+	return 120.0  # Tree trunk radius

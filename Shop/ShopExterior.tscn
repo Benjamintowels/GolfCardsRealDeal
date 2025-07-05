@@ -1,9 +1,7 @@
 [gd_scene load_steps=4 format=3 uid="uid://dueq102y73kxl"]
 
 [ext_resource type="Script" uid="uid://b06k3fgclgfpu" path="res://Shop/shop_exterior.gd" id="1_iws6i"]
-
-[sub_resource type="CompressedTexture2D" id="CompressedTexture2D_xxdbr"]
-load_path = "res://.godot/imported/Shop.png-c27d56c84f578ec7e84766fd85f2c1b3.ctex"
+[ext_resource type="Texture2D" uid="uid://bhbm4fum1a38h" path="res://Shop/Shop.png" id="2_iws6i"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_iws6i"]
 size = Vector2(105, 50)
@@ -15,7 +13,8 @@ script = ExtResource("1_iws6i")
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 z_index = 1
-texture = SubResource("CompressedTexture2D_xxdbr")
+position = Vector2(0, 0.330002)
+texture = ExtResource("2_iws6i")
 
 [node name="YsortPoint" type="Node2D" parent="."]
 position = Vector2(16.547, 81.891)
@@ -28,4 +27,4 @@ scale = Vector2(2, 1)
 shape = SubResource("RectangleShape2D_iws6i")
 
 [node name="TopHeight" type="Marker2D" parent="."]
-position = Vector2(0, -102.54)
+position = Vector2(0, -182.67)

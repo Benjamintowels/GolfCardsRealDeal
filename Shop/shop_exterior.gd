@@ -1,8 +1,5 @@
 extends Node2D
 
-# Shop height for collision detection
-var height: float = 350.0  # Shop height (ball needs to be above this to pass over)
-
 # Returns the Y-sorting reference point (base of shop building)
 func get_y_sort_point() -> float:
 	# Use the YsortPoint node for consistent Y-sorting reference
@@ -203,3 +200,10 @@ func _update_ysort():
 	if not has_meta("ysort_update_printed"):
 		print("Shop Ysort updated - z_index:", z_index, " global_position:", global_position)
 		set_meta("ysort_update_printed", true)
+
+func get_collision_radius() -> float:
+	"""
+	Get the collision radius for this shop.
+	Used by the roof bounce system to determine when ball has exited collision area.
+	"""
+	return 150.0  # Shop collision radius
