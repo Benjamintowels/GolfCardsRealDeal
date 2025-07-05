@@ -44,11 +44,8 @@ const MIN_LAUNCH_HEIGHT := 144.0   # 3 cells (48 * 3) for pixel perfect system
 const MAX_LAUNCH_POWER := 1200.0
 const MIN_LAUNCH_POWER := 300.0
 
-# Roof bounce system variables
+# Simple collision system variables
 var current_ground_level: float = 0.0  # Current ground level (can be elevated by roofs)
-var roof_bounce_active: bool = false  # Whether we're currently on a roof
-var last_collision_object: Node2D = null  # Last object we collided with
-var collision_exit_timer: Timer = null  # Timer to handle collision exit
 
 func _ready():
 	# Set up the ghost ball visual
@@ -101,9 +98,7 @@ func _process(delta):
 	if landed_flag:
 		return
 	
-	# Debug roof bounce state every few frames when active
-	if roof_bounce_active and Engine.get_process_frames() % 60 == 0:
-		debug_roof_bounce_state()
+
 	
 	# Update launch timer
 	launch_timer += delta
@@ -133,6 +128,10 @@ func _process(delta):
 		# Check if ball has landed (using current ground level)
 		if z <= current_ground_level:
 			z = current_ground_level
+			
+			# Play roof bounce sound if landing on elevated ground
+			if current_ground_level > 0.0:
+				_play_roof_bounce_sound("")
 			# Check for water hazard on any bounce
 			var tile_x = int(floor(position.x / cell_size))
 			var tile_y = int(floor(position.y / cell_size))
@@ -195,6 +194,10 @@ func _process(delta):
 		# Check if ball has landed again (using current ground level)
 		if z <= current_ground_level:
 			z = current_ground_level
+			
+			# Play roof bounce sound if landing on elevated ground
+			if current_ground_level > 0.0:
+				_play_roof_bounce_sound("")
 			
 			# For putters, go directly to rolling (no bounces)
 			if is_putting:
@@ -346,12 +349,8 @@ func launch_ghost_ball():
 	bounce_count = 0
 	is_rolling = false
 	
-	# Reset roof bounce system for new shot
+	# Reset simple collision system for new shot
 	current_ground_level = 0.0
-	roof_bounce_active = false
-	last_collision_object = null
-	if collision_exit_timer:
-		collision_exit_timer.stop()
 	
 	# Reset to original position
 	position = original_position
@@ -620,13 +619,13 @@ func notify_course_of_collision() -> void:
 	# Ghost balls don't need to notify the course of collisions
 	pass 
 
-# New roof bounce system methods
+# Simple collision system methods
 func _handle_roof_bounce_collision(object: Node2D) -> void:
 	"""
-	Handle collision with roof bounce system.
-	If ball height > object height, set ground to object height.
+	Simple collision handler: if projectile height < object height, reflect.
+	If projectile height > object height, set ground to object height.
 	"""
-	print("=== HANDLING ROOF BOUNCE COLLISION (GHOST) ===")
+	print("=== SIMPLE COLLISION HANDLER (GHOST) ===")
 	print("Object:", object.name)
 	print("Ghost ball height:", z)
 	
@@ -635,175 +634,112 @@ func _handle_roof_bounce_collision(object: Node2D) -> void:
 	
 	# Check if ball is above the object
 	if z > object_height:
-		print("✓ Ghost ball is above object - activating roof bounce")
-		_activate_roof_bounce(object, object_height)
+		print("✓ Ghost ball is above object - setting ground level")
+		current_ground_level = object_height
 	else:
-		print("✗ Ghost ball is not above object - using normal collision")
-		# Use normal collision handling based on object type
-		# But only if we're not already in a roof bounce collision to prevent infinite recursion
-		if not roof_bounce_active:
-			if object.has_method("_handle_trunk_collision"):
-				object._handle_trunk_collision(self)
-			elif object.has_method("_handle_shop_collision"):
-				object._handle_shop_collision(self)
-			elif object.has_method("_handle_ball_collision"):
-				object._handle_ball_collision(self)
-		else:
-			print("Skipping object collision call to prevent infinite recursion")
+		print("✗ Ghost ball is below object height - reflecting")
+		_reflect_off_object(object)
 
-func _activate_roof_bounce(object: Node2D, object_height: float) -> void:
+func _reflect_off_object(object: Node2D) -> void:
 	"""
-	Activate roof bounce by setting the ground level to the object's height.
+	Simple reflection off an object when ball is below object height.
 	"""
-	print("=== ACTIVATING ROOF BOUNCE (GHOST) ===")
-	print("Setting ground level to:", object_height)
+	print("=== REFLECTING OFF OBJECT (GHOST) ===")
 	
-	# Set the current ground level to the object's height
-	current_ground_level = object_height
-	roof_bounce_active = true
-	last_collision_object = object
+	# Get the ball's current velocity
+	var ball_velocity = velocity
 	
-	# If ball is currently below the new ground level, bounce it up
-	if z <= current_ground_level:
-		z = current_ground_level + 10.0  # Add small buffer
-		vz = abs(vz) * 0.7  # Bounce with 70% of original downward velocity
+	print("Reflecting ghost ball with velocity:", ball_velocity)
 	
-	# Create collision exit timer if it doesn't exist
-	if not collision_exit_timer:
-		collision_exit_timer = Timer.new()
-		collision_exit_timer.one_shot = true
-		collision_exit_timer.wait_time = 0.1  # Check every 0.1 seconds
-		add_child(collision_exit_timer)
-		collision_exit_timer.timeout.connect(_check_collision_exit)
+	# Play collision sound if available
+	if object.has_method("_play_trunk_thunk_sound"):
+		object._play_trunk_thunk_sound()
+	elif object.has_method("_play_oil_drum_sound"):
+		object._play_oil_drum_sound()
 	
-	# Start the timer to check for collision exit
-	collision_exit_timer.start()
-	
-	print("Roof bounce activated - ground level:", current_ground_level)
-
-func _check_collision_exit() -> void:
-	"""
-	Check if the ball has exited the collision area and reset ground level.
-	"""
-	if not roof_bounce_active or not last_collision_object:
-		return
-	
-	print("=== CHECKING COLLISION EXIT (GHOST) ===")
-	
-	# Check if ball is still within the collision area
 	var ball_pos = global_position
-	var object_pos = last_collision_object.global_position
-	var distance = ball_pos.distance_to(object_pos)
+	var object_center = object.global_position
 	
-	# Use a reasonable collision radius (adjust based on object size)
-	var collision_radius = 100.0  # Default collision radius
+	# Calculate the direction from object center to ball
+	var to_ball_direction = (ball_pos - object_center).normalized()
 	
-	# Get object-specific collision radius if available
-	if last_collision_object.has_method("get_collision_radius"):
-		collision_radius = last_collision_object.get_collision_radius()
+	# Simple reflection: reflect the velocity across the object center
+	var reflected_velocity = ball_velocity - 2 * ball_velocity.dot(to_ball_direction) * to_ball_direction
 	
-	print("Distance to object:", distance)
-	print("Collision radius:", collision_radius)
+	# Reduce speed slightly to prevent infinite bouncing
+	reflected_velocity *= 0.8
 	
-	if distance > collision_radius:
-		print("✓ Ghost ball has exited collision area - resetting ground level")
-		_reset_ground_level()
-	else:
-		print("✗ Ghost ball still in collision area - continuing roof bounce")
-		# Restart timer to check again
-		collision_exit_timer.start()
+	# Add a small amount of randomness to prevent infinite loops
+	var random_angle = randf_range(-0.1, 0.1)
+	reflected_velocity = reflected_velocity.rotated(random_angle)
+	
+	print("Reflected ghost ball velocity:", reflected_velocity)
+	
+	# Apply the reflected velocity to the ball
+	velocity = reflected_velocity
+
+func _set_ground_level(height: float) -> void:
+	"""
+	Set the ground level to a specific height (used by Area2D collision system).
+	"""
+	print("=== SETTING GROUND LEVEL (GHOST) ===")
+	print("Setting ground level to:", height)
+	current_ground_level = height
+	print("Ground level set to:", current_ground_level)
 
 func _reset_ground_level() -> void:
 	"""
-	Reset the ground level to the next available roof or ground.
+	Reset the ground level to normal (0.0) when exiting Area2D collision.
 	"""
 	print("=== RESETTING GROUND LEVEL (GHOST) ===")
-	
-	# Find the next highest ground level
-	var next_ground_level = _find_next_ground_level()
-	
-	print("Current ground level:", current_ground_level)
-	print("Next ground level:", next_ground_level)
-	
-	# Reset to the next ground level
-	current_ground_level = next_ground_level
-	roof_bounce_active = false
-	last_collision_object = null
-	
-	# If ball is below the new ground level, it should fall
-	if z <= current_ground_level:
-		# Ball is below ground - let it fall naturally
-		print("Ghost ball is below ground level - allowing natural fall")
-	else:
-		# Ball is above ground - it will continue its trajectory
-		print("Ghost ball is above ground level - continuing trajectory")
-	
+	print("Resetting ground level from:", current_ground_level, "to 0.0")
+	current_ground_level = 0.0
 	print("Ground level reset to:", current_ground_level)
 
-func _find_next_ground_level() -> float:
+func _play_roof_bounce_sound(object_type: String) -> void:
 	"""
-	Find the next available ground level by checking nearby objects.
-	Returns the height of the next highest object or 0.0 for ground level.
+	Play the appropriate sound when landing on elevated ground (roof bounce).
+	This is called when the ghost ball actually lands on the elevated surface.
 	"""
-	print("=== FINDING NEXT GROUND LEVEL (GHOST) ===")
-	
-	var next_level = 0.0  # Default to ground level
-	
-	# Get all objects that could serve as ground
-	var potential_grounds = []
-	
-	# Add trees
-	var trees = get_tree().get_nodes_in_group("trees")
-	potential_grounds.append_array(trees)
-	
-	# Add shops
-	var shops = get_tree().get_nodes_in_group("shops")
-	potential_grounds.append_array(shops)
-	
-	# Add other objects that could serve as ground
-	var all_objects = get_tree().get_nodes_in_group("objects")
-	for obj in all_objects:
-		if obj != last_collision_object and obj.has_method("get_collision_radius"):
-			potential_grounds.append(obj)
-	
-	print("Checking", potential_grounds.size(), "potential ground objects")
-	
-	# Check each potential ground object
-	for obj in potential_grounds:
-		if not is_instance_valid(obj):
-			continue
-		
-		var obj_pos = obj.global_position
-		var ball_pos = global_position
-		var distance = ball_pos.distance_to(obj_pos)
-		
-		# Get object collision radius
-		var collision_radius = 100.0  # Default
-		if obj.has_method("get_collision_radius"):
-			collision_radius = obj.get_collision_radius()
-		
-		# Check if ball is within this object's collision area
-		if distance <= collision_radius:
-			var obj_height = Global.get_object_height_from_marker(obj)
-			print("Object", obj.name, "at distance", distance, "has height", obj_height)
-			
-			# If this object is higher than current next_level, use it
-			if obj_height > next_level:
-				next_level = obj_height
-				print("New highest ground level:", next_level, "from", obj.name)
-	
-	print("Final next ground level:", next_level)
-	return next_level
-
-func debug_roof_bounce_state() -> void:
-	"""
-	Debug function to print the current roof bounce state.
-	"""
-	print("=== ROOF BOUNCE STATE DEBUG (GHOST) ===")
+	print("=== PLAYING ROOF BOUNCE SOUND (GHOST) ===")
 	print("Current ground level:", current_ground_level)
-	print("Roof bounce active:", roof_bounce_active)
-	print("Ghost ball height (z):", z)
-	print("Ghost ball vertical velocity (vz):", vz)
-	print("Last collision object:", last_collision_object.name if last_collision_object else "None")
-	print("Collision exit timer active:", collision_exit_timer.time_left > 0 if collision_exit_timer else "No timer")
-	print("=== END ROOF BOUNCE STATE DEBUG (GHOST) ===") 
+	
+	# Find the object that set this ground level and play its sound
+	var objects = get_tree().get_nodes_in_group("collision_objects")
+	print("Found", objects.size(), "collision objects")
+	
+	for obj in objects:
+		if not obj.has_method("get_collision_radius"):
+			continue
+			
+		var distance = global_position.distance_to(obj.global_position)
+		var collision_radius = obj.get_collision_radius()
+		
+		print("Checking object:", obj.name, "distance:", distance, "radius:", collision_radius)
+		
+		# Check if we're within the collision radius of this object
+		if distance <= collision_radius:
+			# Check if this object's height matches our current ground level
+			var obj_height = Global.get_object_height_from_marker(obj)
+			print("Object height:", obj_height, "ground level:", current_ground_level)
+			
+			if abs(obj_height - current_ground_level) < 1.0:  # Small tolerance for floating point
+				# Play the appropriate sound based on object type
+				if obj.name.contains("Shop") or obj.name.contains("shop"):
+					var thunk = obj.get_node_or_null("TrunkThunk")
+					if thunk:
+						thunk.play()
+						print("✓ TrunkThunk sound played for shop roof bounce (ghost)")
+				elif obj.name.contains("Tree") or obj.name.contains("tree"):
+					var thunk = obj.get_node_or_null("TrunkThunk")
+					if thunk:
+						thunk.play()
+						print("✓ TrunkThunk sound played for tree roof bounce (ghost)")
+				elif obj.name.contains("Oil") or obj.name.contains("oil") or obj.name.contains("OilDrum"):
+					var thunk = obj.get_node_or_null("OilDrumThunk")
+					if thunk:
+						thunk.play()
+						print("✓ OilDrumThunk sound played for oil drum roof bounce (ghost)")
+					else:
+						print("✗ OilDrumThunk sound not found on object:", obj.name)
+				break 

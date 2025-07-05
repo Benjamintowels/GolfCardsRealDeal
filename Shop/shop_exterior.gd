@@ -11,19 +11,20 @@ func get_y_sort_point() -> float:
 		return global_position.y - 1.43885
 
 func _ready():
-	# Connect to Area2D's area_entered signal for collision detection with Area2D balls
-	var shop_base_area = get_node_or_null("ShopBaseArea")
+	# Connect to Area2D's area_entered and area_exited signals for collision detection
+	var base_area = get_node_or_null("BaseArea")
 	
-	if shop_base_area:
-		# Use area_entered for shop collisions (since golf ball uses Area2D for all collisions)
-		shop_base_area.connect("area_entered", _on_area_entered)
+	if base_area:
+		# Use area_entered for shop collisions
+		base_area.connect("area_entered", _on_area_entered)
+		base_area.connect("area_exited", _on_area_exited)
 		# Set collision layer to 1 so golf balls can detect it
-		shop_base_area.collision_layer = 1
+		base_area.collision_layer = 1
 		# Set collision mask to 1 so it can detect golf balls on layer 1
-		shop_base_area.collision_mask = 1
-		print("✓ Shop Area2D setup complete for collision detection")
+		base_area.collision_mask = 1
+		print("✓ Shop BaseArea setup complete for collision detection")
 	else:
-		print("✗ ERROR: ShopBaseArea not found!")
+		print("✗ ERROR: BaseArea not found!")
 	
 	# Deferred call to double-check collision layers after the scene is fully set up
 	call_deferred("_verify_collision_setup")
@@ -33,126 +34,133 @@ func _ready():
 
 func _on_area_entered(area: Area2D):
 	"""Handle collisions with the shop base area (ground-level collision)"""
-	var ball = area.get_parent()
+	var projectile = area.get_parent()
 	
 	print("=== SHOP AREA ENTERED ===")
 	print("Area name:", area.name)
-	print("Ball parent:", ball.name if ball else "No parent")
-	print("Ball type:", ball.get_class() if ball else "Unknown")
-	print("Ball position:", ball.global_position if ball else "Unknown")
+	print("Projectile parent:", projectile.name if projectile else "No parent")
+	print("Projectile type:", projectile.get_class() if projectile else "Unknown")
+	print("Projectile position:", projectile.global_position if projectile else "Unknown")
 	print("Shop position:", global_position)
-	print("Distance to shop:", ball.global_position.distance_to(global_position) if ball else "Unknown")
 	
-	if ball and (ball.name == "GolfBall" or ball.name == "GhostBall" or ball.has_method("is_throwing_knife")):
-		print("✓ Valid ball/knife detected:", ball.name)
-		# Handle the collision - always reflect for ground-level shop collisions
-		_handle_collision(ball)
+	if projectile and (projectile.name == "GolfBall" or projectile.name == "GhostBall" or projectile.has_method("is_throwing_knife")):
+		print("✓ Valid projectile detected:", projectile.name)
+		# Handle the collision using proper Area2D collision detection
+		_handle_area_collision(projectile)
 	else:
-		print("✗ Invalid ball/knife or non-ball object:", ball.name if ball else "Unknown")
+		print("✗ Invalid projectile or non-projectile object:", projectile.name if projectile else "Unknown")
 	
 	print("=== END SHOP AREA ENTERED ===")
 
-func _handle_collision(ball: Node2D):
-	"""Handle shop base collisions - check height to determine if ball should pass through"""
-	print("=== HANDLING SHOP COLLISION ===")
-	print("Ball/knife name:", ball.name)
-	print("Ball/knife type:", ball.get_class())
+func _on_area_exited(area: Area2D):
+	"""Handle when projectile exits the shop area - reset ground level"""
+	var projectile = area.get_parent()
 	
-	# Check if this is a throwing knife
-	if ball.has_method("is_throwing_knife") and ball.is_throwing_knife():
-		# Handle knife collision with shop
-		print("Handling knife shop collision")
-		_handle_knife_collision(ball)
-		print("=== END SHOP COLLISION (KNIFE) ===")
+	print("=== SHOP AREA EXITED ===")
+	print("Projectile:", projectile.name if projectile else "Unknown")
+	
+	if projectile and projectile.has_method("get_height"):
+		# Reset the projectile's ground level to normal (0.0)
+		if projectile.has_method("_reset_ground_level"):
+			projectile._reset_ground_level()
+		else:
+			# Fallback: directly reset ground level if method doesn't exist
+			if "current_ground_level" in projectile:
+				projectile.current_ground_level = 0.0
+				print("✓ Reset projectile ground level to 0.0")
+	
+	print("=== END SHOP AREA EXITED ===")
+
+func _handle_area_collision(projectile: Node2D):
+	"""Handle shop area collisions using proper Area2D detection"""
+	print("=== HANDLING SHOP AREA COLLISION ===")
+	print("Projectile name:", projectile.name)
+	print("Projectile type:", projectile.get_class())
+	
+	# Check if projectile has height information
+	if not projectile.has_method("get_height"):
+		print("✗ Projectile doesn't have height method - using fallback reflection")
+		_reflect_projectile(projectile)
 		return
 	
-	# Check if ball has the new roof bounce system AND is above the shop
-	if ball.has_method("_handle_roof_bounce_collision") and ball.has_method("get_height"):
-		var ball_height = ball.get_height()
-		var shop_height = Global.get_object_height_from_marker(self)
-		
-		print("Ball height:", ball_height)
-		print("Shop height:", shop_height)
-		
-		if ball_height > shop_height:
-			print("Using new roof bounce system for", ball.name, "- ball is above shop")
-			# Let the ball decide if it should bounce or pass through
-			ball._handle_roof_bounce_collision(self)
-			print("=== END SHOP COLLISION (ROOF BOUNCE) ===")
-			return
-		else:
-			print("Ball is below shop height - using normal collision handling")
+	# Get projectile and shop heights
+	var projectile_height = projectile.get_height()
+	var shop_height = Global.get_object_height_from_marker(self)
 	
-	# Use enhanced height collision detection with TopHeight markers (old system)
-	if Global.is_object_above_obstacle(ball, self):
-		# Ball/knife is above the shop entirely - let it pass through
-		print("✓ Ball/knife is above shop entirely - passing through")
-		print("=== END SHOP COLLISION (PASSED THROUGH) ===")
+	print("Projectile height:", projectile_height)
+	print("Shop height:", shop_height)
+	
+	# Check if this is a throwing knife (special handling)
+	if projectile.has_method("is_throwing_knife") and projectile.is_throwing_knife():
+		_handle_knife_area_collision(projectile, projectile_height, shop_height)
 		return
+	
+	# Apply the collision logic:
+	# If projectile height > shop height: allow entry and set ground level
+	# If projectile height < shop height: reflect
+	if projectile_height > shop_height:
+		print("✓ Projectile is above shop - allowing entry and setting ground level")
+		_allow_projectile_entry(projectile, shop_height)
 	else:
-		# Ball/knife is within or below shop height - handle collision
-		print("✗ Ball/knife is within shop height - handling collision")
-		
-		# Handle regular ball collision with old system
-		print("Handling ball shop collision")
-		_handle_ball_collision(ball)
-		
-		print("=== END SHOP COLLISION (COLLIDED) ===")
+		print("✗ Projectile is below shop height - reflecting")
+		_reflect_projectile(projectile)
 
-func _handle_knife_collision(knife: Node2D):
-	"""Handle knife collision with shop"""
-	print("Handling knife shop collision")
+func _handle_knife_area_collision(knife: Node2D, knife_height: float, shop_height: float):
+	"""Handle knife collision with shop area"""
+	print("Handling knife shop area collision")
 	
-	# Check if knife is above the shop - if so, let it pass through
-	if knife.has_method("get_height"):
-		var knife_height = knife.get_height()
-		var shop_height = Global.get_object_height_from_marker(self)
-		
-		print("Knife height:", knife_height)
-		print("Shop height:", shop_height)
-		
-		if knife_height > shop_height:
-			print("✓ Knife is above shop - letting it pass through")
-			return  # Let the knife pass through without any collision handling
-		else:
-			print("✗ Knife is below shop height - handling collision")
-	
-	# Let the knife handle its own collision logic
-	# The knife will determine if it should bounce or stick based on which side hits
-	if knife.has_method("_handle_shop_collision"):
-		knife._handle_shop_collision(self)
+	if knife_height > shop_height:
+		print("✓ Knife is above shop - allowing entry and setting ground level")
+		_allow_projectile_entry(knife, shop_height)
 	else:
-		# Fallback: just reflect the knife
-		_reflect_knife(knife)
+		print("✗ Knife is below shop height - reflecting")
+		_reflect_projectile(knife)
 
-func _handle_ball_collision(ball: Node2D):
-	"""Handle ball collision with shop (old system only)"""
-	print("Handling ball shop collision with old system")
+func _allow_projectile_entry(projectile: Node2D, shop_height: float):
+	"""Allow projectile to enter shop area and set ground level"""
+	print("=== ALLOWING PROJECTILE ENTRY ===")
 	
-	# This function is only called for balls without the roof bounce system
-	# Reflect the ball (old system)
-	_reflect_ball(ball)
+	# Set the projectile's ground level to the shop height
+	if projectile.has_method("_set_ground_level"):
+		projectile._set_ground_level(shop_height)
+	else:
+		# Fallback: directly set ground level if method doesn't exist
+		if "current_ground_level" in projectile:
+			projectile.current_ground_level = shop_height
+			print("✓ Set projectile ground level to shop height:", shop_height)
+	
+	# The projectile will now land on the shop roof instead of passing through
+	# When it exits the area, _on_area_exited will reset the ground level
 
-func _reflect_ball(ball: Node2D):
-	"""Special reflection for low-height collisions with shop base - creates pinball effect"""
-	# Get the ball's current velocity
-	var ball_velocity = Vector2.ZERO
-	if ball.has_method("get_velocity"):
-		ball_velocity = ball.get_velocity()
-	elif "velocity" in ball:
-		ball_velocity = ball.velocity
+func _reflect_projectile(projectile: Node2D):
+	"""Reflect projectile off the shop"""
+	print("=== REFLECTING PROJECTILE ===")
 	
-	print("Reflecting ball with velocity:", ball_velocity)
+	# Play trunk thunk sound for shop collision
+	var thunk = get_node_or_null("TrunkThunk")
+	if thunk:
+		thunk.play()
+		print("✓ TrunkThunk sound played for shop collision")
+	else:
+		print("✗ TrunkThunk sound not found!")
 	
-	var ball_pos = ball.global_position
+	# Get the projectile's current velocity
+	var projectile_velocity = Vector2.ZERO
+	if projectile.has_method("get_velocity"):
+		projectile_velocity = projectile.get_velocity()
+	elif "velocity" in projectile:
+		projectile_velocity = projectile.velocity
+	
+	print("Reflecting projectile with velocity:", projectile_velocity)
+	
+	var projectile_pos = projectile.global_position
 	var shop_center = global_position
 	
-	# Calculate the direction from shop center to ball
-	var to_ball_direction = (ball_pos - shop_center).normalized()
+	# Calculate the direction from shop center to projectile
+	var to_projectile_direction = (projectile_pos - shop_center).normalized()
 	
 	# Simple reflection: reflect the velocity across the shop center
-	# This creates a more predictable pinball effect
-	var reflected_velocity = ball_velocity - 2 * ball_velocity.dot(to_ball_direction) * to_ball_direction
+	var reflected_velocity = projectile_velocity - 2 * projectile_velocity.dot(to_projectile_direction) * to_projectile_direction
 	
 	# Reduce speed slightly to prevent infinite bouncing
 	reflected_velocity *= 0.8
@@ -163,57 +171,21 @@ func _reflect_ball(ball: Node2D):
 	
 	print("Reflected velocity:", reflected_velocity)
 	
-	# Apply the reflected velocity to the ball
-	if ball.has_method("set_velocity"):
-		ball.set_velocity(reflected_velocity)
-	elif "velocity" in ball:
-		ball.velocity = reflected_velocity
-
-func _reflect_knife(knife: Node2D):
-	"""Special reflection for knife collisions with shop base - creates pinball effect"""
-	# Get the knife's current velocity
-	var knife_velocity = Vector2.ZERO
-	if knife.has_method("get_velocity"):
-		knife_velocity = knife.get_velocity()
-	elif "velocity" in knife:
-		knife_velocity = knife.velocity
-	
-	print("Reflecting knife with velocity:", knife_velocity)
-	
-	var knife_pos = knife.global_position
-	var shop_center = global_position
-	
-	# Calculate the direction from shop center to knife
-	var to_knife_direction = (knife_pos - shop_center).normalized()
-	
-	# Simple reflection: reflect the velocity across the shop center
-	# This creates a more predictable pinball effect
-	var reflected_velocity = knife_velocity - 2 * knife_velocity.dot(to_knife_direction) * to_knife_direction
-	
-	# Reduce speed slightly to prevent infinite bouncing
-	reflected_velocity *= 0.8
-	
-	# Add a small amount of randomness to prevent infinite loops
-	var random_angle = randf_range(-0.1, 0.1)
-	reflected_velocity = reflected_velocity.rotated(random_angle)
-	
-	print("Reflected knife velocity:", reflected_velocity)
-	
-	# Apply the reflected velocity to the knife
-	if knife.has_method("set_velocity"):
-		knife.set_velocity(reflected_velocity)
-	elif "velocity" in knife:
-		knife.velocity = reflected_velocity
+	# Apply the reflected velocity to the projectile
+	if projectile.has_method("set_velocity"):
+		projectile.set_velocity(reflected_velocity)
+	elif "velocity" in projectile:
+		projectile.velocity = reflected_velocity
 
 func _verify_collision_setup():
 	"""Verify that collision layers are properly set up"""
-	var shop_base_area = get_node_or_null("ShopBaseArea")
-	if shop_base_area:
-		print("Shop collision layer:", shop_base_area.collision_layer)
-		print("Shop collision mask:", shop_base_area.collision_mask)
+	var base_area = get_node_or_null("BaseArea")
+	if base_area:
+		print("Shop collision layer:", base_area.collision_layer)
+		print("Shop collision mask:", base_area.collision_mask)
 		
 		# Check collision shape
-		var collision_shape = shop_base_area.get_node_or_null("ShopBase")
+		var collision_shape = base_area.get_node_or_null("ShopBase")
 		if collision_shape:
 			print("Shop collision shape size:", collision_shape.shape.size)
 			print("Shop collision shape scale:", collision_shape.scale)
@@ -223,7 +195,7 @@ func _verify_collision_setup():
 		else:
 			print("ERROR: ShopBase collision shape not found!")
 	else:
-		print("ERROR: ShopBaseArea not found during verification!")
+		print("ERROR: BaseArea not found during verification!")
 
 func _update_ysort():
 	"""Update the Shop's z_index for proper Y-sorting"""

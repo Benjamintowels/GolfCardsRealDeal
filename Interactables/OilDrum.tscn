@@ -1,7 +1,8 @@
-[gd_scene load_steps=5 format=3 uid="uid://ecl87per4al0"]
+[gd_scene load_steps=6 format=3 uid="uid://ecl87per4al0"]
 
 [ext_resource type="Texture2D" uid="uid://bypolpr6cd5hp" path="res://Interactables/OilDrum.png" id="1_loocf"]
 [ext_resource type="Script" uid="uid://bwhij2855urxp" path="res://Interactables/oil_drum.gd" id="1_rcn5n"]
+[ext_resource type="AudioStream" uid="uid://nhqjbpo0r088" path="res://Sounds/OilDrumBounce.mp3" id="3_f8u84"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_loocf"]
 size = Vector2(16, 58)
@@ -40,3 +41,6 @@ position = Vector2(0, -29.725)
 position = Vector2(0, 22.725)
 scale = Vector2(1, 0.38)
 shape = SubResource("CircleShape2D_mt8sc")
+
+[node name="OilDrumThunk" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("3_f8u84")

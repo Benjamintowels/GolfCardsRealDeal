@@ -115,11 +115,8 @@ var is_putting: bool = false  # Flag for putter-only rolling mechanics
 # Special handling for putters - start rolling immediately
 var putt_start_time := 0.0  # Record when putt started
 
-# Roof bounce system variables
+# Simple collision system variables
 var current_ground_level: float = 0.0  # Current ground level (can be elevated by roofs)
-var roof_bounce_active: bool = false  # Whether we're currently on a roof
-var last_collision_object: Node2D = null  # Last object we collided with
-var collision_exit_timer: Timer = null  # Timer to handle collision exit
 
 # Wall collision system variables
 var last_wall_collision_time: float = 0.0  # Time of last wall collision
@@ -255,12 +252,8 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 	bounce_count = 0
 	is_rolling = false
 	
-	# Reset roof bounce system for new shot
+	# Reset simple collision system for new shot
 	current_ground_level = 0.0
-	roof_bounce_active = false
-	last_collision_object = null
-	if collision_exit_timer:
-		collision_exit_timer.stop()
 	
 	# Reset wall collision system for new shot
 	last_wall_collision_time = 0.0
@@ -363,9 +356,7 @@ func _process(delta):
 	if landed_flag:
 		return
 	
-	# Debug roof bounce state every few frames when active
-	if roof_bounce_active and Engine.get_process_frames() % 60 == 0:
-		debug_roof_bounce_state()
+
 	
 	# Debug: Print ball movement every few frames
 	# if Engine.get_process_frames() % 60 == 0:  # Every 60 frames (about once per second)
@@ -453,6 +444,10 @@ func _process(delta):
 		# Check if ball has landed (using current ground level)
 		if z <= current_ground_level:
 			z = current_ground_level
+			
+			# Play roof bounce sound if landing on elevated ground
+			if current_ground_level > 0.0:
+				_play_roof_bounce_sound("")
 			# Check for water hazard on any bounce
 			var tile_x = int(floor(position.x / cell_size))
 			var tile_y = int(floor(position.y / cell_size))
@@ -550,6 +545,10 @@ func _process(delta):
 		# Check if ball has landed again (using current ground level)
 		if z <= current_ground_level:
 			z = current_ground_level
+			
+			# Play roof bounce sound if landing on elevated ground
+			if current_ground_level > 0.0:
+				_play_roof_bounce_sound("")
 			
 			# Calculate bounce based on bounce count and initial height
 			var landing_speed = abs(vz)
@@ -1127,113 +1126,15 @@ func check_nearby_tree_collisions() -> void:
 						# Mark when we last played the sound for this ball-tree combination
 						set_meta(sound_key, current_time)
 
-func _handle_shop_collision_with_roof_bounce(shop: Node2D) -> void:
-	"""
-	Handle shop collision with roof bounce mechanic.
-	If ball is descending and would land inside shop, bounce it off the roof.
-	"""
-	print("=== HANDLING SHOP COLLISION WITH ROOF BOUNCE ===")
-	print("Ball height:", z)
-	print("Ball vertical velocity (vz):", vz)
-	print("Ball is descending:", vz < 0)
-	
-	# Check if ball is descending (negative vertical velocity)
-	if vz < 0:
-		# Ball is coming down - check if it would land inside the shop
-		var shop_height = Global.get_object_height_from_marker(shop)
-		var ball_collision_height = z  # Use actual z value for pixel perfect system
-		
-		print("Shop height:", shop_height)
-		print("Ball collision height:", ball_collision_height)
-		
-		# If ball is above shop but descending, and would land inside shop area
-		if ball_collision_height > shop_height:
-			print("✓ Ball is above shop and descending - applying roof bounce")
-			_apply_roof_bounce(shop, shop_height)
-			return
-	
-	# If not descending or not above shop, use normal shop collision
-	print("Using normal shop collision handling")
-	shop._handle_shop_collision(self)
 
-func _apply_roof_bounce(obstacle: Node2D, obstacle_height: float) -> void:
-	"""
-	Apply a roof bounce to the ball, keeping it above the obstacle.
-	This prevents Y-sorting glitches when balls land inside collision areas.
-	"""
-	print("=== APPLYING ROOF BOUNCE ===")
-	
-	# Calculate the minimum height the ball should be at to stay above the obstacle
-	var min_safe_height = obstacle_height  # Use actual obstacle height for pixel perfect system
-	
-	# Set ball to minimum safe height above the obstacle
-	z = min_safe_height + 10.0  # Add 10 pixels buffer
-	
-	# Reverse vertical velocity to bounce upward
-	vz = abs(vz) * 0.7  # Bounce with 70% of original downward velocity
-	
-	# Reduce horizontal velocity slightly to prevent infinite bouncing
-	velocity *= 0.9
-	
-	# Ensure ball stays above the obstacle for a few frames
-	# This prevents immediate re-entry into the collision area
-	call_deferred("_ensure_ball_stays_above_obstacle", obstacle, obstacle_height)
-	
-	print("Ball bounced to height:", z)
-	print("New vertical velocity:", vz)
-	print("=== END ROOF BOUNCE ===")
 
-func _ensure_ball_stays_above_obstacle(obstacle: Node2D, obstacle_height: float) -> void:
-	"""
-	Ensure the ball stays above the obstacle for a few frames after roof bounce.
-	"""
-	# Create a timer to monitor the ball's position
-	var safety_timer = get_tree().create_timer(0.5)  # Monitor for 0.5 seconds
-	safety_timer.timeout.connect(func():
-		# Check if ball is still above the obstacle
-		var ball_collision_height = z  # Use actual z value for pixel perfect system
-		if ball_collision_height <= obstacle_height:
-			# Ball has fallen back into collision area - bounce again
-			print("Ball fell back into collision area - applying safety bounce")
-			_apply_roof_bounce(obstacle, obstacle_height)
-	)
-
-func _handle_tree_collision_with_roof_bounce(tree: Node2D) -> void:
-	"""
-	Handle tree collision with roof bounce mechanic.
-	If ball is descending and would land inside tree, bounce it off the roof.
-	"""
-	print("=== HANDLING TREE COLLISION WITH ROOF BOUNCE ===")
-	print("Ball height:", z)
-	print("Ball vertical velocity (vz):", vz)
-	print("Ball is descending:", vz < 0)
-	
-	# Check if ball is descending (negative vertical velocity)
-	if vz < 0:
-		# Ball is coming down - check if it would land inside the tree
-		var tree_height = Global.get_object_height_from_marker(tree)
-		var ball_collision_height = z  # Use actual z value for pixel perfect system
-		
-		print("Tree height:", tree_height)
-		print("Ball collision height:", ball_collision_height)
-		
-		# If ball is above tree but descending, and would land inside tree area
-		if ball_collision_height > tree_height:
-			print("✓ Ball is above tree and descending - applying roof bounce")
-			_apply_roof_bounce(tree, tree_height)
-			return
-	
-	# If not descending or not above tree, use normal tree collision
-	print("Using normal tree collision handling")
-	tree._handle_trunk_collision(self)
-
-# New roof bounce system methods
+# Simple collision system methods
 func _handle_roof_bounce_collision(object: Node2D) -> void:
 	"""
-	Handle collision with roof bounce system.
-	If ball height > object height, set ground to object height.
+	Simple collision handler: if projectile height < object height, reflect.
+	If projectile height > object height, set ground to object height.
 	"""
-	print("=== HANDLING ROOF BOUNCE COLLISION ===")
+	print("=== SIMPLE COLLISION HANDLER ===")
 	print("Object:", object.name)
 	print("Ball height:", z)
 	
@@ -1242,178 +1143,115 @@ func _handle_roof_bounce_collision(object: Node2D) -> void:
 	
 	# Check if ball is above the object
 	if z > object_height:
-		print("✓ Ball is above object - activating roof bounce")
-		_activate_roof_bounce(object, object_height)
+		print("✓ Ball is above object - setting ground level")
+		current_ground_level = object_height
 	else:
-		print("✗ Ball is not above object - using normal collision")
-		# Use normal collision handling based on object type
-		# But only if we're not already in a roof bounce collision to prevent infinite recursion
-		if not roof_bounce_active:
-			if object.has_method("_handle_trunk_collision"):
-				object._handle_trunk_collision(self)
-			elif object.has_method("_handle_shop_collision"):
-				object._handle_shop_collision(self)
-			elif object.has_method("_handle_ball_collision"):
-				object._handle_ball_collision(self)
-		else:
-			print("Skipping object collision call to prevent infinite recursion")
+		print("✗ Ball is below object height - reflecting")
+		_reflect_off_object(object)
 
-func _activate_roof_bounce(object: Node2D, object_height: float) -> void:
+func _reflect_off_object(object: Node2D) -> void:
 	"""
-	Activate roof bounce by setting the ground level to the object's height.
+	Simple reflection off an object when ball is below object height.
 	"""
-	print("=== ACTIVATING ROOF BOUNCE ===")
-	print("Setting ground level to:", object_height)
+	print("=== REFLECTING OFF OBJECT ===")
 	
-	# Set the current ground level to the object's height
-	current_ground_level = object_height
-	roof_bounce_active = true
-	last_collision_object = object
+	# Get the ball's current velocity
+	var ball_velocity = velocity
 	
-	# If ball is currently below the new ground level, bounce it up
-	if z <= current_ground_level:
-		z = current_ground_level + 10.0  # Add small buffer
-		vz = abs(vz) * 0.7  # Bounce with 70% of original downward velocity
+	print("Reflecting ball with velocity:", ball_velocity)
 	
-	# Create collision exit timer if it doesn't exist
-	if not collision_exit_timer:
-		collision_exit_timer = Timer.new()
-		collision_exit_timer.one_shot = true
-		collision_exit_timer.wait_time = 0.1  # Check every 0.1 seconds
-		add_child(collision_exit_timer)
-		collision_exit_timer.timeout.connect(_check_collision_exit)
+	# Play collision sound if available
+	if object.has_method("_play_trunk_thunk_sound"):
+		object._play_trunk_thunk_sound()
+	elif object.has_method("_play_oil_drum_sound"):
+		object._play_oil_drum_sound()
 	
-	# Start the timer to check for collision exit
-	collision_exit_timer.start()
-	
-	print("Roof bounce activated - ground level:", current_ground_level)
-
-func _check_collision_exit() -> void:
-	"""
-	Check if the ball has exited the collision area and reset ground level.
-	"""
-	if not roof_bounce_active or not last_collision_object:
-		return
-	
-	print("=== CHECKING COLLISION EXIT ===")
-	
-	# Check if ball is still within the collision area
 	var ball_pos = global_position
-	var object_pos = last_collision_object.global_position
-	var distance = ball_pos.distance_to(object_pos)
+	var object_center = object.global_position
 	
-	# Use a reasonable collision radius (adjust based on object size)
-	var collision_radius = 100.0  # Default collision radius
+	# Calculate the direction from object center to ball
+	var to_ball_direction = (ball_pos - object_center).normalized()
 	
-	# Get object-specific collision radius if available
-	if last_collision_object.has_method("get_collision_radius"):
-		collision_radius = last_collision_object.get_collision_radius()
+	# Simple reflection: reflect the velocity across the object center
+	var reflected_velocity = ball_velocity - 2 * ball_velocity.dot(to_ball_direction) * to_ball_direction
 	
-	print("Distance to object:", distance)
-	print("Collision radius:", collision_radius)
+	# Reduce speed slightly to prevent infinite bouncing
+	reflected_velocity *= 0.8
 	
-	if distance > collision_radius:
-		print("✓ Ball has exited collision area - resetting ground level")
-		_reset_ground_level()
-	else:
-		print("✗ Ball still in collision area - continuing roof bounce")
-		# Restart timer to check again
-		collision_exit_timer.start()
+	# Add a small amount of randomness to prevent infinite loops
+	var random_angle = randf_range(-0.1, 0.1)
+	reflected_velocity = reflected_velocity.rotated(random_angle)
+	
+	print("Reflected velocity:", reflected_velocity)
+	
+	# Apply the reflected velocity to the ball
+	velocity = reflected_velocity
+
+func _set_ground_level(height: float) -> void:
+	"""
+	Set the ground level to a specific height (used by Area2D collision system).
+	"""
+	print("=== SETTING GROUND LEVEL ===")
+	print("Setting ground level to:", height)
+	current_ground_level = height
+	print("Ground level set to:", current_ground_level)
 
 func _reset_ground_level() -> void:
 	"""
-	Reset the ground level to the next available roof or ground.
+	Reset the ground level to normal (0.0) when exiting Area2D collision.
 	"""
 	print("=== RESETTING GROUND LEVEL ===")
-	
-	# Find the next highest ground level
-	var next_ground_level = _find_next_ground_level()
-	
-	print("Current ground level:", current_ground_level)
-	print("Next ground level:", next_ground_level)
-	
-	# Reset to the next ground level
-	current_ground_level = next_ground_level
-	roof_bounce_active = false
-	last_collision_object = null
-	
-	# If ball is below the new ground level, it should fall
-	if z <= current_ground_level:
-		# Ball is below ground - let it fall naturally
-		print("Ball is below ground level - allowing natural fall")
-	else:
-		# Ball is above ground - it will continue its trajectory
-		print("Ball is above ground level - continuing trajectory")
-	
+	print("Resetting ground level from:", current_ground_level, "to 0.0")
+	current_ground_level = 0.0
 	print("Ground level reset to:", current_ground_level)
 
-func _find_next_ground_level() -> float:
+func _play_roof_bounce_sound(object_type: String) -> void:
 	"""
-	Find the next available ground level by checking nearby objects.
-	Returns the height of the next highest object or 0.0 for ground level.
+	Play the appropriate sound when landing on elevated ground (roof bounce).
+	This is called when the ball actually lands on the elevated surface.
 	"""
-	print("=== FINDING NEXT GROUND LEVEL ===")
-	
-	var next_level = 0.0  # Default to ground level
-	
-	# Get all objects that could serve as ground
-	var potential_grounds = []
-	
-	# Add trees
-	var trees = get_tree().get_nodes_in_group("trees")
-	potential_grounds.append_array(trees)
-	
-	# Add shops
-	var shops = get_tree().get_nodes_in_group("shops")
-	potential_grounds.append_array(shops)
-	
-	# Add other objects that could serve as ground
-	var all_objects = get_tree().get_nodes_in_group("objects")
-	for obj in all_objects:
-		if obj != last_collision_object and obj.has_method("get_collision_radius"):
-			potential_grounds.append(obj)
-	
-	print("Checking", potential_grounds.size(), "potential ground objects")
-	
-	# Check each potential ground object
-	for obj in potential_grounds:
-		if not is_instance_valid(obj):
-			continue
-		
-		var obj_pos = obj.global_position
-		var ball_pos = global_position
-		var distance = ball_pos.distance_to(obj_pos)
-		
-		# Get object collision radius
-		var collision_radius = 100.0  # Default
-		if obj.has_method("get_collision_radius"):
-			collision_radius = obj.get_collision_radius()
-		
-		# Check if ball is within this object's collision area
-		if distance <= collision_radius:
-			var obj_height = Global.get_object_height_from_marker(obj)
-			print("Object", obj.name, "at distance", distance, "has height", obj_height)
-			
-			# If this object is higher than current next_level, use it
-			if obj_height > next_level:
-				next_level = obj_height
-				print("New highest ground level:", next_level, "from", obj.name)
-	
-	print("Final next ground level:", next_level)
-	return next_level
-
-func debug_roof_bounce_state() -> void:
-	"""
-	Debug function to print the current roof bounce state.
-	"""
-	print("=== ROOF BOUNCE STATE DEBUG ===")
+	print("=== PLAYING ROOF BOUNCE SOUND ===")
 	print("Current ground level:", current_ground_level)
-	print("Roof bounce active:", roof_bounce_active)
-	print("Ball height (z):", z)
-	print("Ball vertical velocity (vz):", vz)
-	print("Last collision object:", last_collision_object.name if last_collision_object else "None")
-	print("Collision exit timer active:", collision_exit_timer.time_left > 0 if collision_exit_timer else "No timer")
-	print("=== END ROOF BOUNCE STATE DEBUG ===")
+	
+	# Find the object that set this ground level and play its sound
+	var objects = get_tree().get_nodes_in_group("collision_objects")
+	print("Found", objects.size(), "collision objects")
+	
+	for obj in objects:
+		if not obj.has_method("get_collision_radius"):
+			continue
+			
+		var distance = global_position.distance_to(obj.global_position)
+		var collision_radius = obj.get_collision_radius()
+		
+		print("Checking object:", obj.name, "distance:", distance, "radius:", collision_radius)
+		
+		# Check if we're within the collision radius of this object
+		if distance <= collision_radius:
+			# Check if this object's height matches our current ground level
+			var obj_height = Global.get_object_height_from_marker(obj)
+			print("Object height:", obj_height, "ground level:", current_ground_level)
+			
+			if abs(obj_height - current_ground_level) < 1.0:  # Small tolerance for floating point
+				# Play the appropriate sound based on object type
+				if obj.name.contains("Shop") or obj.name.contains("shop"):
+					var thunk = obj.get_node_or_null("TrunkThunk")
+					if thunk:
+						thunk.play()
+						print("✓ TrunkThunk sound played for shop roof bounce")
+				elif obj.name.contains("Tree") or obj.name.contains("tree"):
+					var thunk = obj.get_node_or_null("TrunkThunk")
+					if thunk:
+						thunk.play()
+						print("✓ TrunkThunk sound played for tree roof bounce")
+				elif obj.name.contains("Oil") or obj.name.contains("oil") or obj.name.contains("OilDrum"):
+					var thunk = obj.get_node_or_null("OilDrumThunk")
+					if thunk:
+						thunk.play()
+						print("✓ OilDrumThunk sound played for oil drum roof bounce")
+					else:
+						print("✗ OilDrumThunk sound not found on object:", obj.name)
+				break
 
 func check_rolling_wall_collisions() -> void:
 	"""

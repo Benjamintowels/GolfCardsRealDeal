@@ -14,19 +14,21 @@ func get_y_sort_point() -> float:
 		return global_position.y
 
 func _ready():
-	# Connect to Area2D's area_entered signal for collision detection with Area2D balls
+	# Connect to Area2D's area_entered and area_exited signals for collision detection
 	var trunk_base_area = get_node_or_null("TrunkBaseArea")
 	var leaves_area = get_node_or_null("Leaves")
 	
 	if trunk_base_area:
-		# Use area_entered for trunk collisions (since golf ball uses Area2D for all collisions)
+		# Use area_entered and area_exited for trunk collisions
 		trunk_base_area.connect("area_entered", _on_trunk_area_entered)
+		trunk_base_area.connect("area_exited", _on_trunk_area_exited)
 		# Set collision layer to 1 so golf balls can detect it
 		trunk_base_area.collision_layer = 1
 		# Set collision mask to 1 so it can detect golf balls on layer 1
 		trunk_base_area.collision_mask = 1
+		print("✓ Tree TrunkBaseArea setup complete for collision detection")
 	else:
-		print("ERROR: TrunkBaseArea not found!")
+		print("✗ ERROR: TrunkBaseArea not found!")
 	
 	if leaves_area:
 		# No longer using Area2D for leaves collision - using distance-based detection instead
@@ -53,54 +55,106 @@ func _ready():
 
 func _on_trunk_area_entered(area: Area2D):
 	"""Handle collisions with the trunk base area (ground-level collision)"""
-	var ball = area.get_parent()
+	var projectile = area.get_parent()
 	
 	print("=== TREE TRUNK AREA ENTERED ===")
 	print("Area name:", area.name)
-	print("Ball parent:", ball.name if ball else "No parent")
-	print("Ball type:", ball.get_class() if ball else "Unknown")
-	print("Ball position:", ball.global_position if ball else "Unknown")
+	print("Projectile parent:", projectile.name if projectile else "No parent")
+	print("Projectile type:", projectile.get_class() if projectile else "Unknown")
+	print("Projectile position:", projectile.global_position if projectile else "Unknown")
 	
-	if ball and (ball.name == "GolfBall" or ball.name == "GhostBall" or ball.has_method("is_throwing_knife")):
-		print("✓ Valid ball/knife detected:", ball.name)
-		# Handle the collision - always reflect for ground-level trunk collisions
-		_handle_trunk_collision(ball)
+	if projectile and (projectile.name == "GolfBall" or projectile.name == "GhostBall" or projectile.has_method("is_throwing_knife")):
+		print("✓ Valid projectile detected:", projectile.name)
+		# Handle the collision using proper Area2D collision detection
+		_handle_trunk_area_collision(projectile)
 	else:
-		print("✗ Invalid ball/knife or non-ball object:", ball.name if ball else "Unknown")
+		print("✗ Invalid projectile or non-projectile object:", projectile.name if projectile else "Unknown")
 	
 	print("=== END TREE TRUNK AREA ENTERED ===")
 
-func _handle_trunk_collision(ball: Node2D):
-	"""Handle trunk base collisions - check height to determine if ball should pass through"""
-	print("=== HANDLING TRUNK COLLISION ===")
-	print("Ball/knife name:", ball.name)
-	print("Ball/knife type:", ball.get_class())
+func _on_trunk_area_exited(area: Area2D):
+	"""Handle when projectile exits the tree trunk area - reset ground level"""
+	var projectile = area.get_parent()
 	
-	# Use enhanced height collision detection with TopHeight markers
-	if Global.is_object_above_obstacle(ball, self):
-		# Ball/knife is above the tree entirely - let it pass through
-		print("✓ Ball/knife is above tree entirely - passing through")
-		print("=== END TRUNK COLLISION (PASSED THROUGH) ===")
-		return
-	else:
-		# Ball/knife is within or below tree height - handle collision
-		print("✗ Ball/knife is within tree height - handling collision")
-		
-		# Check if this is a throwing knife
-		if ball.has_method("is_throwing_knife") and ball.is_throwing_knife():
-			# Handle knife collision with tree
-			print("Handling knife trunk collision")
-			_handle_knife_trunk_collision(ball)
+	print("=== TREE TRUNK AREA EXITED ===")
+	print("Projectile:", projectile.name if projectile else "Unknown")
+	
+	if projectile and projectile.has_method("get_height"):
+		# Reset the projectile's ground level to normal (0.0)
+		if projectile.has_method("_reset_ground_level"):
+			projectile._reset_ground_level()
 		else:
-			# Handle regular ball collision
-			print("Handling ball trunk collision")
-			_handle_ball_trunk_collision(ball)
-		
-		print("=== END TRUNK COLLISION (COLLIDED) ===")
+			# Fallback: directly reset ground level if method doesn't exist
+			if "current_ground_level" in projectile:
+				projectile.current_ground_level = 0.0
+				print("✓ Reset projectile ground level to 0.0")
+	
+	print("=== END TREE TRUNK AREA EXITED ===")
 
-func _handle_knife_trunk_collision(knife: Node2D):
-	"""Handle knife collision with tree trunk"""
-	print("Handling knife trunk collision")
+func _handle_trunk_area_collision(projectile: Node2D):
+	"""Handle tree trunk area collisions using proper Area2D detection"""
+	print("=== HANDLING TREE TRUNK AREA COLLISION ===")
+	print("Projectile name:", projectile.name)
+	print("Projectile type:", projectile.get_class())
+	
+	# Check if projectile has height information
+	if not projectile.has_method("get_height"):
+		print("✗ Projectile doesn't have height method - using fallback reflection")
+		_reflect_projectile(projectile)
+		return
+	
+	# Get projectile and tree heights
+	var projectile_height = projectile.get_height()
+	var tree_height = Global.get_object_height_from_marker(self)
+	
+	print("Projectile height:", projectile_height)
+	print("Tree height:", tree_height)
+	
+	# Check if this is a throwing knife (special handling)
+	if projectile.has_method("is_throwing_knife") and projectile.is_throwing_knife():
+		_handle_knife_trunk_area_collision(projectile, projectile_height, tree_height)
+		return
+	
+	# Apply the collision logic:
+	# If projectile height > tree height: allow entry and set ground level
+	# If projectile height < tree height: reflect
+	if projectile_height > tree_height:
+		print("✓ Projectile is above tree - allowing entry and setting ground level")
+		_allow_projectile_entry(projectile, tree_height)
+	else:
+		print("✗ Projectile is below tree height - reflecting")
+		_reflect_projectile(projectile)
+
+func _handle_knife_trunk_area_collision(knife: Node2D, knife_height: float, tree_height: float):
+	"""Handle knife collision with tree trunk area"""
+	print("Handling knife tree trunk area collision")
+	
+	if knife_height > tree_height:
+		print("✓ Knife is above tree - allowing entry and setting ground level")
+		_allow_projectile_entry(knife, tree_height)
+	else:
+		print("✗ Knife is below tree height - reflecting")
+		_reflect_projectile(knife)
+
+func _allow_projectile_entry(projectile: Node2D, tree_height: float):
+	"""Allow projectile to enter tree area and set ground level"""
+	print("=== ALLOWING PROJECTILE ENTRY (TREE) ===")
+	
+	# Set the projectile's ground level to the tree height
+	if projectile.has_method("_set_ground_level"):
+		projectile._set_ground_level(tree_height)
+	else:
+		# Fallback: directly set ground level if method doesn't exist
+		if "current_ground_level" in projectile:
+			projectile.current_ground_level = tree_height
+			print("✓ Set projectile ground level to tree height:", tree_height)
+	
+	# The projectile will now land on the tree trunk instead of passing through
+	# When it exits the area, _on_trunk_area_exited will reset the ground level
+
+func _reflect_projectile(projectile: Node2D):
+	"""Reflect projectile off the tree trunk"""
+	print("=== REFLECTING PROJECTILE (TREE) ===")
 	
 	# Play trunk thunk sound
 	var thunk = get_node_or_null("TrunkThunk")
@@ -110,55 +164,23 @@ func _handle_knife_trunk_collision(knife: Node2D):
 	else:
 		print("✗ TrunkThunk sound not found!")
 	
-	# Let the knife handle its own collision logic
-	# The knife will determine if it should bounce or stick based on which side hits
-	if knife.has_method("_handle_tree_collision"):
-		knife._handle_tree_collision(self)
-	else:
-		# Fallback: just reflect the knife
-		_reflect_knife_pinball(knife)
-
-func _handle_ball_trunk_collision(ball: Node2D):
-	"""Handle ball collision with tree trunk"""
-	print("Handling ball trunk collision")
+	# Get the projectile's current velocity
+	var projectile_velocity = Vector2.ZERO
+	if projectile.has_method("get_velocity"):
+		projectile_velocity = projectile.get_velocity()
+	elif "velocity" in projectile:
+		projectile_velocity = projectile.velocity
 	
-	# Check if this is a ghost ball or golf ball that has the new roof bounce system
-	if ball.has_method("_handle_roof_bounce_collision"):
-		print("Using new roof bounce system for", ball.name)
-		ball._handle_roof_bounce_collision(self)
-	else:
-		print("Using old collision system for", ball.name)
-		# Play trunk thunk sound
-		var thunk = get_node_or_null("TrunkThunk")
-		if thunk:
-			thunk.play()
-			print("✓ TrunkThunk sound played")
-		else:
-			print("✗ TrunkThunk sound not found!")
-		
-		# Reflect the ball (old system)
-		_reflect_ball_pinball(ball)
-
-func _reflect_ball_pinball(ball: Node2D):
-	"""Special reflection for low-height collisions with trunk base - creates pinball effect"""
-	# Get the ball's current velocity
-	var ball_velocity = Vector2.ZERO
-	if ball.has_method("get_velocity"):
-		ball_velocity = ball.get_velocity()
-	elif "velocity" in ball:
-		ball_velocity = ball.velocity
+	print("Reflecting projectile with velocity:", projectile_velocity)
 	
-	print("Reflecting ball with velocity:", ball_velocity)
-	
-	var ball_pos = ball.global_position
+	var projectile_pos = projectile.global_position
 	var tree_center = global_position
 	
-	# Calculate the direction from tree center to ball
-	var to_ball_direction = (ball_pos - tree_center).normalized()
+	# Calculate the direction from tree center to projectile
+	var to_projectile_direction = (projectile_pos - tree_center).normalized()
 	
 	# Simple reflection: reflect the velocity across the tree center
-	# This creates a more predictable pinball effect
-	var reflected_velocity = ball_velocity - 2 * ball_velocity.dot(to_ball_direction) * to_ball_direction
+	var reflected_velocity = projectile_velocity - 2 * projectile_velocity.dot(to_projectile_direction) * to_projectile_direction
 	
 	# Reduce speed slightly to prevent infinite bouncing
 	reflected_velocity *= 0.8
@@ -169,47 +191,11 @@ func _reflect_ball_pinball(ball: Node2D):
 	
 	print("Reflected velocity:", reflected_velocity)
 	
-	# Apply the reflected velocity to the ball
-	if ball.has_method("set_velocity"):
-		ball.set_velocity(reflected_velocity)
-	elif "velocity" in ball:
-		ball.velocity = reflected_velocity
-
-func _reflect_knife_pinball(knife: Node2D):
-	"""Special reflection for knife collisions with trunk base - creates pinball effect"""
-	# Get the knife's current velocity
-	var knife_velocity = Vector2.ZERO
-	if knife.has_method("get_velocity"):
-		knife_velocity = knife.get_velocity()
-	elif "velocity" in knife:
-		knife_velocity = knife.velocity
-	
-	print("Reflecting knife with velocity:", knife_velocity)
-	
-	var knife_pos = knife.global_position
-	var tree_center = global_position
-	
-	# Calculate the direction from tree center to knife
-	var to_knife_direction = (knife_pos - tree_center).normalized()
-	
-	# Simple reflection: reflect the velocity across the tree center
-	# This creates a more predictable pinball effect
-	var reflected_velocity = knife_velocity - 2 * knife_velocity.dot(to_knife_direction) * to_knife_direction
-	
-	# Reduce speed slightly to prevent infinite bouncing
-	reflected_velocity *= 0.8
-	
-	# Add a small amount of randomness to prevent infinite loops
-	var random_angle = randf_range(-0.1, 0.1)
-	reflected_velocity = reflected_velocity.rotated(random_angle)
-	
-	print("Reflected knife velocity:", reflected_velocity)
-	
-	# Apply the reflected velocity to the knife
-	if knife.has_method("set_velocity"):
-		knife.set_velocity(reflected_velocity)
-	elif "velocity" in knife:
-		knife.velocity = reflected_velocity
+	# Apply the reflected velocity to the projectile
+	if projectile.has_method("set_velocity"):
+		projectile.set_velocity(reflected_velocity)
+	elif "velocity" in projectile:
+		projectile.velocity = reflected_velocity
 
 func set_transparent(is_transparent: bool):
 	var sprite = get_node_or_null("Sprite2D")
@@ -231,7 +217,25 @@ func _setup_hitbox() -> void:
 	else:
 		print("✗ ERROR: Tree HitBox not found!")
 
-
+func _verify_collision_setup():
+	"""Verify that collision layers are properly set up"""
+	var trunk_base_area = get_node_or_null("TrunkBaseArea")
+	if trunk_base_area:
+		print("Tree collision layer:", trunk_base_area.collision_layer)
+		print("Tree collision mask:", trunk_base_area.collision_mask)
+		
+		# Check collision shape
+		var collision_shape = trunk_base_area.get_node_or_null("TrunkBase")
+		if collision_shape:
+			print("Tree collision shape radius:", collision_shape.shape.radius)
+			print("Tree collision shape scale:", collision_shape.scale)
+			print("Tree collision shape position:", collision_shape.position)
+			var actual_radius = collision_shape.shape.radius * collision_shape.scale.x
+			print("Tree actual collision radius:", actual_radius)
+		else:
+			print("ERROR: TrunkBase collision shape not found!")
+	else:
+		print("ERROR: TrunkBaseArea not found during verification!")
 
 # OPTIMIZED: Tree collision detection moved to ball for better performance
 # Trees no longer check for balls every frame - ball handles its own collision detection

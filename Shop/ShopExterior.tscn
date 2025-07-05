@@ -1,7 +1,8 @@
-[gd_scene load_steps=4 format=3 uid="uid://dueq102y73kxl"]
+[gd_scene load_steps=5 format=3 uid="uid://dueq102y73kxl"]
 
 [ext_resource type="Script" uid="uid://b06k3fgclgfpu" path="res://Shop/shop_exterior.gd" id="1_iws6i"]
 [ext_resource type="Texture2D" uid="uid://bhbm4fum1a38h" path="res://Shop/Shop.png" id="2_iws6i"]
+[ext_resource type="AudioStream" uid="uid://01xbvo1dq6r0" path="res://Sounds/TrunkThunk.mp3" id="3_o2kx7"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_iws6i"]
 size = Vector2(105, 50)
@@ -19,12 +20,15 @@ texture = ExtResource("2_iws6i")
 [node name="YsortPoint" type="Node2D" parent="."]
 position = Vector2(16.547, 81.891)
 
-[node name="ShopBaseArea" type="Area2D" parent="."]
+[node name="BaseArea" type="Area2D" parent="."]
 
-[node name="ShopBase" type="CollisionShape2D" parent="ShopBaseArea"]
+[node name="ShopBase" type="CollisionShape2D" parent="BaseArea"]
 position = Vector2(1, 80.291)
 scale = Vector2(2, 1)
 shape = SubResource("RectangleShape2D_iws6i")
 
 [node name="TopHeight" type="Marker2D" parent="."]
 position = Vector2(0, -182.67)
+
+[node name="TrunkThunk" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("3_o2kx7")

@@ -69,10 +69,8 @@ var time_percentage: float = -1.0  # -1 means not set, use power percentage inst
 var club_info: Dictionary = {}  # Will be set by the course script
 var is_penalty_shot: bool = false  # True if red circle is below min distance
 
-# Roof bounce system variables
+# Simple collision system variables
 var current_ground_level: float = 0.0  # Current ground level (can be elevated by roofs)
-var roof_bounce_active: bool = false  # Whether we're currently on a roof
-var collision_exit_timer: Timer = null  # Timer to handle collision exit
 
 # Call this to launch the knife
 func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, spin_strength_category: int = 0):
@@ -85,12 +83,8 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 	is_handle_landing = false
 	last_collision_object = null  # Reset collision tracking
 	
-	# Reset roof bounce system for new throw
+	# Reset simple collision system for new throw
 	current_ground_level = 0.0
-	roof_bounce_active = false
-	last_collision_object = null
-	if collision_exit_timer:
-		collision_exit_timer.stop()
 	
 	# Calculate height percentage for sweet spot check
 	var height_percentage = (height - MIN_LAUNCH_HEIGHT) / (MAX_LAUNCH_HEIGHT - MIN_LAUNCH_HEIGHT)
@@ -668,9 +662,7 @@ func _process(delta):
 	if landed_flag:
 		return
 	
-	# Debug roof bounce state every few frames when active
-	if roof_bounce_active and Engine.get_process_frames() % 60 == 0:
-		debug_roof_bounce_state()
+
 	
 
 	
@@ -1009,13 +1001,13 @@ func is_throwing_knife() -> bool:
 	"""Check if this is a throwing knife"""
 	return true 
 
-# New roof bounce system methods
+# Simple collision system methods
 func _handle_roof_bounce_collision(object: Node2D) -> void:
 	"""
-	Handle collision with roof bounce system.
-	If knife height > object height, set ground to object height.
+	Simple collision handler: if projectile height < object height, reflect.
+	If projectile height > object height, set ground to object height.
 	"""
-	print("=== HANDLING ROOF BOUNCE COLLISION (KNIFE) ===")
+	print("=== SIMPLE COLLISION HANDLER (KNIFE) ===")
 	print("Object:", object.name)
 	print("Knife height:", z)
 	
@@ -1024,175 +1016,64 @@ func _handle_roof_bounce_collision(object: Node2D) -> void:
 	
 	# Check if knife is above the object
 	if z > object_height:
-		print("✓ Knife is above object - activating roof bounce")
-		_activate_roof_bounce(object, object_height)
+		print("✓ Knife is above object - setting ground level")
+		current_ground_level = object_height
 	else:
-		print("✗ Knife is not above object - using normal collision")
-		# Use normal collision handling based on object type
-		# But only if we're not already in a roof bounce collision to prevent infinite recursion
-		if not roof_bounce_active:
-			if object.has_method("_handle_trunk_collision"):
-				object._handle_trunk_collision(self)
-			elif object.has_method("_handle_ball_collision"):
-				object._handle_ball_collision(self)
-			elif object.has_method("_handle_shop_collision"):
-				object._handle_shop_collision(self)
-		else:
-			print("Skipping object collision call to prevent infinite recursion")
+		print("✗ Knife is below object height - reflecting")
+		_reflect_off_object(object)
 
-func _activate_roof_bounce(object: Node2D, object_height: float) -> void:
+func _reflect_off_object(object: Node2D) -> void:
 	"""
-	Activate roof bounce by setting the ground level to the object's height.
+	Simple reflection off an object when knife is below object height.
 	"""
-	print("=== ACTIVATING ROOF BOUNCE (KNIFE) ===")
-	print("Setting ground level to:", object_height)
+	print("=== REFLECTING OFF OBJECT (KNIFE) ===")
 	
-	# Set the current ground level to the object's height
-	current_ground_level = object_height
-	roof_bounce_active = true
-	last_collision_object = object
+	# Get the knife's current velocity
+	var knife_velocity = velocity
 	
-	# If knife is currently below the new ground level, bounce it up
-	if z <= current_ground_level:
-		z = current_ground_level + 10.0  # Add small buffer
-		vz = abs(vz) * 0.7  # Bounce with 70% of original downward velocity
+	print("Reflecting knife with velocity:", knife_velocity)
 	
-	# Create collision exit timer if it doesn't exist
-	if not collision_exit_timer:
-		collision_exit_timer = Timer.new()
-		collision_exit_timer.one_shot = true
-		collision_exit_timer.wait_time = 0.1  # Check every 0.1 seconds
-		add_child(collision_exit_timer)
-		collision_exit_timer.timeout.connect(_check_collision_exit)
+	# Play collision sound if available
+	if object.has_method("_play_trunk_thunk_sound"):
+		object._play_trunk_thunk_sound()
+	elif object.has_method("_play_oil_drum_sound"):
+		object._play_oil_drum_sound()
 	
-	# Start the timer to check for collision exit
-	collision_exit_timer.start()
-	
-	print("Roof bounce activated - ground level:", current_ground_level)
-
-func _check_collision_exit() -> void:
-	"""
-	Check if the knife has exited the collision area and reset ground level.
-	"""
-	if not roof_bounce_active or not last_collision_object:
-		return
-	
-	print("=== CHECKING COLLISION EXIT (KNIFE) ===")
-	
-	# Check if knife is still within the collision area
 	var knife_pos = global_position
-	var object_pos = last_collision_object.global_position
-	var distance = knife_pos.distance_to(object_pos)
+	var object_center = object.global_position
 	
-	# Use a reasonable collision radius (adjust based on object size)
-	var collision_radius = 100.0  # Default collision radius
+	# Calculate the direction from object center to knife
+	var to_knife_direction = (knife_pos - object_center).normalized()
 	
-	# Get object-specific collision radius if available
-	if last_collision_object.has_method("get_collision_radius"):
-		collision_radius = last_collision_object.get_collision_radius()
+	# Simple reflection: reflect the velocity across the object center
+	var reflected_velocity = knife_velocity - 2 * knife_velocity.dot(to_knife_direction) * to_knife_direction
 	
-	print("Distance to object:", distance)
-	print("Collision radius:", collision_radius)
+	# Reduce speed slightly to prevent infinite bouncing
+	reflected_velocity *= 0.8
 	
-	if distance > collision_radius:
-		print("✓ Knife has exited collision area - resetting ground level")
-		_reset_ground_level()
-	else:
-		print("✗ Knife still in collision area - continuing roof bounce")
-		# Restart timer to check again
-		collision_exit_timer.start()
+	# Add a small amount of randomness to prevent infinite loops
+	var random_angle = randf_range(-0.1, 0.1)
+	reflected_velocity = reflected_velocity.rotated(random_angle)
+	
+	print("Reflected knife velocity:", reflected_velocity)
+	
+	# Apply the reflected velocity to the knife
+	velocity = reflected_velocity
+
+func _set_ground_level(height: float) -> void:
+	"""
+	Set the ground level to a specific height (used by Area2D collision system).
+	"""
+	print("=== SETTING GROUND LEVEL (KNIFE) ===")
+	print("Setting ground level to:", height)
+	current_ground_level = height
+	print("Ground level set to:", current_ground_level)
 
 func _reset_ground_level() -> void:
 	"""
-	Reset the ground level to the next available roof or ground.
+	Reset the ground level to normal (0.0) when exiting Area2D collision.
 	"""
 	print("=== RESETTING GROUND LEVEL (KNIFE) ===")
-	
-	# Find the next highest ground level
-	var next_ground_level = _find_next_ground_level()
-	
-	print("Current ground level:", current_ground_level)
-	print("Next ground level:", next_ground_level)
-	
-	# Reset to the next ground level
-	current_ground_level = next_ground_level
-	roof_bounce_active = false
-	last_collision_object = null
-	
-	# If knife is below the new ground level, it should fall
-	if z <= current_ground_level:
-		# Knife is below ground - let it fall naturally
-		print("Knife is below ground level - allowing natural fall")
-	else:
-		# Knife is above ground - it will continue its trajectory
-		print("Knife is above ground level - continuing trajectory")
-	
-	print("Ground level reset to:", current_ground_level)
-
-func _find_next_ground_level() -> float:
-	"""
-	Find the next available ground level by checking nearby objects.
-	Returns the height of the next highest object or 0.0 for ground level.
-	"""
-	print("=== FINDING NEXT GROUND LEVEL (KNIFE) ===")
-	
-	var next_level = 0.0  # Default to ground level
-	
-	# Get all objects that could serve as ground
-	var potential_grounds = []
-	
-	# Add trees
-	var trees = get_tree().get_nodes_in_group("trees")
-	potential_grounds.append_array(trees)
-	
-	# Add shops
-	var shops = get_tree().get_nodes_in_group("shops")
-	potential_grounds.append_array(shops)
-	
-	# Add other objects that could serve as ground
-	var all_objects = get_tree().get_nodes_in_group("objects")
-	for obj in all_objects:
-		if obj != last_collision_object and obj.has_method("get_collision_radius"):
-			potential_grounds.append(obj)
-	
-	print("Checking", potential_grounds.size(), "potential ground objects")
-	
-	# Check each potential ground object
-	for obj in potential_grounds:
-		if not is_instance_valid(obj):
-			continue
-		
-		var obj_pos = obj.global_position
-		var knife_pos = global_position
-		var distance = knife_pos.distance_to(obj_pos)
-		
-		# Get object collision radius
-		var collision_radius = 100.0  # Default
-		if obj.has_method("get_collision_radius"):
-			collision_radius = obj.get_collision_radius()
-		
-		# Check if knife is within this object's collision area
-		if distance <= collision_radius:
-			var obj_height = Global.get_object_height_from_marker(obj)
-			print("Object", obj.name, "at distance", distance, "has height", obj_height)
-			
-			# If this object is higher than current next_level, use it
-			if obj_height > next_level:
-				next_level = obj_height
-				print("New highest ground level:", next_level, "from", obj.name)
-	
-	print("Final next ground level:", next_level)
-	return next_level
-
-func debug_roof_bounce_state() -> void:
-	"""
-	Debug function to print the current roof bounce state.
-	"""
-	print("=== ROOF BOUNCE STATE DEBUG (KNIFE) ===")
-	print("Current ground level:", current_ground_level)
-	print("Roof bounce active:", roof_bounce_active)
-	print("Knife height (z):", z)
-	print("Knife vertical velocity (vz):", vz)
-	print("Last collision object:", last_collision_object.name if last_collision_object else "None")
-	print("Collision exit timer active:", collision_exit_timer.time_left > 0 if collision_exit_timer else "No timer")
-	print("=== END ROOF BOUNCE STATE DEBUG (KNIFE) ===") 
+	print("Resetting ground level from:", current_ground_level, "to 0.0")
+	current_ground_level = 0.0
+	print("Ground level reset to:", current_ground_level) 

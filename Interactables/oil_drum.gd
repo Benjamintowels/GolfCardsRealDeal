@@ -11,8 +11,9 @@ func _ready():
 	# Set up collision layers for the main Area2D node
 	var main_area = get_node_or_null("Area2D")
 	if main_area:
-		# Connect to area_entered signal for collision detection
+		# Connect to area_entered and area_exited signals for collision detection
 		main_area.connect("area_entered", _on_area_entered)
+		main_area.connect("area_exited", _on_area_exited)
 		# Set collision layer to 1 so golf balls can detect it
 		main_area.collision_layer = 1
 		# Set collision mask to 1 so it can detect golf balls on layer 1
@@ -79,6 +80,25 @@ func _on_area_entered(area: Area2D):
 	
 	print("=== END OIL DRUM AREA ENTERED ===")
 
+func _on_area_exited(area: Area2D):
+	"""Handle when projectile exits the oil drum area - reset ground level"""
+	var projectile = area.get_parent()
+	
+	print("=== OIL DRUM AREA EXITED ===")
+	print("Projectile:", projectile.name if projectile else "Unknown")
+	
+	if projectile and projectile.has_method("get_height"):
+		# Reset the projectile's ground level to normal (0.0)
+		if projectile.has_method("_reset_ground_level"):
+			projectile._reset_ground_level()
+		else:
+			# Fallback: directly reset ground level if method doesn't exist
+			if "current_ground_level" in projectile:
+				projectile.current_ground_level = 0.0
+				print("✓ Reset projectile ground level to 0.0")
+	
+	print("=== END OIL DRUM AREA EXITED ===")
+
 func _handle_collision(ball: Node2D):
 	"""Handle oil drum collisions - check height to determine if ball should pass through"""
 	print("=== HANDLING OIL DRUM COLLISION ===")
@@ -93,38 +113,44 @@ func _handle_collision(ball: Node2D):
 		print("=== END OIL DRUM COLLISION (KNIFE) ===")
 		return
 	
-	# Check if ball has the new roof bounce system AND is above the oil drum
-	if ball.has_method("_handle_roof_bounce_collision") and ball.has_method("get_height"):
-		var ball_height = ball.get_height()
-		var oil_drum_height = Global.get_object_height_from_marker(self)
-		
-		print("Ball height:", ball_height)
-		print("Oil drum height:", oil_drum_height)
-		
-		if ball_height > oil_drum_height:
-			print("Using new roof bounce system for", ball.name, "- ball is above oil drum")
-			# Let the ball decide if it should bounce or pass through
-			ball._handle_roof_bounce_collision(self)
-			print("=== END OIL DRUM COLLISION (ROOF BOUNCE) ===")
-			return
-		else:
-			print("Ball is below oil drum height - using normal collision handling")
-	
-	# Use enhanced height collision detection with TopHeight markers (old system)
-	if Global.is_object_above_obstacle(ball, self):
-		# Ball/knife is above the oil drum entirely - let it pass through
-		print("✓ Ball/knife is above oil drum entirely - passing through")
-		print("=== END OIL DRUM COLLISION (PASSED THROUGH) ===")
-		return
-	else:
-		# Ball/knife is within or below oil drum height - handle collision
-		print("✗ Ball/knife is within oil drum height - handling collision")
-		
-		# Handle regular ball collision
-		print("Handling ball oil drum collision")
+	# Check if projectile has height information
+	if not ball.has_method("get_height"):
+		print("✗ Projectile doesn't have height method - using fallback reflection")
 		_handle_ball_collision(ball)
-		
-		print("=== END OIL DRUM COLLISION (COLLIDED) ===")
+		return
+	
+	# Get projectile and oil drum heights
+	var projectile_height = ball.get_height()
+	var oil_drum_height = Global.get_object_height_from_marker(self)
+	
+	print("Projectile height:", projectile_height)
+	print("Oil drum height:", oil_drum_height)
+	
+	# Apply the collision logic:
+	# If projectile height > oil drum height: allow entry and set ground level
+	# If projectile height < oil drum height: reflect
+	if projectile_height > oil_drum_height:
+		print("✓ Projectile is above oil drum - allowing entry and setting ground level")
+		_allow_projectile_entry(ball, oil_drum_height)
+	else:
+		print("✗ Projectile is below oil drum height - reflecting")
+		_handle_ball_collision(ball)
+
+func _allow_projectile_entry(projectile: Node2D, oil_drum_height: float):
+	"""Allow projectile to enter oil drum area and set ground level"""
+	print("=== ALLOWING PROJECTILE ENTRY (OIL DRUM) ===")
+	
+	# Set the projectile's ground level to the oil drum height
+	if projectile.has_method("_set_ground_level"):
+		projectile._set_ground_level(oil_drum_height)
+	else:
+		# Fallback: directly set ground level if method doesn't exist
+		if "current_ground_level" in projectile:
+			projectile.current_ground_level = oil_drum_height
+			print("✓ Set projectile ground level to oil drum height:", oil_drum_height)
+	
+	# The projectile will now land on the oil drum instead of passing through
+	# When it exits the area, _on_area_exited will reset the ground level
 
 func _handle_knife_collision(knife: Node2D):
 	"""Handle knife collision with oil drum"""
@@ -154,6 +180,14 @@ func _handle_knife_collision(knife: Node2D):
 
 func _reflect_knife(knife: Node2D):
 	"""Special reflection for knife collisions with oil drum - creates pinball effect"""
+	# Play oil drum thunk sound
+	var thunk = get_node_or_null("OilDrumThunk")
+	if thunk:
+		thunk.play()
+		print("✓ OilDrumThunk sound played")
+	else:
+		print("✗ OilDrumThunk sound not found!")
+	
 	# Get the knife's current velocity
 	var knife_velocity = Vector2.ZERO
 	if knife.has_method("get_velocity"):
@@ -195,10 +229,13 @@ func _handle_ball_collision(ball: Node2D) -> void:
 	"""
 	print("Oil drum collision with ball!")
 	
-	# Play collision sound if available
-	var collision_sound = get_node_or_null("CollisionSound")
-	if collision_sound:
-		collision_sound.play()
+	# Play oil drum thunk sound
+	var thunk = get_node_or_null("OilDrumThunk")
+	if thunk:
+		thunk.play()
+		print("✓ OilDrumThunk sound played")
+	else:
+		print("✗ OilDrumThunk sound not found!")
 	
 	# Apply bounce effect to the ball
 	if ball.has_method("set_velocity"):
