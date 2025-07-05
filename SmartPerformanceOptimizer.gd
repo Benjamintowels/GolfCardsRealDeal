@@ -143,6 +143,8 @@ func update_essential_systems(course_instance):
 			has_target = true
 
 		if has_target:
+			# Apply the same vertical offset as aiming mode to show player near bottom of screen and better see arc apex
+			target_position.y -= 120
 			var tween := get_tree().create_tween()
 			tween.tween_property(course_instance.camera, "position", target_position, 0.1).set_trans(Tween.TRANS_LINEAR)
 	

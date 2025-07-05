@@ -13,7 +13,7 @@ var ball_land_sound: AudioStreamPlayer2D
 var ball_stop_sound: AudioStreamPlayer2D
 
 var velocity := Vector2.ZERO
-var gravity := 1200.0  # Adjusted for pixel perfect system (was 2000.0)
+var gravity := 720.0  # Increased gravity for more satisfying ball trajectories
 var z := 0.0 # Height above ground
 var vz := 0.0 # Vertical velocity (for arc)
 var landed_flag := false
@@ -79,7 +79,7 @@ var max_height := 0.0
 # Height sweet spot constants (matching LaunchManager.gd)
 const HEIGHT_SWEET_SPOT_MIN := 0.3 # 30% of max height
 const HEIGHT_SWEET_SPOT_MAX := 0.5 # 50% of max height
-const MAX_LAUNCH_HEIGHT := 480.0   # 10 cells (48 * 10) for pixel perfect system
+const MAX_LAUNCH_HEIGHT := 360.0   # Slightly above tree height (331px) for pixel perfect system
 const MIN_LAUNCH_HEIGHT := 144.0   # 3 cells (48 * 3) for pixel perfect system
 
 # Power constants (matching course_1.gd)
@@ -467,23 +467,17 @@ func _process(delta):
 					is_rolling = true
 					roll_start_position = position  # Record where rolling started
 				else:
-					# Normal bounce logic
+					# Natural physics-based bounce logic
 					bounce_count += 1
 					# Play ball landing sound on every bounce
 					if ball_land_sound and ball_land_sound.stream:
 						ball_land_sound.play()
-					# Calculate bounce height based on bounce count
-					var bounce_height = 0.0
-					if bounce_count == 1:
-						# First bounce: use calculated first bounce height
-						bounce_height = first_bounce_height
-					else:
-						# Subsequent bounces: reduce by bounce factor each time
-						# Calculate the height percentage for this bounce
-						var bounce_height_percentage = pow(bounce_factor, bounce_count - 1)
-						bounce_height = sqrt(2.0 * gravity * initial_height * bounce_height_percentage)
-					# Set vertical velocity for the bounce
-					vz = bounce_height
+					
+					# Simple physics: reflect the vertical velocity with energy loss
+					# The ball was falling with negative vz, so bounce it back up with positive vz
+					# Apply bounce factor to reduce energy each bounce
+					vz = abs(vz) * bounce_factor
+					
 					# Reduce horizontal velocity slightly on bounce
 					velocity *= 0.98
 			else:
@@ -547,23 +541,17 @@ func _process(delta):
 					is_rolling = true
 					roll_start_position = position  # Record where rolling started
 				else:
-					# Normal bounce logic
+					# Natural physics-based bounce logic
 					bounce_count += 1
 					# Play ball landing sound on every bounce
 					if ball_land_sound and ball_land_sound.stream:
 						ball_land_sound.play()
-					# Calculate bounce height based on bounce count
-					var bounce_height = 0.0
-					if bounce_count == 1:
-						# First bounce: use calculated first bounce height
-						bounce_height = first_bounce_height
-					else:
-						# Subsequent bounces: reduce by bounce factor each time
-						# Calculate the height percentage for this bounce
-						var bounce_height_percentage = pow(bounce_factor, bounce_count - 1)
-						bounce_height = sqrt(2.0 * gravity * initial_height * bounce_height_percentage)
-					# Set vertical velocity for the bounce
-					vz = bounce_height
+					
+					# Simple physics: reflect the vertical velocity with energy loss
+					# The ball was falling with negative vz, so bounce it back up with positive vz
+					# Apply bounce factor to reduce energy each bounce
+					vz = abs(vz) * bounce_factor
+					
 					# Reduce horizontal velocity slightly on bounce
 					velocity *= 0.98
 			else:
@@ -627,23 +615,17 @@ func _process(delta):
 					is_rolling = true
 					roll_start_position = position  # Record where rolling started
 				else:
-					# Normal bounce logic
+					# Natural physics-based bounce logic
 					bounce_count += 1
 					# Play ball landing sound on every bounce
 					if ball_land_sound and ball_land_sound.stream:
 						ball_land_sound.play()
-					# Calculate bounce height based on bounce count
-					var bounce_height = 0.0
-					if bounce_count == 1:
-						# First bounce: use calculated first bounce height
-						bounce_height = first_bounce_height
-					else:
-						# Subsequent bounces: reduce by bounce factor each time
-						# Calculate the height percentage for this bounce
-						var bounce_height_percentage = pow(bounce_factor, bounce_count - 1)
-						bounce_height = sqrt(2.0 * gravity * initial_height * bounce_height_percentage)
-					# Set vertical velocity for the bounce
-					vz = bounce_height
+					
+					# Simple physics: reflect the vertical velocity with energy loss
+					# The ball was falling with negative vz, so bounce it back up with positive vz
+					# Apply bounce factor to reduce energy each bounce
+					vz = abs(vz) * bounce_factor
+					
 					# Reduce horizontal velocity slightly on bounce
 					velocity *= 0.98
 			else:

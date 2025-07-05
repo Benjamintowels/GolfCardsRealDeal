@@ -1170,6 +1170,8 @@ func update_aiming_circle():
 			circle.modulate = Color(1, 0, 0, 0.8)  # Red
 	
 	var target_camera_pos = clamped_position
+	# Add vertical offset of -300 pixels to show player near bottom of screen and better see arc apex
+	target_camera_pos.y -= 120
 	var current_camera_pos = camera.position
 	var camera_speed = 5.0  # Adjust for faster/slower camera movement
 	
