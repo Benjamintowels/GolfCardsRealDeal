@@ -65,6 +65,15 @@ func _ready():
 		shadow.modulate = Color(0, 0, 0, opacity * 0.3)
 		shadow.scale = base_scale
 	
+	# Connect to Area2D's area_entered signal for collision detection
+	var area2d = get_node_or_null("Area2D")
+	if area2d:
+		area2d.connect("area_entered", _on_area_entered)
+		area2d.connect("area_exited", _on_area_exited)
+		print("✓ Ghost ball Area2D collision detection connected")
+	else:
+		print("✗ ERROR: Ghost ball Area2D not found!")
+	
 	# Store the original position for relaunching
 	original_position = position
 	
@@ -591,105 +600,9 @@ func _on_area_entered(area):
 		# Notify course to re-enable player collision since ball hit shop
 		notify_course_of_collision()
 
-func _handle_tree_collision_with_roof_bounce(tree: Node2D) -> void:
-	"""
-	Handle tree collision with roof bounce mechanic.
-	If ball is descending and would land inside tree, bounce it off the roof.
-	"""
-	print("=== HANDLING TREE COLLISION WITH ROOF BOUNCE (GHOST) ===")
-	print("Ghost ball height:", z)
-	print("Ghost ball vertical velocity (vz):", vz)
-	print("Ghost ball is descending:", vz < 0)
-	
-	# Check if ball is descending (negative vertical velocity)
-	if vz < 0:
-		# Ball is coming down - check if it would land inside the tree
-		var tree_height = Global.get_object_height_from_marker(tree)
-		var ball_collision_height = z  # Use actual z value for pixel perfect system
-		
-		print("Tree height:", tree_height)
-		print("Ghost ball collision height:", ball_collision_height)
-		
-		# If ball is above tree but descending, and would land inside tree area
-		if ball_collision_height > tree_height:
-			print("✓ Ghost ball is above tree and descending - applying roof bounce")
-			_apply_roof_bounce(tree, tree_height)
-			return
-	
-	# If not descending or not above tree, use normal tree collision
-	print("Using normal tree collision handling for ghost ball")
-	tree._handle_trunk_collision(self)
-
-func _handle_shop_collision_with_roof_bounce(shop: Node2D) -> void:
-	"""
-	Handle shop collision with roof bounce mechanic.
-	If ball is descending and would land inside shop, bounce it off the roof.
-	"""
-	print("=== HANDLING SHOP COLLISION WITH ROOF BOUNCE (GHOST) ===")
-	print("Ghost ball height:", z)
-	print("Ghost ball vertical velocity (vz):", vz)
-	print("Ghost ball is descending:", vz < 0)
-	
-	# Check if ball is descending (negative vertical velocity)
-	if vz < 0:
-		# Ball is coming down - check if it would land inside the shop
-		var shop_height = Global.get_object_height_from_marker(shop)
-		var ball_collision_height = z  # Use actual z value for pixel perfect system
-		
-		print("Shop height:", shop_height)
-		print("Ghost ball collision height:", ball_collision_height)
-		
-		# If ball is above shop but descending, and would land inside shop area
-		if ball_collision_height > shop_height:
-			print("✓ Ghost ball is above shop and descending - applying roof bounce")
-			_apply_roof_bounce(shop, shop_height)
-			return
-	
-	# If not descending or not above shop, use normal shop collision
-	print("Using normal shop collision handling for ghost ball")
-	shop._handle_shop_collision(self)
-
-func _apply_roof_bounce(obstacle: Node2D, obstacle_height: float) -> void:
-	"""
-	Apply a roof bounce to the ghost ball, keeping it above the obstacle.
-	This prevents Y-sorting glitches when balls land inside collision areas.
-	"""
-	print("=== APPLYING ROOF BOUNCE (GHOST) ===")
-	
-	# Calculate the minimum height the ball should be at to stay above the obstacle
-	var min_safe_height = obstacle_height  # Use actual obstacle height for pixel perfect system
-	
-	# Set ball to minimum safe height above the obstacle
-	z = min_safe_height + 10.0  # Add 10 pixels buffer
-	
-	# Reverse vertical velocity to bounce upward
-	vz = abs(vz) * 0.7  # Bounce with 70% of original downward velocity
-	
-	# Reduce horizontal velocity slightly to prevent infinite bouncing
-	velocity *= 0.9
-	
-	# Ensure ball stays above the obstacle for a few frames
-	# This prevents immediate re-entry into the collision area
-	call_deferred("_ensure_ball_stays_above_obstacle", obstacle, obstacle_height)
-	
-	print("Ghost ball bounced to height:", z)
-	print("New vertical velocity:", vz)
-	print("=== END ROOF BOUNCE (GHOST) ===")
-
-func _ensure_ball_stays_above_obstacle(obstacle: Node2D, obstacle_height: float) -> void:
-	"""
-	Ensure the ghost ball stays above the obstacle for a few frames after roof bounce.
-	"""
-	# Create a timer to monitor the ball's position
-	var safety_timer = get_tree().create_timer(0.5)  # Monitor for 0.5 seconds
-	safety_timer.timeout.connect(func():
-		# Check if ball is still above the obstacle
-		var ball_collision_height = z  # Use actual z value for pixel perfect system
-		if ball_collision_height <= obstacle_height:
-			# Ball has fallen back into collision area - bounce again
-			print("Ghost ball fell back into collision area - applying safety bounce")
-			_apply_roof_bounce(obstacle, obstacle_height)
-	)
+func _on_area_exited(area):
+	# Area exit handling if needed
+	pass
 
 func _handle_player_collision(player: Node2D) -> void:
 	"""Handle collision with player - ghost balls don't deal damage"""

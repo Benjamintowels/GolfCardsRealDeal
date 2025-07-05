@@ -122,16 +122,22 @@ func _handle_ball_trunk_collision(ball: Node2D):
 	"""Handle ball collision with tree trunk"""
 	print("Handling ball trunk collision")
 	
-	# Play trunk thunk sound
-	var thunk = get_node_or_null("TrunkThunk")
-	if thunk:
-		thunk.play()
-		print("✓ TrunkThunk sound played")
+	# Check if this is a ghost ball or golf ball that has the new roof bounce system
+	if ball.has_method("_handle_roof_bounce_collision"):
+		print("Using new roof bounce system for", ball.name)
+		ball._handle_roof_bounce_collision(self)
 	else:
-		print("✗ TrunkThunk sound not found!")
-	
-	# Reflect the ball
-	_reflect_ball_pinball(ball)
+		print("Using old collision system for", ball.name)
+		# Play trunk thunk sound
+		var thunk = get_node_or_null("TrunkThunk")
+		if thunk:
+			thunk.play()
+			print("✓ TrunkThunk sound played")
+		else:
+			print("✗ TrunkThunk sound not found!")
+		
+		# Reflect the ball (old system)
+		_reflect_ball_pinball(ball)
 
 func _reflect_ball_pinball(ball: Node2D):
 	"""Special reflection for low-height collisions with trunk base - creates pinball effect"""

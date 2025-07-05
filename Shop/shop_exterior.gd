@@ -58,7 +58,23 @@ func _handle_shop_collision(ball: Node2D):
 	print("Ball/knife name:", ball.name)
 	print("Ball/knife type:", ball.get_class())
 	
-	# Use enhanced height collision detection with TopHeight markers
+	# Check if this is a throwing knife
+	if ball.has_method("is_throwing_knife") and ball.is_throwing_knife():
+		# Handle knife collision with shop
+		print("Handling knife shop collision")
+		_handle_knife_shop_collision(ball)
+		print("=== END SHOP COLLISION (KNIFE) ===")
+		return
+	
+	# Check if ball has the new roof bounce system
+	if ball.has_method("_handle_roof_bounce_collision"):
+		print("Using new roof bounce system for", ball.name)
+		# Let the ball decide if it should bounce or pass through
+		ball._handle_roof_bounce_collision(self)
+		print("=== END SHOP COLLISION (ROOF BOUNCE) ===")
+		return
+	
+	# Use enhanced height collision detection with TopHeight markers (old system)
 	if Global.is_object_above_obstacle(ball, self):
 		# Ball/knife is above the shop entirely - let it pass through
 		print("✓ Ball/knife is above shop entirely - passing through")
@@ -68,15 +84,9 @@ func _handle_shop_collision(ball: Node2D):
 		# Ball/knife is within or below shop height - handle collision
 		print("✗ Ball/knife is within shop height - handling collision")
 		
-		# Check if this is a throwing knife
-		if ball.has_method("is_throwing_knife") and ball.is_throwing_knife():
-			# Handle knife collision with shop
-			print("Handling knife shop collision")
-			_handle_knife_shop_collision(ball)
-		else:
-			# Handle regular ball collision
-			print("Handling ball shop collision")
-			_handle_ball_shop_collision(ball)
+		# Handle regular ball collision with old system
+		print("Handling ball shop collision")
+		_handle_ball_shop_collision(ball)
 		
 		print("=== END SHOP COLLISION (COLLIDED) ===")
 
@@ -93,10 +103,11 @@ func _handle_knife_shop_collision(knife: Node2D):
 		_reflect_knife_pinball(knife)
 
 func _handle_ball_shop_collision(ball: Node2D):
-	"""Handle ball collision with shop"""
-	print("Handling ball shop collision")
+	"""Handle ball collision with shop (old system only)"""
+	print("Handling ball shop collision with old system")
 	
-	# Reflect the ball
+	# This function is only called for balls without the roof bounce system
+	# Reflect the ball (old system)
 	_reflect_ball_pinball(ball)
 
 func _reflect_ball_pinball(ball: Node2D):
