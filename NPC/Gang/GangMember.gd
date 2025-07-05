@@ -18,6 +18,8 @@ var movement_range: int = 3
 var vision_range: int = 12
 var current_action: String = "idle"
 
+
+
 # Facing direction properties
 var facing_direction: Vector2i = Vector2i(1, 0)  # Start facing right
 var last_movement_direction: Vector2i = Vector2i(1, 0)  # Track last movement direction
@@ -76,6 +78,9 @@ var course: Node
 # No camera tracking needed since camera panning doesn't affect Y-sort in 2.5D
 
 func _ready():
+	# Add to groups for smart optimization and roof bounce system
+	add_to_group("collision_objects")
+	
 	# Connect to Entities manager
 	# Find the course_1.gd script by searching up the scene tree
 	course = _find_course_script()
@@ -123,8 +128,9 @@ func _setup_base_collision() -> void:
 		base_collision_area.collision_layer = 1
 		# Set collision mask to 1 so it can detect golf balls on layer 1
 		base_collision_area.collision_mask = 1
-		# Connect to area_entered signal for collision detection
+		# Connect to area_entered and area_exited signals for collision detection
 		base_collision_area.connect("area_entered", _on_base_area_entered)
+		base_collision_area.connect("area_exited", _on_area_exited)
 		print("✓ GangMember base collision area setup complete")
 	else:
 		print("✗ ERROR: BaseCollisionArea not found!")
@@ -163,23 +169,143 @@ func _create_health_bar() -> void:
 
 func _on_base_area_entered(area: Area2D) -> void:
 	"""Handle collisions with the base collision area"""
-	var ball = area.get_parent()
+	var projectile = area.get_parent()
 
-	print("=== GANGMEMBER COLLISION DETECTED ===")
+	print("=== GANGMEMBER AREA ENTERED ===")
+	print("Area name:", area.name)
+	print("Projectile parent:", projectile.name if projectile else "No parent")
+	print("Projectile type:", projectile.get_class() if projectile else "Unknown")
+	print("Projectile position:", projectile.global_position if projectile else "Unknown")
 	print("GangMember position:", global_position)
-	print("Collision area parent:", ball.name if ball else "None")
-	print("Ball is GolfBall:", ball.name == "GolfBall" if ball else false)
-	print("Ball is GhostBall:", ball.name == "GhostBall" if ball else false)
-	print("Ball has is_throwing_knife:", ball.has_method("is_throwing_knife") if ball else false)
-	print("Ball is throwing knife:", ball.is_throwing_knife() if ball and ball.has_method("is_throwing_knife") else false)
-	print("=== END GANGMEMBER COLLISION DEBUG ===")
-
-	if ball and (ball.name == "GolfBall" or ball.name == "GhostBall" or ball.has_method("is_throwing_knife")):
-		print("Valid ball/knife detected:", ball.name)
-		# Handle the collision
-		_handle_ball_collision(ball)
+	
+	if projectile and (projectile.name == "GolfBall" or projectile.name == "GhostBall" or projectile.has_method("is_throwing_knife")):
+		print("✓ Valid projectile detected:", projectile.name)
+		# Handle the collision using proper Area2D collision detection
+		_handle_area_collision(projectile)
 	else:
-		print("Invalid ball/knife or non-ball object:", ball.name if ball else "Unknown")
+		print("✗ Invalid projectile or non-projectile object:", projectile.name if projectile else "Unknown")
+	
+	print("=== END GANGMEMBER AREA ENTERED ===")
+
+func _on_area_exited(area: Area2D) -> void:
+	"""Handle when projectile exits the GangMember area - reset ground level"""
+	var projectile = area.get_parent()
+	
+	print("=== GANGMEMBER AREA EXITED ===")
+	print("Projectile:", projectile.name if projectile else "Unknown")
+	
+	if projectile and projectile.has_method("get_height"):
+		# Reset the projectile's ground level to normal (0.0)
+		if projectile.has_method("_reset_ground_level"):
+			projectile._reset_ground_level()
+		else:
+			# Fallback: directly reset ground level if method doesn't exist
+			if "current_ground_level" in projectile:
+				projectile.current_ground_level = 0.0
+				print("✓ Reset projectile ground level to 0.0")
+	
+	print("=== END GANGMEMBER AREA EXITED ===")
+
+func _handle_area_collision(projectile: Node2D):
+	"""Handle GangMember area collisions using proper Area2D detection"""
+	print("=== HANDLING GANGMEMBER AREA COLLISION ===")
+	print("Projectile name:", projectile.name)
+	print("Projectile type:", projectile.get_class())
+	
+	# Check if projectile has height information
+	if not projectile.has_method("get_height"):
+		print("✗ Projectile doesn't have height method - using fallback reflection")
+		_reflect_projectile(projectile)
+		return
+	
+	# Get projectile and GangMember heights
+	var projectile_height = projectile.get_height()
+	var gang_member_height = Global.get_object_height_from_marker(self)
+	
+	print("Projectile height:", projectile_height)
+	print("GangMember height:", gang_member_height)
+	
+	# Check if this is a throwing knife (special handling)
+	if projectile.has_method("is_throwing_knife") and projectile.is_throwing_knife():
+		_handle_knife_area_collision(projectile, projectile_height, gang_member_height)
+		return
+	
+	# Apply the collision logic:
+	# If projectile height > GangMember height: allow entry and set ground level
+	# If projectile height < GangMember height: reflect
+	if projectile_height > gang_member_height:
+		print("✓ Projectile is above GangMember - allowing entry and setting ground level")
+		_allow_projectile_entry(projectile, gang_member_height)
+	else:
+		print("✗ Projectile is below GangMember height - reflecting")
+		_reflect_projectile(projectile)
+
+func _handle_knife_area_collision(knife: Node2D, knife_height: float, gang_member_height: float):
+	"""Handle knife collision with GangMember area"""
+	print("Handling knife GangMember area collision")
+	
+	if knife_height > gang_member_height:
+		print("✓ Knife is above GangMember - allowing entry and setting ground level")
+		_allow_projectile_entry(knife, gang_member_height)
+	else:
+		print("✗ Knife is below GangMember height - reflecting")
+		_reflect_projectile(knife)
+
+func _allow_projectile_entry(projectile: Node2D, gang_member_height: float):
+	"""Allow projectile to enter GangMember area and set ground level"""
+	print("=== ALLOWING PROJECTILE ENTRY (GANGMEMBER) ===")
+	
+	# Set the projectile's ground level to the GangMember height
+	if projectile.has_method("_set_ground_level"):
+		projectile._set_ground_level(gang_member_height)
+	else:
+		# Fallback: directly set ground level if method doesn't exist
+		if "current_ground_level" in projectile:
+			projectile.current_ground_level = gang_member_height
+			print("✓ Set projectile ground level to GangMember height:", gang_member_height)
+	
+	# The projectile will now land on the GangMember's head instead of passing through
+	# When it exits the area, _on_area_exited will reset the ground level
+
+func _reflect_projectile(projectile: Node2D):
+	"""Reflect projectile off the GangMember"""
+	print("=== REFLECTING PROJECTILE ===")
+	
+	# Play collision sound for GangMember collision
+	_play_collision_sound()
+	
+	# Get the projectile's current velocity
+	var projectile_velocity = Vector2.ZERO
+	if projectile.has_method("get_velocity"):
+		projectile_velocity = projectile.get_velocity()
+	elif "velocity" in projectile:
+		projectile_velocity = projectile.velocity
+	
+	print("Reflecting projectile with velocity:", projectile_velocity)
+	
+	var projectile_pos = projectile.global_position
+	var gang_member_center = global_position
+	
+	# Calculate the direction from GangMember center to projectile
+	var to_projectile_direction = (projectile_pos - gang_member_center).normalized()
+	
+	# Simple reflection: reflect the velocity across the GangMember center
+	var reflected_velocity = projectile_velocity - 2 * projectile_velocity.dot(to_projectile_direction) * to_projectile_direction
+	
+	# Reduce speed slightly to prevent infinite bouncing
+	reflected_velocity *= 0.8
+	
+	# Add a small amount of randomness to prevent infinite loops
+	var random_angle = randf_range(-0.1, 0.1)
+	reflected_velocity = reflected_velocity.rotated(random_angle)
+	
+	print("Reflected velocity:", reflected_velocity)
+	
+	# Apply the reflected velocity to the projectile
+	if projectile.has_method("set_velocity"):
+		projectile.set_velocity(reflected_velocity)
+	elif "velocity" in projectile:
+		projectile.velocity = reflected_velocity
 
 func _handle_ball_collision(ball: Node2D) -> void:
 	"""Handle ball/knife collisions - check height to determine if ball/knife should pass through"""
@@ -1474,9 +1600,11 @@ func _switch_to_dead_collision() -> void:
 		dead_collision_area.collision_layer = 1
 		# Set collision mask to 1 so it can detect golf balls on layer 1
 		dead_collision_area.collision_mask = 1
-		# Connect to area_entered signal for collision detection
+		# Connect to area_entered and area_exited signals for collision detection
 		if not dead_collision_area.is_connected("area_entered", _on_base_area_entered):
 			dead_collision_area.connect("area_entered", _on_base_area_entered)
+		if not dead_collision_area.is_connected("area_exited", _on_area_exited):
+			dead_collision_area.connect("area_exited", _on_area_exited)
 		print("✓ Enabled dead collision area")
 	else:
 		print("✗ ERROR: Dead/BaseCollisionArea not found")
@@ -1520,4 +1648,11 @@ func is_healthy() -> bool:
 
 func get_is_dead() -> bool:
 	"""Check if the GangMember is dead"""
-	return is_dead 
+	return is_dead
+
+func get_collision_radius() -> float:
+	"""
+	Get the collision radius for this GangMember.
+	Used by the roof bounce system to determine when ball has exited collision area.
+	"""
+	return 30.0  # GangMember collision radius 

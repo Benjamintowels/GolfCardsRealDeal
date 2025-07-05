@@ -18,6 +18,9 @@ texture_filter = 1
 position = Vector2(0, -29.725)
 texture = ExtResource("1_loocf")
 
+[node name="YSortPoint" type="Node2D" parent="OilDrumUpright"]
+position = Vector2(0, 22.725)
+
 [node name="OilDrumTippedOver" type="Sprite2D" parent="."]
 visible = false
 texture_filter = 1

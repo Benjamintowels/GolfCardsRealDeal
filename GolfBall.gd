@@ -1245,12 +1245,22 @@ func _play_roof_bounce_sound(object_type: String) -> void:
 						thunk.play()
 						print("✓ TrunkThunk sound played for tree roof bounce")
 				elif obj.name.contains("Oil") or obj.name.contains("oil") or obj.name.contains("OilDrum"):
+					print("DEBUG: Found OilDrum object:", obj.name)
 					var thunk = obj.get_node_or_null("OilDrumThunk")
 					if thunk:
+						print("DEBUG: OilDrumThunk audio player found, playing sound")
 						thunk.play()
 						print("✓ OilDrumThunk sound played for oil drum roof bounce")
 					else:
 						print("✗ OilDrumThunk sound not found on object:", obj.name)
+						print("DEBUG: Available children on OilDrum:")
+						for child in obj.get_children():
+							print("  -", child.name, "(", child.get_class(), ")")
+				elif obj.name.contains("GangMember") or obj.name.contains("gang") or obj.name.contains("Gang"):
+					print("DEBUG: Found GangMember object:", obj.name)
+					# Use the existing collision sound method which plays Push.mp3
+					obj._play_collision_sound()
+					print("✓ Push sound played for GangMember roof bounce")
 				break
 
 func check_rolling_wall_collisions() -> void:
