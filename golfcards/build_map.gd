@@ -239,14 +239,12 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 	var layout_width = layout[0].size()
 	var layout_height = layout.size()
 	
-	# Add top and bottom edges only, every other tile to prevent overlap
+	# Add top edge only, every other tile to prevent overlap
 	for x in range(0, layout_width, 2):  # Step by 2 to place every other tile
 		# Top edge
 		if layout[0][x] != "W":  # Don't place on water
 			edge_positions.append(Vector2i(x, 0))
-		# Bottom edge
-		if layout[layout_height - 1][x] != "W":  # Don't place on water
-			edge_positions.append(Vector2i(x, layout_height - 1))
+		# (Bottom edge removed)
 	
 	# Add stone walls to edge positions
 	for wall_pos in edge_positions:
