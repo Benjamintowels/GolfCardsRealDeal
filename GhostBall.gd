@@ -598,12 +598,7 @@ func _on_area_entered(area):
 		_handle_roof_bounce_collision(area.get_parent())
 		# Notify course to re-enable player collision since ball hit shop
 		notify_course_of_collision()
-	# Check if this is an Oil Drum collision
-	elif area.get_parent() and area.get_parent().has_method("_handle_collision"):
-		# Oil drum collision detected - use new roof bounce system
-		_handle_roof_bounce_collision(area.get_parent())
-		# Notify course to re-enable player collision since ball hit oil drum
-		notify_course_of_collision()
+
 
 func _on_area_exited(area):
 	# Area exit handling if needed
@@ -736,12 +731,9 @@ func _play_roof_bounce_sound(object_type: String) -> void:
 						thunk.play()
 						print("✓ TrunkThunk sound played for tree roof bounce (ghost)")
 				elif obj.name.contains("Oil") or obj.name.contains("oil") or obj.name.contains("OilDrum"):
-					var thunk = obj.get_node_or_null("OilDrumThunk")
-					if thunk:
-						thunk.play()
-						print("✓ OilDrumThunk sound played for oil drum roof bounce (ghost)")
-					else:
-						print("✗ OilDrumThunk sound not found for oil drum roof bounce (ghost)")
+					# Don't play oil drum sound on roof bounce - only on actual collision
+					# The oil drum sound should only play when there's a direct collision/reflection
+					pass
 				elif obj.name.contains("GangMember") or obj.name.contains("gang") or obj.name.contains("Gang"):
 					obj._play_collision_sound()
 				break 

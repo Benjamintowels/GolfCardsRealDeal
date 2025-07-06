@@ -448,10 +448,10 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		print("✓ Oil Drum instantiated successfully")
 		var world_pos: Vector2 = Vector2(oil_pos.x, oil_pos.y) * cell_size
 		oil_drum.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
-		if oil_drum.has_meta("grid_position") or "grid_position" in oil_drum:
-			oil_drum.set("grid_position", oil_pos)
-		else:
-			push_warning("⚠️ Oil Drum missing 'grid_position'. Type: %s" % oil_drum.get_class())
+		
+		# Always set the grid_position property unconditionally
+		oil_drum.set_meta("grid_position", oil_pos)
+		print("✓ Set oil drum grid_position to:", oil_pos)
 		
 		# Add oil drum to groups for smart optimization
 		oil_drum.add_to_group("interactables")
@@ -460,6 +460,11 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		ysort_objects.append({"node": oil_drum, "grid_pos": oil_pos})
 		obstacle_layer.add_child(oil_drum)
 		print("✓ Oil Drum placed at grid position:", oil_pos, "world position:", world_pos)
+		print("✓ Oil Drum name:", oil_drum.name)
+		print("✓ Oil Drum grid_position property:", oil_drum.get_meta("grid_position") if oil_drum.get_meta("grid_position") != null else "null")
+		print("✓ Oil Drum has meta grid_position:", oil_drum.has_meta("grid_position"))
+		if oil_drum.has_meta("grid_position"):
+			print("✓ Oil Drum meta grid_position:", oil_drum.get_meta("grid_position"))
 	print("=== END PLACING OIL DRUMS ===")
 	
 	update_all_ysort_z_indices() 

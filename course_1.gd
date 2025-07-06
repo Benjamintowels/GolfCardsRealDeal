@@ -442,7 +442,8 @@ func _ready() -> void:
 		card_play_sound,
 		card_stack_display,
 		deck_manager,
-		card_effect_handler
+		card_effect_handler,
+		player_node.get_node_or_null("KickSound")  # Add KickSound reference
 	)
 	
 	# Setup weapon handler after deck_manager is created

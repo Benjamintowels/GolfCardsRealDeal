@@ -22,6 +22,7 @@ var player_stats: Dictionary
 # Sound effects
 var card_click_sound: AudioStreamPlayer2D
 var card_play_sound: AudioStreamPlayer2D
+var kick_sound: AudioStreamPlayer2D  # Reference to KickSound from player scene
 
 # UI references
 var card_stack_display: Control
@@ -57,7 +58,8 @@ func setup(
 	card_play_sound_ref: AudioStreamPlayer2D,
 	card_stack_display_ref: Control,
 	deck_manager_ref: DeckManager,
-	card_effect_handler_ref: Node
+	card_effect_handler_ref: Node,
+	kick_sound_ref: AudioStreamPlayer2D = null
 ):
 	player_node = player_node_ref
 	grid_tiles = grid_tiles_ref
@@ -72,6 +74,7 @@ func setup(
 	card_stack_display = card_stack_display_ref
 	deck_manager = deck_manager_ref
 	card_effect_handler = card_effect_handler_ref
+	kick_sound = kick_sound_ref
 
 # Reference to movement controller for button cleanup
 var movement_controller: Node = null
@@ -112,6 +115,13 @@ func calculate_valid_attack_tiles() -> void:
 	valid_attack_tiles.clear()
 	print("Calculating valid attack tiles - Player at:", player_grid_pos, "Attack range:", attack_range)
 
+	# DEBUG: Print all oil drum grid positions
+	var interactables = get_tree().get_nodes_in_group("interactables")
+	print("Found", interactables.size(), "interactables in group")
+	for interactable in interactables:
+		if is_instance_valid(interactable) and interactable.has_method("get_grid_position") and interactable.name.begins_with("OilDrum"):
+			print("OIL DRUM DEBUG: Oil drum '", interactable.name, "' at grid position:", interactable.get_grid_position())
+
 	for y in grid_size.y:
 		for x in grid_size.x:
 			var pos := Vector2i(x, y)
@@ -121,6 +131,10 @@ func calculate_valid_attack_tiles() -> void:
 				if has_npc_at_position(pos):
 					valid_attack_tiles.append(pos)
 					print("Found valid attack tile at:", pos)
+				# Check if there's an oil drum at this position (for KickB card)
+				elif has_oil_drum_at_position(pos):
+					valid_attack_tiles.append(pos)
+					print("Found oil drum at attack tile:", pos)
 	
 	print("Total valid attack tiles found:", valid_attack_tiles.size())
 
@@ -233,6 +247,23 @@ func handle_tile_click(x: int, y: int) -> bool:
 	print("Attack tile click at:", clicked, "Attack mode:", is_attack_mode, "Valid tiles:", valid_attack_tiles)
 	
 	if is_attack_mode and clicked in valid_attack_tiles:
+		print("=== ATTACK TILE CLICK DEBUG ===")
+		print("Selected card:", selected_card.name if selected_card else "None")
+		print("Card name check:", selected_card.name == "Kick" if selected_card else "N/A")
+		
+		# Check if this is a KickB card attack on an oil drum
+		if selected_card and selected_card.name == "Kick":
+			print("Kick card detected - checking for oil drum at:", clicked)
+			var oil_drum = get_oil_drum_at_position(clicked)
+			if oil_drum:
+				print("✓ Oil drum found - performing KickB attack!")
+				perform_kickb_attack_on_oil_drum(oil_drum, clicked)
+				card_play_sound.play()
+				return true
+			else:
+				print("✗ No oil drum found at position:", clicked)
+		
+		# Check for normal NPC attack
 		var npc = get_npc_at_position(clicked)
 		if npc:
 			print("Performing attack on NPC at:", clicked)
@@ -248,6 +279,14 @@ func handle_tile_click(x: int, y: int) -> bool:
 
 func perform_attack(npc: Node, target_pos: Vector2i) -> void:
 	"""Perform the attack on the NPC"""
+	
+	# Play KickSound if this is a Kick attack
+	if selected_card and selected_card.name == "Kick":
+		if kick_sound:
+			kick_sound.play()
+			print("✓ KickSound played for NPC attack")
+		else:
+			print("✗ KickSound not found for NPC attack")
 	
 	# Check if NPC is dead
 	var is_dead = false
@@ -378,4 +417,77 @@ func get_selected_card() -> CardData:
 	return selected_card
 
 func get_valid_attack_tiles() -> Array:
-	return valid_attack_tiles.duplicate() 
+	return valid_attack_tiles.duplicate()
+
+func has_oil_drum_at_position(pos: Vector2i) -> bool:
+	"""Check if there's an oil drum at the given grid position"""
+	if not card_effect_handler or not card_effect_handler.course:
+		print("No card_effect_handler or course found for oil drum check at:", pos)
+		return false
+	
+	# Look for oil drums in the interactables group
+	var interactables = get_tree().get_nodes_in_group("interactables")
+	
+	for interactable in interactables:
+		if is_instance_valid(interactable) and interactable.has_method("get_grid_position"):
+			var interactable_pos = interactable.get_grid_position()
+			if interactable_pos == pos and interactable.name.begins_with("OilDrum"):
+				print("Found oil drum at position:", pos, "Oil drum:", interactable.name)
+				return true
+	
+	print("No oil drum found at position:", pos)
+	return false
+
+func get_oil_drum_at_position(pos: Vector2i) -> Node:
+	"""Get the oil drum at the given grid position, or null if none"""
+	# Look for oil drums in the interactables group
+	var interactables = get_tree().get_nodes_in_group("interactables")
+	for interactable in interactables:
+		if is_instance_valid(interactable) and interactable.has_method("get_grid_position"):
+			if interactable.get_grid_position() == pos and interactable.name.begins_with("OilDrum"):
+				return interactable
+	
+	return null
+
+func perform_kickb_attack_on_oil_drum(oil_drum: Node, target_pos: Vector2i) -> void:
+	"""Perform KickB attack on oil drum - tips it over immediately"""
+	print("=== PERFORMING KICKB ATTACK ON OIL DRUM ===")
+	print("Oil drum:", oil_drum.name)
+	print("Target position:", target_pos)
+	print("Oil drum has take_damage method:", oil_drum.has_method("take_damage"))
+	
+	# Play KickSound
+	if kick_sound:
+		kick_sound.play()
+		print("✓ KickSound played")
+	else:
+		print("✗ KickSound not found")
+	
+	# Check if oil drum is already tipped over
+	var is_tipped = false
+	if oil_drum.has_method("get_is_tipped_over"):
+		is_tipped = oil_drum.get_is_tipped_over()
+		print("Oil drum tipped over status:", is_tipped)
+	elif "is_tipped_over" in oil_drum:
+		is_tipped = oil_drum.is_tipped_over
+		print("Oil drum tipped over status (property):", is_tipped)
+	
+	if is_tipped:
+		print("Oil drum is already tipped over - no effect")
+	else:
+		print("Tipping over oil drum with KickB attack!")
+		# Force the oil drum to tip over by setting its health to 0
+		if oil_drum.has_method("take_damage"):
+			print("Calling take_damage(50) on oil drum")
+			# Deal enough damage to kill it (50 damage)
+			oil_drum.take_damage(50)
+		else:
+			print("Oil drum doesn't have take_damage method!")
+	
+	# Emit signal for attack completion
+	emit_signal("npc_attacked", oil_drum, 50)  # Use 50 damage for signal
+	
+	# Exit attack mode
+	exit_attack_mode()
+	
+	print("=== END KICKB ATTACK ON OIL DRUM ===") 
