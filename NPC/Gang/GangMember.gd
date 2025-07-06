@@ -66,6 +66,12 @@ var health_bar_container: Control
 # Knife attachment system
 var attached_knives: Array[Node2D] = []  # Array to track attached knife sprites
 
+# Ragdoll animation properties
+var is_ragdolling: bool = false
+var ragdoll_tween: Tween
+var ragdoll_duration: float = 1.5  # Duration of ragdoll animation
+var ragdoll_landing_position: Vector2i  # Where the GangMember will land after ragdoll
+
 # State Machine
 enum State {PATROL, CHASE, DEAD}
 var current_state: State = State.PATROL
@@ -706,9 +712,14 @@ func take_turn() -> void:
 	"""Called by Entities manager when it's this NPC's turn"""
 	print("GangMember taking turn: ", name)
 	
-	# Skip turn if dead
+	# Skip turn if dead or ragdolling
 	if is_dead:
 		print("GangMember is dead, skipping turn")
+		call_deferred("_complete_turn")
+		return
+	
+	if is_ragdolling:
+		print("GangMember is ragdolling, skipping turn")
 		call_deferred("_complete_turn")
 		return
 	
@@ -895,6 +906,10 @@ func _check_turn_completion() -> void:
 	"""Check if the turn can be completed (waits for movement animation to finish)"""
 	if is_moving:
 		print("GangMember is still moving, waiting for animation to complete...")
+		return
+	
+	if is_ragdolling:
+		print("GangMember is still ragdolling, waiting for animation to complete...")
 		return
 	
 	print("GangMember movement finished, completing turn")
@@ -1529,8 +1544,8 @@ class DeadState extends BaseState:
 		pass
 
 # Health and damage methods
-func take_damage(amount: int, is_headshot: bool = false) -> void:
-	"""Take damage and handle death if health reaches 0"""
+func take_damage(amount: int, is_headshot: bool = false, weapon_position: Vector2 = Vector2.ZERO) -> void:
+	"""Take damage and handle death if health reaches 0, or pushback if survives"""
 	if not is_alive:
 		print("GangMember is already dead, ignoring damage")
 		return
@@ -1555,6 +1570,45 @@ func take_damage(amount: int, is_headshot: bool = false) -> void:
 		die()
 	else:
 		print("GangMember survived with", current_health, "health")
+		# If weapon position is provided and gang member survived, trigger pushback
+		if weapon_position != Vector2.ZERO:
+			_handle_survival_pushback(weapon_position)
+
+func _handle_survival_pushback(weapon_position: Vector2) -> void:
+	"""Handle pushback animation when gang member survives weapon damage"""
+	print("=== HANDLING SURVIVAL PUSHBACK ===")
+	
+	# Calculate pushback direction (away from weapon)
+	var gang_member_pos = global_position
+	var pushback_direction = (gang_member_pos - weapon_position).normalized()
+	
+	# Calculate pushback distance (2 tiles)
+	var pushback_distance = 2 * cell_size  # 2 tiles * cell_size
+	var pushback_force = 300.0  # Force for ragdoll animation
+	
+	print("Gang member position:", gang_member_pos)
+	print("Weapon position:", weapon_position)
+	print("Pushback direction:", pushback_direction)
+	print("Pushback distance:", pushback_distance)
+	
+	# Calculate target position (2 tiles away from current position)
+	var target_world_pos = gang_member_pos + (pushback_direction * pushback_distance)
+	
+	# Convert world position to grid position
+	var target_grid_x = floor((target_world_pos.x - cell_size / 2) / cell_size)
+	var target_grid_y = floor((target_world_pos.y - cell_size / 2) / cell_size)
+	var target_grid_pos = Vector2i(target_grid_x, target_grid_y)
+	
+	print("Target world position:", target_world_pos)
+	print("Target grid position:", target_grid_pos)
+	
+	# Start ragdoll animation with pushback
+	start_ragdoll_animation(pushback_direction, pushback_force)
+	
+	# Also trigger the push_back method to update grid position
+	push_back(target_grid_pos)
+	
+	print("✓ Gang member survival pushback initiated")
 
 func heal(amount: int) -> void:
 	"""Heal the GangMember"""
@@ -1753,4 +1807,130 @@ func _on_pushback_completed() -> void:
 	print("GangMember pushback animation completed")
 	
 	# Update Y-sorting one final time
-	update_z_index_for_ysort() 
+	update_z_index_for_ysort()
+
+# Ragdoll Animation Methods
+func start_ragdoll_animation(direction: Vector2, force: float) -> void:
+	"""Start the ragdoll animation for the GangMember"""
+	if is_ragdolling:
+		print("GangMember is already ragdolling, ignoring new ragdoll request")
+		return
+	
+	print("=== STARTING GANGMEMBER RAGDOLL ANIMATION ===")
+	print("Direction:", direction)
+	print("Force:", force)
+	
+	is_ragdolling = true
+	
+	# Stop any current movement
+	stop_movement()
+	
+	# Calculate landing position based on direction and force
+	_calculate_ragdoll_landing_position(direction, force)
+	
+	# Start the ragdoll animation sequence
+	_start_ragdoll_sequence(direction, force)
+
+func _calculate_ragdoll_landing_position(direction: Vector2, force: float) -> void:
+	"""Calculate where the GangMember will land after the ragdoll animation"""
+	var current_pos = global_position
+	var distance = force * 0.8  # Convert force to distance (reduced for realistic landing)
+	
+	# Calculate the landing world position
+	var landing_world_pos = current_pos + (direction * distance)
+	
+	# Convert world position to grid position
+	var cell_size = 48  # Default cell size
+	var grid_x = floor((landing_world_pos.x - cell_size / 2) / cell_size)
+	var grid_y = floor((landing_world_pos.y - cell_size / 2) / cell_size)
+	
+	ragdoll_landing_position = Vector2i(grid_x, grid_y)
+	
+	print("Current position:", current_pos)
+	print("Landing world position:", landing_world_pos)
+	print("Landing grid position:", ragdoll_landing_position)
+
+func _start_ragdoll_sequence(direction: Vector2, force: float) -> void:
+	"""Start the complete ragdoll animation sequence"""
+	print("=== STARTING RAGDOLL SEQUENCE ===")
+	
+	# Stop any existing ragdoll tween
+	if ragdoll_tween and ragdoll_tween.is_valid():
+		ragdoll_tween.kill()
+	
+	# Create new ragdoll tween
+	ragdoll_tween = create_tween()
+	ragdoll_tween.set_parallel(true)
+	
+	# Phase 1: Launch upward and backward
+	var launch_duration = ragdoll_duration * 0.4  # 40% of total time
+	var launch_distance = force * 0.6  # 60% of force for launch
+	var launch_direction = Vector2(direction.x, -0.8)  # Add upward component
+	var launch_target = global_position + (launch_direction * launch_distance)
+	
+	print("Launch phase - Duration:", launch_duration, "Target:", launch_target)
+	
+	# Move to launch position
+	ragdoll_tween.tween_property(self, "global_position", launch_target, launch_duration)
+	ragdoll_tween.set_trans(Tween.TRANS_QUAD)
+	ragdoll_tween.set_ease(Tween.EASE_OUT)
+	
+	# Phase 2: Tilt backward during launch
+	var tilt_angle = -45.0  # Tilt backward 45 degrees
+	ragdoll_tween.tween_property(self, "rotation_degrees", tilt_angle, launch_duration)
+	
+	# Phase 3: Fall back down to landing position
+	var fall_duration = ragdoll_duration * 0.6  # 60% of total time for falling
+	var landing_world_pos = Vector2(ragdoll_landing_position.x, ragdoll_landing_position.y) * cell_size + Vector2(cell_size / 2, cell_size / 2)
+	
+	print("Fall phase - Duration:", fall_duration, "Landing position:", landing_world_pos)
+	
+	# Fall to landing position (delayed)
+	ragdoll_tween.tween_property(self, "global_position", landing_world_pos, fall_duration).set_delay(launch_duration)
+	ragdoll_tween.set_trans(Tween.TRANS_QUAD)
+	ragdoll_tween.set_ease(Tween.EASE_IN)
+	
+	# Phase 4: Return to normal rotation during fall
+	ragdoll_tween.tween_property(self, "rotation_degrees", 0.0, fall_duration).set_delay(launch_duration)
+	
+	# Phase 5: Complete ragdoll and switch to dead state
+	ragdoll_tween.tween_callback(_on_ragdoll_complete).set_delay(ragdoll_duration)
+	
+	print("✓ Ragdoll animation sequence started")
+
+func _on_ragdoll_complete() -> void:
+	"""Called when the ragdoll animation is complete"""
+	print("=== RAGDOLL ANIMATION COMPLETE ===")
+	
+	is_ragdolling = false
+	
+	# Update grid position to landing position
+	grid_position = ragdoll_landing_position
+	print("Updated grid position to landing position:", grid_position)
+	
+	# Update Y-sorting for new position
+	update_z_index_for_ysort()
+	
+	# Switch to dead state and show dead sprite
+	if not is_dead:
+		print("GangMember died from ragdoll - switching to dead state")
+		die()
+	else:
+		print("GangMember was already dead - just updating position")
+		# Update the dead sprite position
+		_update_dead_sprite_facing()
+	
+	print("✓ Ragdoll animation complete")
+
+func stop_ragdoll() -> void:
+	"""Stop the ragdoll animation if it's currently running"""
+	if is_ragdolling and ragdoll_tween and ragdoll_tween.is_valid():
+		ragdoll_tween.kill()
+		is_ragdolling = false
+		print("✓ Ragdoll animation stopped")
+
+func is_currently_ragdolling() -> bool:
+	"""Check if the GangMember is currently ragdolling"""
+	return is_ragdolling
+
+# State Machine Class

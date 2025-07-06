@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3 uid="uid://wyu3udwngros"]
+[gd_scene load_steps=9 format=3 uid="uid://wyu3udwngros"]
 
 [ext_resource type="Script" uid="uid://ct4bebh7dhisi" path="res://Main.gd" id="1_r0du0"]
 [ext_resource type="Texture2D" uid="uid://dyd3f17eqkoaw" path="res://Titlescreen.png" id="2_lgr22"]
@@ -7,6 +7,7 @@
 [ext_resource type="Texture2D" uid="uid://dkotgiaft0sh" path="res://Character1sec.png" id="6_3dxm6"]
 [ext_resource type="Texture2D" uid="uid://cwdlr21pb6ap" path="res://Title.png" id="7_lgr22"]
 [ext_resource type="Script" uid="uid://cnne1a0u85wtc" path="res://current_deck_manager.gd" id="8_current_deck_manager"]
+[ext_resource type="AudioStream" uid="uid://uif6unejkcej" path="res://Sounds/Select.mp3" id="8_trn2v"]
 
 [node name="Main" type="Control"]
 layout_mode = 3
@@ -119,6 +120,9 @@ offset_right = 1482.77
 offset_bottom = 1825.9
 scale = Vector2(0.23, 0.23)
 texture = ExtResource("7_lgr22")
+
+[node name="Select" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("8_trn2v")
 
 [connection signal="pressed" from="UI/StartRoundButton" to="." method="_on_start_round_button_pressed"]
 [connection signal="pressed" from="UI/StartPuttPutt" to="." method="_on_start_putt_putt_button_pressed"]

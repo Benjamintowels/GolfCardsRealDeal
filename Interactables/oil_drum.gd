@@ -93,6 +93,9 @@ func _setup_collision_areas():
 		# Add to hitboxes group for weapon system detection
 		hitbox.add_to_group("hitboxes")
 		print("✓ Oil drum HitBox setup complete for gun collision")
+		
+		# Debug: Verify HitBox is in the group
+		call_deferred("_verify_hitbox_setup")
 	else:
 		print("✗ ERROR: Oil drum HitBox not found!")
 
@@ -197,11 +200,31 @@ func _calculate_velocity_damage(velocity_magnitude: float) -> int:
 	return final_damage
 
 func take_damage(amount: int) -> void:
-	"""Take damage and handle tipping over if health reaches 0"""
+	"""Take damage and handle tipping over if health reaches 0, or explode if overkilled"""
 	current_health = max(0, current_health - amount)
 	print("Oil drum took", amount, "damage. Current health:", current_health, "/", max_health)
 	
-	if current_health <= 0 and not is_tipped_over:
+	# Check if this damage would overkill the oil drum
+	# Overkill = damage - current_health (how much damage exceeds current health)
+	var overkill_damage = amount - current_health
+	
+	# Overkill threshold: need at least 50 overkill damage to trigger explosion
+	if overkill_damage >= 50:
+		print("Oil drum overkilled with", overkill_damage, "overkill damage (threshold: 50) - EXPLODING!")
+		# Create a temporary ball node to pass to the explosion function
+		var temp_ball = Node2D.new()
+		temp_ball.name = "OverkillExplosionBall"
+		
+		# Add the ball to the scene temporarily
+		get_parent().add_child(temp_ball)
+		temp_ball.global_position = global_position
+		
+		# Trigger the explosion using the existing fire element logic
+		_explode_oil_drum(temp_ball)
+		
+		# Remove the temporary ball
+		temp_ball.queue_free()
+	elif current_health <= 0 and not is_tipped_over:
 		print("Oil drum health reached 0 - tipping over!")
 		is_tipped_over = true
 		_tip_over()
@@ -513,26 +536,7 @@ func _play_oil_drum_sound() -> void:
 	else:
 		print("✗ OilDrumThunk sound not found")
 
-func handle_pistol_shot() -> void:
-	"""Handle being shot by a pistol - trigger explosion"""
-	print("=== OIL DRUM SHOT BY PISTOL - EXPLODING! ===")
-	
-	# Create a temporary ball node to pass to the explosion function
-	# This allows us to reuse the existing explosion logic
-	var temp_ball = Node2D.new()
-	temp_ball.name = "PistolShotBall"
-	
-	# Add the ball to the scene temporarily
-	get_parent().add_child(temp_ball)
-	temp_ball.global_position = global_position
-	
-	# Trigger the explosion using the existing fire element logic
-	_explode_oil_drum(temp_ball)
-	
-	# Remove the temporary ball
-	temp_ball.queue_free()
-	
-	print("✓ Oil drum exploded from pistol shot")
+
 
 func _handle_roof_bounce_collision(projectile: Node2D) -> void:
 	"""Handle collision with projectiles - called by roof bounce system"""
@@ -988,3 +992,27 @@ func _launch_ball_from_explosion(ball: Node2D) -> void:
 				print("✓ Applied upward velocity for ground-level ball")
 	
 	print("=== END LAUNCHING BALL FROM EXPLOSION ===")
+
+func _verify_hitbox_setup():
+	"""Verify that the HitBox is properly set up and can be found by the weapon system"""
+	var hitbox = get_node_or_null("HitBox")
+	if not hitbox:
+		print("✗ ERROR: HitBox not found during verification!")
+		return
+	
+	# Check if HitBox is in the hitboxes group
+	var hitboxes_group = get_tree().get_nodes_in_group("hitboxes")
+	var found_in_group = false
+	for hb in hitboxes_group:
+		if hb == hitbox:
+			found_in_group = true
+			break
+	
+	print("=== HITBOX VERIFICATION ===")
+	print("HitBox name:", hitbox.name)
+	print("HitBox collision layer:", hitbox.collision_layer)
+	print("HitBox collision mask:", hitbox.collision_mask)
+	print("HitBox in 'hitboxes' group:", found_in_group)
+	print("Total HitBoxes in group:", hitboxes_group.size())
+	print("HitBox global position:", hitbox.global_position)
+	print("=== END HITBOX VERIFICATION ===")

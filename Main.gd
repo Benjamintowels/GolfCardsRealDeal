@@ -6,6 +6,7 @@ extends Control
 @onready var start_round_button = $UI/StartRoundButton
 @onready var start_putt_putt_button = $UI/StartPuttPutt
 @onready var start_back_9_button = $UI/StartBack9
+@onready var select_sound = $Select
 
 var selected_character = 1  # Default to character 1
 
@@ -30,19 +31,26 @@ func _ready():
 	print("Buttons connected successfully")
 	print("Initial selected_character: ", selected_character)
 
+func _play_select_sound():
+	select_sound.play()
+
 func _on_character1_selected():
+	_play_select_sound()
 	selected_character = 1
 	print("Character 1 (Layla) selected, selected_character = ", selected_character)
 
 func _on_character2_selected():
+	_play_select_sound()
 	selected_character = 2
 	print("Character 2 (Benny) selected, selected_character = ", selected_character)
 
 func _on_character3_selected():
+	_play_select_sound()
 	selected_character = 3
 	print("Character 3 (Clark) selected, selected_character = ", selected_character)
 
 func _on_start_round_pressed():
+	_play_select_sound()
 	# Store the selected character in a global variable
 	Global.selected_character = selected_character
 	Global.putt_putt_mode = false  # Ensure normal mode for regular rounds
@@ -52,6 +60,7 @@ func _on_start_round_pressed():
 	call_deferred("_change_scene")
 
 func _on_start_putt_putt_button_pressed():
+	_play_select_sound()
 	# Store the selected character in a global variable
 	Global.selected_character = selected_character
 	Global.putt_putt_mode = true  # Enable putt putt mode
@@ -61,6 +70,7 @@ func _on_start_putt_putt_button_pressed():
 	call_deferred("_change_scene")
 
 func _on_start_back_9_pressed():
+	_play_select_sound()
 	# Store the selected character in a global variable
 	Global.selected_character = selected_character
 	print("Selected character: ", selected_character, " - Starting Back 9")
