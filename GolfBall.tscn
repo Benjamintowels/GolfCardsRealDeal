@@ -17,8 +17,10 @@ script = ExtResource("1_coy0q")
 
 [node name="Shadow" type="Sprite2D" parent="."]
 modulate = Color(0, 0, 0, 0.3)
-z_index = -1
-scale = Vector2(0.175, 0.089)
+z_index = 1
+texture_filter = 1
+position = Vector2(0, 4)
+scale = Vector2(0.84, 0.35)
 texture = SubResource("CompressedTexture2D_k5viu")
 
 [node name="YSortPoint" type="Node2D" parent="Shadow"]

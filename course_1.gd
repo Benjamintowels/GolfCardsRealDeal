@@ -931,9 +931,8 @@ func smooth_camera_to_player() -> void:
 	# Update camera snap back position
 	camera_snap_back_pos = player_center
 	
-	# Smoothly tween camera to final position
-	var tween = get_tree().create_tween()
-	tween.tween_property(camera, "position", player_center, 0.3).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	# Smoothly tween camera to final position using managed tween
+	create_camera_tween(player_center, 0.3)
 
 func update_player_position() -> void:
 	if not player_node:
@@ -959,8 +958,8 @@ func update_player_position() -> void:
 			ongoing_tween.kill()
 			remove_meta("pin_to_tee_tween")
 		
-		var tween = get_tree().create_tween()
-		tween.tween_property(camera, "position", player_center, 0.5).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		# Use the new camera tween management system
+		create_camera_tween(player_center, 0.5)
 
 func remove_all_balls() -> void:
 	"""Remove all balls from the scene"""
@@ -1504,9 +1503,8 @@ func transition_camera_to_npc(npc: Node) -> void:
 	
 	var npc_pos = npc.global_position
 	print("Transitioning camera to NPC at position: ", npc_pos)
-	var tween := get_tree().create_tween()
-	tween.tween_property(camera, "position", npc_pos, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	await tween.finished
+	create_camera_tween(npc_pos, 1.0)
+	await current_camera_tween.finished
 
 func transition_camera_to_player() -> void:
 	"""Transition camera back to the player"""
@@ -1516,9 +1514,8 @@ func transition_camera_to_player() -> void:
 	
 	var player_center = player_node.global_position
 	print("Transitioning camera back to player at position: ", player_center)
-	var tween := get_tree().create_tween()
-	tween.tween_property(camera, "position", player_center, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	await tween.finished
+	create_camera_tween(player_center, 1.0)
+	await current_camera_tween.finished
 
 func show_turn_message(message: String, duration: float) -> void:
 	"""Show a turn message for the specified duration"""
@@ -1703,8 +1700,7 @@ func _on_drive_distance_dialog_input(event: InputEvent) -> void:
 		var dialog_player_sprite = player_node.get_node_or_null("Sprite2D")
 		var dialog_player_size = dialog_player_sprite.texture.get_size() * dialog_player_sprite.scale if dialog_player_sprite and dialog_player_sprite.texture else Vector2(cell_size, cell_size)
 		var player_center: Vector2 = player_node.global_position + dialog_player_size / 2
-		var tween := get_tree().create_tween()
-		tween.tween_property(camera, "position", player_center, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		create_camera_tween(player_center, 1.0)
 
 func setup_swing_sounds() -> void:
 	swing_strong_sound = $SwingStrong
@@ -1823,8 +1819,7 @@ func enter_aiming_phase() -> void:
 	var sprite = player_node.get_node_or_null("Sprite2D")
 	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
 	var player_center = player_node.global_position + player_size / 2
-	var tween := get_tree().create_tween()
-	tween.tween_property(camera, "position", player_center, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	create_camera_tween(player_center, 1.0)
 
 func show_aiming_instruction() -> void:
 	var existing_instruction = $UILayer.get_node_or_null("AimingInstructionLabel")
@@ -2499,12 +2494,11 @@ func show_draw_club_cards_button() -> void:
 	movement_controller.exit_movement_mode()
 	update_deck_display()
 	
-	# Camera follows player to ball position
+	# Camera follows player to ball position using managed tween
 	var sprite = player_node.get_node_or_null("Sprite2D")
 	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
 	var player_center = player_node.global_position + player_size / 2
-	var tween := get_tree().create_tween()
-	tween.tween_property(camera, "position", player_center, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	create_camera_tween(player_center, 1.0)
 
 func show_shop_entrance_dialog():
 	if shop_dialog:
@@ -2701,8 +2695,7 @@ func restore_game_state():
 		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
 		var player_center = player_node.global_position + player_size / 2
 		camera_snap_back_pos = player_center
-		var tween := get_tree().create_tween()
-		tween.tween_property(camera, "position", player_center, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		create_camera_tween(player_center, 1.0)
 	else:
 		print("No saved game state found")
 
@@ -3222,9 +3215,8 @@ func _on_knife_landed(final_tile: Vector2i) -> void:
 	pause_timer.timeout.connect(func():
 		# After pause, tween camera back to player
 		if player_node and camera:
-			var tween = get_tree().create_tween()
-			tween.tween_property(camera, "position", player_node.global_position, 0.5).set_trans(Tween.TRANS_LINEAR)
-			tween.tween_callback(func():
+			create_camera_tween(player_node.global_position, 0.5, Tween.TRANS_LINEAR)
+			current_camera_tween.tween_callback(func():
 				# Exit knife mode and reset camera following after tween completes
 				if launch_manager:
 					launch_manager.exit_knife_mode()
@@ -3313,3 +3305,24 @@ func _on_debug_top_height_button_pressed() -> void:
 			Global.debug_top_height_marker(pin)
 	
 	print("=== END DEBUG TOPHEIGHT MARKERS ===")
+
+# Add camera tween management variables at the top of the class
+var current_camera_tween: Tween = null
+
+func kill_current_camera_tween() -> void:
+	"""Kill any currently running camera tween to prevent conflicts"""
+	if current_camera_tween and current_camera_tween.is_valid():
+		current_camera_tween.kill()
+		current_camera_tween = null
+
+func create_camera_tween(target_position: Vector2, duration: float = 0.5, transition: Tween.TransitionType = Tween.TRANS_SINE, ease: Tween.EaseType = Tween.EASE_OUT) -> void:
+	"""Create a camera tween with proper management to prevent conflicts"""
+	# Kill any existing camera tween first
+	kill_current_camera_tween()
+	
+	# Create new tween
+	current_camera_tween = get_tree().create_tween()
+	current_camera_tween.tween_property(camera, "position", target_position, duration).set_trans(transition).set_ease(ease)
+	
+	# Clean up when tween completes
+	current_camera_tween.finished.connect(func(): current_camera_tween = null)

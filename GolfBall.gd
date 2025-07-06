@@ -78,6 +78,7 @@ var sprite: Sprite2D
 var shadow: Sprite2D
 var base_scale := Vector2.ONE
 var max_height := 0.0
+var shadow_base_scale := Vector2.ONE # Store the shadow's original scale from the scene
 
 # Height sweet spot constants (matching LaunchManager.gd)
 const HEIGHT_SWEET_SPOT_MIN := 0.3 # 30% of max height
@@ -814,47 +815,56 @@ func _process(delta):
 	update_visual_effects()
 
 func update_visual_effects():
-	if not sprite:
+	if not sprite or not shadow:
 		return
-	
-	# Use standardized height visual effects
+
+	# Use standardized height visual effects for the ball sprite (if needed)
 	Global.apply_standard_height_visual_effects(sprite, shadow, z, base_scale)
-	
+
+	# Shadow scaling and opacity based on height
+	var min_shadow_scale = 0.5  # Smallest shadow at max height (relative to base)
+	var max_shadow_scale = 1.0  # Full size on ground (relative to base)
+	var min_shadow_alpha = 0.1  # Most transparent at max height
+	var max_shadow_alpha = 0.4  # Most opaque on ground
+
+	var height_ratio = clamp(z / MAX_LAUNCH_HEIGHT, 0.0, 1.0)
+	var shadow_scale = lerp(max_shadow_scale, min_shadow_scale, height_ratio)
+	var shadow_alpha = lerp(max_shadow_alpha, min_shadow_alpha, height_ratio)
+
+	shadow.scale = shadow_base_scale * shadow_scale
+	shadow.modulate.a = shadow_alpha
+
 	# Update element sprite position and effects
 	if element_sprite and element_sprite.visible:
 		# Position element sprite to match the ball sprite
 		element_sprite.position = sprite.position
 		element_sprite.scale = sprite.scale
 		element_sprite.z_index = sprite.z_index + 1  # Element appears on top of ball
-		
 		# Add element-specific visual effects
 		if current_element and current_element.name == "Fire":
 			# Add fire flickering effect
 			var flicker = sin(Time.get_ticks_msec() * 0.01) * 0.1 + 0.9
 			element_sprite.modulate.a = flicker
-	
+
 	# Add rolling-specific effects
 	if is_rolling:
 		# Slightly smaller when rolling
 		sprite.scale *= 0.9
 		if shadow:
 			shadow.scale *= 1.1
-			shadow.modulate = Color(0, 0, 0, 0.4)  # More opaque when rolling
-	
+			shadow.modulate = Color(0, 0, 0, 0.4)
+
 	# Add rotation based on velocity
 	var speed = velocity.length()
 	if speed > 0:
 		# Calculate rotation speed based on velocity magnitude
 		# Faster speed = faster rotation
 		var rotation_speed = speed * 0.01  # Adjust this multiplier to control rotation speed
-		
 		# Calculate rotation direction based on velocity direction
 		# For a golf ball, we want it to rotate forward (like a real golf ball)
 		var velocity_angle = velocity.angle()
-		
 		# Add rotation to the sprite (positive for clockwise rotation)
 		sprite.rotation += rotation_speed
-		
 		# Optional: Add some visual feedback for very fast shots
 		if speed > 200:
 			# Add a slight wobble effect for high-speed shots
@@ -917,6 +927,10 @@ func _ready():
 	sprite = get_node_or_null("Sprite2D")
 	shadow = get_node_or_null("Shadow")
 	element_sprite = get_node_or_null("Element")
+	
+	# Store the shadow's base scale from the scene
+	if shadow:
+		shadow_base_scale = shadow.scale
 	
 	# Initialize element sprite
 	if element_sprite:

@@ -282,6 +282,9 @@ func _on_area_entered(area: Area2D):
 	"""Handle collisions with the oil drum area"""
 	var projectile = area.get_parent()
 	if projectile and (projectile.name == "GolfBall" or projectile.name == "GhostBall" or projectile.has_method("is_throwing_knife")):
+		# Play oil drum thunk sound for ALL collisions (both wall and roof bounce)
+		_play_oil_drum_sound()
+		
 		# Use the simple roof bounce system for all projectiles
 		if projectile.has_method("_handle_roof_bounce_collision"):
 			projectile._handle_roof_bounce_collision(self)
@@ -343,9 +346,15 @@ func get_grid_position() -> Vector2i:
 
 func _play_oil_drum_sound() -> void:
 	"""Play the oil drum thunk sound - called by reflection system"""
+	# Check cooldown to prevent duplicate sounds
+	var current_time = Time.get_ticks_msec() / 1000.0
+	if has_meta("last_thunk_time") and get_meta("last_thunk_time") + 0.1 > current_time:
+		return  # Still in cooldown
+	
 	var thunk = get_node_or_null("OilDrumThunk")
 	if thunk:
 		thunk.play()
+		set_meta("last_thunk_time", current_time)
 		print("✓ OilDrumThunk sound played for collision")
 	else:
 		print("✗ OilDrumThunk sound not found")
@@ -364,5 +373,4 @@ func _handle_roof_bounce_collision(projectile: Node2D) -> void:
 	# Apply damage to oil drum
 	take_damage(damage)
 	
-	# Play oil drum thunk sound
-	_play_oil_drum_sound()
+	# Note: Sound is now played in _on_area_entered for all collisions
