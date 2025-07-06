@@ -90,6 +90,7 @@ var hole_score := 0
 var sticky_shot_active := false  # Track if StickyShot effect is active
 var bouncey_shot_active := false  # Track if Bouncey effect is active
 var fire_ball_active := false  # Track if FireBall effect is active
+var ice_ball_active := false  # Track if IceBall effect is active
 var next_shot_modifier := ""  # Track what modifier to apply to next shot
 var next_card_doubled := false  # Track if the next card should have its effect doubled
 
@@ -175,6 +176,16 @@ var club_data = {
 		"max_distance": 200.0,
 		"min_distance": 100.0,    # Same as old Putter settings
 		"trailoff_forgiveness": 0.2  # Same as old Putter settings
+	},
+	"Fire Club": {
+		"max_distance": 900.0,
+		"min_distance": 400.0,    # Medium gap (500)
+		"trailoff_forgiveness": 0.5  # Medium forgiving
+	},
+	"Ice Club": {
+		"max_distance": 900.0,
+		"min_distance": 400.0,    # Medium gap (500)
+		"trailoff_forgiveness": 0.5  # Medium forgiving
 	}
 }
 
@@ -2420,7 +2431,7 @@ func draw_club_cards() -> void:
 
 func _on_club_card_pressed(club_name: String, club_info: Dictionary, button: TextureButton) -> void:
 	selected_club = club_name
-	var base_max_distance = club_info["max_distance"]
+	var base_max_distance = club_info.get("max_distance", 600.0)  # Default fallback distance
 	var strength_modifier = player_stats.get("strength", 0)
 	var strength_multiplier = 1.0 + (strength_modifier * 0.1)  # Same multiplier as power calculation
 	max_shot_distance = base_max_distance * strength_multiplier
@@ -3163,6 +3174,46 @@ func _on_ball_launched(ball: Node2D):
 			ball.set_element(fire_element)
 			fire_ball_active = false
 			next_shot_modifier = ""
+		
+		if ice_ball_active and next_shot_modifier == "ice_ball":
+			# Load the Ice element data and apply it to the ball
+			var ice_element = preload("res://Elements/Ice.tres")
+			ball.set_element(ice_element)
+			ice_ball_active = false
+			next_shot_modifier = ""
+		
+		# Handle elemental club effects
+		if selected_club == "Fire Club":
+			# Apply Fire element to the ball
+			var fire_element = preload("res://Elements/Fire.tres")
+			ball.set_element(fire_element)
+			print("Fire Club selected - applying Fire element to ball")
+			
+			# Play flame sound effect
+			var flame_sound = ball.get_node_or_null("FlameOn")
+			if flame_sound:
+				flame_sound.play()
+				print("Playing Fire Club flame sound effect")
+			
+			# Fire Club special effect: Reduced friction on grass/rough tiles
+			ball.fire_club_active = true
+			print("Fire Club special effect: Reduced friction on grass/rough tiles")
+		
+		elif selected_club == "Ice Club":
+			# Apply Ice element to the ball
+			var ice_element = preload("res://Elements/Ice.tres")
+			ball.set_element(ice_element)
+			print("Ice Club selected - applying Ice element to ball")
+			
+			# Play ice sound effect
+			var ice_sound = ball.get_node_or_null("IceOn")
+			if ice_sound:
+				ice_sound.play()
+				print("Playing Ice Club ice sound effect")
+			
+			# Ice Club special effect: Can pass through water tiles
+			ball.ice_club_active = true
+			print("Ice Club special effect: Can pass through water tiles")
 
 func _on_launch_phase_entered():
 	game_phase = "launch"

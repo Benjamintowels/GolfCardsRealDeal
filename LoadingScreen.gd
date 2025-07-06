@@ -92,6 +92,7 @@ var resources_to_load = [
 	"res://Cards/Wooden.png",
 	"res://Cards/FloridaScramble.png",
 	"res://Cards/PistolCard.png",
+	"res://Cards/IceBall.png",
 ]
 
 var loaded_resources = {}

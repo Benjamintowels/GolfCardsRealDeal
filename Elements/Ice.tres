@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="ElementData" load_steps=3 format=3 uid="uid://bua7yp3h380c6"]
+
+[ext_resource type="Script" uid="uid://dk64kh6fkqud7" path="res://Elements/ElementData.gd" id="1_ice"]
+[ext_resource type="Texture2D" uid="uid://c4ym4nlxofwpm" path="res://Elements/Ice.png" id="2_ice"]
+
+[resource]
+script = ExtResource("1_ice")
+name = "Ice"
+texture = ExtResource("2_ice")
+color = Color(0.8, 0.9, 1, 1)

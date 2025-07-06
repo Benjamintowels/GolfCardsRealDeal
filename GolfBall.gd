@@ -110,6 +110,10 @@ var bouncey_shot_active: bool = false  # Track if Bouncey effect is active
 var current_element: ElementData = null  # Current element applied to the ball
 var element_sprite: Sprite2D = null  # Reference to the Element sprite node
 
+# Elemental club effect variables
+var fire_club_active: bool = false  # Fire Club special effects
+var ice_club_active: bool = false  # Ice Club special effects
+
 # Ball landing highlight system
 var final_landing_tile: Vector2i = Vector2i.ZERO  # Track the final tile where ball stopped
 var landing_highlight: ColorRect = null  # Visual highlight for the final landing tile
@@ -484,13 +488,18 @@ func _process(delta):
 			var tile_y = int(floor(position.y / cell_size))
 			var tile_type = map_manager.get_tile_type(tile_x, tile_y) if map_manager else ""
 			if tile_type == "W":
-				velocity = Vector2.ZERO
-				vz = 0.0
-				landed_flag = true
-				remove_landing_highlight()  # Remove highlight if it exists
-				reset_shot_effects()
-				out_of_bounds.emit()
-				return
+				# Ice Club can pass through water tiles
+				if ice_club_active:
+					print("Ice Club effect: Ball passes through water tile")
+					# Continue normal physics - don't stop the ball
+				else:
+					velocity = Vector2.ZERO
+					vz = 0.0
+					landed_flag = true
+					remove_landing_highlight()  # Remove highlight if it exists
+					reset_shot_effects()
+					out_of_bounds.emit()
+					return
 			elif tile_type == "S":  # Sand trap
 				velocity = Vector2.ZERO
 				vz = 0.0
@@ -624,13 +633,18 @@ func _process(delta):
 			var tile_y = int(floor(position.y / cell_size))
 			var tile_type = map_manager.get_tile_type(tile_x, tile_y)
 			if tile_type == "W":
-				velocity = Vector2.ZERO
-				vz = 0.0
-				landed_flag = true
-				remove_landing_highlight()  # Remove highlight if it exists
-				reset_shot_effects()
-				out_of_bounds.emit()
-				return
+				# Ice Club can pass through water tiles
+				if ice_club_active:
+					print("Ice Club effect: Ball passes through water tile while rolling")
+					# Continue normal physics - don't stop the ball
+				else:
+					velocity = Vector2.ZERO
+					vz = 0.0
+					landed_flag = true
+					remove_landing_highlight()  # Remove highlight if it exists
+					reset_shot_effects()
+					out_of_bounds.emit()
+					return
 			elif tile_type == "S":  # Sand trap
 				velocity = Vector2.ZERO
 				vz = 0.0
@@ -696,13 +710,18 @@ func _process(delta):
 			var tile_y_roll = int(floor(position.y / cell_size))
 			var tile_type_roll = map_manager.get_tile_type(tile_x_roll, tile_y_roll) if map_manager else ""
 			if tile_type_roll == "W":
-				velocity = Vector2.ZERO
-				vz = 0.0
-				landed_flag = true
-				remove_landing_highlight()  # Remove highlight if it exists
-				reset_shot_effects()
-				out_of_bounds.emit()
-				return
+				# Ice Club can pass through water tiles
+				if ice_club_active:
+					print("Ice Club effect: Ball passes through water tile while rolling")
+					# Continue normal physics - don't stop the ball
+				else:
+					velocity = Vector2.ZERO
+					vz = 0.0
+					landed_flag = true
+					remove_landing_highlight()  # Remove highlight if it exists
+					reset_shot_effects()
+					out_of_bounds.emit()
+					return
 			elif tile_type_roll == "S":  # Sand trap
 				velocity = Vector2.ZERO
 				vz = 0.0
@@ -845,6 +864,13 @@ func update_visual_effects():
 			# Add fire flickering effect
 			var flicker = sin(Time.get_ticks_msec() * 0.01) * 0.1 + 0.9
 			element_sprite.modulate.a = flicker
+		elif current_element and current_element.name == "Ice":
+			# Add ice shimmering effect
+			var shimmer = sin(Time.get_ticks_msec() * 0.005) * 0.05 + 0.95
+			element_sprite.modulate.a = shimmer
+			# Add a subtle blue tint that pulses
+			var blue_tint = sin(Time.get_ticks_msec() * 0.003) * 0.1 + 0.9
+			element_sprite.modulate.b = blue_tint
 
 	# Add rolling-specific effects
 	if is_rolling:
@@ -893,6 +919,12 @@ func update_tile_friction() -> void:
 	else:
 		current_tile_friction = 0.60  # Default friction
 		print("Unknown tile type:", tile_type, "at position:", tile_pos, "using default friction")
+	
+	# Apply Fire Club special effect: Reduced friction on grass/rough tiles
+	if fire_club_active and (tile_type == "R" or tile_type == "F"):
+		# Fire Club burns through grass/rough, reducing friction (higher values = less friction)
+		current_tile_friction = min(current_tile_friction + 0.2, 0.95)  # Reduce friction by 0.2, cap at 0.95
+		print("Fire Club effect: Reduced friction on", tile_type, "tile from", tile_friction_values.get(tile_type, 0.60), "to", current_tile_friction)
 
 func check_bounce_reduction() -> void:
 	"""Check if the ball should have its bounces reduced based on the tile it landed on"""
@@ -1071,6 +1103,10 @@ func reset_shot_effects() -> void:
 	sticky_shot_active = false
 	bouncey_shot_active = false
 	clear_element()  # Clear any element effects
+	
+	# Reset elemental club effects
+	fire_club_active = false
+	ice_club_active = false
 
 func notify_course_of_collision() -> void:
 	"""Notify the course that the ball has collided with something, so it can re-enable player collision"""

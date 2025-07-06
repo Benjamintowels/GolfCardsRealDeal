@@ -631,7 +631,7 @@ func get_movement_cards() -> Array[CardData]:
 	var current_deck = get_current_deck()
 	var movement_cards: Array[CardData] = []
 	for card in current_deck:
-		if card.effect_type != "Club":
+		if not is_club_card(card):
 			movement_cards.append(card)
 	return movement_cards
 
@@ -641,7 +641,7 @@ func get_club_cards() -> Array[CardData]:
 	var club_cards: Array[CardData] = []
 	
 	for card in current_deck:
-		if card.effect_type == "Club":
+		if is_club_card(card):
 			club_cards.append(card)
 	
 	return club_cards
@@ -688,7 +688,7 @@ func create_slot_container() -> Control:
 
 func is_club_card(card_data: CardData) -> bool:
 	"""Check if a card is a club card based on its name"""
-	var club_names = ["Putter", "Wooden", "Iron", "Hybrid", "Driver", "PitchingWedge", "FireClub", "IceClub"]
+	var club_names = ["Putter", "Wooden", "Iron", "Hybrid", "Driver", "PitchingWedge", "Fire Club", "Ice Club"]
 	return club_names.has(card_data.name)
 
 func create_placeholder_slot() -> Control:

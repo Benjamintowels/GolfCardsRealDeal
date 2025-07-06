@@ -123,7 +123,7 @@ func add_card_to_deck(card: CardData) -> void:
 
 func is_club_card(card: CardData) -> bool:
 	"""Check if a card is a club card based on its name"""
-	var club_names = ["Putter", "Wooden", "Iron", "Hybrid", "Driver", "PitchingWedge", "FireClub", "IceClub"]
+	var club_names = ["Putter", "Wooden", "Iron", "Hybrid", "Driver", "PitchingWedge", "Fire Club", "Ice Club"]
 	return club_names.has(card.name)
 
 func draw_from_club_deck(count: int = 1) -> Array[CardData]:
