@@ -134,6 +134,17 @@ var current_ground_level: float = 0.0  # Current ground level (can be elevated b
 var last_wall_collision_time: float = 0.0  # Time of last wall collision
 var wall_collision_cooldown: float = 0.1  # Cooldown between wall collisions (seconds)
 
+# Rolling collision delay system
+var rolling_collision_delay_distance: float = 100.0  # Distance ball must roll before player collision activates
+var rolling_start_position: Vector2 = Vector2.ZERO  # Position where rolling started
+var rolling_collision_enabled: bool = true  # Whether rolling collisions are enabled
+
+# Enhanced collision prevention system
+var last_player_collision_time: float = 0.0  # Time of last player collision
+var player_collision_cooldown: float = 0.5  # Cooldown between player collisions (seconds)
+var player_collision_count: int = 0  # Number of consecutive player collisions
+var max_player_collisions: int = 3  # Maximum consecutive player collisions before forcing escape
+
 # Call this to launch the ball
 func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, spin_strength_category: int = 0):
 	# Reset landing highlight and signal flag for new shot
@@ -261,11 +272,21 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 	# Reset wall collision system for new shot
 	last_wall_collision_time = 0.0
 	
+	# Reset rolling collision delay system for new shot
+	rolling_collision_enabled = true
+	rolling_start_position = Vector2.ZERO
+	
+	# Reset enhanced collision prevention system for new shot
+	last_player_collision_time = 0.0
+	player_collision_count = 0
+	
 	# Special handling for putters - start rolling immediately
 	if is_putting:
 		is_rolling = true
 		roll_start_position = position
 		putt_start_time = Time.get_ticks_msec()  # Record when putt started in milliseconds
+		rolling_start_position = position  # Record position for collision delay
+		rolling_collision_enabled = false  # Disable collisions until ball moves away
 	
 	# Store initial height and calculate first bounce height
 	initial_height = height
@@ -535,6 +556,8 @@ func _process(delta):
 				vz = 0.0
 				is_rolling = true
 				roll_start_position = position  # Record where rolling started
+				rolling_start_position = position  # Record position for collision delay
+				rolling_collision_enabled = false  # Disable collisions until ball moves away
 	
 	elif vz > 0.0:
 		# Ball is bouncing up from ground
@@ -690,6 +713,8 @@ func _process(delta):
 				vz = 0.0
 				is_rolling = true
 				roll_start_position = position  # Record where rolling started
+				rolling_start_position = position  # Record position for collision delay
+				rolling_collision_enabled = false  # Disable collisions until ball moves away
 		
 		if is_rolling:
 			# Ball is rolling on the ground
@@ -719,6 +744,9 @@ func _process(delta):
 				reset_shot_effects()
 				sand_landing.emit()
 				return
+			
+			# Check rolling collision delay and enable collisions if ball has moved far enough
+			_check_rolling_collision_delay()
 			
 			# Check for wall/shop collisions while rolling (pinball effect)
 			check_rolling_wall_collisions()
@@ -994,6 +1022,14 @@ func _on_area_entered(area):
 		area.get_parent()._handle_ball_collision(self)
 	# Check if this is a Player collision
 	elif area.get_parent() and area.get_parent().has_method("take_damage"):
+		# Player collision detected - check if collision should be allowed
+		if not _should_allow_player_collision():
+			return  # Skip this collision based on various conditions
+		
+		# Update collision tracking
+		player_collision_count += 1
+		last_player_collision_time = Time.get_ticks_msec() / 1000.0
+		
 		# Player collision detected - handle player damage
 		_handle_player_collision(area.get_parent())
 		# Notify course to re-enable player collision since ball hit player
@@ -1378,16 +1414,92 @@ func _reflect_from_out_of_bounds(tile_pos: Vector2i) -> void:
 	if ball_land_sound and ball_land_sound.stream:
 		ball_land_sound.play()
 
+func _check_rolling_collision_delay() -> void:
+	"""
+	Check if the ball has rolled far enough to enable player collisions.
+	This prevents balls from getting stuck inside the player's Area2D when they start rolling.
+	"""
+	if rolling_collision_enabled:
+		return  # Already enabled
+	
+	# Calculate distance from rolling start position
+	var distance_from_start = position.distance_to(rolling_start_position)
+	
+	# Enable collisions if ball has moved far enough
+	if distance_from_start >= rolling_collision_delay_distance:
+		rolling_collision_enabled = true
+		print("✓ Rolling collision delay complete - collisions enabled")
+
+func _should_allow_player_collision() -> bool:
+	"""
+	Check if player collision should be allowed based on various conditions.
+	This prevents infinite collision loops and stuck balls.
+	"""
+	var current_time = Time.get_ticks_msec() / 1000.0  # Convert to seconds
+	
+	# Check collision cooldown
+	if current_time - last_player_collision_time < player_collision_cooldown:
+		print("⚠ Player collision cooldown active - skipping collision")
+		return false
+	
+	# Check if we've hit the player too many times consecutively
+	if player_collision_count >= max_player_collisions:
+		print("⚠ Maximum player collisions reached - forcing escape")
+		_force_escape_from_player()
+		return false
+	
+	# Check rolling collision delay for rolling balls
+	if is_rolling and not rolling_collision_enabled:
+		print("⚠ Rolling collision delay active - skipping player collision")
+		return false
+	
+	return true
+
+func _force_escape_from_player() -> void:
+	"""
+	Force the ball to escape from the player area when stuck in collision loop.
+	"""
+	print("=== FORCING BALL ESCAPE FROM PLAYER ===")
+	
+	# Find the player to calculate escape direction
+	var player = null
+	var players = get_tree().get_nodes_in_group("rectangular_obstacles")
+	for p in players:
+		if p.has_method("take_damage"):  # This identifies the player
+			player = p
+			break
+	
+	if player:
+		var player_pos = player.global_position
+		var ball_pos = global_position
+		
+		# Calculate direction away from player
+		var escape_direction = (ball_pos - player_pos).normalized()
+		if escape_direction.length() < 0.1:  # If ball is exactly on player, use random direction
+			escape_direction = Vector2(randf_range(-1, 1), randf_range(-1, 1)).normalized()
+		
+		# Apply strong escape velocity
+		var escape_velocity = escape_direction * 200.0  # Strong escape force
+		velocity = escape_velocity
+		
+		# Reset collision count and cooldown
+		player_collision_count = 0
+		last_player_collision_time = Time.get_ticks_msec() / 1000.0
+		
+		print("✓ Ball forced to escape with velocity:", escape_velocity)
+	else:
+		print("✗ Could not find player for escape calculation")
+
 func check_rolling_wall_collisions() -> void:
 	"""
-	Check for wall/shop collisions while rolling (pinball effect).
+	Check for wall/shop/player collisions while rolling (pinball effect).
 	"""
 	# Check cooldown to prevent multiple bounces
 	var current_time = Time.get_ticks_msec() / 1000.0  # Convert to seconds
 	if current_time - last_wall_collision_time < wall_collision_cooldown:
 		return  # Still in cooldown
 	
-	# Get all rectangular obstacle objects in the scene (includes shops and stone walls)
+	# Get all rectangular obstacle objects in the scene (includes shops, stone walls, and players)
 	var rectangular_obstacles = get_tree().get_nodes_in_group("rectangular_obstacles")
 	
 	for obstacle in rectangular_obstacles:
@@ -1403,29 +1515,45 @@ func check_rolling_wall_collisions() -> void:
 		
 		# If ball is within obstacle collision area, bounce it off
 		if distance <= collision_radius:
-			# Rolling ball hit rectangular obstacle - pinball bounce!
-			# Update collision time
-			last_wall_collision_time = current_time
-			
-			# Calculate bounce direction (away from obstacle center)
-			var bounce_direction = (ball_pos - obstacle_pos).normalized()
-			
-			# Reflect velocity across the bounce direction
-			var reflected_velocity = velocity - 2 * velocity.dot(bounce_direction) * bounce_direction
-			
-			# Reduce speed slightly to prevent infinite bouncing
-			reflected_velocity *= 0.8
-			
-			# Add a small amount of randomness to prevent infinite loops
-			var random_angle = randf_range(-0.1, 0.1)
-			reflected_velocity = reflected_velocity.rotated(random_angle)
-			
-			# Apply the reflected velocity
-			velocity = reflected_velocity
-			
-			# Play collision sound if available
-			if ball_land_sound and ball_land_sound.stream:
-				ball_land_sound.play()
-			
-			# Ball bounced off rectangular obstacle - debug info removed for performance
-			break  # Only handle one collision per frame
+			# Check if this is a player collision
+			if obstacle.has_method("handle_ball_collision"):
+				# This is a player - check if collision should be allowed
+				if not _should_allow_player_collision():
+					continue  # Skip this collision based on various conditions
+				
+				# Update collision tracking
+				player_collision_count += 1
+				last_player_collision_time = Time.get_ticks_msec() / 1000.0
+				
+				# This is a player - handle player collision
+				obstacle.handle_ball_collision(self)
+				# Update collision time
+				last_wall_collision_time = current_time
+				break  # Only handle one collision per frame
+			else:
+				# This is a regular obstacle (wall/shop) - pinball bounce!
+				# Update collision time
+				last_wall_collision_time = current_time
+				
+				# Calculate bounce direction (away from obstacle center)
+				var bounce_direction = (ball_pos - obstacle_pos).normalized()
+				
+				# Reflect velocity across the bounce direction
+				var reflected_velocity = velocity - 2 * velocity.dot(bounce_direction) * bounce_direction
+				
+				# Reduce speed slightly to prevent infinite bouncing
+				reflected_velocity *= 0.8
+				
+				# Add a small amount of randomness to prevent infinite loops
+				var random_angle = randf_range(-0.1, 0.1)
+				reflected_velocity = reflected_velocity.rotated(random_angle)
+				
+				# Apply the reflected velocity
+				velocity = reflected_velocity
+				
+				# Play collision sound if available
+				if ball_land_sound and ball_land_sound.stream:
+					ball_land_sound.play()
+				
+				# Ball bounced off rectangular obstacle - debug info removed for performance
+				break  # Only handle one collision per frame

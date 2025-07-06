@@ -44,6 +44,10 @@ var is_in_launch_mode: bool = false  # Track if we're in launch mode (ball flyin
 # No camera tracking needed since camera panning doesn't affect Y-sort in 2.5D
 
 func _ready():
+	# Add to groups for smart optimization and roof bounce system
+	add_to_group("collision_objects")
+	add_to_group("rectangular_obstacles")  # For rolling ball collisions
+	
 	# Look for the character sprite (it's added as a direct child by the course script)
 	for child in get_children():
 		if child is Sprite2D:
@@ -78,12 +82,520 @@ func _connect_character_collision() -> void:
 		# Disconnect any existing connections to avoid duplicates
 		if character_area.area_entered.is_connected(_on_character_area_entered):
 			character_area.area_entered.disconnect(_on_character_area_entered)
+		if character_area.area_exited.is_connected(_on_area_exited):
+			character_area.area_exited.disconnect(_on_area_exited)
 		
 		# Connect to the character's Area2D
 		character_area.area_entered.connect(_on_character_area_entered)
+		character_area.area_exited.connect(_on_area_exited)
 		print("✓ Connected to character Area2D for collision detection")
 	else:
 		print("⚠ No character Area2D found for collision detection")
+
+func _setup_ball_collision() -> void:
+	"""Setup the base collision area for ball detection"""
+	base_collision_area = _find_character_area2d()
+	if base_collision_area:
+		# Set collision layer to 1 so golf balls can detect it
+		base_collision_area.collision_layer = 1
+		# Set collision mask to 1 so it can detect golf balls on layer 1
+		base_collision_area.collision_mask = 1
+		print("✓ Player base collision area setup complete")
+	else:
+		print("✗ ERROR: BaseCollisionArea not found!")
+
+func _on_character_area_entered(area: Area2D) -> void:
+	"""Handle collisions with the character's collision area"""
+	var projectile = area.get_parent()
+	if projectile and (projectile.name == "GolfBall" or projectile.name == "GhostBall" or projectile.has_method("is_throwing_knife")):
+		# Handle the collision using proper Area2D collision detection
+		_handle_area_collision(projectile)
+
+func _on_area_exited(area: Area2D) -> void:
+	"""Handle when projectile exits the Player area - reset ground level"""
+	var projectile = area.get_parent()
+	if projectile and projectile.has_method("get_height"):
+		# Reset the projectile's ground level to normal (0.0)
+		if projectile.has_method("_reset_ground_level"):
+			projectile._reset_ground_level()
+		else:
+			# Fallback: directly reset ground level if method doesn't exist
+			if "current_ground_level" in projectile:
+				projectile.current_ground_level = 0.0
+
+func _handle_area_collision(projectile: Node2D):
+	"""Handle Player area collisions using proper Area2D detection"""
+	print("=== HANDLING PLAYER AREA COLLISION ===")
+	print("Projectile name:", projectile.name)
+	print("Projectile type:", projectile.get_class())
+	
+	# Check if projectile has height information
+	if not projectile.has_method("get_height"):
+		print("✗ Projectile doesn't have height method - using fallback reflection")
+		_reflect_projectile(projectile)
+		return
+	
+	# Get projectile and Player heights
+	var projectile_height = projectile.get_height()
+	var player_height = Global.get_object_height_from_marker(self)
+	
+	print("Projectile height:", projectile_height)
+	print("Player height:", player_height)
+	
+	# Check if this is a throwing knife (special handling)
+	if projectile.has_method("is_throwing_knife") and projectile.is_throwing_knife():
+		_handle_knife_area_collision(projectile, projectile_height, player_height)
+		return
+	
+	# Apply the collision logic:
+	# If projectile height > Player height: allow entry and set ground level
+	# If projectile height < Player height: reflect
+	if projectile_height > player_height:
+		print("✓ Projectile is above Player - allowing entry and setting ground level")
+		_allow_projectile_entry(projectile, player_height)
+	else:
+		print("✗ Projectile is below Player height - reflecting")
+		_reflect_projectile(projectile)
+
+func _handle_knife_area_collision(knife: Node2D, knife_height: float, player_height: float):
+	"""Handle knife collision with Player area"""
+	print("Handling knife Player area collision")
+	
+	if knife_height > player_height:
+		print("✓ Knife is above Player - allowing entry and setting ground level")
+		_allow_projectile_entry(knife, player_height)
+	else:
+		print("✗ Knife is below Player height - reflecting")
+		_reflect_projectile(knife)
+
+func _allow_projectile_entry(projectile: Node2D, player_height: float):
+	"""Allow projectile to enter Player area and set ground level"""
+	print("=== ALLOWING PROJECTILE ENTRY (PLAYER) ===")
+	
+	# Set the projectile's ground level to the Player height
+	if projectile.has_method("_set_ground_level"):
+		projectile._set_ground_level(player_height)
+	else:
+		# Fallback: directly set ground level if method doesn't exist
+		if "current_ground_level" in projectile:
+			projectile.current_ground_level = player_height
+			print("✓ Set projectile ground level to Player height:", player_height)
+	
+	# The projectile will now land on the Player's head instead of passing through
+	# When it exits the area, _on_area_exited will reset the ground level
+
+func _reflect_projectile(projectile: Node2D):
+	"""Reflect projectile off the Player"""
+	print("=== REFLECTING PROJECTILE ===")
+	
+	# Play collision sound for Player collision
+	_play_collision_sound()
+	
+	# Get the projectile's current velocity
+	var projectile_velocity = Vector2.ZERO
+	if projectile.has_method("get_velocity"):
+		projectile_velocity = projectile.get_velocity()
+	elif "velocity" in projectile:
+		projectile_velocity = projectile.velocity
+	
+	print("Reflecting projectile with velocity:", projectile_velocity)
+	
+	var projectile_pos = projectile.global_position
+	var player_center = global_position
+	
+	# Calculate the direction from Player center to projectile
+	var to_projectile_direction = (projectile_pos - player_center).normalized()
+	
+	# Simple reflection: reflect the velocity across the Player center
+	var reflected_velocity = projectile_velocity - 2 * projectile_velocity.dot(to_projectile_direction) * to_projectile_direction
+	
+	# Reduce speed slightly to prevent infinite bouncing
+	reflected_velocity *= 0.8
+	
+	# Add a small amount of randomness to prevent infinite loops
+	var random_angle = randf_range(-0.1, 0.1)
+	reflected_velocity = reflected_velocity.rotated(random_angle)
+	
+	print("Reflected velocity:", reflected_velocity)
+	
+	# Apply the reflected velocity to the projectile
+	if projectile.has_method("set_velocity"):
+		projectile.set_velocity(reflected_velocity)
+	elif "velocity" in projectile:
+		projectile.velocity = reflected_velocity
+
+func _handle_ball_collision(ball: Node2D) -> void:
+	"""Handle ball/knife collisions - check height to determine if ball/knife should pass through"""
+	print("Handling ball/knife collision - checking ball/knife height")
+	
+	# Use enhanced height collision detection with TopHeight markers
+	if Global.is_object_above_obstacle(ball, self):
+		# Ball/knife is above Player entirely - let it pass through
+		print("Ball/knife is above Player entirely - passing through")
+		return
+	else:
+		# Ball/knife is within or below Player height - handle collision
+		print("Ball/knife is within Player height - handling collision")
+		
+		# Check if this is a throwing knife
+		if ball.has_method("is_throwing_knife") and ball.is_throwing_knife():
+			# Handle knife collision with Player
+			_handle_knife_collision(ball)
+		else:
+			# Handle regular ball collision
+			_handle_regular_ball_collision(ball)
+
+func _handle_knife_collision(knife: Node2D) -> void:
+	"""Handle knife collision with Player"""
+	print("Handling knife collision with Player")
+	
+	# Play collision sound effect
+	_play_collision_sound()
+	
+	# Let the knife handle its own collision logic
+	# The knife will determine if it should bounce or stick based on which side hits
+	if knife.has_method("_handle_player_collision"):
+		knife._handle_player_collision(self)
+	else:
+		# Fallback: just reflect the knife
+		_apply_knife_reflection(knife)
+
+func _handle_regular_ball_collision(ball: Node2D) -> void:
+	"""Handle regular ball collision with Player"""
+	print("Handling regular ball collision with Player")
+	
+	# Play collision sound effect
+	_play_collision_sound()
+	
+	# Apply collision effect to the ball
+	_apply_ball_collision_effect(ball)
+
+func _apply_ball_collision_effect(ball: Node2D) -> void:
+	"""Apply collision effect to the ball (bounce, damage, etc.)"""
+	# Check if this is a ghost ball (shouldn't deal damage)
+	var is_ghost_ball = false
+	if ball.has_method("is_ghost"):
+		is_ghost_ball = ball.is_ghost
+	elif "is_ghost" in ball:
+		is_ghost_ball = ball.is_ghost
+	elif ball.name == "GhostBall":
+		is_ghost_ball = true
+	
+	if is_ghost_ball:
+		print("Ghost ball detected - no damage dealt, just reflection")
+		# Ghost balls only reflect, no damage
+		var ball_velocity = Vector2.ZERO
+		if ball.has_method("get_velocity"):
+			ball_velocity = ball.get_velocity()
+		elif "velocity" in ball:
+			ball_velocity = ball.velocity
+		
+		var ball_pos = ball.global_position
+		var player_center = global_position
+		
+		# Calculate the direction from Player center to ball
+		var to_ball_direction = (ball_pos - player_center).normalized()
+		
+		# Simple reflection: reflect the velocity across the Player center
+		var reflected_velocity = ball_velocity - 2 * ball_velocity.dot(to_ball_direction) * to_ball_direction
+		
+		# Reduce speed slightly to prevent infinite bouncing
+		reflected_velocity *= 0.8
+		
+		# Add a small amount of randomness to prevent infinite loops
+		var random_angle = randf_range(-0.1, 0.1)
+		reflected_velocity = reflected_velocity.rotated(random_angle)
+		
+		print("Ghost ball reflected velocity:", reflected_velocity)
+		
+		# Apply the reflected velocity to the ball
+		if ball.has_method("set_velocity"):
+			ball.set_velocity(reflected_velocity)
+		elif "velocity" in ball:
+			ball.velocity = reflected_velocity
+		return
+	
+	# Get the ball's current velocity
+	var ball_velocity = Vector2.ZERO
+	if ball.has_method("get_velocity"):
+		ball_velocity = ball.get_velocity()
+	elif "velocity" in ball:
+		ball_velocity = ball.velocity
+	
+	print("Applying collision effect to ball with velocity:", ball_velocity)
+	
+	# Get ball height for headshot detection
+	var ball_height = 0.0
+	if ball.has_method("get_height"):
+		ball_height = ball.get_height()
+	elif "z" in ball:
+		ball_height = ball.z
+	
+	# Check if this is a headshot
+	var is_headshot = _is_headshot(ball_height)
+	var damage_multiplier = HEADSHOT_MULTIPLIER if is_headshot else 1.0
+	
+	# Calculate base damage based on ball velocity
+	var base_damage = _calculate_velocity_damage(ball_velocity.length())
+	
+	# Apply headshot multiplier if applicable
+	var damage = int(base_damage * damage_multiplier)
+	
+	if is_headshot:
+		print("HEADSHOT! Ball height:", ball_height, "Base damage:", base_damage, "Final damage:", damage)
+	else:
+		print("Body shot. Ball height:", ball_height, "Damage:", damage)
+	
+	# Check if this damage will kill the Player
+	var will_kill = damage >= current_health
+	var overkill_damage = 0
+	
+	if will_kill:
+		# Calculate overkill damage (negative health value)
+		overkill_damage = damage - current_health
+		print("Damage will kill Player! Overkill damage:", overkill_damage)
+		
+		# Apply damage to the Player (this will set health to negative)
+		take_damage(damage, is_headshot)
+		
+		# Apply velocity dampening based on overkill damage
+		var dampened_velocity = _calculate_kill_dampening(ball_velocity, overkill_damage)
+		print("Ball passed through with dampened velocity:", dampened_velocity)
+		
+		# Apply the dampened velocity to the ball (no reflection)
+		if ball.has_method("set_velocity"):
+			ball.set_velocity(dampened_velocity)
+		elif "velocity" in ball:
+			ball.velocity = dampened_velocity
+	else:
+		# Normal collision - apply damage and reflect
+		take_damage(damage, is_headshot)
+		
+		var ball_pos = ball.global_position
+		var player_center = global_position
+		
+		# Calculate the direction from Player center to ball
+		var to_ball_direction = (ball_pos - player_center).normalized()
+		
+		# Simple reflection: reflect the velocity across the Player center
+		var reflected_velocity = ball_velocity - 2 * ball_velocity.dot(to_ball_direction) * to_ball_direction
+		
+		# Reduce speed slightly to prevent infinite bouncing
+		reflected_velocity *= 0.8
+		
+		# Add a small amount of randomness to prevent infinite loops
+		var random_angle = randf_range(-0.1, 0.1)
+		reflected_velocity = reflected_velocity.rotated(random_angle)
+		
+		print("Reflected velocity:", reflected_velocity)
+		
+		# Apply the reflected velocity to the ball
+		if ball.has_method("set_velocity"):
+			ball.set_velocity(reflected_velocity)
+		elif "velocity" in ball:
+			ball.velocity = reflected_velocity
+
+func _apply_knife_reflection(knife: Node2D) -> void:
+	"""Apply reflection effect to a knife (fallback method)"""
+	# Get the knife's current velocity
+	var knife_velocity = Vector2.ZERO
+	if knife.has_method("get_velocity"):
+		knife_velocity = knife.get_velocity()
+	elif "velocity" in knife:
+		knife_velocity = knife.velocity
+	
+	print("Applying knife reflection with velocity:", knife_velocity)
+	
+	var knife_pos = knife.global_position
+	var player_center = global_position
+	
+	# Calculate the direction from Player center to knife
+	var to_knife_direction = (knife_pos - player_center).normalized()
+	
+	# Simple reflection: reflect the velocity across the Player center
+	var reflected_velocity = knife_velocity - 2 * knife_velocity.dot(to_knife_direction) * to_knife_direction
+	
+	# Reduce speed slightly to prevent infinite bouncing
+	reflected_velocity *= 0.8
+	
+	# Add a small amount of randomness to prevent infinite loops
+	var random_angle = randf_range(-0.1, 0.1)
+	reflected_velocity = reflected_velocity.rotated(random_angle)
+	
+	print("Reflected knife velocity:", reflected_velocity)
+	
+	# Apply the reflected velocity to the knife
+	if knife.has_method("set_velocity"):
+		knife.set_velocity(reflected_velocity)
+	elif "velocity" in knife:
+		knife.velocity = reflected_velocity
+
+# Headshot mechanics (same as GangMember)
+const HEADSHOT_MIN_HEIGHT = 150.0  # Minimum height for headshot (150-200 range)
+const HEADSHOT_MAX_HEIGHT = 200.0  # Maximum height for headshot (150-200 range)
+const HEADSHOT_MULTIPLIER = 1.5    # Damage multiplier for headshots
+
+func _is_headshot(ball_height: float) -> bool:
+	"""Check if a ball/knife hit is a headshot based on height"""
+	# Headshot occurs when the ball/knife hits in the head region (150-200 height)
+	return ball_height >= HEADSHOT_MIN_HEIGHT and ball_height <= HEADSHOT_MAX_HEIGHT
+
+func get_headshot_info() -> Dictionary:
+	"""Get information about the headshot system for debugging and UI"""
+	return {
+		"min_height": HEADSHOT_MIN_HEIGHT,
+		"max_height": HEADSHOT_MAX_HEIGHT,
+		"multiplier": HEADSHOT_MULTIPLIER,
+		"total_height": Global.get_object_height_from_marker(self),
+		"headshot_range": HEADSHOT_MAX_HEIGHT - HEADSHOT_MIN_HEIGHT
+	}
+
+func _calculate_velocity_damage(velocity_magnitude: float) -> int:
+	"""Calculate damage based on ball velocity magnitude (same as GangMember)"""
+	# Define velocity ranges for damage scaling
+	const MIN_VELOCITY = 25.0  # Minimum velocity for 1 damage
+	const MAX_VELOCITY = 1200.0  # Maximum velocity for 88 damage
+	
+	# Clamp velocity to our defined range
+	var clamped_velocity = clamp(velocity_magnitude, MIN_VELOCITY, MAX_VELOCITY)
+	
+	# Calculate damage percentage (0.0 to 1.0)
+	var damage_percentage = (clamped_velocity - MIN_VELOCITY) / (MAX_VELOCITY - MIN_VELOCITY)
+	
+	# Scale damage from 1 to 88
+	var damage = 1 + (damage_percentage * 87)
+	
+	# Return as integer
+	var final_damage = int(damage)
+	
+	# Debug output
+	print("=== PLAYER VELOCITY DAMAGE CALCULATION ===")
+	print("Raw velocity magnitude:", velocity_magnitude)
+	print("Clamped velocity:", clamped_velocity)
+	print("Damage percentage:", damage_percentage)
+	print("Calculated damage:", damage)
+	print("Final damage (int):", final_damage)
+	print("=== END PLAYER VELOCITY DAMAGE CALCULATION ===")
+	
+	return final_damage
+
+func _calculate_kill_dampening(ball_velocity: Vector2, overkill_damage: int) -> Vector2:
+	"""Calculate velocity dampening when ball kills the Player (same as GangMember)"""
+	# Define dampening ranges
+	const MIN_OVERKILL = 1  # Minimum overkill for maximum dampening
+	const MAX_OVERKILL = 60  # Maximum overkill for minimum dampening
+	
+	# Clamp overkill damage to our defined range
+	var clamped_overkill = clamp(overkill_damage, MIN_OVERKILL, MAX_OVERKILL)
+	
+	# Calculate dampening factor (0.0 = no dampening, 1.0 = maximum dampening)
+	# Higher overkill = less dampening (ball keeps more speed)
+	var dampening_percentage = 1.0 - ((clamped_overkill - MIN_OVERKILL) / (MAX_OVERKILL - MIN_OVERKILL))
+	
+	# Apply dampening factor to velocity
+	# Maximum dampening reduces velocity to 20% of original
+	# Minimum dampening reduces velocity to 80% of original
+	var dampening_factor = 0.2 + (dampening_percentage * 0.6)  # 0.2 to 0.8 range
+	var dampened_velocity = ball_velocity * dampening_factor
+	
+	# Debug output
+	print("=== PLAYER KILL DAMPENING CALCULATION ===")
+	print("Overkill damage:", overkill_damage)
+	print("Clamped overkill:", clamped_overkill)
+	print("Dampening percentage:", dampening_percentage)
+	print("Dampening factor:", dampening_factor)
+	print("Original velocity magnitude:", ball_velocity.length())
+	print("Dampened velocity magnitude:", dampened_velocity.length())
+	print("=== END PLAYER KILL DAMPENING CALCULATION ===")
+	
+	return dampened_velocity
+
+func _play_collision_sound() -> void:
+	"""Play a sound effect when colliding with projectiles"""
+	# Try to find an audio player in the course
+	var course = get_tree().current_scene
+	if course:
+		var audio_players = course.get_tree().get_nodes_in_group("audio_players")
+		if audio_players.size() > 0:
+			var audio_player = audio_players[0]
+			if audio_player.has_method("play"):
+				audio_player.play()
+				return
+		
+		# Try to find Push sound specifically
+		var push_sound = course.get_node_or_null("Push")
+		if push_sound and push_sound is AudioStreamPlayer2D:
+			push_sound.play()
+			return
+	
+	# Fallback: create a temporary audio player
+	var temp_audio = AudioStreamPlayer2D.new()
+	var sound_file = load("res://Sounds/Push.mp3")
+	if sound_file:
+		temp_audio.stream = sound_file
+		temp_audio.volume_db = -10.0  # Slightly quieter
+		add_child(temp_audio)
+		temp_audio.play()
+		# Remove the audio player after it finishes
+		temp_audio.finished.connect(func(): temp_audio.queue_free())
+
+func take_damage(amount: int, is_headshot: bool = false) -> void:
+	"""Take damage and handle death if health reaches 0"""
+	if not is_alive:
+		print("Player is already dead, ignoring damage")
+		return
+	
+	# Allow negative health for overkill calculations
+	current_health = current_health - amount
+	print("Player took", amount, "damage. Current health:", current_health, "/", max_health)
+	
+	# Update the course's health bar
+	var course = get_tree().current_scene
+	if course and course.has_method("take_damage"):
+		course.take_damage(amount)
+		print("✓ Updated course health bar with", amount, "damage")
+	
+	# Flash appropriate effect based on damage type
+	if is_headshot:
+		flash_headshot()
+	else:
+		flash_damage()
+	
+	if current_health <= 0:
+		print("Player health reached 0 - GAME OVER!")
+		# You can add game over logic here
+		is_alive = false
+	else:
+		print("Player survived with", current_health, "health")
+
+func flash_headshot() -> void:
+	"""Flash the Player with a special headshot effect"""
+	var sprite = get_character_sprite()
+	if not sprite:
+		print("[Player.gd] flash_headshot: No character sprite for headshot flash!")
+		return
+	
+	var original_modulate = sprite.modulate
+	var tween = create_tween()
+	# Flash with a bright gold color for headshots
+	tween.tween_property(sprite, "modulate", Color(1, 0.84, 0, 1), 0.15)  # Bright gold
+	tween.tween_property(sprite, "modulate", Color(1, 0.65, 0, 1), 0.1)   # Deeper gold
+	tween.tween_property(sprite, "modulate", original_modulate, 0.2)
+
+func flash_damage():
+	"""Flash the player red to indicate damage taken"""
+	var sprite = get_character_sprite()
+	if not sprite:
+		print("[Player.gd] flash_damage: No character sprite for damage flash!")
+		return
+	
+	if highlight_tween:
+		highlight_tween.kill()
+	
+	highlight_tween = create_tween()
+	# Flash red for 0.3 seconds, then return to normal
+	highlight_tween.tween_property(sprite, "modulate", Color(1, 0, 0, 1), 0.1)
+	highlight_tween.tween_property(sprite, "modulate", Color(1, 1, 1, 1), 0.2)
 
 func get_character_sprite() -> Sprite2D:
 	# First check direct children
@@ -125,21 +637,6 @@ func force_reset_highlight():
 			highlight_tween.kill()
 	else:
 		print("[Player.gd] force_reset_highlight: No character sprite to reset!")
-
-func flash_damage():
-	"""Flash the player red to indicate damage taken"""
-	var sprite = get_character_sprite()
-	if not sprite:
-		print("[Player.gd] flash_damage: No character sprite for damage flash!")
-		return
-	
-	if highlight_tween:
-		highlight_tween.kill()
-	
-	highlight_tween = create_tween()
-	# Flash red for 0.3 seconds, then return to normal
-	highlight_tween.tween_property(sprite, "modulate", Color(1, 0, 0, 1), 0.1)
-	highlight_tween.tween_property(sprite, "modulate", Color(1, 1, 1, 1), 0.2)
 
 func _input_event(viewport, event, shape_idx):
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
@@ -327,215 +824,20 @@ func _update_mouse_facing() -> void:
 	# Assuming the default sprite faces right, so we flip when mouse is on the left
 	sprite.flip_h = mouse_is_left
 
-# Ball collision methods
-func _setup_ball_collision() -> void:
-	"""Setup the base collision area for ball detection"""
-	# Collision is now handled by the character scene's Area2D
-	# No need to create additional collision areas
-	print("✓ Player collision handled by character scene Area2D")
+# Ball collision methods - using advanced collision system
 
-func _on_character_area_entered(area: Area2D) -> void:
-	"""Handle collisions with the character's collision area"""
-	var ball = area.get_parent()
-	print("=== PLAYER CHARACTER COLLISION DETECTED ===")
-	print("Area name:", area.name)
-	print("Ball parent:", ball.name if ball else "No parent")
-	print("Ball type:", ball.get_class() if ball else "Unknown")
-	print("Ball position:", ball.global_position if ball else "Unknown")
-	
-	# Check if this is a ghost ball and ignore it completely
-	if ball and ball.name == "GhostBall":
-		print("Ghost ball detected - ignoring collision completely")
-		return
-	
-	if ball and (ball.name == "GolfBall" or ball.has_method("is_throwing_knife")):
-		print("Valid ball/knife detected:", ball.name)
-		# Handle the collision
-		_handle_ball_collision(ball)
-	else:
-		print("Invalid ball/knife or non-ball object:", ball.name if ball else "Unknown")
-	print("=== END PLAYER CHARACTER COLLISION ===")
+func _find_character_area2d() -> Area2D:
+	"""Find the Area2D in the character scene"""
+	for child in get_children():
+		if child is Area2D:
+			return child
+		elif child is Node2D:
+			# Check Node2D children
+			for grandchild in child.get_children():
+				if grandchild is Area2D:
+					return grandchild
+	return null
 
-func _handle_ball_collision(ball: Node2D) -> void:
-	"""Handle ball/knife collisions - check height and delay to determine if ball/knife should cause damage"""
-	print("Handling ball/knife collision - checking ball/knife height and delay")
-	
-	# Check if this is a ghost ball (shouldn't deal damage)
-	var is_ghost_ball = false
-	if ball.has_method("is_ghost"):
-		is_ghost_ball = ball.is_ghost
-	elif "is_ghost" in ball:
-		is_ghost_ball = ball.is_ghost
-	elif ball.name == "GhostBall":
-		is_ghost_ball = true
-	
-	if is_ghost_ball:
-		print("Ghost ball detected - no damage dealt, just reflection")
-		# Ghost balls only reflect, no damage
-		_apply_ball_reflection(ball)
-		return
-	
-	# Check if this is a throwing knife
-	if ball.has_method("is_throwing_knife") and ball.is_throwing_knife():
-		# Handle knife collision with player
-		_handle_knife_collision(ball)
-		return
-	
-	# Handle regular ball collision
-	_handle_regular_ball_collision(ball)
-
-func _handle_knife_collision(knife: Node2D) -> void:
-	"""Handle knife collision with player"""
-	print("Handling knife collision with player")
-	
-	# Use enhanced height collision detection with TopHeight markers
-	if Global.is_object_above_obstacle(knife, self):
-		# Knife is above player entirely - let it pass through
-		print("Knife is above player entirely - passing through")
-		return
-	
-	# Check collision delay - knife must travel minimum distance from launch position
-	var knife_distance_from_launch = knife.global_position.distance_to(ball_launch_position)
-	if knife_distance_from_launch < collision_delay_distance:
-		print("Knife too close to launch position (", knife_distance_from_launch, "<", collision_delay_distance, ") - no damage")
-		_apply_knife_reflection(knife)
-		return
-	
-	# Knife is within player height and past delay - handle collision
-	print("Knife is within player height and past delay - handling collision")
-	
-	# Let the knife handle its own collision logic
-	# The knife will determine if it should bounce or stick based on which side hits
-	if knife.has_method("_handle_player_collision"):
-		knife._handle_player_collision(self)
-	else:
-		# Fallback: just reflect the knife
-		_apply_knife_reflection(knife)
-
-func _handle_regular_ball_collision(ball: Node2D) -> void:
-	"""Handle regular ball collision with player"""
-	print("Handling regular ball collision with player")
-	
-	# Use enhanced height collision detection with TopHeight markers
-	if Global.is_object_above_obstacle(ball, self):
-		# Ball is above player entirely - let it pass through
-		print("Ball is above player entirely - passing through")
-		return
-	
-	# Check collision delay - ball must travel minimum distance from launch position
-	var ball_distance_from_launch = ball.global_position.distance_to(ball_launch_position)
-	if ball_distance_from_launch < collision_delay_distance:
-		print("Ball too close to launch position (", ball_distance_from_launch, "<", collision_delay_distance, ") - no damage")
-		_apply_ball_reflection(ball)
-		return
-	
-	# Ball is within player height and past delay - handle collision
-	print("Ball is within player height and past delay - handling collision")
-	
-	# Calculate damage based on ball velocity
-	var damage = _calculate_velocity_damage(ball.get_velocity().length())
-	print("Ball collision damage calculated:", damage)
-	
-	# Apply damage to the player
-	take_damage(damage)
-	
-	# Apply ball reflection
-	_apply_ball_reflection(ball)
-
-func _apply_ball_reflection(ball: Node2D) -> void:
-	"""Apply reflection effect to the ball"""
-	var ball_velocity = Vector2.ZERO
-	if ball.has_method("get_velocity"):
-		ball_velocity = ball.get_velocity()
-	elif "velocity" in ball:
-		ball_velocity = ball.velocity
-	
-	var ball_pos = ball.global_position
-	var player_center = global_position
-	
-	# Calculate the direction from player center to ball
-	var to_ball_direction = (ball_pos - player_center).normalized()
-	
-	# Simple reflection: reflect the velocity across the player center
-	var reflected_velocity = ball_velocity - 2 * ball_velocity.dot(to_ball_direction) * to_ball_direction
-	
-	# Reduce speed slightly to prevent infinite bouncing
-	reflected_velocity *= 0.8
-	
-	# Add a small amount of randomness to prevent infinite loops
-	var random_angle = randf_range(-0.1, 0.1)
-	reflected_velocity = reflected_velocity.rotated(random_angle)
-	
-	print("Reflected velocity:", reflected_velocity)
-	
-	# Apply the reflected velocity to the ball
-	if ball.has_method("set_velocity"):
-		ball.set_velocity(reflected_velocity)
-	elif "velocity" in ball:
-		ball.velocity = reflected_velocity
-
-func _calculate_velocity_damage(velocity_magnitude: float) -> int:
-	"""Calculate damage based on ball velocity magnitude (1-10 range)"""
-	# Define velocity ranges for damage scaling
-	const MIN_VELOCITY = 25.0  # Minimum velocity for 1 damage
-	const MAX_VELOCITY = 1200.0  # Maximum velocity for 10 damage
-	
-	# Clamp velocity to our defined range
-	var clamped_velocity = clamp(velocity_magnitude, MIN_VELOCITY, MAX_VELOCITY)
-	
-	# Calculate damage percentage (0.0 to 1.0)
-	var damage_percentage = (clamped_velocity - MIN_VELOCITY) / (MAX_VELOCITY - MIN_VELOCITY)
-	
-	# Scale damage from 1 to 10
-	var damage = 1 + (damage_percentage * 9)
-	
-	# Return as integer
-	var final_damage = int(damage)
-	
-	# Debug output
-	print("=== PLAYER VELOCITY DAMAGE CALCULATION ===")
-	print("Raw velocity magnitude:", velocity_magnitude)
-	print("Clamped velocity:", clamped_velocity)
-	print("Damage percentage:", damage_percentage)
-	print("Calculated damage:", damage)
-	print("Final damage (int):", final_damage)
-	print("=== END PLAYER VELOCITY DAMAGE CALCULATION ===")
-	
-	return final_damage
-
-func take_damage(amount: int) -> void:
-	"""Take damage and handle death if health reaches 0"""
-	if not is_alive:
-		print("Player is already dead, ignoring damage")
-		return
-	
-	current_health = max(0, current_health - amount)
-	print("Player took", amount, "damage. Current health:", current_health, "/", max_health)
-	
-	# Flash red to indicate damage
-	flash_damage()
-	
-	if current_health <= 0:
-		print("Player health reached 0 - GAME OVER!")
-		# You can add game over logic here
-		is_alive = false
-	else:
-		print("Player survived with", current_health, "health")
-
-func set_ball_launch_position(launch_pos: Vector2) -> void:
-	"""Set the ball launch position for collision delay calculation"""
-	ball_launch_position = launch_pos
-	print("Ball launch position set to:", launch_pos)
-
-# Returns the Y-sorting reference point (base of character's feet)
-func get_y_sort_point() -> float:
-	var ysort_point_node = get_node_or_null("YsortPoint")
-	if ysort_point_node:
-		return ysort_point_node.global_position.y
-	else:
-		return global_position.y
-
-# Mouse facing system methods
 func set_game_phase(phase: String) -> void:
 	"""Set the current game phase for mouse facing logic"""
 	game_phase = phase
@@ -564,18 +866,6 @@ func enable_collision_shape() -> void:
 	if character_area:
 		character_area.monitoring = true
 		character_area.monitorable = true
-
-func _find_character_area2d() -> Area2D:
-	"""Find the Area2D in the character scene"""
-	for child in get_children():
-		if child is Area2D:
-			return child
-		elif child is Node2D:
-			# Check Node2D children
-			for grandchild in child.get_children():
-				if grandchild is Area2D:
-					return grandchild
-	return null
 
 func set_launch_mode(launch_mode: bool) -> void:
 	"""Set the launch mode state for mouse facing logic"""
@@ -681,37 +971,31 @@ func _on_pushback_completed() -> void:
 	if course and course.has_method("smooth_camera_to_player"):
 		course.smooth_camera_to_player()
 
-func _apply_knife_reflection(knife: Node2D) -> void:
-	"""Apply reflection effect to a knife (fallback method)"""
-	# Get the knife's current velocity
-	var knife_velocity = Vector2.ZERO
-	if knife.has_method("get_velocity"):
-		knife_velocity = knife.get_velocity()
-	elif "velocity" in knife:
-		knife_velocity = knife.velocity
-	
-	print("Applying knife reflection with velocity:", knife_velocity)
-	
-	var knife_pos = knife.global_position
-	var player_center = global_position
-	
-	# Calculate the direction from player center to knife
-	var to_knife_direction = (knife_pos - player_center).normalized()
-	
-	# Simple reflection: reflect the velocity across the player center
-	var reflected_velocity = knife_velocity - 2 * knife_velocity.dot(to_knife_direction) * to_knife_direction
-	
-	# Reduce speed slightly to prevent infinite bouncing
-	reflected_velocity *= 0.8
-	
-	# Add a small amount of randomness to prevent infinite loops
-	var random_angle = randf_range(-0.1, 0.1)
-	reflected_velocity = reflected_velocity.rotated(random_angle)
-	
-	print("Reflected knife velocity:", reflected_velocity)
-	
-	# Apply the reflected velocity to the knife
-	if knife.has_method("set_velocity"):
-		knife.set_velocity(reflected_velocity)
-	elif "velocity" in knife:
-		knife.velocity = reflected_velocity
+# Height and collision shape methods for collision system
+func get_height() -> float:
+	"""Get the height of this Player for collision detection"""
+	return Global.get_object_height_from_marker(self)
+
+func get_collision_radius() -> float:
+	"""
+	Get the collision radius for this Player.
+	Used by the roof bounce system to determine when ball has exited collision area.
+	"""
+	return 30.0  # Player collision radius
+
+func handle_ball_collision(ball: Node2D) -> void:
+	"""Handle collision with a ball - called by collision system"""
+	_handle_ball_collision(ball)
+
+# Returns the Y-sorting reference point (base of character's feet)
+func get_y_sort_point() -> float:
+	var ysort_point_node = get_node_or_null("YsortPoint")
+	if ysort_point_node:
+		return ysort_point_node.global_position.y
+	else:
+		return global_position.y
+
+func set_ball_launch_position(launch_pos: Vector2) -> void:
+	"""Set the ball launch position for collision delay calculation"""
+	ball_launch_position = launch_pos
+	print("Ball launch position set to:", launch_pos)
