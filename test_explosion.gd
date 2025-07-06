@@ -1,36 +1,37 @@
 extends Node2D
 
-# Comprehensive test script to verify the explosion system with GangMember ragdoll
-# This can be run to test if the explosion effect and ragdoll animation work correctly
+# Test scene for explosion radius system
+# Press SPACE to trigger an explosion and test the radius effects
 
-var gang_members_created = false
+var gang_members_created: bool = false
+var player_created: bool = false
 
 func _ready():
-	print("=== EXPLOSION SYSTEM TEST WITH RAGDOLL ===")
+	print("=== EXPLOSION RADIUS TEST SCENE ===")
+	print("Press SPACE to trigger explosion")
+	print("GangMembers close to explosion will ragdoll")
+	print("Player within radius will also ragdoll if they survive")
 	
-	# Create some test GangMembers around the explosion point
+	# Create test entities automatically
 	_create_test_gang_members()
-	
-	print("=== TEST READY ===")
-	print("Press SPACE to trigger explosion at (200, 200)")
+	_create_test_player()
 
 func _input(event):
 	if event is InputEventKey and event.pressed and event.keycode == KEY_SPACE:
-		_trigger_explosion()
+		print("=== TRIGGERING EXPLOSION ===")
+		_create_explosion()
 
-func _trigger_explosion():
-	"""Trigger an explosion at the test position"""
-	print("=== TRIGGERING EXPLOSION ===")
+func _create_explosion():
+	"""Create an explosion at the center of the scene"""
+	print("Creating explosion at center of scene")
 	
-	# Test creating an explosion that should affect the GangMembers
-	var explosion = Explosion.create_explosion_at_position(Vector2(200, 200), self)
+	# Create explosion at the center (300, 300)
+	var explosion = Explosion.create_explosion_at_position(Vector2(300, 300), self)
 	
 	if explosion:
 		print("✓ Explosion created successfully")
 	else:
 		print("✗ Failed to create explosion")
-	
-	print("=== EXPLOSION TRIGGERED ===")
 
 func _create_test_gang_members():
 	"""Create test GangMembers at various distances from the explosion point"""
@@ -68,6 +69,55 @@ func _create_test_gang_members():
 	
 	gang_members_created = true
 	print("=== TEST GANGMEMBERS CREATED ===")
+
+func _create_test_player() -> void:
+	"""Create a test player at a position within explosion radius"""
+	print("=== CREATING TEST PLAYER ===")
+	
+	# Load the player scene
+	var player_scene = load("res://Characters/Player1.tscn")
+	if not player_scene:
+		print("✗ ERROR: Could not load Player1.tscn")
+		return
+	
+	# Create player at a position within explosion radius
+	var player_pos = Vector2(200, 200)  # Within 150 pixel radius of explosion center (300, 300)
+	var player = player_scene.instantiate()
+	add_child(player)
+	player.global_position = player_pos
+	
+	# Convert world position to grid position
+	var cell_size = 48
+	var grid_x = floor((player_pos.x - cell_size / 2) / cell_size)
+	var grid_y = floor((player_pos.y - cell_size / 2) / cell_size)
+	
+	# Setup the player
+	if player.has_method("setup"):
+		player.setup(Vector2i(20, 20), cell_size, 0, {})  # grid_size, cell_size, base_mobility, obstacle_map
+		player.set_grid_position(Vector2i(grid_x, grid_y))
+		print("✓ Player setup complete at grid position:", Vector2i(grid_x, grid_y))
+	else:
+		print("✗ ERROR: Player doesn't have setup method")
+	
+	# Enable animations for the player
+	if player.has_method("enable_animations"):
+		player.enable_animations()
+		print("✓ Player animations enabled")
+	
+	print("✓ Test player created at world position:", player_pos, "grid position:", Vector2i(grid_x, grid_y))
+	print("Distance from explosion center:", player_pos.distance_to(Vector2(300, 300)), "pixels")
+	player_created = true
+	print("=== TEST PLAYER CREATED ===")
+
+func _on_create_gang_members_pressed():
+	"""Called when the create GangMembers button is pressed"""
+	if not gang_members_created:
+		_create_test_gang_members()
+
+func _on_create_player_pressed():
+	"""Called when the create player button is pressed"""
+	if not player_created:
+		_create_test_player()
 
 # Import Explosion class
 const Explosion = preload("res://Particles/Explosion.gd") 

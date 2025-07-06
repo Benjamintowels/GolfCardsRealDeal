@@ -40,6 +40,12 @@ var is_charging_height: bool = false  # Will be updated by parent
 var camera: Camera2D = null  # Will be set by parent
 var is_in_launch_mode: bool = false  # Track if we're in launch mode (ball flying)
 
+# Ragdoll animation properties
+var is_ragdolling: bool = false
+var ragdoll_tween: Tween
+var ragdoll_duration: float = 1.5  # Duration of ragdoll animation
+var ragdoll_landing_position: Vector2i  # Where the player will land after ragdoll
+
 # Performance optimization - Y-sort only when moving
 # No camera tracking needed since camera panning doesn't affect Y-sort in 2.5D
 
@@ -966,8 +972,28 @@ func _on_pushback_completed() -> void:
 	# Update Y-sorting one final time (with empty arrays as defaults)
 	update_z_index_for_ysort([], Vector2i.ZERO)
 	
-	# Smoothly tween camera to final position
+	# CRITICAL: Update the course's player position reference
 	var course = get_tree().current_scene
+	if course and "player_grid_pos" in course:
+		course.player_grid_pos = grid_pos
+		print("Course player_grid_pos updated to:", course.player_grid_pos)
+	
+	# Update the course's player position reference
+	if course and course.has_method("update_player_position"):
+		course.update_player_position()
+	
+	# Update the attack handler's player position if it exists
+	if course and course.has_method("get_attack_handler"):
+		var attack_handler = course.get_attack_handler()
+		if attack_handler and attack_handler.has_method("update_player_position"):
+			attack_handler.update_player_position(grid_pos)
+			print("Attack handler player position updated to:", grid_pos)
+	
+	# Emit moved signal to notify the course
+	emit_signal("moved_to_tile", grid_pos)
+	print("Emitted moved_to_tile signal for pushback position:", grid_pos)
+	
+	# Smoothly tween camera to final position
 	if course and course.has_method("smooth_camera_to_player"):
 		course.smooth_camera_to_player()
 
@@ -999,3 +1025,103 @@ func set_ball_launch_position(launch_pos: Vector2) -> void:
 	"""Set the ball launch position for collision delay calculation"""
 	ball_launch_position = launch_pos
 	print("Ball launch position set to:", launch_pos)
+
+func start_ragdoll_animation(direction: Vector2, force: float) -> void:
+	"""Start the ragdoll animation for the player (like GangMember)"""
+	if is_ragdolling:
+		print("Player is already ragdolling, ignoring new ragdoll request")
+		return
+	
+	print("=== STARTING PLAYER RAGDOLL ANIMATION ===")
+	print("Direction:", direction)
+	print("Force:", force)
+	
+	is_ragdolling = true
+	
+	# Stop any current movement
+	stop_movement()
+	
+	# Calculate landing position based on direction and force
+	_calculate_ragdoll_landing_position(direction, force)
+	
+	# Start the ragdoll animation sequence AND movement simultaneously
+	_start_ragdoll_sequence(direction, force)
+	
+	# Start the pushback movement immediately (in parallel with ragdoll animation)
+	push_back(ragdoll_landing_position)
+
+func _calculate_ragdoll_landing_position(direction: Vector2, force: float) -> void:
+	"""Calculate where the player will land after the ragdoll animation - simple 2-tile pushback"""
+	var current_grid_pos = grid_pos
+	
+	# For explosion pushback, always push back exactly 2 tiles in the direction
+	var pushback_distance = 2  # Exactly 2 tiles like gang member system
+	
+	# Calculate pushback direction as grid coordinates
+	var pushback_direction = Vector2i(sign(direction.x), sign(direction.y))
+	if pushback_direction == Vector2i.ZERO:
+		pushback_direction = Vector2i(1, 0)  # Default to right if no clear direction
+	
+	# Calculate target grid position (2 tiles away)
+	var target_grid_pos = current_grid_pos + (pushback_direction * pushback_distance)
+	
+	# Basic bounds checking - ensure position is within reasonable grid bounds
+	if target_grid_pos.x < 0 or target_grid_pos.y < 0 or target_grid_pos.x > 100 or target_grid_pos.y > 100:
+		print("Target position out of bounds, using current position")
+		target_grid_pos = current_grid_pos
+	
+	ragdoll_landing_position = target_grid_pos
+	
+	print("Current grid position:", current_grid_pos)
+	print("Pushback direction:", pushback_direction)
+	print("Target grid position:", ragdoll_landing_position)
+	print("Pushback distance:", ragdoll_landing_position.distance_to(current_grid_pos), "tiles")
+
+func _start_ragdoll_sequence(direction: Vector2, force: float) -> void:
+	"""Start the ragdoll animation sequence - visual effect only, movement handled by push_back"""
+	print("=== STARTING RAGDOLL SEQUENCE ===")
+	
+	# Stop any existing ragdoll tween
+	if ragdoll_tween and ragdoll_tween.is_valid():
+		ragdoll_tween.kill()
+	
+	# Create new ragdoll tween for visual effects only
+	ragdoll_tween = create_tween()
+	ragdoll_tween.set_parallel(true)
+	
+	# Phase 1: Quick tilt backward (visual effect)
+	var tilt_duration = ragdoll_duration * 0.3  # 30% of total time
+	var tilt_angle = -30.0  # Tilt backward 30 degrees (less than gang member)
+	ragdoll_tween.tween_property(self, "rotation_degrees", tilt_angle, tilt_duration)
+	ragdoll_tween.set_trans(Tween.TRANS_QUAD)
+	ragdoll_tween.set_ease(Tween.EASE_OUT)
+	
+	# Phase 2: Return to normal rotation
+	var return_duration = ragdoll_duration * 0.7  # 70% of total time
+	ragdoll_tween.tween_property(self, "rotation_degrees", 0.0, return_duration).set_delay(tilt_duration)
+	ragdoll_tween.set_trans(Tween.TRANS_QUAD)
+	ragdoll_tween.set_ease(Tween.EASE_IN)
+	
+	# Phase 3: Complete ragdoll and trigger movement
+	ragdoll_tween.tween_callback(_on_ragdoll_complete).set_delay(ragdoll_duration)
+	
+	print("✓ Ragdoll visual animation started (movement will be handled separately)")
+
+func _on_ragdoll_complete() -> void:
+	"""Called when the ragdoll animation is complete - movement is handled separately"""
+	print("=== PLAYER RAGDOLL VISUAL ANIMATION COMPLETE ===")
+	
+	is_ragdolling = false
+	
+	print("✓ Player ragdoll visual animation complete (movement handled separately)")
+
+func stop_ragdoll() -> void:
+	"""Stop the ragdoll animation if it's currently running"""
+	if is_ragdolling and ragdoll_tween and ragdoll_tween.is_valid():
+		ragdoll_tween.kill()
+		is_ragdolling = false
+		print("✓ Player ragdoll animation stopped")
+
+func is_currently_ragdolling() -> bool:
+	"""Check if the player is currently ragdolling"""
+	return is_ragdolling

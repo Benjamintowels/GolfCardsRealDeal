@@ -95,7 +95,7 @@ func start_explosion_animation():
 	print("=== EXPLOSION ANIMATION STARTED ===")
 
 func _apply_explosion_radius_effects():
-	"""Apply explosion effects to all GangMembers within the explosion radius"""
+	"""Apply explosion effects to all GangMembers and Player within the explosion radius"""
 	print("=== APPLYING EXPLOSION RADIUS EFFECTS ===")
 	print("Explosion position:", global_position)
 	print("Explosion radius:", EXPLOSION_RADIUS)
@@ -104,8 +104,13 @@ func _apply_explosion_radius_effects():
 	var gang_members = _find_all_gang_members()
 	print("Found", gang_members.size(), "GangMembers in scene")
 	
+	# Find the player
+	var player = _find_player()
+	print("Player found:", player != null)
+	
 	var affected_count = 0
 	
+	# Check GangMembers
 	for gang_member in gang_members:
 		if not is_instance_valid(gang_member):
 			continue
@@ -120,8 +125,20 @@ func _apply_explosion_radius_effects():
 		else:
 			print("✗ GangMember", gang_member.name, "is outside explosion radius")
 	
+	# Check Player
+	if player and is_instance_valid(player):
+		var distance = global_position.distance_to(player.global_position)
+		print("Player distance:", distance)
+		
+		if distance <= EXPLOSION_RADIUS:
+			print("✓ Player is within explosion radius!")
+			_affect_player_with_explosion(player, distance)
+			affected_count += 1
+		else:
+			print("✗ Player is outside explosion radius")
+	
 	print("=== EXPLOSION RADIUS EFFECTS COMPLETE ===")
-	print("Affected", affected_count, "GangMembers")
+	print("Affected", affected_count, "entities (GangMembers + Player)")
 
 func _find_all_gang_members() -> Array:
 	"""Find all GangMember nodes in the scene"""
@@ -157,6 +174,35 @@ func _find_course_script() -> Node:
 		if current_node.get_script() and current_node.get_script().resource_path.ends_with("course_1.gd"):
 			return current_node
 		current_node = current_node.get_parent()
+	return null
+
+func _find_player() -> Node:
+	"""Find the player in the scene"""
+	# Method 1: Try to get from course method
+	var course = _find_course_script()
+	if course and course.has_method("get_player_reference"):
+		var player = course.get_player_reference()
+		if player:
+			print("Found player from course get_player_reference")
+			return player
+	
+	# Method 2: Try to find player in course
+	if course and course.has_node("Player"):
+		var player = course.get_node("Player")
+		if player:
+			print("Found player in course")
+			return player
+	
+	# Method 3: Search scene tree for player
+	var scene_tree = get_tree()
+	var all_nodes = scene_tree.get_nodes_in_group("")
+	
+	for node in all_nodes:
+		if node.name == "Player":
+			print("Found player in scene tree")
+			return node
+	
+	print("No player found in scene")
 	return null
 
 func _affect_gang_member_with_explosion(gang_member: Node, distance: float):
@@ -246,6 +292,83 @@ func _on_explosion_complete():
 	# Remove the explosion from the scene
 	queue_free()
 	print("✓ Explosion removed from scene")
+
+func _affect_player_with_explosion(player: Node, distance: float):
+	"""Apply explosion effects to the player"""
+	print("=== AFFECTING PLAYER WITH EXPLOSION ===")
+	print("Player:", player.name)
+	print("Distance from explosion:", distance)
+	
+	# Calculate damage based on distance (closer = more damage)
+	var damage_factor = 1.0 - (distance / EXPLOSION_RADIUS)
+	var damage = int(EXPLOSION_DAMAGE * damage_factor)
+	
+	print("Damage factor:", damage_factor)
+	print("Calculated damage:", damage)
+	
+	# Check if this damage will kill the player
+	var will_kill = false
+	if player.has_method("take_damage") and "current_health" in player:
+		will_kill = damage >= player.current_health
+	
+	print("Damage will kill player:", will_kill)
+	
+	# Apply damage to the player
+	if player.has_method("take_damage"):
+		player.take_damage(damage)
+		print("✓ Applied", damage, "damage to player")
+	else:
+		print("✗ Player doesn't have take_damage method")
+	
+	# If player survives, start ragdoll animation with pushback
+	if not will_kill:
+		# Start ragdoll animation after a short delay
+		var ragdoll_timer = Timer.new()
+		ragdoll_timer.wait_time = RAGDOLL_DELAY
+		ragdoll_timer.one_shot = true
+		ragdoll_timer.timeout.connect(func(): _start_player_ragdoll(player, distance))
+		add_child(ragdoll_timer)
+		ragdoll_timer.start()
+		
+		print("✓ Scheduled ragdoll animation for player (survived explosion)")
+	else:
+		print("Player died from explosion - no ragdoll animation")
+
+func _start_player_ragdoll(player: Node, distance: float):
+	"""Start the ragdoll animation for the player"""
+	if not is_instance_valid(player):
+		print("✗ Player is no longer valid for ragdoll")
+		return
+	
+	print("=== STARTING PLAYER RAGDOLL ===")
+	print("Player:", player.name)
+	
+	# Calculate ragdoll force based on distance (closer = more force)
+	# Use higher force for players since it only affects visual animation now
+	var force_factor = 1.0 - (distance / EXPLOSION_RADIUS)
+	var ragdoll_force = 200.0 * force_factor  # Increased base force for players (was 100.0)
+	
+	print("Force factor:", force_factor)
+	print("Ragdoll force:", ragdoll_force)
+	
+	# Calculate direction from explosion to player
+	var direction = (player.global_position - global_position).normalized()
+	
+	# Add some randomness to the direction
+	var random_angle = randf_range(-0.3, 0.3)  # ±0.3 radians of randomness
+	var randomized_direction = direction.rotated(random_angle)
+	
+	print("Direction from explosion:", direction)
+	print("Randomized direction:", randomized_direction)
+	
+	# Start the ragdoll animation
+	if player.has_method("start_ragdoll_animation"):
+		player.start_ragdoll_animation(randomized_direction, ragdoll_force)
+		print("✓ Started ragdoll animation via method")
+	else:
+		print("✗ Player doesn't have start_ragdoll_animation method")
+		# Fallback: just apply damage without ragdoll
+		print("✓ Applied fallback damage to player")
 
 # Static method to create explosion at a specific position
 static func create_explosion_at_position(position: Vector2, parent: Node) -> Node2D:

@@ -291,17 +291,28 @@ func fire_weapon() -> void:
 	if hit_target:
 		# Deal damage to all targets (including oil drums)
 		if hit_target.has_method("take_damage"):
-			# Pass weapon position for gang member pushback logic
+			# Check what type of target this is and call take_damage with appropriate parameters
 			var weapon_pos = weapon_instance.global_position if weapon_instance else Vector2.ZERO
-			hit_target.take_damage(weapon_damage, false, weapon_pos)
+			
+			if hit_target.get_script() and hit_target.get_script().resource_path.ends_with("oil_drum.gd"):
+				# Oil drum only takes damage amount
+				hit_target.take_damage(weapon_damage)
+			elif hit_target.get_script() and hit_target.get_script().resource_path.ends_with("GangMember.gd"):
+				# GangMember takes damage, is_headshot, and weapon_position
+				hit_target.take_damage(weapon_damage, false, weapon_pos)
+			elif hit_target.get_script() and hit_target.get_script().resource_path.ends_with("Player.gd"):
+				# Player takes damage and is_headshot
+				hit_target.take_damage(weapon_damage, false)
+			else:
+				# Default: just pass damage amount
+				hit_target.take_damage(weapon_damage)
+			
 			emit_signal("npc_shot", hit_target, weapon_damage)
 		else:
 			return
 	
 	# Exit weapon mode after firing
 	exit_weapon_mode()
-
-
 
 func launch_throwing_knife() -> void:
 	"""Launch a throwing knife using the LaunchManager system"""
@@ -657,7 +668,20 @@ func _handle_knife_hit(knife_instance: Node2D, hit_target: Node) -> void:
 	
 	# Deal damage to the target
 	if hit_target.has_method("take_damage"):
-		hit_target.take_damage(weapon_damage)
+		# Check what type of target this is and call take_damage with appropriate parameters
+		if hit_target.get_script() and hit_target.get_script().resource_path.ends_with("oil_drum.gd"):
+			# Oil drum only takes damage amount
+			hit_target.take_damage(weapon_damage)
+		elif hit_target.get_script() and hit_target.get_script().resource_path.ends_with("GangMember.gd"):
+			# GangMember takes damage, is_headshot, and weapon_position
+			hit_target.take_damage(weapon_damage, false, knife_instance.global_position)
+		elif hit_target.get_script() and hit_target.get_script().resource_path.ends_with("Player.gd"):
+			# Player takes damage and is_headshot
+			hit_target.take_damage(weapon_damage, false)
+		else:
+			# Default: just pass damage amount
+			hit_target.take_damage(weapon_damage)
+		
 		emit_signal("npc_shot", hit_target, weapon_damage)
 		
 		# Check if the target died
