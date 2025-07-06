@@ -135,13 +135,7 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 	velocity = direction.normalized() * power
 	
 	# Remove lines like:
-	# print("=== KNIFE LAUNCH DEBUG ===")
-	# print("Knife position:", global_position)
-	# print("Launch direction:", direction)
-	# print("Power:", power)
-	# print("Final velocity:", velocity)
-	# print("Height:", height)
-	# print("=== END KNIFE LAUNCH DEBUG ===")
+	# Launch debug info removed for performance
 	
 	z = 0.0
 	# Calculate initial vertical velocity to achieve the desired maximum height
@@ -156,11 +150,7 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 	vz -= gravity * 0.016  # Apply one frame of gravity
 	
 	# Remove lines like:
-	# print("=== KNIFE PHYSICS SETUP ===")
-	# print("Initial z:", z)
-	# print("Initial vz:", vz)
-	# print("Height parameter:", height)
-	# print("=== END KNIFE PHYSICS SETUP ===")
+	# Physics setup debug info removed for performance
 	
 	# Get references to sprite and shadow
 	sprite = $ThrowingKnife
@@ -215,7 +205,7 @@ func _setup_collision_detection() -> void:
 		area.collision_mask = 1
 		
 	else:
-		print("✗ ERROR: Area2D not found on knife!")
+		pass  # Area2D not found on knife
 
 func _disable_collision_detection() -> void:
 	"""Disable collision detection when knife has landed"""
@@ -227,7 +217,7 @@ func _disable_collision_detection() -> void:
 		area.collision_layer = 0
 		area.collision_mask = 0
 	else:
-		print("✗ ERROR: Area2D not found on knife!")
+		pass  # Area2D not found on knife
 
 func _on_area_entered(area: Area2D) -> void:
 	"""Handle collisions with objects when knife enters their collision area"""
@@ -238,14 +228,7 @@ func _on_area_entered(area: Area2D) -> void:
 	if not object:
 		return
 	
-	print("=== KNIFE COLLISION DETECTED ===")
-	print("Knife position:", global_position)
-	print("Knife height (z):", z)
-	print("Collision object:", object.name if object else "Unknown")
-	print("Object has _handle_ball_collision:", object.has_method("_handle_ball_collision") if object else false)
-	print("Object has _handle_trunk_collision:", object.has_method("_handle_trunk_collision") if object else false)
-	print("Object has take_damage:", object.has_method("take_damage") if object else false)
-	print("=== END KNIFE COLLISION DEBUG ===")
+	# Knife collision detected - debug info removed for performance
 	
 	# Prevent duplicate collision handling for the same object
 	if last_collision_object == object:
@@ -256,19 +239,16 @@ func _on_area_entered(area: Area2D) -> void:
 	
 	# Check if this is a tree collision
 	if object.has_method("_handle_trunk_collision"):
-		print("Handling tree collision with roof bounce system")
 		_handle_roof_bounce_collision(object)
 		return
 	
 	# Check if this is an NPC collision (GangMember)
 	if object.has_method("_handle_ball_collision"):
-		print("Handling NPC collision with roof bounce system")
 		_handle_roof_bounce_collision(object)
 		return
 	
 	# Check if this is a Shop collision
 	if object.has_method("_handle_shop_collision"):
-		print("Handling shop collision with roof bounce system")
 		_handle_roof_bounce_collision(object)
 		return
 	
@@ -276,7 +256,6 @@ func _on_area_entered(area: Area2D) -> void:
 	
 	# Check if this is a player collision
 	if object.has_method("take_damage") and object.name == "Player":
-		print("Handling player collision")
 		_handle_player_collision(object)
 		return
 
@@ -573,9 +552,6 @@ func _handle_player_stick(player: Node2D) -> void:
 			if is_headshot:
 				# Apply headshot multiplier (assuming 1.5x like GangMember)
 				final_damage = int(base_damage * 1.5)
-				print("KNIFE HEADSHOT ON PLAYER! Height:", z, "Base damage:", base_damage, "Final damage:", final_damage)
-			else:
-				print("Knife body shot on player. Height:", z, "Damage:", final_damage)
 		
 		player.take_damage(final_damage, is_headshot)
 	
@@ -991,11 +967,7 @@ func set_club_info(info: Dictionary):
 	MAX_LAUNCH_POWER = info.get("max_distance", 300.0)
 	MIN_LAUNCH_POWER = info.get("min_distance", 200.0)
 	
-	print("=== THROWING KNIFE CLUB INFO SET ===")
-	print("Max distance:", MAX_LAUNCH_POWER)
-	print("Min distance:", MIN_LAUNCH_POWER)
-	print("Club info:", info)
-	print("=== END THROWING KNIFE CLUB INFO ===")
+	# Club info set - debug info removed for performance
 
 # Method to set time percentage (called by LaunchManager)
 func set_time_percentage(percentage: float):
@@ -1017,31 +989,20 @@ func _handle_roof_bounce_collision(object: Node2D) -> void:
 	Simple collision handler: if projectile height < object height, reflect.
 	If projectile height > object height, set ground to object height.
 	"""
-	print("=== SIMPLE COLLISION HANDLER (KNIFE) ===")
-	print("Object:", object.name)
-	print("Knife height:", z)
-	
 	var object_height = Global.get_object_height_from_marker(object)
-	print("Object height:", object_height)
 	
 	# Check if knife is above the object
 	if z > object_height:
-		print("✓ Knife is above object - setting ground level")
 		current_ground_level = object_height
 	else:
-		print("✗ Knife is below object height - reflecting")
 		_reflect_off_object(object)
 
 func _reflect_off_object(object: Node2D) -> void:
 	"""
 	Simple reflection off an object when knife is below object height.
 	"""
-	print("=== REFLECTING OFF OBJECT (KNIFE) ===")
-	
 	# Get the knife's current velocity
 	var knife_velocity = velocity
-	
-	print("Reflecting knife with velocity:", knife_velocity)
 	
 	# Play collision sound if available
 	if object.has_method("_play_trunk_thunk_sound"):
@@ -1065,8 +1026,6 @@ func _reflect_off_object(object: Node2D) -> void:
 	var random_angle = randf_range(-0.1, 0.1)
 	reflected_velocity = reflected_velocity.rotated(random_angle)
 	
-	print("Reflected knife velocity:", reflected_velocity)
-	
 	# Apply the reflected velocity to the knife
 	velocity = reflected_velocity
 
@@ -1074,16 +1033,10 @@ func _set_ground_level(height: float) -> void:
 	"""
 	Set the ground level to a specific height (used by Area2D collision system).
 	"""
-	print("=== SETTING GROUND LEVEL (KNIFE) ===")
-	print("Setting ground level to:", height)
 	current_ground_level = height
-	print("Ground level set to:", current_ground_level)
 
 func _reset_ground_level() -> void:
 	"""
 	Reset the ground level to normal (0.0) when exiting Area2D collision.
 	"""
-	print("=== RESETTING GROUND LEVEL (KNIFE) ===")
-	print("Resetting ground level from:", current_ground_level, "to 0.0")
-	current_ground_level = 0.0
-	print("Ground level reset to:", current_ground_level) 
+	current_ground_level = 0.0 

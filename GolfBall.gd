@@ -167,7 +167,7 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 		# For putters, don't apply distance-based power scaling
 		if is_putting:
 			scaled_power = power  # Use full power for putters
-			print("Putter detected - using full power:", power)
+			# Putter detected - using full power
 		
 		# Calculate power percentage based on the scaled range (what the player sees on the meter)
 		# Use the same calculation as the power meter in course_1.gd
@@ -221,7 +221,7 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 		else:
 			# Use the power passed from the course directly
 			final_power = power  # Use the power that was passed to the ball
-			print("Shot - using passed power:", power, "target distance:", distance_to_target)
+			# Shot - using passed power
 		
 		# The course now properly calculates club-specific power, so no additional scaling needed
 		# The power passed from the course already accounts for club efficiency
@@ -229,23 +229,14 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 		# Update the power variable to use the calculated value for physics
 		power = final_power
 	else:
-		print("No landing spot chosen - using normal power/height system")
+		pass  # No landing spot chosen - using normal power/height system
 	
 	# Apply the resistance to the final velocity calculation
 	velocity = direction.normalized() * power
 	# Store the original launch direction for spin limits
 	original_launch_direction = direction.normalized()
 	
-	print("=== BALL LAUNCH DEBUG ===")
-	print("Ball position:", global_position)
-	print("Launch direction:", direction)
-	print("Direction normalized:", direction.normalized())
-	print("Power:", power)
-	print("Final velocity:", velocity)
-	print("Velocity length:", velocity.length())
-	print("Height:", height)
-	print("Vertical velocity (vz):", vz)
-	print("=== END BALL LAUNCH DEBUG ===")
+	# Ball launch debug info removed for performance
 	# Apply minimal initial spin - most of the spin effect will come from progressive in-air influence
 	if spin != 0.0:
 		var perp = Vector2(-direction.y, direction.x)
@@ -286,7 +277,7 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 	# Apply Bouncey effect to increase bounce height if active
 	if bouncey_shot_active:
 		first_bounce_height = sqrt(2.0 * gravity * height * 1.2)  # Bouncey effect: Increased bounce height to 120% of initial height
-		print("Bouncey effect: Increased bounce height to", first_bounce_height, "(120% of initial height)")
+		# Bouncey effect: Increased bounce height
 	
 	# Calculate roll distance based on height (higher shots roll less, lower shots roll more)
 	var height_percentage_for_roll = height / MAX_LAUNCH_HEIGHT  # Simplified calculation for 0.0 to MAX_LAUNCH_HEIGHT range
@@ -357,13 +348,7 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 	if bouncey_shot_active:
 		min_bounces = 4  # Double the minimum bounces
 		max_bounces = 4  # Double the maximum bounces
-		print("Bouncey effect: Doubling bounces to", min_bounces, "minimum and", max_bounces, "maximum")
-	
-	print("=== NEW SHOT BOUNCE SETTINGS ===")
-	print("Initial min_bounces:", min_bounces)
-	print("Initial max_bounces:", max_bounces)
-	print("Bouncey effect active:", bouncey_shot_active)
-	print("=== END NEW SHOT BOUNCE SETTINGS ===")
+		# Bouncey effect: Doubling bounces
 
 func set_element(element_data: ElementData) -> void:
 	"""Set the current element for the ball"""
@@ -375,17 +360,17 @@ func set_element(element_data: ElementData) -> void:
 			element_sprite.texture = element_data.texture
 			element_sprite.modulate = element_data.color
 			element_sprite.visible = true
-			print("Element set to:", element_data.name)
+			# Element set
 		else:
 			element_sprite.visible = false
-			print("Element cleared")
+			# Element cleared
 
 func clear_element() -> void:
 	"""Clear the current element from the ball"""
 	current_element = null
 	if element_sprite:
 		element_sprite.visible = false
-		print("Element cleared from ball")
+		# Element cleared from ball
 
 func get_element():
 	"""Get the current element data from the ball"""
@@ -497,7 +482,7 @@ func _process(delta):
 			if tile_type == "W":
 				# Ice Club can pass through water tiles
 				if ice_club_active:
-					print("Ice Club effect: Ball passes through water tile")
+					pass  # Ice Club effect: Ball passes through water tile
 					# Continue normal physics - don't stop the ball
 				else:
 					velocity = Vector2.ZERO
@@ -527,8 +512,7 @@ func _process(delta):
 			if bounce_count < max_bounces and (bounce_count < min_bounces or landing_speed > 50.0):
 				# Check for StickyShot effect
 				if sticky_shot_active and not is_putting:
-					# StickyShot active and not putting - skip bounces and go straight to rolling
-					print("StickyShot effect: Skipping bounces for normal shot")
+					# StickyShot effect: Skipping bounces for normal shot
 					vz = 0.0
 					is_rolling = true
 					roll_start_position = position  # Record where rolling started
@@ -605,8 +589,7 @@ func _process(delta):
 			if bounce_count < max_bounces and (bounce_count < min_bounces or landing_speed > 50.0):
 				# Check for StickyShot effect
 				if sticky_shot_active and not is_putting:
-					# StickyShot active and not putting - skip bounces and go straight to rolling
-					print("StickyShot effect: Skipping bounces for normal shot")
+					# StickyShot effect: Skipping bounces for normal shot
 					vz = 0.0
 					is_rolling = true
 					roll_start_position = position  # Record where rolling started
@@ -642,7 +625,7 @@ func _process(delta):
 			if tile_type == "W":
 				# Ice Club can pass through water tiles
 				if ice_club_active:
-					print("Ice Club effect: Ball passes through water tile while rolling")
+					pass  # Ice Club effect: Ball passes through water tile while rolling
 					# Continue normal physics - don't stop the ball
 				else:
 					velocity = Vector2.ZERO
@@ -665,7 +648,7 @@ func _process(delta):
 		if map_manager != null:
 			var tile_pos = Vector2i(floor(position.x / cell_size), floor(position.y / cell_size))
 			if tile_pos.x < 0 or tile_pos.y < 0 or tile_pos.x >= map_manager.grid_width or tile_pos.y >= map_manager.grid_height:
-				print("Ball landed out of bounds at:", tile_pos)
+				# Ball landed out of bounds
 				velocity = Vector2.ZERO
 				vz = 0.0
 				landed_flag = true
@@ -684,8 +667,7 @@ func _process(delta):
 			if bounce_count < max_bounces and bounce_count < min_bounces:
 				# Check for StickyShot effect
 				if sticky_shot_active and not is_putting:
-					# StickyShot active and not putting - skip bounces and go straight to rolling
-					print("StickyShot effect: Skipping bounces for normal shot")
+					# StickyShot effect: Skipping bounces for normal shot
 					vz = 0.0
 					is_rolling = true
 					roll_start_position = position  # Record where rolling started
@@ -719,7 +701,7 @@ func _process(delta):
 			if tile_type_roll == "W":
 				# Ice Club can pass through water tiles
 				if ice_club_active:
-					print("Ice Club effect: Ball passes through water tile while rolling")
+					pass  # Ice Club effect: Ball passes through water tile while rolling
 					# Continue normal physics - don't stop the ball
 				else:
 					velocity = Vector2.ZERO
@@ -766,8 +748,7 @@ func _process(delta):
 			
 			# StickyShot effect: Remove rolling for normal shots (but maintain for putting)
 			if sticky_shot_active and not is_putting:
-				# StickyShot active and not putting - stop the ball immediately
-				print("StickyShot effect: Stopping ball immediately (no rolling for normal shots)")
+				# StickyShot effect: Stopping ball immediately (no rolling for normal shots)
 				velocity = Vector2.ZERO
 				vz = 0.0
 				landed_flag = true
@@ -775,9 +756,7 @@ func _process(delta):
 				# Calculate final landing tile
 				if map_manager != null:
 					final_landing_tile = Vector2i(floor(position.x / cell_size), floor(position.y / cell_size))
-					print("Ball finally stopped on tile:", final_landing_tile)
-					
-					# Create landing highlight for the final tile
+					# Ball finally stopped on tile
 					create_landing_highlight(final_landing_tile)
 					
 					# Only play ball stop sound if on fairway tile
@@ -789,12 +768,12 @@ func _process(delta):
 					# Emit landed signal with final tile position (only once)
 					if not has_emitted_landed_signal:
 						has_emitted_landed_signal = true
-						print("Ball landed on final tile:", final_landing_tile)
+						# Ball landed on final tile
 						# Reset shot effects after the ball has landed
 						reset_shot_effects()
 						landed.emit(final_landing_tile)
 				else:
-					print("Map manager is null, can't determine final tile")
+					# Map manager is null, can't determine final tile
 					# Reset shot effects even if map manager is null
 					reset_shot_effects()
 				return
@@ -813,9 +792,7 @@ func _process(delta):
 				# Calculate final landing tile
 				if map_manager != null:
 					final_landing_tile = Vector2i(floor(position.x / cell_size), floor(position.y / cell_size))
-					print("Ball finally stopped on tile:", final_landing_tile)
-					
-					# Create landing highlight for the final tile
+					# Ball finally stopped on tile
 					create_landing_highlight(final_landing_tile)
 					
 					# Only play ball stop sound if on fairway tile
@@ -827,12 +804,12 @@ func _process(delta):
 					# Emit landed signal with final tile position (only once)
 					if not has_emitted_landed_signal:
 						has_emitted_landed_signal = true
-						print("Ball landed on final tile:", final_landing_tile)
+						# Ball landed on final tile
 						# Reset shot effects after the ball has landed
 						reset_shot_effects()
 						landed.emit(final_landing_tile)
 				else:
-					print("Map manager is null, can't determine final tile")
+					# Map manager is null, can't determine final tile
 					# Reset shot effects even if map manager is null
 					reset_shot_effects()
 				return
@@ -906,7 +883,7 @@ func update_visual_effects():
 
 func update_tile_friction() -> void:
 	if map_manager == null:
-		print("Map manager is null!")
+		# Map manager is null!
 		return
 		
 	# Calculate which tile the ball is currently on
@@ -914,7 +891,7 @@ func update_tile_friction() -> void:
 	
 	# Check if ball is out of bounds
 	if tile_pos.x < 0 or tile_pos.y < 0 or tile_pos.x >= map_manager.grid_width or tile_pos.y >= map_manager.grid_height:
-		print("Ball is out of bounds at:", tile_pos)
+		# Ball is out of bounds
 		return
 	
 	# Get the tile type at this position
@@ -929,7 +906,7 @@ func update_tile_friction() -> void:
 	
 	# Apply Fire Club special effect: Reduced friction on grass/rough tiles
 	if fire_club_active and (tile_type == "R" or tile_type == "F"):
-		# Fire Club burns through grass/rough, reducing friction (higher values = less friction)
+		# Fire Club effect: Reduced friction on grass/rough tiles
 		current_tile_friction = min(current_tile_friction + 0.2, 0.95)  # Reduce friction by 0.2, cap at 0.95
 		print("Fire Club effect: Reduced friction on", tile_type, "tile from", tile_friction_values.get(tile_type, 0.60), "to", current_tile_friction)
 
@@ -1013,7 +990,7 @@ func _on_area_entered(area):
 	elif area.get_parent() and area.get_parent().has_method("_handle_ball_collision"):
 		# NPC collision detected - let the NPC handle the collision
 		# The NPC will check ball height and apply appropriate effects
-		print("GolfBall: NPC collision detected with", area.get_parent().name)
+		# GolfBall: NPC collision detected
 		area.get_parent()._handle_ball_collision(self)
 	# Check if this is a Player collision
 	elif area.get_parent() and area.get_parent().has_method("take_damage"):
@@ -1209,7 +1186,7 @@ func check_nearby_tree_collisions() -> void:
 					var rustle = tree.get_node_or_null("LeavesRustle")
 					if rustle:
 						rustle.play()
-						print("✓ LeavesRustle sound played - ball passing through leaves near trunk")
+						# LeavesRustle sound played - ball passing through leaves near trunk
 						# Mark when we last played the sound for this ball-tree combination
 						set_meta(sound_key, current_time)
 
@@ -1221,31 +1198,21 @@ func _handle_roof_bounce_collision(object: Node2D) -> void:
 	Simple collision handler: if projectile height < object height, reflect.
 	If projectile height > object height, set ground to object height.
 	"""
-	print("=== SIMPLE COLLISION HANDLER ===")
-	print("Object:", object.name)
-	print("Ball height:", z)
-	
+	# Simple collision handler - debug info removed for performance
 	var object_height = Global.get_object_height_from_marker(object)
-	print("Object height:", object_height)
 	
 	# Check if ball is above the object
 	if z > object_height:
-		print("✓ Ball is above object - setting ground level")
 		current_ground_level = object_height
 	else:
-		print("✗ Ball is below object height - reflecting")
 		_reflect_off_object(object)
 
 func _reflect_off_object(object: Node2D) -> void:
 	"""
 	Simple reflection off an object when ball is below object height.
 	"""
-	print("=== REFLECTING OFF OBJECT ===")
-	
-	# Get the ball's current velocity
+	# Reflecting off object - debug info removed for performance
 	var ball_velocity = velocity
-	
-	print("Reflecting ball with velocity:", ball_velocity)
 	
 	# Play collision sound if available
 	if object.has_method("_play_trunk_thunk_sound"):
@@ -1269,8 +1236,6 @@ func _reflect_off_object(object: Node2D) -> void:
 	var random_angle = randf_range(-0.1, 0.1)
 	reflected_velocity = reflected_velocity.rotated(random_angle)
 	
-	print("Reflected velocity:", reflected_velocity)
-	
 	# Apply the reflected velocity to the ball
 	velocity = reflected_velocity
 
@@ -1278,31 +1243,27 @@ func _set_ground_level(height: float) -> void:
 	"""
 	Set the ground level to a specific height (used by Area2D collision system).
 	"""
-	print("=== SETTING GROUND LEVEL ===")
-	print("Setting ground level to:", height)
+	# Setting ground level - debug info removed for performance
 	current_ground_level = height
-	print("Ground level set to:", current_ground_level)
 
 func _reset_ground_level() -> void:
 	"""
 	Reset the ground level to normal (0.0) when exiting Area2D collision.
 	"""
-	print("=== RESETTING GROUND LEVEL ===")
-	print("Resetting ground level from:", current_ground_level, "to 0.0")
+	# Resetting ground level - debug info removed for performance
 	current_ground_level = 0.0
-	print("Ground level reset to:", current_ground_level)
 
 func _play_roof_bounce_sound(object_type: String) -> void:
 	"""
 	Play the appropriate sound when landing on elevated ground (roof bounce).
 	This is called when the ball actually lands on the elevated surface.
 	"""
-	print("=== PLAYING ROOF BOUNCE SOUND ===")
-	print("Current ground level:", current_ground_level)
+	# Playing roof bounce sound - debug info removed for performance
+	var current_ground_level_debug = current_ground_level
 	
 	# Find the object that set this ground level and play its sound
 	var objects = get_tree().get_nodes_in_group("collision_objects")
-	print("Found", objects.size(), "collision objects")
+	# Found collision objects - debug info removed for performance
 	
 	for obj in objects:
 		if not obj.has_method("get_collision_radius"):
@@ -1311,26 +1272,22 @@ func _play_roof_bounce_sound(object_type: String) -> void:
 		var distance = global_position.distance_to(obj.global_position)
 		var collision_radius = obj.get_collision_radius()
 		
-		print("Checking object:", obj.name, "distance:", distance, "radius:", collision_radius)
-		
-		# Check if we're within the collision radius of this object
+		# Checking collision objects - debug info removed for performance
 		if distance <= collision_radius:
-			# Check if this object's height matches our current ground level
+			# Object height and ground level - debug info removed for performance
 			var obj_height = Global.get_object_height_from_marker(obj)
-			print("Object height:", obj_height, "ground level:", current_ground_level)
-			
 			if abs(obj_height - current_ground_level) < 1.0:  # Small tolerance for floating point
 				# Play the appropriate sound based on object type
 				if obj.name.contains("Shop") or obj.name.contains("shop"):
 					var thunk = obj.get_node_or_null("TrunkThunk")
 					if thunk:
 						thunk.play()
-						print("✓ TrunkThunk sound played for shop roof bounce")
+						# TrunkThunk sound played for shop roof bounce
 				elif obj.name.contains("Tree") or obj.name.contains("tree"):
 					var thunk = obj.get_node_or_null("TrunkThunk")
 					if thunk:
 						thunk.play()
-						print("✓ TrunkThunk sound played for tree roof bounce")
+						# TrunkThunk sound played for tree roof bounce
 				elif obj.name.contains("Oil") or obj.name.contains("oil") or obj.name.contains("OilDrum"):
 					# Don't play oil drum sound on roof bounce - only on actual collision
 					# The oil drum sound should only play when there's a direct collision/reflection
@@ -1351,9 +1308,7 @@ func check_out_of_bounds_collision() -> void:
 	
 	# Check if ball is out of bounds
 	if tile_pos.x < 0 or tile_pos.y < 0 or tile_pos.x >= map_manager.grid_width or tile_pos.y >= map_manager.grid_height:
-		print("Ball hit out-of-bounds tile at:", tile_pos, "at height:", z)
-		
-		# Reflect the ball back into bounds
+		# Ball hit out-of-bounds tile
 		_reflect_from_out_of_bounds(tile_pos)
 		return
 	
@@ -1362,10 +1317,10 @@ func check_out_of_bounds_collision() -> void:
 	if tile_type == "W":  # Water is out-of-bounds
 		# Ice Club can pass through water tiles
 		if ice_club_active:
-			print("Ice Club effect: Ball passes through water tile")
-			return  # Continue normal physics - don't stop the ball
+			pass  # Ice Club effect: Ball passes through water tile
+			# Continue normal physics - don't stop the ball
 		else:
-			print("Ball hit water tile at:", tile_pos, "at height:", z)
+			# Ball hit water tile
 			_reflect_from_out_of_bounds(tile_pos)
 			return
 
@@ -1373,11 +1328,9 @@ func _reflect_from_out_of_bounds(tile_pos: Vector2i) -> void:
 	"""
 	Reflect the ball back into bounds when it hits an out-of-bounds tile.
 	"""
-	print("=== REFLECTING FROM OUT OF BOUNDS ===")
-	
-	# Get the ball's current velocity
+	# Reflecting from out of bounds - debug info removed for performance
 	var ball_velocity = velocity
-	print("Reflecting ball with velocity:", ball_velocity)
+	# Reflected velocity - debug info removed for performance
 	
 	# Determine which boundary was hit and calculate proper reflection
 	var reflected_velocity = Vector2.ZERO
@@ -1418,9 +1371,6 @@ func _reflect_from_out_of_bounds(tile_pos: Vector2i) -> void:
 	var random_angle = randf_range(-0.1, 0.1)
 	reflected_velocity = reflected_velocity.rotated(random_angle)
 	
-	print("Reflected velocity:", reflected_velocity)
-	print("New ball position:", position)
-	
 	# Apply the reflected velocity to the ball
 	velocity = reflected_velocity
 	
@@ -1453,8 +1403,7 @@ func check_rolling_wall_collisions() -> void:
 		
 		# If ball is within obstacle collision area, bounce it off
 		if distance <= collision_radius:
-			print("Rolling ball hit rectangular obstacle - pinball bounce!")
-			
+			# Rolling ball hit rectangular obstacle - pinball bounce!
 			# Update collision time
 			last_wall_collision_time = current_time
 			
@@ -1478,5 +1427,5 @@ func check_rolling_wall_collisions() -> void:
 			if ball_land_sound and ball_land_sound.stream:
 				ball_land_sound.play()
 			
-			print("Ball bounced off rectangular obstacle with velocity:", velocity)
+			# Ball bounced off rectangular obstacle - debug info removed for performance
 			break  # Only handle one collision per frame

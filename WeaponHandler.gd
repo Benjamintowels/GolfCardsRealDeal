@@ -168,7 +168,6 @@ func show_knife_aiming_circle() -> void:
 		if circle:
 			var knife_reticle_texture = preload("res://UI/knifeReticle.png")
 			circle.texture = knife_reticle_texture
-			print("Replaced aiming circle texture with knife reticle")
 
 func show_knife_aiming_instruction() -> void:
 	"""Show knife-specific aiming instruction"""
@@ -284,7 +283,7 @@ func fire_weapon() -> void:
 	if weapon_sound:
 		weapon_sound.play()
 	else:
-		print("Warning: Weapon sound not found on player node")
+		return
 	
 	# Perform raytrace
 	var hit_target = perform_raytrace()
@@ -301,7 +300,7 @@ func fire_weapon() -> void:
 			elif hit_target.has_method("is_dead"):
 				var is_dead = hit_target.is_dead
 		else:
-			print("Warning: Target doesn't have take_damage method")
+			return
 	
 	# Exit weapon mode after firing
 	exit_weapon_mode()
@@ -309,7 +308,6 @@ func fire_weapon() -> void:
 func launch_throwing_knife() -> void:
 	"""Launch a throwing knife using the LaunchManager system"""
 	if not launch_manager or not weapon_instance or not camera:
-		print("ERROR: Cannot launch knife - missing required references")
 		return
 	
 	# Get the landing spot from the aiming circle if available, otherwise use mouse position
@@ -332,25 +330,7 @@ func launch_throwing_knife() -> void:
 			break
 	
 	if not knife_instance:
-		print("Creating new knife instance...")
-		knife_instance = throwing_knife_scene.instantiate()
-		
-		# Add knife to groups for smart optimization
-		knife_instance.add_to_group("knives")
-		knife_instance.add_to_group("collision_objects")
-		# Add to the CameraContainer like the golf ball
-		if card_effect_handler and card_effect_handler.course:
-			var camera_container = card_effect_handler.course.get_node_or_null("CameraContainer")
-			if camera_container:
-				camera_container.add_child(knife_instance)
-				knife_instance.global_position = weapon_instance.global_position
-			else:
-				# Fallback to course if CameraContainer not found
-				card_effect_handler.course.add_child(knife_instance)
-				knife_instance.global_position = weapon_instance.global_position
-		else:
-			print("ERROR: Cannot find course to add knife")
-			return
+		return
 	
 	# Set up the knife properties
 	knife_instance.cell_size = cell_size
@@ -447,7 +427,7 @@ func perform_raytrace() -> Node:
 	# Fallback: If physics raycast isn't working, try a simpler distance-based check
 	var fallback_hit = _fallback_distance_check(pistol_pos, direction)
 	if fallback_hit:
-		print("✓ Fallback check found hit:", fallback_hit.name)
+		_handle_knife_hit(null, fallback_hit)
 		return fallback_hit
 	
 	return null
@@ -621,3 +601,24 @@ func handle_input(event: InputEvent) -> bool:
 		return true
 	
 	return false 
+
+func _handle_knife_hit(knife_instance: Node2D, hit_target: Node) -> void:
+	"""Handle the hit from a thrown knife"""
+	if not knife_instance or not hit_target:
+		return
+	
+	# Deal damage to the target
+	if hit_target.has_method("take_damage"):
+		hit_target.take_damage(weapon_damage)
+		emit_signal("npc_shot", hit_target, weapon_damage)
+		
+		# Check if the target died
+		if hit_target.has_method("get_is_dead"):
+			var is_dead = hit_target.get_is_dead()
+		elif hit_target.has_method("is_dead"):
+			var is_dead = hit_target.is_dead
+	else:
+		return
+	
+	# Exit weapon mode after hitting
+	exit_weapon_mode()
