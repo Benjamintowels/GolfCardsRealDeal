@@ -35,30 +35,13 @@ func _ready():
 func _on_area_entered(area: Area2D):
 	"""Handle collisions with the shop base area (ground-level collision)"""
 	var projectile = area.get_parent()
-	
-	print("=== SHOP AREA ENTERED ===")
-	print("Area name:", area.name)
-	print("Projectile parent:", projectile.name if projectile else "No parent")
-	print("Projectile type:", projectile.get_class() if projectile else "Unknown")
-	print("Projectile position:", projectile.global_position if projectile else "Unknown")
-	print("Shop position:", global_position)
-	
 	if projectile and (projectile.name == "GolfBall" or projectile.name == "GhostBall" or projectile.has_method("is_throwing_knife")):
-		print("✓ Valid projectile detected:", projectile.name)
 		# Handle the collision using proper Area2D collision detection
 		_handle_area_collision(projectile)
-	else:
-		print("✗ Invalid projectile or non-projectile object:", projectile.name if projectile else "Unknown")
-	
-	print("=== END SHOP AREA ENTERED ===")
 
 func _on_area_exited(area: Area2D):
 	"""Handle when projectile exits the shop area - reset ground level"""
 	var projectile = area.get_parent()
-	
-	print("=== SHOP AREA EXITED ===")
-	print("Projectile:", projectile.name if projectile else "Unknown")
-	
 	if projectile and projectile.has_method("get_height"):
 		# Reset the projectile's ground level to normal (0.0)
 		if projectile.has_method("_reset_ground_level"):
@@ -67,9 +50,6 @@ func _on_area_exited(area: Area2D):
 			# Fallback: directly reset ground level if method doesn't exist
 			if "current_ground_level" in projectile:
 				projectile.current_ground_level = 0.0
-				print("✓ Reset projectile ground level to 0.0")
-	
-	print("=== END SHOP AREA EXITED ===")
 
 func _handle_area_collision(projectile: Node2D):
 	"""Handle shop area collisions using proper Area2D detection"""

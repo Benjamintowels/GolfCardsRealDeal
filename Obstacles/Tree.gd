@@ -248,15 +248,6 @@ func _update_ysort():
 	"""Update the Tree's z_index for proper Y-sorting"""
 	# Force update the Ysort using the global system
 	Global.update_object_y_sort(self, "objects")
-	
-	# Only print debug info once
-	if not has_meta("ysort_update_printed"):
-		print("Tree Ysort updated - z_index:", z_index, " global_position:", global_position)
-		set_meta("ysort_update_printed", true)
-	
-	# Debug: Compare with other objects (only once)
-	if not has_meta("ysort_comparison_printed"):
-		set_meta("ysort_comparison_printed", true)
 
 func get_collision_radius() -> float:
 	"""

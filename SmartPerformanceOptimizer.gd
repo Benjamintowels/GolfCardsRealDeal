@@ -47,28 +47,11 @@ func update_game_state(game_phase: String, ball_active: bool = false, aiming: bo
 	# Determine if tree collision should be active
 	tree_collision_active = (ball_is_active and has_nearby_trees())
 
-func update_ball_state(ball_position: Vector2, ball_velocity: Vector2):
-	"""Update ball state to determine if Y-sort updates are needed"""
-	if not ball_is_active:
-		return
-	
-	# Check if ball has moved significantly
-	var ball_moved = ball_position.distance_to(last_ball_position) > ball_movement_threshold
+func update_ball_state(ball_pos: Vector2, ball_velocity: Vector2) -> void:
+	"""Update ball state for performance optimization"""
+	# Update ball position and velocity
+	last_ball_position = ball_pos
 	ball_is_moving = ball_velocity.length() > 10.0  # Ball is moving if velocity > 10
-	
-	if ball_moved or ball_is_moving:
-		last_ball_position = ball_position
-		# Mark ball for Y-sort update
-		add_object_for_ysort_update("ball")
-	
-	# Update collision detection radius based on ball movement
-	if ball_is_moving:
-		collision_detection_radius = 400.0  # Larger radius when ball is moving
-	else:
-		collision_detection_radius = 200.0  # Smaller radius when stationary
-	
-	# Also update Y-sort for any knives in flight
-	update_knife_ysort()
 
 func update_knife_ysort():
 	"""Update Y-sort for any knives in flight"""

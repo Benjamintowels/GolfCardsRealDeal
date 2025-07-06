@@ -62,31 +62,13 @@ func get_collision_radius() -> float:
 func _on_area_entered(area: Area2D):
 	"""Handle collisions with the oil drum area"""
 	var ball = area.get_parent()
-	
-	print("=== OIL DRUM AREA ENTERED ===")
-	print("Area name:", area.name)
-	print("Ball parent:", ball.name if ball else "No parent")
-	print("Ball type:", ball.get_class() if ball else "Unknown")
-	print("Ball position:", ball.global_position if ball else "Unknown")
-	print("Oil drum position:", global_position)
-	print("Distance to oil drum:", ball.global_position.distance_to(global_position) if ball else "Unknown")
-	
 	if ball and (ball.name == "GolfBall" or ball.name == "GhostBall" or ball.has_method("is_throwing_knife")):
-		print("✓ Valid ball/knife detected:", ball.name)
 		# Handle the collision
 		_handle_collision(ball)
-	else:
-		print("✗ Invalid ball/knife or non-ball object:", ball.name if ball else "Unknown")
-	
-	print("=== END OIL DRUM AREA ENTERED ===")
 
 func _on_area_exited(area: Area2D):
 	"""Handle when projectile exits the oil drum area - reset ground level"""
 	var projectile = area.get_parent()
-	
-	print("=== OIL DRUM AREA EXITED ===")
-	print("Projectile:", projectile.name if projectile else "Unknown")
-	
 	if projectile and projectile.has_method("get_height"):
 		# Reset the projectile's ground level to normal (0.0)
 		if projectile.has_method("_reset_ground_level"):
@@ -95,9 +77,6 @@ func _on_area_exited(area: Area2D):
 			# Fallback: directly reset ground level if method doesn't exist
 			if "current_ground_level" in projectile:
 				projectile.current_ground_level = 0.0
-				print("✓ Reset projectile ground level to 0.0")
-	
-	print("=== END OIL DRUM AREA EXITED ===")
 
 func _handle_collision(ball: Node2D):
 	"""Handle oil drum collisions - check height to determine if ball should pass through"""

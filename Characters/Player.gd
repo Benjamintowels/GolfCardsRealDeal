@@ -494,7 +494,6 @@ func disable_collision_shape() -> void:
 	if character_area:
 		character_area.monitoring = false
 		character_area.monitorable = false
-		print("[Player.gd] Character collision shape disabled for launch mode")
 
 func enable_collision_shape() -> void:
 	"""Enable the player's collision shape after ball lands"""
@@ -503,7 +502,6 @@ func enable_collision_shape() -> void:
 	if character_area:
 		character_area.monitoring = true
 		character_area.monitorable = true
-		print("[Player.gd] Character collision shape enabled after ball landing")
 
 func _find_character_area2d() -> Area2D:
 	"""Find the Area2D in the character scene"""

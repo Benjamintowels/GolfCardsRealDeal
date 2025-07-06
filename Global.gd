@@ -103,7 +103,6 @@ func apply_equipment_buffs() -> void:
 	
 	# Update character stats
 	CHARACTER_STATS[selected_character] = base_stats
-	print("Applied equipment buffs for character", selected_character, ":", base_stats)
 
 func get_equipment_buff(stat_type: String) -> int:
 	"""Get total buff value for a specific stat type"""
@@ -118,7 +117,6 @@ func reset_character_health() -> void:
 	if CHARACTER_STATS.has(selected_character):
 		var max_hp = CHARACTER_STATS[selected_character].get("max_hp", 100)
 		CHARACTER_STATS[selected_character]["current_hp"] = max_hp
-		print("Reset health for character %d to %d HP" % [selected_character, max_hp])
 
 func get_character_health() -> Dictionary:
 	"""Get current character health info"""
@@ -432,15 +430,6 @@ func is_object_above_obstacle(object_node: Node2D, obstacle_node: Node2D) -> boo
 	# Check if object is above obstacle
 	var is_above = is_object_above_height(object_height, obstacle_height)
 	
-	# Debug output for collision detection
-	if object_node.name == "GolfBall" or object_node.name == "GhostBall" or object_node.has_method("is_throwing_knife"):
-		print("=== HEIGHT COLLISION CHECK ===")
-		print("Object:", object_node.name, "- Raw Height:", object_node.get_height() if object_node.has_method("get_height") else object_node.z)
-		print("Object:", object_node.name, "- Scaled Height:", object_height, "- Instance ID:", object_node.get_instance_id())
-		print("Obstacle:", obstacle_node.name, "- Height:", obstacle_height)
-		print("Result:", "PASS THROUGH" if is_above else "COLLIDE")
-		print("=== END HEIGHT COLLISION CHECK ===")
-	
 	return is_above
 
 func get_obstacle_collision_height(obstacle_node: Node2D) -> float:
@@ -469,141 +458,3 @@ func calculate_height_percentage(current_height: float, min_height: float, max_h
 	"""
 	var height_percentage = (current_height - min_height) / (max_height - min_height)
 	return clamp(height_percentage, 0.0, 1.0)
-
-func debug_visual_height(sprite: Sprite2D, object_name: String) -> void:
-	"""
-	Debug function to print the actual visual height of a sprite.
-	Use this to calibrate the height system.
-	"""
-	if not sprite or not sprite.texture:
-		print("Cannot debug visual height - sprite or texture is null")
-		return
-	
-	print("=== VISUAL HEIGHT DEBUG FOR", object_name, "===")
-	print("Sprite texture size:", sprite.texture.get_size())
-	print("Sprite scale:", sprite.scale)
-	print("Sprite position:", sprite.position)
-	print("Sprite global position:", sprite.global_position)
-	print("Sprite z_index:", sprite.z_index)
-	print("=== END VISUAL HEIGHT DEBUG ===")
-
-func debug_top_height_marker(object_node: Node2D) -> void:
-	"""
-	Debug function to print TopHeight marker information for an object.
-	
-	Parameters:
-	- object_node: The node to debug
-	"""
-	if not object_node or not is_instance_valid(object_node):
-		print("Cannot debug TopHeight marker - invalid object node")
-		return
-	
-	var top_height_marker = object_node.get_node_or_null("TopHeight")
-	if top_height_marker:
-		var height_from_marker = abs(top_height_marker.position.y)
-		var object_type = _get_object_type_from_node(object_node)
-		var standard_height = get_object_height_from_marker(object_node)
-		
-		print("=== TOPHEIGHT MARKER DEBUG ===")
-		print("Object:", object_node.name)
-		print("TopHeight marker position:", top_height_marker.position)
-		print("Height from marker:", height_from_marker)
-		print("Standard height for type:", object_type, "-", standard_height)
-		print("Difference (marker - standard):", height_from_marker - standard_height)
-		print("=== END TOPHEIGHT MARKER DEBUG ===")
-	else:
-		print("=== TOPHEIGHT MARKER DEBUG ===")
-		print("Object:", object_node.name)
-		print("No TopHeight marker found - using standard height")
-		print("=== END TOPHEIGHT MARKER DEBUG ===")
-
-func debug_all_top_height_markers() -> void:
-	"""
-	Debug function to print TopHeight marker information for all objects in the scene.
-	This helps verify that all objects have proper TopHeight markers.
-	"""
-	print("=== SCANNING ALL TOPHEIGHT MARKERS ===")
-	
-	# Get all nodes in the scene
-	var all_nodes = get_tree().get_nodes_in_group("")
-	
-	# Look for objects that should have TopHeight markers
-	var objects_with_markers = []
-	var objects_without_markers = []
-	
-	for node in all_nodes:
-		if node is Node2D:
-			var node_name = node.name.to_lower()
-			var script_path = ""
-			if node.get_script():
-				script_path = str(node.get_script().get_path()).to_lower()
-			
-			# Check if this is an object that should have a TopHeight marker
-			var should_have_marker = false
-			if ("player" in node_name or "Player" in node.get_class() or
-				"gang" in node_name or "GangMember" in script_path or "GangMember" in node.get_class() or
-				"tree" in node_name or "Tree" in script_path or "Tree" in node.get_class() or
-				"pin" in node_name or "Pin" in script_path or "Pin" in node.get_class() or
-				"shop" in node_name or "Shop" in script_path or "Shop" in node.get_class() or
-				"ball" in node_name or "GolfBall" in script_path or "GolfBall" in node.get_class() or
-				"knife" in node_name or "ThrowingKnife" in script_path or "ThrowingKnife" in node.get_class()):
-				should_have_marker = true
-			
-			if should_have_marker:
-				var top_height_marker = node.get_node_or_null("TopHeight")
-				if top_height_marker:
-					objects_with_markers.append(node.name)
-					# Debug the object type detection
-					var detected_type = _get_object_type_from_node(node)
-					print("  ✓", node.name, "- Type:", detected_type, "- Class:", node.get_class())
-				else:
-					objects_without_markers.append(node.name)
-	
-	# Print results
-	print("Objects WITH TopHeight markers:", objects_with_markers.size())
-	for obj_name in objects_with_markers:
-		print("  ✓", obj_name)
-	
-	print("Objects WITHOUT TopHeight markers:", objects_without_markers.size())
-	for obj_name in objects_without_markers:
-		print("  ✗", obj_name)
-	
-	print("=== END TOPHEIGHT MARKER SCAN ===")
-
-func debug_height_comparison(object_node: Node2D, obstacle_node: Node2D) -> void:
-	"""
-	Debug function to compare object and obstacle heights for collision detection.
-	"""
-	if not object_node or not obstacle_node:
-		return
-	
-	# Get object height
-	var object_height = 0.0
-	if object_node.has_method("get_height"):
-		object_height = object_node.get_height()
-	elif "z" in object_node:
-		object_height = object_node.z
-	
-	# Get obstacle height
-	var obstacle_height = get_object_height_from_marker(obstacle_node)
-	
-	# Get visual positions
-	var object_sprite = object_node.get_node_or_null("Sprite2D")
-	var obstacle_sprite = obstacle_node.get_node_or_null("Sprite2D")
-	
-	print("=== HEIGHT COMPARISON DEBUG ===")
-	print("Object:", object_node.name)
-	print("  - Collision height (z):", object_height)
-	print("  - Visual Y position:", object_sprite.global_position.y if object_sprite else "No sprite")
-	
-	print("Obstacle:", obstacle_node.name)
-	print("  - Collision height (marker):", obstacle_height)
-	print("  - Visual Y position:", obstacle_sprite.global_position.y if obstacle_sprite else "No sprite")
-	
-	# Calculate visual height difference
-	if object_sprite and obstacle_sprite:
-		var visual_height_diff = obstacle_sprite.global_position.y - object_sprite.global_position.y
-		print("  - Visual height difference (obstacle - object):", visual_height_diff)
-		print("  - Should collide if visual_diff > 0:", visual_height_diff > 0)
-	
-	print("=== END HEIGHT COMPARISON DEBUG ===")

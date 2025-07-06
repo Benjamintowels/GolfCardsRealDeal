@@ -381,9 +381,6 @@ func perform_raytrace() -> Node:
 	var direction = (mouse_pos - pistol_pos).normalized()
 	var ray_end = pistol_pos + direction * weapon_range
 	
-	# Update debug line to show trajectory
-	update_debug_line(pistol_pos, ray_end)
-	
 	# Check for obstacles along the bullet path
 	var space_state = course.get_world_2d().direct_space_state
 	var query = PhysicsRayQueryParameters2D.create(pistol_pos, ray_end)
@@ -542,9 +539,6 @@ func exit_weapon_mode() -> void:
 		weapon_instance.queue_free()
 		weapon_instance = null
 	
-	# Clear debug line
-	clear_debug_line()
-	
 	# Clean up knife aiming mode if it was active
 	if selected_card and selected_card.name == "Throwing Knife" and card_effect_handler and card_effect_handler.course:
 		var course = card_effect_handler.course
@@ -598,39 +592,7 @@ func is_in_weapon_mode() -> bool:
 	return is_weapon_mode
 
 func get_selected_card() -> CardData:
-	return selected_card 
-
-# Debug visualization
-var debug_line: Line2D = null
-
-func create_debug_line() -> void:
-	"""Create a debug line to visualize the bullet trajectory"""
-	if debug_line:
-		debug_line.queue_free()
-	
-	debug_line = Line2D.new()
-	debug_line.width = 2.0
-	debug_line.default_color = Color.RED
-	debug_line.z_index = 1000  # High z-index to be visible
-	
-	# Add to the course scene
-	if card_effect_handler and card_effect_handler.course:
-		card_effect_handler.course.add_child(debug_line)
-
-func update_debug_line(start_pos: Vector2, end_pos: Vector2) -> void:
-	"""Update the debug line to show the bullet trajectory"""
-	if not debug_line:
-		create_debug_line()
-	
-	debug_line.clear_points()
-	debug_line.add_point(start_pos)
-	debug_line.add_point(end_pos)
-
-func clear_debug_line() -> void:
-	"""Clear the debug line"""
-	if debug_line:
-		debug_line.queue_free()
-		debug_line = null
+	return selected_card
 
 func handle_input(event: InputEvent) -> bool:
 	"""Handle input when in weapon mode. Returns true if input was handled."""
@@ -646,26 +608,16 @@ func handle_input(event: InputEvent) -> bool:
 			var course = card_effect_handler.course
 			if course.is_aiming_phase and course.aiming_circle:
 				course.update_aiming_circle()
-		else:
-			# Show debug trajectory when aiming (for pistol)
-			if weapon_instance and camera:
-				var pistol_pos = weapon_instance.global_position
-				var mouse_pos = camera.get_global_mouse_position()
-				var direction = (mouse_pos - pistol_pos).normalized()
-				var ray_end = pistol_pos + direction * weapon_range
-				update_debug_line(pistol_pos, ray_end)
 		return true
 	
 	# Handle left click for firing
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		fire_weapon()
-		clear_debug_line()  # Clear debug line after firing
 		return true
 	
 	# Handle right click to cancel weapon mode
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 		exit_weapon_mode()
-		clear_debug_line()  # Clear debug line when exiting
 		return true
 	
 	return false 

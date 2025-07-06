@@ -54,10 +54,6 @@ func get_headshot_info() -> Dictionary:
 		"headshot_range": HEADSHOT_MAX_HEIGHT - HEADSHOT_MIN_HEIGHT
 	}
 
-func test_headshot_at_height(test_height: float) -> bool:
-	"""Test if a given height would be a headshot (for debugging)"""
-	return _is_headshot(test_height)
-
 # Health bar
 var health_bar: HealthBar
 var health_bar_container: Control
@@ -164,36 +160,17 @@ func _create_health_bar() -> void:
 	
 	# Set initial health
 	health_bar.set_health(current_health, max_health)
-	
-	print("✓ GangMember health bar created")
 
 func _on_base_area_entered(area: Area2D) -> void:
 	"""Handle collisions with the base collision area"""
 	var projectile = area.get_parent()
-
-	print("=== GANGMEMBER AREA ENTERED ===")
-	print("Area name:", area.name)
-	print("Projectile parent:", projectile.name if projectile else "No parent")
-	print("Projectile type:", projectile.get_class() if projectile else "Unknown")
-	print("Projectile position:", projectile.global_position if projectile else "Unknown")
-	print("GangMember position:", global_position)
-	
 	if projectile and (projectile.name == "GolfBall" or projectile.name == "GhostBall" or projectile.has_method("is_throwing_knife")):
-		print("✓ Valid projectile detected:", projectile.name)
 		# Handle the collision using proper Area2D collision detection
 		_handle_area_collision(projectile)
-	else:
-		print("✗ Invalid projectile or non-projectile object:", projectile.name if projectile else "Unknown")
-	
-	print("=== END GANGMEMBER AREA ENTERED ===")
 
 func _on_area_exited(area: Area2D) -> void:
 	"""Handle when projectile exits the GangMember area - reset ground level"""
 	var projectile = area.get_parent()
-	
-	print("=== GANGMEMBER AREA EXITED ===")
-	print("Projectile:", projectile.name if projectile else "Unknown")
-	
 	if projectile and projectile.has_method("get_height"):
 		# Reset the projectile's ground level to normal (0.0)
 		if projectile.has_method("_reset_ground_level"):
@@ -202,9 +179,6 @@ func _on_area_exited(area: Area2D) -> void:
 			# Fallback: directly reset ground level if method doesn't exist
 			if "current_ground_level" in projectile:
 				projectile.current_ground_level = 0.0
-				print("✓ Reset projectile ground level to 0.0")
-	
-	print("=== END GANGMEMBER AREA EXITED ===")
 
 func _handle_area_collision(projectile: Node2D):
 	"""Handle GangMember area collisions using proper Area2D detection"""
@@ -1084,22 +1058,13 @@ func _calculate_kill_dampening(ball_velocity: Vector2, overkill_damage: int) -> 
 
 func _play_death_sound() -> void:
 	"""Play the death groan sound when the GangMember dies"""
-	print("_play_death_sound() called")
 	# Use the existing DeathGroan audio player on the GangMember
 	var death_audio = get_node_or_null("DeathGroan")
 	if death_audio:
-		print("DeathGroan audio player found, stream:", death_audio.stream)
-		print("DeathGroan audio player volume:", death_audio.volume_db)
-		print("DeathGroan audio player playing:", death_audio.playing)
-		print("DeathGroan audio player autoplay:", death_audio.autoplay)
-		
-		# Ensure the audio player is not muted and has proper volume
 		death_audio.volume_db = 0.0  # Set to full volume
 		death_audio.play()
-		print("Playing death groan sound using existing audio player")
-		print("DeathGroan audio player playing after play():", death_audio.playing)
 	else:
-		print("ERROR: DeathGroan audio player not found on GangMember")
+		pass
 
 func _find_nearest_available_adjacent_tile(player_pos: Vector2i, approach_direction: Vector2i = Vector2i.ZERO) -> Vector2i:
 	"""Find the nearest available adjacent tile to push the player to based on GangMember's approach direction"""

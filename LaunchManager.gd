@@ -158,13 +158,12 @@ func exit_launch_phase() -> void:
 	set_ball_in_flight(false)
 
 func enter_knife_mode() -> void:
-	"""Enter knife throwing mode using character-specific throwing knife stats"""
+	"""Enter knife throwing mode"""
 	is_knife_mode = true
 	selected_club = "ThrowingKnife"  # Use ThrowingKnife club stats for knife throwing
 	
 	# Store the current golf ball reference before entering knife mode
 	previous_golf_ball = golf_ball
-	print("Stored golf ball reference before entering knife mode:", previous_golf_ball)
 	
 	# Create character-specific throwing knife data based on strength
 	var character_strength = player_stats.get("strength", 0)
@@ -182,16 +181,6 @@ func enter_knife_mode() -> void:
 		}
 	}
 	
-	print("=== ENTERING KNIFE MODE ===")
-	print("Character strength:", character_strength)
-	print("Base max distance:", base_max_distance)
-	print("Strength multiplier:", strength_multiplier)
-	print("Final max distance:", max_distance)
-	print("Selected club:", selected_club)
-	print("Club data:", club_data)
-	print("Is knife mode:", is_knife_mode)
-	print("=== END KNIFE MODE DEBUG ===")
-	
 	enter_launch_phase()
 
 func exit_knife_mode() -> void:
@@ -201,17 +190,13 @@ func exit_knife_mode() -> void:
 	# Restore golf ball reference from stored reference or find one in scene
 	if previous_golf_ball and is_instance_valid(previous_golf_ball):
 		golf_ball = previous_golf_ball
-		print("Restored golf ball reference from stored reference after exiting knife mode")
 	else:
 		# Fallback: find any valid ball in the scene
 		var balls = get_tree().get_nodes_in_group("balls")
 		for ball in balls:
 			if is_instance_valid(ball):
 				golf_ball = ball
-				print("Restored golf ball reference from scene after exiting knife mode")
 				break
-	
-	# Clear stored reference and throwing knife reference
 	previous_golf_ball = null
 	throwing_knife = null
 	
@@ -269,32 +254,12 @@ func launch_golf_ball(launch_direction: Vector2, final_power: float, height: flo
 
 func launch_throwing_knife(launch_direction: Vector2, final_power: float, height: float, launch_spin: float = 0.0, spin_strength_category: int = 0):
 	"""Launch the throwing knife with the specified parameters"""
-	print("=== LAUNCHING THROWING KNIFE ===")
-	print("Launch direction:", launch_direction)
-	print("Final power:", final_power)
-	print("Height:", height)
-	print("Spin:", launch_spin)
-	print("Spin strength category:", spin_strength_category)
-
-	# Clear golf ball reference when launching knife (it's already stored in enter_knife_mode)
 	golf_ball = null
-
-	# Find an available knife in the scene (not landed)
 	var existing_knife = null
 	var knives = get_tree().get_nodes_in_group("knives")
-	print("DEBUG: Found", knives.size(), "knives in 'knives' group")
-
-	# Debug: Check all nodes in the scene tree
-	print("=== SCENE TREE DEBUG ===")
-	var all_nodes = get_tree().get_nodes_in_group(".")
-	print("Total nodes in scene:", all_nodes.size())
-	for node in all_nodes:
-		if "knife" in node.name.lower() or "Knife" in node.name:
-			print("Found knife-related node:", node.name, "Groups:", node.get_groups())
-	print("=== END SCENE TREE DEBUG ===")
-
+	
+	# Find an available knife in the scene (not landed)
 	for knife in knives:
-		print("DEBUG: Checking knife:", knife.name, "valid:", is_instance_valid(knife), "type:", knife.get_class())
 		if is_instance_valid(knife):
 			# Check if this knife is available (not landed)
 			var is_available = false
@@ -306,11 +271,8 @@ func launch_throwing_knife(launch_direction: Vector2, final_power: float, height
 				# If we can't determine if it's landed, assume it's available
 				is_available = true
 			
-			print("DEBUG: Knife", knife.name, "is_available:", is_available)
-			
 			if is_available:
 				existing_knife = knife
-				print("DEBUG: Found available knife at position:", knife.global_position)
 				break
 
 	if not existing_knife:
@@ -329,12 +291,10 @@ func launch_throwing_knife(launch_direction: Vector2, final_power: float, height
 			if camera_container:
 				camera_container.add_child(existing_knife)
 				existing_knife.global_position = player_node.global_position
-				print("Created and added knife to CameraContainer at position:", existing_knife.global_position)
 			else:
 				# Fallback to course if CameraContainer not found
 				card_effect_handler.course.add_child(existing_knife)
 				existing_knife.global_position = player_node.global_position
-				print("Created and added knife to course (fallback) at position:", existing_knife.global_position)
 		else:
 			print("ERROR: Cannot find course to add knife")
 			return
@@ -359,13 +319,6 @@ func launch_throwing_knife(launch_direction: Vector2, final_power: float, height
 	# Calculate correct launch direction from knife to target
 	var direction = (chosen_landing_spot - throwing_knife.global_position).normalized()
 	
-	print("=== KNIFE DIRECTION DEBUG ===")
-	print("Chosen landing spot:", chosen_landing_spot)
-	print("Knife position:", throwing_knife.global_position)
-	print("Calculated direction:", direction)
-	print("Direction length:", direction.length())
-	print("=== END KNIFE DIRECTION DEBUG ===")
-
 	# Launch the knife
 	throwing_knife.launch(direction, final_power, height, launch_spin, spin_strength_category)
 

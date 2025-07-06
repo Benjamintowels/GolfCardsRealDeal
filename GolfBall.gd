@@ -996,7 +996,6 @@ func reset_shot_effects() -> void:
 	"""Reset all shot modification effects after the ball has landed"""
 	sticky_shot_active = false
 	bouncey_shot_active = false
-	print("Shot effects reset: sticky_shot_active =", sticky_shot_active, "bouncey_shot_active =", bouncey_shot_active)
 
 func notify_course_of_collision() -> void:
 	"""Notify the course that the ball has collided with something, so it can re-enable player collision"""
@@ -1007,10 +1006,6 @@ func notify_course_of_collision() -> void:
 
 func create_landing_highlight(tile_pos: Vector2i) -> void:
 	"""Create a bright highlight effect for the final landing tile"""
-	print("=== CREATING LANDING HIGHLIGHT DEBUG ===")
-	print("Tile position:", tile_pos)
-	print("Cell size:", cell_size)
-	
 	# Remove any existing highlight
 	if landing_highlight and landing_highlight.is_inside_tree():
 		landing_highlight.queue_free()
@@ -1024,29 +1019,15 @@ func create_landing_highlight(tile_pos: Vector2i) -> void:
 	
 	# Position relative to the course scene (world coordinates), not camera
 	var course_script = get_parent().get_parent()  # camera_container -> course_1
-	print("Course script found:", course_script != null)
-	
-	if course_script:
-		print("Course script children:")
-		for child in course_script.get_children():
-			print("  -", child.name, "Type:", child.get_class())
 	
 	# Try to add to CameraContainer first (which contains the GridContainer)
 	if course_script and course_script.has_node("CameraContainer"):
 		var camera_container = course_script.get_node("CameraContainer")
-		print("CameraContainer found:", camera_container != null)
-		print("CameraContainer position:", camera_container.position)
-		print("CameraContainer size:", camera_container.size)
 		
 		# Position relative to the camera container (which contains the grid)
 		landing_highlight.position = Vector2(tile_pos.x * cell_size, tile_pos.y * cell_size)
 		landing_highlight.z_index = -3  # Keep in highlight tiles range
 		landing_highlight.color = Color(1.0, 1.0, 0.0, 0.6)  # Bright yellow with 60% opacity
-		
-		print("Highlight position:", landing_highlight.position)
-		print("Highlight size:", landing_highlight.size)
-		print("Highlight color:", landing_highlight.color)
-		print("Highlight z_index:", landing_highlight.z_index)
 		
 		# Add a pulsing animation effect
 		var tween = create_tween()
@@ -1056,26 +1037,14 @@ func create_landing_highlight(tile_pos: Vector2i) -> void:
 		
 		# Add the highlight to the camera container so it moves with the world
 		camera_container.add_child(landing_highlight)
-		print("Highlight added to CameraContainer")
-		print("CameraContainer children count:", camera_container.get_child_count())
-		print("Created landing highlight at tile:", tile_pos, "world position:", landing_highlight.position)
 	else:
-		print("ERROR: Could not find CameraContainer to add landing highlight")
-		if course_script:
-			print("Available nodes in course script:")
-			for child in course_script.get_children():
-				print("  -", child.name)
 		landing_highlight.queue_free()
-		landing_highlight = null
-	
-	print("=== END LANDING HIGHLIGHT DEBUG ===")
 
 func remove_landing_highlight() -> void:
 	"""Remove the landing highlight effect"""
 	if landing_highlight and landing_highlight.is_inside_tree():
 		landing_highlight.queue_free()
 		landing_highlight = null
-		print("Removed landing highlight")
 
 func check_nearby_tree_collisions() -> void:
 	"""OPTIMIZED: Ball checks for nearby tree collisions during flight"""
@@ -1245,22 +1214,13 @@ func _play_roof_bounce_sound(object_type: String) -> void:
 						thunk.play()
 						print("✓ TrunkThunk sound played for tree roof bounce")
 				elif obj.name.contains("Oil") or obj.name.contains("oil") or obj.name.contains("OilDrum"):
-					print("DEBUG: Found OilDrum object:", obj.name)
-					var thunk = obj.get_node_or_null("OilDrumThunk")
+					var thunk = obj.find_child("OilDrumThunk", true, false)
 					if thunk:
-						print("DEBUG: OilDrumThunk audio player found, playing sound")
 						thunk.play()
-						print("✓ OilDrumThunk sound played for oil drum roof bounce")
 					else:
-						print("✗ OilDrumThunk sound not found on object:", obj.name)
-						print("DEBUG: Available children on OilDrum:")
-						for child in obj.get_children():
-							print("  -", child.name, "(", child.get_class(), ")")
+						pass
 				elif obj.name.contains("GangMember") or obj.name.contains("gang") or obj.name.contains("Gang"):
-					print("DEBUG: Found GangMember object:", obj.name)
-					# Use the existing collision sound method which plays Push.mp3
 					obj._play_collision_sound()
-					print("✓ Push sound played for GangMember roof bounce")
 				break
 
 func check_rolling_wall_collisions() -> void:

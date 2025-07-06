@@ -224,10 +224,6 @@ func hide_all_movement_highlights() -> void:
 			grid_tiles[y][x].get_node("MovementHighlight").visible = false
 
 func exit_movement_mode() -> void:
-	print("=== EXITING MOVEMENT MODE ===")
-	print("Selected card:", selected_card.name if selected_card else "None")
-	print("Card in hand:", deck_manager.hand.has(selected_card) if selected_card else "N/A")
-	
 	is_movement_mode = false
 	hide_all_movement_highlights()
 	valid_movement_tiles.clear()
@@ -238,18 +234,16 @@ func exit_movement_mode() -> void:
 
 			# Don't discard club cards here - they're handled by the club card selection system
 			if deck_manager.hand.has(selected_card) and not deck_manager.is_club_card(selected_card):
-				print("Discarding movement card from hand:", selected_card.name)
 				deck_manager.discard(selected_card)
 				card_discarded = true
 				
 				# Reset the course's next_card_doubled variable when the card is used
 				if card_effect_handler and card_effect_handler.course and card_effect_handler.course.next_card_doubled:
 					card_effect_handler.course.next_card_doubled = false
-					print("Next card doubled effect consumed")
 			elif deck_manager.is_club_card(selected_card):
-				print("Club card selected - not discarding here (handled by club selection system)")
+				pass
 			else:
-				print("Movement card not in hand:", selected_card.name)
+				pass
 
 			if card_discarded:
 				card_stack_display.animate_card_discard(selected_card.name)
@@ -265,7 +259,6 @@ func exit_movement_mode() -> void:
 	selected_card_label = ""
 	selected_card = null
 	
-	print("=== END EXITING MOVEMENT MODE ===")
 	emit_signal("movement_mode_exited")
 
 func handle_tile_click(x: int, y: int) -> bool:
