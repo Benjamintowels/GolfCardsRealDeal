@@ -82,6 +82,19 @@ func _setup_collision_areas():
 		print("✓ Oil drum tipped collision area setup complete (disabled)")
 	else:
 		print("✗ ERROR: Oil drum tipped Area2D not found!")
+	
+	# Setup HitBox for gun collision detection
+	var hitbox = get_node_or_null("HitBox")
+	if hitbox:
+		# Set collision layer to 1 so gun can detect it
+		hitbox.collision_layer = 1
+		# Set collision mask to 0 (gun doesn't need to detect this)
+		hitbox.collision_mask = 0
+		# Add to hitboxes group for weapon system detection
+		hitbox.add_to_group("hitboxes")
+		print("✓ Oil drum HitBox setup complete for gun collision")
+	else:
+		print("✗ ERROR: Oil drum HitBox not found!")
 
 func _setup_ball_check_timer():
 	"""Set up a timer to periodically check for new balls and connect to them"""
@@ -499,6 +512,27 @@ func _play_oil_drum_sound() -> void:
 		print("✓ OilDrumThunk sound played for reflection collision")
 	else:
 		print("✗ OilDrumThunk sound not found")
+
+func handle_pistol_shot() -> void:
+	"""Handle being shot by a pistol - trigger explosion"""
+	print("=== OIL DRUM SHOT BY PISTOL - EXPLODING! ===")
+	
+	# Create a temporary ball node to pass to the explosion function
+	# This allows us to reuse the existing explosion logic
+	var temp_ball = Node2D.new()
+	temp_ball.name = "PistolShotBall"
+	
+	# Add the ball to the scene temporarily
+	get_parent().add_child(temp_ball)
+	temp_ball.global_position = global_position
+	
+	# Trigger the explosion using the existing fire element logic
+	_explode_oil_drum(temp_ball)
+	
+	# Remove the temporary ball
+	temp_ball.queue_free()
+	
+	print("✓ Oil drum exploded from pistol shot")
 
 func _handle_roof_bounce_collision(projectile: Node2D) -> void:
 	"""Handle collision with projectiles - called by roof bounce system"""

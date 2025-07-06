@@ -289,8 +289,14 @@ func fire_weapon() -> void:
 	var hit_target = perform_raytrace()
 	
 	if hit_target:
-		# Deal damage to the target
-		if hit_target.has_method("take_damage"):
+		# Check if it's an oil drum (special handling)
+		if hit_target.name == "OilDrum" or "oil_drum.gd" in str(hit_target.get_script()):
+			# Oil drums explode when shot
+			if hit_target.has_method("handle_pistol_shot"):
+				hit_target.handle_pistol_shot()
+				emit_signal("npc_shot", hit_target, weapon_damage)
+		# Deal damage to other targets (GangMembers, etc.)
+		elif hit_target.has_method("take_damage") and not (hit_target.name == "OilDrum" or "oil_drum.gd" in str(hit_target.get_script())):
 			hit_target.take_damage(weapon_damage)
 			emit_signal("npc_shot", hit_target, weapon_damage)
 			
@@ -391,6 +397,11 @@ func perform_raytrace() -> Node:
 			if parent and parent.has_method("take_damage"):
 				# Since we already hit the GangMember's HitBox, we have direct line of sight
 				return parent  # Return the parent GangMember, not the HitBox
+			
+			# Check if it's an OilDrum's HitBox
+			if parent and (parent.name == "OilDrum" or "oil_drum.gd" in str(parent.get_script())):
+				# Since we already hit the OilDrum's HitBox, we have direct line of sight
+				return parent  # Return the parent OilDrum, not the HitBox
 	
 	# No obstacles hit, check if any NPCs are in the direct path
 	var entities = course.get_node_or_null("Entities")
@@ -467,6 +478,10 @@ func _fallback_distance_check(pistol_pos: Vector2, direction: Vector2) -> Node:
 					# Check if it's a GangMember's HitBox
 					if parent and parent.has_method("take_damage"):
 						return parent  # Return the parent GangMember
+					
+					# Check if it's an OilDrum's HitBox
+					if parent and (parent.name == "OilDrum" or "oil_drum.gd" in str(parent.get_script()) or parent.has_method("take_damage")):
+						return parent  # Return the parent OilDrum
 	
 	# Check for GangMembers (fallback for entities without HitBox)
 	var entities = card_effect_handler.course.get_node_or_null("Entities")
