@@ -93,6 +93,49 @@ func handle_modify_next_card(card: CardData):
 		
 		# Remove only the specific card button, not the entire hand
 		remove_specific_card_button(card)
+	
+	elif card.name == "FireBall":
+		course.fire_ball_active = true
+		course.next_shot_modifier = "fire_ball"
+		print("FireBall effect applied to next shot")
+		
+		# Play flame sound effect
+		play_flame_sound()
+		
+		# Handle card discard - could be from hand or bag pile
+		if course.deck_manager.hand.has(card):
+			course.deck_manager.discard(card)
+			course.card_stack_display.animate_card_discard(card.name)
+			course.update_deck_display()
+		else:
+			# Card is from bag pile during club selection - just animate discard
+			course.card_stack_display.animate_card_discard(card.name)
+			print("FireBall card used from bag pile")
+		
+		# Remove only the specific card button, not the entire hand
+		remove_specific_card_button(card)
+
+func play_flame_sound():
+	"""Play the flame sound effect when FireBall card is used"""
+	# Find the player node to get access to the golf ball scene
+	var player = course.player_node
+	if player:
+		# Create a temporary golf ball instance to play the sound
+		var ball_scene = preload("res://GolfBall.tscn")
+		var temp_ball = ball_scene.instantiate()
+		course.add_child(temp_ball)
+		
+		# Play the flame sound
+		var flame_sound = temp_ball.get_node_or_null("FlameOn")
+		if flame_sound:
+			flame_sound.play()
+			print("Playing flame sound effect")
+		else:
+			print("Warning: FlameOn sound not found on golf ball")
+		
+		# Remove the temporary ball after a short delay
+		await get_tree().create_timer(0.1).timeout
+		temp_ball.queue_free()
 
 func handle_modify_next_card_card(card: CardData):
 	"""Handle cards that modify the next card played"""

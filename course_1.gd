@@ -89,6 +89,7 @@ var hole_score := 0
 # StickyShot and card modification variables
 var sticky_shot_active := false  # Track if StickyShot effect is active
 var bouncey_shot_active := false  # Track if Bouncey effect is active
+var fire_ball_active := false  # Track if FireBall effect is active
 var next_shot_modifier := ""  # Track what modifier to apply to next shot
 var next_card_doubled := false  # Track if the next card should have its effect doubled
 
@@ -213,6 +214,7 @@ var object_scene_map := {
 	"BLOCK": preload("res://Obstacles/InvisibleBlocker.tscn"),
 	"GANG": preload("res://NPC/Gang/GangMember.tscn"),
 	"OIL": preload("res://Interactables/OilDrum.tscn"),
+	"WALL": preload("res://Obstacles/StoneWall.tscn"),
 }
 
 var object_to_tile_mapping := {
@@ -221,6 +223,7 @@ var object_to_tile_mapping := {
 	"SHOP": "Base",
 	"GANG": "G",
 	"OIL": "Base",
+	"WALL": "Base",
 }
 
 # Add these variables after the existing object_scene_map and object_to_tile_mapping
@@ -267,8 +270,10 @@ func clear_existing_objects() -> void:
 					is_pin = true
 			# Check for oil drums by name or script
 			var is_oil_drum = obstacle.name == "OilDrum" or (obstacle.get_script() and "oil_drum.gd" in str(obstacle.get_script().get_path()))
+			# Check for stone walls by name or script
+			var is_stone_wall = obstacle.name == "StoneWall" or (obstacle.get_script() and "StoneWall.gd" in str(obstacle.get_script().get_path()))
 			
-			if is_tree or is_shop or is_pin or is_oil_drum:
+			if is_tree or is_shop or is_pin or is_oil_drum or is_stone_wall:
 				keys_to_remove.append(pos)
 	
 	for pos in keys_to_remove:
@@ -3111,6 +3116,13 @@ func _on_ball_launched(ball: Node2D):
 		if bouncey_shot_active and next_shot_modifier == "bouncey_shot":
 			ball.bouncey_shot_active = true
 			bouncey_shot_active = false
+			next_shot_modifier = ""
+		
+		if fire_ball_active and next_shot_modifier == "fire_ball":
+			# Load the Fire element data and apply it to the ball
+			var fire_element = preload("res://Elements/Fire.tres")
+			ball.set_element(fire_element)
+			fire_ball_active = false
 			next_shot_modifier = ""
 
 func _on_launch_phase_entered():

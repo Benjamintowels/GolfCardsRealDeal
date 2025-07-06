@@ -40,12 +40,17 @@ var base_scale := Vector2.ONE
 
 # Height constants (matching LaunchManager)
 const MAX_LAUNCH_HEIGHT := 480.0   # 10 cells (48 * 10) for pixel perfect system
-const MIN_LAUNCH_HEIGHT := 144.0   # 3 cells (48 * 3) for pixel perfect system
+const MIN_LAUNCH_HEIGHT := 0.0   # Allow for ground-level shots (was 144.0)
 const MAX_LAUNCH_POWER := 1200.0
 const MIN_LAUNCH_POWER := 300.0
 
 # Simple collision system variables
 var current_ground_level: float = 0.0  # Current ground level (can be elevated by roofs)
+
+# Wall collision system variables
+var last_wall_collision_time: float = 0.0  # Time of last wall collision
+var wall_collision_cooldown: float = 0.1  # Cooldown between wall collisions (seconds)
+var ball_land_sound: AudioStreamPlayer2D
 
 func _ready():
 	# Set up the ghost ball visual
@@ -73,6 +78,9 @@ func _ready():
 	
 	# Store the original position for relaunching
 	original_position = position
+	
+	# Initialize sound effects
+	ball_land_sound = get_node_or_null("BallLand")
 	
 	# Start the launch timer
 	launch_timer = 0.0
@@ -299,6 +307,10 @@ func _process(delta):
 		if is_rolling:
 			# Ball is rolling on the ground
 			vz = 0.0
+			
+			# Check for wall collisions while rolling (pinball effect)
+			check_rolling_wall_collisions()
+			
 			# Check for water hazard while rolling
 			var tile_x_roll = int(floor(position.x / cell_size))
 			var tile_y_roll = int(floor(position.y / cell_size))
@@ -406,7 +418,7 @@ func launch_ghost_ball():
 		else:
 			# Calculate height at 50% (sweet spot height) - use same constants as LaunchManager
 			var height_percentage = 0.5  # 50% height (sweet spot)
-			height = MIN_LAUNCH_HEIGHT + (MAX_LAUNCH_HEIGHT - MIN_LAUNCH_HEIGHT) * height_percentage
+			height = MAX_LAUNCH_HEIGHT * height_percentage  # Simplified calculation for 0.0 to MAX_LAUNCH_HEIGHT range
 		
 	else:
 		# Default values if no landing spot
@@ -417,7 +429,7 @@ func launch_ghost_ball():
 		if is_putting:
 			height = 0.0
 		else:
-			height = MIN_LAUNCH_HEIGHT + (MAX_LAUNCH_HEIGHT - MIN_LAUNCH_HEIGHT) * 0.5  # 50% height with same constants as LaunchManager
+			height = MAX_LAUNCH_HEIGHT * 0.5  # 50% height with simplified calculation
 	
 	# Set initial velocity and ensure ball starts in the air
 	velocity = direction * power
@@ -475,7 +487,7 @@ func set_club_info(club_data: Dictionary):
 func set_putting_mode(putting: bool):
 	"""Set the putting mode for the ghost ball"""
 	is_putting = putting
-	print("Ghost ball putting mode set to:", is_putting)
+	print("Ghost ball putting mode set to:", is_putting, "club info:", club_info)
 
 func reset_ball():
 	"""Reset the ghost ball to its starting position"""
@@ -595,6 +607,10 @@ func _on_area_entered(area):
 	# Check if this is a Shop collision
 	elif area.get_parent() and area.get_parent().has_method("_handle_shop_collision"):
 		# Shop collision detected - use new roof bounce system
+		_handle_roof_bounce_collision(area.get_parent())
+	# Check if this is a StoneWall collision
+	elif area.get_parent() and area.get_parent().has_method("_handle_wall_area_collision"):
+		# StoneWall collision detected - use new roof bounce system
 		_handle_roof_bounce_collision(area.get_parent())
 		# Notify course to re-enable player collision since ball hit shop
 		notify_course_of_collision()
@@ -736,4 +752,57 @@ func _play_roof_bounce_sound(object_type: String) -> void:
 					pass
 				elif obj.name.contains("GangMember") or obj.name.contains("gang") or obj.name.contains("Gang"):
 					obj._play_collision_sound()
-				break 
+				break
+
+func check_rolling_wall_collisions() -> void:
+	"""
+	Check for wall/shop collisions while rolling (pinball effect).
+	"""
+	# Check cooldown to prevent multiple bounces
+	var current_time = Time.get_ticks_msec() / 1000.0  # Convert to seconds
+	if current_time - last_wall_collision_time < wall_collision_cooldown:
+		return  # Still in cooldown
+	
+	# Get all rectangular obstacle objects in the scene (includes shops and stone walls)
+	var rectangular_obstacles = get_tree().get_nodes_in_group("rectangular_obstacles")
+	
+	for obstacle in rectangular_obstacles:
+		# Check if ball is within obstacle collision area
+		var ball_pos = global_position
+		var obstacle_pos = obstacle.global_position
+		var distance = ball_pos.distance_to(obstacle_pos)
+		
+		# Use obstacle's collision radius
+		var collision_radius = 150.0  # Default obstacle collision radius
+		if obstacle.has_method("get_collision_radius"):
+			collision_radius = obstacle.get_collision_radius()
+		
+		# If ball is within obstacle collision area, bounce it off
+		if distance <= collision_radius:
+			print("Rolling ghost ball hit rectangular obstacle - pinball bounce!")
+			
+			# Update collision time
+			last_wall_collision_time = current_time
+			
+			# Calculate bounce direction (away from obstacle center)
+			var bounce_direction = (ball_pos - obstacle_pos).normalized()
+			
+			# Reflect velocity across the bounce direction
+			var reflected_velocity = velocity - 2 * velocity.dot(bounce_direction) * bounce_direction
+			
+			# Reduce speed slightly to prevent infinite bouncing
+			reflected_velocity *= 0.8
+			
+			# Add a small amount of randomness to prevent infinite loops
+			var random_angle = randf_range(-0.1, 0.1)
+			reflected_velocity = reflected_velocity.rotated(random_angle)
+			
+			# Apply the reflected velocity
+			velocity = reflected_velocity
+			
+			# Play collision sound if available
+			if ball_land_sound and ball_land_sound.stream:
+				ball_land_sound.play()
+			
+			print("Ghost ball bounced off rectangular obstacle with velocity:", velocity)
+			break  # Only handle one collision per frame 

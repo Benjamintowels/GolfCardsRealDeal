@@ -18,7 +18,7 @@ const MAX_LAUNCH_POWER := 1200.0
 const MIN_LAUNCH_POWER := 300.0
 const POWER_CHARGE_RATE := 300.0 # units per second
 const MAX_LAUNCH_HEIGHT := 480.0   # 10 cells (48 * 10) for pixel perfect system
-const MIN_LAUNCH_HEIGHT := 144.0   # 3 cells (48 * 3) for pixel perfect system
+const MIN_LAUNCH_HEIGHT := 0.0   # Allow for ground-level shots (was 144.0)
 const HEIGHT_CHARGE_RATE := 600.0  # Adjusted for pixel perfect system (was 1000.0)
 const HEIGHT_SWEET_SPOT_MIN := 0.3 # 30% of max height - lower sweet spot for better arc
 const HEIGHT_SWEET_SPOT_MAX := 0.5 # 50% of max height - narrower sweet spot
@@ -88,7 +88,7 @@ func _process(delta: float):
 		if height_meter:
 			var meter_fill = height_meter.get_node_or_null("MeterFill")
 			var value_label = height_meter.get_node_or_null("HeightValue")
-			var height_percentage = (launch_height - MIN_LAUNCH_HEIGHT) / (MAX_LAUNCH_HEIGHT - MIN_LAUNCH_HEIGHT)
+			var height_percentage = launch_height / MAX_LAUNCH_HEIGHT  # Simplified calculation for 0.0 to MAX_LAUNCH_HEIGHT range
 			height_percentage = clamp(height_percentage, 0.0, 1.0)
 			
 			if meter_fill:
@@ -123,7 +123,7 @@ func enter_launch_phase() -> void:
 	var is_putting = club_data.get(selected_club, {}).get("is_putter", false)
 	if not is_putting:
 		show_height_meter()
-		launch_height = MIN_LAUNCH_HEIGHT
+		launch_height = 0.0  # Start at ground level for low shots (was MIN_LAUNCH_HEIGHT)
 	else:
 		launch_height = 0.0
 	
@@ -515,7 +515,7 @@ func handle_input(event: InputEvent) -> bool:
 					if not is_putting:
 						print("Showing height meter - not a putter")
 						is_charging_height = true
-						launch_height = MIN_LAUNCH_HEIGHT
+						launch_height = 0.0
 					else:
 						print("Not showing height meter - is a putter")
 						# Calculate final power and launch the projectile
@@ -644,7 +644,7 @@ func calculate_final_power() -> float:
 		actual_power = time_percent * MAX_LAUNCH_POWER
 	
 	# Apply height resistance
-	var height_percentage = (launch_height - MIN_LAUNCH_HEIGHT) / (MAX_LAUNCH_HEIGHT - MIN_LAUNCH_HEIGHT)
+	var height_percentage = launch_height / MAX_LAUNCH_HEIGHT  # Simplified calculation for 0.0 to MAX_LAUNCH_HEIGHT range
 	height_percentage = clamp(height_percentage, 0.0, 1.0)
 	var height_resistance_multiplier = 1.0
 	if height_percentage > HEIGHT_SWEET_SPOT_MAX:

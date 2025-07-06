@@ -53,7 +53,7 @@ var max_height := 0.0
 const HEIGHT_SWEET_SPOT_MIN := 0.3 # 30% of max height
 const HEIGHT_SWEET_SPOT_MAX := 0.5 # 50% of max height
 const MAX_LAUNCH_HEIGHT := 384.0   # 8 cells (48 * 8) for pixel perfect system - knives fly lower than balls
-const MIN_LAUNCH_HEIGHT := 144.0   # 3 cells (48 * 3) for pixel perfect system
+const MIN_LAUNCH_HEIGHT := 0.0   # Allow for ground-level throws (was 144.0)
 
 # Power constants (will be overridden by club_info from character stats)
 var MAX_LAUNCH_POWER := 300.0  # Default max distance (will be set by club_info)
@@ -87,7 +87,7 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 	current_ground_level = 0.0
 	
 	# Calculate height percentage for sweet spot check
-	var height_percentage = (height - MIN_LAUNCH_HEIGHT) / (MAX_LAUNCH_HEIGHT - MIN_LAUNCH_HEIGHT)
+	var height_percentage = height / MAX_LAUNCH_HEIGHT  # Simplified calculation for 0.0 to MAX_LAUNCH_HEIGHT range
 	height_percentage = clamp(height_percentage, 0.0, 1.0)
 	initial_height_percentage = height_percentage
 	

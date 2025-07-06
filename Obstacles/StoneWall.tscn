@@ -1,0 +1,30 @@
+[gd_scene load_steps=5 format=3 uid="uid://dvywtbwdifpgw"]
+
+[ext_resource type="Script" uid="uid://ca4wus8gofum6" path="res://Obstacles/StoneWall.gd" id="1_script"]
+[ext_resource type="Texture2D" uid="uid://dkusy0s8hgvpd" path="res://Obstacles/StoneWall.png" id="2_4xt4t"]
+[ext_resource type="AudioStream" uid="uid://01xbvo1dq6r0" path="res://Sounds/TrunkThunk.mp3" id="3_0b0od"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_0b0od"]
+size = Vector2(96, 15)
+
+[node name="StoneWall" type="Node2D"]
+script = ExtResource("1_script")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture_filter = 1
+texture = ExtResource("2_4xt4t")
+
+[node name="YSortPoint" type="Node2D" parent="Sprite2D"]
+position = Vector2(0, 51)
+
+[node name="Area2D" type="Area2D" parent="Sprite2D"]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Sprite2D/Area2D"]
+position = Vector2(0, 55)
+shape = SubResource("RectangleShape2D_0b0od")
+
+[node name="TopHeight" type="Marker2D" parent="."]
+position = Vector2(0, -63)
+
+[node name="StoneThunk" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("3_0b0od")

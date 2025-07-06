@@ -107,7 +107,12 @@ func clear_existing_objects() -> void:
 				is_pin = "Pin" in script_path or obstacle.name == "Pin" or "Pin.gd" in script_path
 				if obstacle.has_signal("hole_in_one"):
 					is_pin = true
-			if is_tree or is_shop or is_pin:
+			# Check for oil drums by name or script
+			var is_oil_drum = obstacle.name == "OilDrum" or (obstacle.get_script() and "oil_drum.gd" in str(obstacle.get_script().get_path()))
+			# Check for stone walls by name or script
+			var is_stone_wall = obstacle.name == "StoneWall" or (obstacle.get_script() and "StoneWall.gd" in str(obstacle.get_script().get_path()))
+			
+			if is_tree or is_shop or is_pin or is_oil_drum or is_stone_wall:
 				keys_to_remove.append(pos)
 	for pos in keys_to_remove:
 		obstacle_map.erase(pos)
@@ -140,7 +145,8 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 		"trees": [],
 		"shop": Vector2i.ZERO,
 		"gang_members": [],
-		"oil_drums": []
+		"oil_drums": [],
+		"stone_walls": []
 	}
 	randomize()
 	random_seed_value = current_hole * 1000 + randi()
@@ -227,6 +233,27 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 			oil_drums_placed += 1
 		
 		fairway_positions.remove_at(oil_index)
+	
+	# Place Stone Walls around map edges (only top and bottom, every other tile to prevent overlap)
+	var edge_positions: Array = []
+	var layout_width = layout[0].size()
+	var layout_height = layout.size()
+	
+	# Add top and bottom edges only, every other tile to prevent overlap
+	for x in range(0, layout_width, 2):  # Step by 2 to place every other tile
+		# Top edge
+		if layout[0][x] != "W":  # Don't place on water
+			edge_positions.append(Vector2i(x, 0))
+		# Bottom edge
+		if layout[layout_height - 1][x] != "W":  # Don't place on water
+			edge_positions.append(Vector2i(x, layout_height - 1))
+	
+	# Add stone walls to edge positions
+	for wall_pos in edge_positions:
+		positions.stone_walls.append(wall_pos)
+		placed_objects.append(wall_pos)
+	
+	print("✓ Placed", positions.stone_walls.size(), "stone walls around map edges")
 	
 	return positions
 
@@ -386,7 +413,7 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 					shop.set("grid_position", object_positions.shop)
 				
 				# Add shop to groups for smart optimization
-				shop.add_to_group("shops")
+				shop.add_to_group("rectangular_obstacles")
 				shop.add_to_group("collision_objects")
 				
 				ysort_objects.append({"node": shop, "grid_pos": object_positions.shop})
@@ -466,6 +493,41 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		if oil_drum.has_meta("grid_position"):
 			print("✓ Oil Drum meta grid_position:", oil_drum.get_meta("grid_position"))
 	print("=== END PLACING OIL DRUMS ===")
+	
+	# Place Stone Walls
+	print("=== PLACING STONE WALLS ===")
+	print("Stone wall positions:", object_positions.stone_walls)
+	for wall_pos in object_positions.stone_walls:
+		var scene: PackedScene = object_scene_map["WALL"]
+		if scene == null:
+			push_error("🚫 StoneWall scene is null")
+			continue
+		print("✓ StoneWall scene loaded successfully")
+		var stone_wall: Node2D = scene.instantiate() as Node2D
+		if stone_wall == null:
+			push_error("❌ StoneWall instantiation failed at (%d,%d)" % [wall_pos.x, wall_pos.y])
+			continue
+		print("✓ StoneWall instantiated successfully")
+		var world_pos: Vector2 = Vector2(wall_pos.x, wall_pos.y) * cell_size
+		stone_wall.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
+		
+		# Always set the grid_position property unconditionally
+		stone_wall.set_meta("grid_position", wall_pos)
+		print("✓ Set stone wall grid_position to:", wall_pos)
+		
+		# Add stone wall to groups for smart optimization
+		stone_wall.add_to_group("obstacles")
+		stone_wall.add_to_group("collision_objects")
+		stone_wall.add_to_group("rectangular_obstacles")  # Add to rectangular_obstacles group for rolling collision detection
+		
+		ysort_objects.append({"node": stone_wall, "grid_pos": wall_pos})
+		obstacle_layer.add_child(stone_wall)
+		if stone_wall.has_method("blocks") and stone_wall.blocks():
+			obstacle_map[wall_pos] = stone_wall
+		print("✓ StoneWall placed at grid position:", wall_pos, "world position:", world_pos)
+		print("✓ StoneWall name:", stone_wall.name)
+		print("✓ StoneWall grid_position property:", stone_wall.get_meta("grid_position") if stone_wall.get_meta("grid_position") != null else "null")
+	print("=== END PLACING STONE WALLS ===")
 	
 	update_all_ysort_z_indices() 
 

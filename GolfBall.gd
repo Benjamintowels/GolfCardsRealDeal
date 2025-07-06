@@ -1,5 +1,8 @@
 extends Node2D
 
+# Import ElementData for element system
+const ElementData = preload("res://Elements/ElementData.gd")
+
 signal landed(final_tile: Vector2i)
 signal out_of_bounds()  # New signal for out of bounds
 signal sand_landing()  # New signal for sand landing
@@ -80,7 +83,7 @@ var max_height := 0.0
 const HEIGHT_SWEET_SPOT_MIN := 0.3 # 30% of max height
 const HEIGHT_SWEET_SPOT_MAX := 0.5 # 50% of max height
 const MAX_LAUNCH_HEIGHT := 360.0   # Slightly above tree height (331px) for pixel perfect system
-const MIN_LAUNCH_HEIGHT := 144.0   # 3 cells (48 * 3) for pixel perfect system
+const MIN_LAUNCH_HEIGHT := 0.0   # Allow for ground-level shots (was 144.0)
 
 # Power constants (matching course_1.gd)
 const MAX_LAUNCH_POWER := 1200.0
@@ -101,6 +104,10 @@ var time_percentage: float = -1.0  # -1 means not set, use power percentage inst
 # StickyShot effect variables
 var sticky_shot_active: bool = false  # Track if StickyShot effect is active
 var bouncey_shot_active: bool = false  # Track if Bouncey effect is active
+
+# Element system variables
+var current_element: ElementData = null  # Current element applied to the ball
+var element_sprite: Sprite2D = null  # Reference to the Element sprite node
 
 # Ball landing highlight system
 var final_landing_tile: Vector2i = Vector2i.ZERO  # Track the final tile where ball stopped
@@ -130,7 +137,7 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 	final_landing_tile = Vector2i.ZERO
 	
 	# Calculate height percentage for sweet spot check
-	var height_percentage = (height - MIN_LAUNCH_HEIGHT) / (MAX_LAUNCH_HEIGHT - MIN_LAUNCH_HEIGHT)
+	var height_percentage = height / MAX_LAUNCH_HEIGHT  # Simplified calculation for 0.0 to MAX_LAUNCH_HEIGHT range
 	height_percentage = clamp(height_percentage, 0.0, 1.0)
 	initial_height_percentage = height_percentage
 	
@@ -277,7 +284,7 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 		print("Bouncey effect: Increased bounce height to", first_bounce_height, "(120% of initial height)")
 	
 	# Calculate roll distance based on height (higher shots roll less, lower shots roll more)
-	var height_percentage_for_roll = (height - MIN_LAUNCH_HEIGHT) / (MAX_LAUNCH_HEIGHT - MIN_LAUNCH_HEIGHT)
+	var height_percentage_for_roll = height / MAX_LAUNCH_HEIGHT  # Simplified calculation for 0.0 to MAX_LAUNCH_HEIGHT range
 	height_percentage_for_roll = clamp(height_percentage_for_roll, 0.0, 1.0)
 	
 	# Calculate power percentage for roll distance
@@ -318,6 +325,7 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 	# Get references to sprite and shadow
 	sprite = $Sprite2D
 	shadow = $Shadow
+	element_sprite = $Element
 	
 	# Set initial shadow position (same as ball but on ground)
 	if shadow:
@@ -351,6 +359,28 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 	print("Initial max_bounces:", max_bounces)
 	print("Bouncey effect active:", bouncey_shot_active)
 	print("=== END NEW SHOT BOUNCE SETTINGS ===")
+
+func set_element(element_data: ElementData) -> void:
+	"""Set the current element for the ball"""
+	current_element = element_data
+	
+	# Update the element sprite
+	if element_sprite:
+		if element_data and element_data.texture:
+			element_sprite.texture = element_data.texture
+			element_sprite.modulate = element_data.color
+			element_sprite.visible = true
+			print("Element set to:", element_data.name)
+		else:
+			element_sprite.visible = false
+			print("Element cleared")
+
+func clear_element() -> void:
+	"""Clear the current element from the ball"""
+	current_element = null
+	if element_sprite:
+		element_sprite.visible = false
+		print("Element cleared from ball")
 
 func _process(delta):
 	if landed_flag:
@@ -790,6 +820,19 @@ func update_visual_effects():
 	# Use standardized height visual effects
 	Global.apply_standard_height_visual_effects(sprite, shadow, z, base_scale)
 	
+	# Update element sprite position and effects
+	if element_sprite and element_sprite.visible:
+		# Position element sprite to match the ball sprite
+		element_sprite.position = sprite.position
+		element_sprite.scale = sprite.scale
+		element_sprite.z_index = sprite.z_index + 1  # Element appears on top of ball
+		
+		# Add element-specific visual effects
+		if current_element and current_element.name == "Fire":
+			# Add fire flickering effect
+			var flicker = sin(Time.get_ticks_msec() * 0.01) * 0.1 + 0.9
+			element_sprite.modulate.a = flicker
+	
 	# Add rolling-specific effects
 	if is_rolling:
 		# Slightly smaller when rolling
@@ -873,6 +916,11 @@ func _ready():
 	# Get references to sprite and shadow
 	sprite = get_node_or_null("Sprite2D")
 	shadow = get_node_or_null("Shadow")
+	element_sprite = get_node_or_null("Element")
+	
+	# Initialize element sprite
+	if element_sprite:
+		element_sprite.visible = false  # Start hidden
 	
 	# Connect to area_entered signal for collision detection
 	var area2d = get_node_or_null("Area2D")
@@ -930,6 +978,12 @@ func _on_area_entered(area):
 		# Shop collision detected - use new roof bounce system
 		_handle_roof_bounce_collision(area.get_parent())
 		# Notify course to re-enable player collision since ball hit shop
+		notify_course_of_collision()
+	# Check if this is a StoneWall collision
+	elif area.get_parent() and area.get_parent().has_method("_handle_wall_area_collision"):
+		# StoneWall collision detected - use new roof bounce system
+		_handle_roof_bounce_collision(area.get_parent())
+		# Notify course to re-enable player collision since ball hit stone wall
 		notify_course_of_collision()
 	# Check if this is an Oil Drum collision
 	elif area.get_parent() and (area.get_parent().name.contains("Oil") or area.get_parent().name.contains("oil") or area.get_parent().has_method("_handle_roof_bounce_collision")):
@@ -997,6 +1051,7 @@ func reset_shot_effects() -> void:
 	"""Reset all shot modification effects after the ball has landed"""
 	sticky_shot_active = false
 	bouncey_shot_active = false
+	clear_element()  # Clear any element effects
 
 func notify_course_of_collision() -> void:
 	"""Notify the course that the ball has collided with something, so it can re-enable player collision"""
@@ -1231,29 +1286,29 @@ func check_rolling_wall_collisions() -> void:
 	if current_time - last_wall_collision_time < wall_collision_cooldown:
 		return  # Still in cooldown
 	
-	# Get all shop objects in the scene
-	var shops = get_tree().get_nodes_in_group("shops")
+	# Get all rectangular obstacle objects in the scene (includes shops and stone walls)
+	var rectangular_obstacles = get_tree().get_nodes_in_group("rectangular_obstacles")
 	
-	for shop in shops:
-		# Check if ball is within shop collision area
+	for obstacle in rectangular_obstacles:
+		# Check if ball is within obstacle collision area
 		var ball_pos = global_position
-		var shop_pos = shop.global_position
-		var distance = ball_pos.distance_to(shop_pos)
+		var obstacle_pos = obstacle.global_position
+		var distance = ball_pos.distance_to(obstacle_pos)
 		
-		# Use shop's collision radius
-		var collision_radius = 150.0  # Default shop collision radius
-		if shop.has_method("get_collision_radius"):
-			collision_radius = shop.get_collision_radius()
+		# Use obstacle's collision radius
+		var collision_radius = 150.0  # Default obstacle collision radius
+		if obstacle.has_method("get_collision_radius"):
+			collision_radius = obstacle.get_collision_radius()
 		
-		# If ball is within shop collision area, bounce it off
+		# If ball is within obstacle collision area, bounce it off
 		if distance <= collision_radius:
-			print("Rolling ball hit shop wall - pinball bounce!")
+			print("Rolling ball hit rectangular obstacle - pinball bounce!")
 			
 			# Update collision time
 			last_wall_collision_time = current_time
 			
-			# Calculate bounce direction (away from shop center)
-			var bounce_direction = (ball_pos - shop_pos).normalized()
+			# Calculate bounce direction (away from obstacle center)
+			var bounce_direction = (ball_pos - obstacle_pos).normalized()
 			
 			# Reflect velocity across the bounce direction
 			var reflected_velocity = velocity - 2 * velocity.dot(bounce_direction) * bounce_direction
@@ -1272,5 +1327,5 @@ func check_rolling_wall_collisions() -> void:
 			if ball_land_sound and ball_land_sound.stream:
 				ball_land_sound.play()
 			
-			print("Ball bounced off shop wall with velocity:", velocity)
+			print("Ball bounced off rectangular obstacle with velocity:", velocity)
 			break  # Only handle one collision per frame

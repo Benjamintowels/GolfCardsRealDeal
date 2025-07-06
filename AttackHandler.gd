@@ -336,11 +336,18 @@ func apply_knockback(npc: Node, current_pos: Vector2i) -> void:
 	
 	# Check if knockback position is valid
 	if is_position_valid_for_knockback(knockback_pos):
-		npc.set_grid_position(knockback_pos)
-		
-		# Update Y-sorting
-		if npc.has_method("update_z_index_for_ysort"):
-			npc.update_z_index_for_ysort()
+		# Use animated pushback if the NPC supports it
+		if npc.has_method("push_back"):
+			npc.push_back(knockback_pos)
+			print("Applied animated pushback to NPC")
+		else:
+			# Fallback to instant position change
+			npc.set_grid_position(knockback_pos)
+			
+			# Update Y-sorting
+			if npc.has_method("update_z_index_for_ysort"):
+				npc.update_z_index_for_ysort()
+			print("Applied instant pushback to NPC (no animation support)")
 
 func is_position_valid_for_knockback(pos: Vector2i) -> bool:
 	"""Check if a position is valid for NPC knockback"""

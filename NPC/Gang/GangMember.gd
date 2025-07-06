@@ -18,6 +18,11 @@ var movement_range: int = 3
 var vision_range: int = 12
 var current_action: String = "idle"
 
+# Movement animation properties
+var is_moving: bool = false
+var movement_tween: Tween
+var movement_duration: float = 0.3  # Duration of movement animation in seconds
+
 
 
 # Facing direction properties
@@ -741,8 +746,8 @@ func take_turn() -> void:
 	# Let the current state handle the turn
 	state_machine.update()
 	
-	# Complete turn after state processing
-	call_deferred("_complete_turn")
+	# Complete turn after state processing (will wait for movement if needed)
+	_check_turn_completion()
 
 func _check_player_vision() -> void:
 	"""Check if player is within vision range and switch to chase if needed"""
@@ -823,7 +828,7 @@ func _is_position_valid(pos: Vector2i) -> bool:
 	return true
 
 func _move_to_position(target_pos: Vector2i) -> void:
-	"""Move the GangMember to a new position"""
+	"""Move the GangMember to a new position with smooth animation"""
 	var old_pos = grid_position
 	grid_position = target_pos
 	
@@ -839,19 +844,61 @@ func _move_to_position(target_pos: Vector2i) -> void:
 	# Update world position
 	var target_world_pos = Vector2(target_pos.x, target_pos.y) * cell_size + Vector2(cell_size / 2, cell_size / 2)
 	
-	# Simple movement - you could add tweening here for smooth movement
-	position = target_world_pos
+	# Animated movement using tween
+	_animate_movement_to_position(target_world_pos)
 	
-	# Update Y-sorting
-	update_z_index_for_ysort()
-	
-	print("GangMember moved from ", old_pos, " to ", target_pos, " with direction: ", movement_direction)
+	print("GangMember moving from ", old_pos, " to ", target_pos, " with direction: ", movement_direction)
 	
 	# Check if we moved to the same tile as the player (only if we weren't already there)
 	if player and "grid_pos" in player and player.grid_pos == target_pos and old_pos != target_pos:
 		print("GangMember collided with player! Dealing damage and pushing back...")
 		var approach_direction = target_pos - old_pos
 		_handle_player_collision(approach_direction)
+
+func _animate_movement_to_position(target_world_pos: Vector2) -> void:
+	"""Animate the GangMember's movement to the target position using a tween"""
+	# Set moving state
+	is_moving = true
+	
+	# Stop any existing movement tween
+	if movement_tween and movement_tween.is_valid():
+		movement_tween.kill()
+	
+	# Create new tween for movement
+	movement_tween = create_tween()
+	movement_tween.set_trans(Tween.TRANS_QUAD)
+	movement_tween.set_ease(Tween.EASE_OUT)
+	
+	# Start the movement animation
+	movement_tween.tween_property(self, "position", target_world_pos, movement_duration)
+	
+	# Update Y-sorting during movement
+	movement_tween.tween_callback(update_z_index_for_ysort)
+	
+	# When movement completes
+	movement_tween.tween_callback(_on_movement_completed)
+	
+	print("Started movement animation to position: ", target_world_pos)
+
+func _on_movement_completed() -> void:
+	"""Called when movement animation completes"""
+	is_moving = false
+	print("GangMember movement animation completed")
+	
+	# Update Y-sorting one final time
+	update_z_index_for_ysort()
+	
+	# Check if we can complete the turn now
+	_check_turn_completion()
+
+func _check_turn_completion() -> void:
+	"""Check if the turn can be completed (waits for movement animation to finish)"""
+	if is_moving:
+		print("GangMember is still moving, waiting for animation to complete...")
+		return
+	
+	print("GangMember movement finished, completing turn")
+	_complete_turn()
 
 func _handle_player_collision(approach_direction: Vector2i = Vector2i.ZERO) -> void:
 	"""Handle collision with player - deal damage and push back"""
@@ -1347,6 +1394,8 @@ class PatrolState extends BaseState:
 			# Face the last movement direction when not moving
 			gang_member.facing_direction = gang_member.last_movement_direction
 			gang_member._update_sprite_facing()
+			# Complete turn immediately since no movement is needed
+			gang_member._check_turn_completion()
 	
 	func _get_random_patrol_position(max_distance: int) -> Vector2i:
 		var attempts = 0
@@ -1394,6 +1443,8 @@ class ChaseState extends BaseState:
 			gang_member._move_to_position(next_pos)
 		else:
 			print("No path found to player")
+			# Complete turn immediately since no movement is needed
+			gang_member._check_turn_completion()
 		
 		# Always face the player when in chase mode
 		gang_member._face_player()
@@ -1620,4 +1671,78 @@ func get_collision_radius() -> float:
 	Get the collision radius for this GangMember.
 	Used by the roof bounce system to determine when ball has exited collision area.
 	"""
-	return 30.0  # GangMember collision radius 
+	return 30.0  # GangMember collision radius
+
+func is_currently_moving() -> bool:
+	"""Check if the GangMember is currently moving"""
+	return is_moving
+
+func get_movement_duration() -> float:
+	"""Get the current movement animation duration"""
+	return movement_duration
+
+func set_movement_duration(duration: float) -> void:
+	"""Set the movement animation duration"""
+	movement_duration = max(0.1, duration)  # Minimum 0.1 seconds
+
+func stop_movement() -> void:
+	"""Stop any current movement animation"""
+	if is_moving and movement_tween and movement_tween.is_valid():
+		movement_tween.kill()
+		is_moving = false
+		print("GangMember movement stopped")
+
+func push_back(target_pos: Vector2i) -> void:
+	"""Push the GangMember back to a new position with smooth animation"""
+	var old_pos = grid_position
+	grid_position = target_pos
+	
+	# Calculate pushback direction
+	var pushback_direction = target_pos - old_pos
+	if pushback_direction != Vector2i.ZERO:
+		last_movement_direction = pushback_direction
+		# Update facing direction to face the pushback direction
+		facing_direction = last_movement_direction
+		_update_sprite_facing()
+	
+	# Update world position
+	var target_world_pos = Vector2(target_pos.x, target_pos.y) * cell_size + Vector2(cell_size / 2, cell_size / 2)
+	
+	# Animated pushback using tween
+	_animate_pushback_to_position(target_world_pos)
+	
+	print("GangMember pushed back from ", old_pos, " to ", target_pos, " with direction: ", pushback_direction)
+
+func _animate_pushback_to_position(target_world_pos: Vector2) -> void:
+	"""Animate the GangMember's pushback to the target position using a tween"""
+	# Set moving state
+	is_moving = true
+	
+	# Stop any existing movement tween
+	if movement_tween and movement_tween.is_valid():
+		movement_tween.kill()
+	
+	# Create new tween for pushback (slightly faster than normal movement)
+	var pushback_duration = movement_duration * 0.7  # 70% of normal movement duration
+	movement_tween = create_tween()
+	movement_tween.set_trans(Tween.TRANS_QUAD)
+	movement_tween.set_ease(Tween.EASE_OUT)
+	
+	# Start the pushback animation
+	movement_tween.tween_property(self, "position", target_world_pos, pushback_duration)
+	
+	# Update Y-sorting during pushback
+	movement_tween.tween_callback(update_z_index_for_ysort)
+	
+	# When pushback completes
+	movement_tween.tween_callback(_on_pushback_completed)
+	
+	print("Started pushback animation to position: ", target_world_pos)
+
+func _on_pushback_completed() -> void:
+	"""Called when pushback animation completes"""
+	is_moving = false
+	print("GangMember pushback animation completed")
+	
+	# Update Y-sorting one final time
+	update_z_index_for_ysort() 

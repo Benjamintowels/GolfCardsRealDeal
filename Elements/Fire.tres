@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="ElementData" load_steps=3 format=3 uid="uid://bqx8y2k3m4n5o"]
+
+[ext_resource type="Script" uid="uid://dk64kh6fkqud7" path="res://Elements/ElementData.gd" id="1_fire"]
+[ext_resource type="Texture2D" uid="uid://bbdjwayyyaywi" path="res://Elements/Fire.png" id="2_fire"]
+
+[resource]
+script = ExtResource("1_fire")
+name = "Fire"
+texture = ExtResource("2_fire")
+color = Color(1, 1, 1, 1)
