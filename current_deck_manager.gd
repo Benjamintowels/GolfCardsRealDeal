@@ -17,7 +17,7 @@ var starter_deck: Array[CardData] = [
 	preload("res://Cards/KickB.tres"),
 	preload("res://Cards/KickB.tres"),
 	preload("res://Cards/Putter.tres"),
-	preload("res://Cards/Wooden.tres"),
+	preload("res://Cards/FireClub.tres"),  # Changed from Wooden to FireClub
 	preload("res://Cards/ThrowingKnife.tres"),
 	preload("res://Cards/FireBallCard.tres"),  # Added FireBall card for testing
 	preload("res://Cards/IceBallCard.tres")    # Added IceBall card for testing

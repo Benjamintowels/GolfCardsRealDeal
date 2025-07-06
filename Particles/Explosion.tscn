@@ -1,0 +1,49 @@
+[gd_scene load_steps=8 format=3 uid="uid://cr3a5iy452bud"]
+
+[ext_resource type="Script" uid="uid://bfy4k1ftk3k8w" path="res://Particles/Explosion.gd" id="1_y06dx"]
+[ext_resource type="Texture2D" uid="uid://br1splu6umscl" path="res://Particles/Explosion.png" id="2_47hq3"]
+[ext_resource type="AudioStream" uid="uid://cn7vxchw3lvve" path="res://Sounds/Explosion.mp3" id="3_a2t3t"]
+[ext_resource type="Texture2D" uid="uid://do0yyouvbx1dk" path="res://Particles/FireParticle.png" id="4_gcy2m"]
+
+[sub_resource type="Gradient" id="Gradient_1"]
+offsets = PackedFloat32Array(0, 0.3, 0.7, 1)
+colors = PackedColorArray(1, 0.8, 0, 1, 1, 0.5, 0, 0.8, 0.8, 0.2, 0, 0.6, 0.5, 0, 0, 0)
+
+[sub_resource type="GradientTexture1D" id="GradientTexture1D_1"]
+gradient = SubResource("Gradient_1")
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_1"]
+lifetime_randomness = 0.3
+particle_flag_disable_z = true
+emission_shape = 1
+emission_sphere_radius = 20.0
+direction = Vector3(0, 1, 0)
+spread = 180.0
+initial_velocity_min = 50.0
+initial_velocity_max = 150.0
+angular_velocity_min = -180.0
+angular_velocity_max = 180.0
+gravity = Vector3(0, 300, 0)
+scale_min = 0.5
+scale_max = 1.5
+color_ramp = SubResource("GradientTexture1D_1")
+
+[node name="Explosion" type="Node2D"]
+script = ExtResource("1_y06dx")
+
+[node name="ExplosionSprite" type="Sprite2D" parent="."]
+texture = ExtResource("2_47hq3")
+offset = Vector2(0, -50)
+
+[node name="ExplosionSound" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("3_a2t3t")
+
+[node name="FireParticles" type="GPUParticles2D" parent="."]
+position = Vector2(0, -100.125)
+emitting = false
+amount = 15
+texture = ExtResource("4_gcy2m")
+lifetime = 2.0
+one_shot = true
+explosiveness = 1.0
+process_material = SubResource("ParticleProcessMaterial_1")

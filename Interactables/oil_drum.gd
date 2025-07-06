@@ -3,6 +3,9 @@ extends Node2D
 # Oil drum interactable object
 # This will work with the roof system and Y-sort system
 
+# Import Explosion class for fire element explosions
+const Explosion = preload("res://Particles/Explosion.gd")
+
 # Health system variables
 var max_health: int = 50
 var current_health: int = 50
@@ -659,6 +662,12 @@ func _apply_ball_collision_effect(ball: Node2D) -> void:
 			ball.velocity = reflected_velocity
 		return
 	
+	# Check if this is a fire element ball - if so, explode the oil drum
+	if _is_fire_element_ball(ball):
+		print("🔥 FIRE ELEMENT BALL DETECTED - EXPLODING OIL DRUM! 🔥")
+		_explode_oil_drum(ball)
+		return
+	
 	# Get the ball's current velocity
 	var ball_velocity = Vector2.ZERO
 	if ball.has_method("get_velocity"):
@@ -761,3 +770,92 @@ func _calculate_kill_dampening(ball_velocity: Vector2, overkill_damage: int) -> 
 	print("=== END KILL DAMPENING CALCULATION ===")
 	
 	return dampened_velocity
+
+func _is_fire_element_ball(ball: Node2D) -> bool:
+	"""Check if the ball has a fire element"""
+	print("=== CHECKING FOR FIRE ELEMENT ===")
+	print("Ball name:", ball.name)
+	print("Ball has get_element method:", ball.has_method("get_element"))
+	
+	if not ball.has_method("get_element"):
+		print("✗ Ball doesn't have get_element method")
+		return false
+	
+	var element = ball.get_element()
+	print("Element retrieved:", element)
+	if element:
+		print("Element name:", element.name)
+		if element.name == "Fire":
+			print("✓ Fire element detected on ball")
+			return true
+		else:
+			print("✗ Element is not Fire, it's:", element.name)
+	else:
+		print("✗ No element found on ball")
+	
+	print("✗ No fire element detected on ball")
+	return false
+
+func _explode_oil_drum(ball: Node2D) -> void:
+	"""Explode the oil drum when hit by a fire element ball"""
+	print("=== EXPLODING OIL DRUM ===")
+	print("Oil drum position:", global_position)
+	print("Oil drum parent:", get_parent().name if get_parent() else "No parent")
+	
+	# Hide the oil drum sprites
+	var upright_sprite = get_node_or_null("OilDrumUpright")
+	var tipped_sprite = get_node_or_null("OilDrumTippedOver")
+	
+	if upright_sprite:
+		upright_sprite.visible = false
+		print("✓ Hidden upright sprite")
+	if tipped_sprite:
+		tipped_sprite.visible = false
+		print("✓ Hidden tipped sprite")
+	
+	# Disable collision areas
+	if upright_collision_area:
+		upright_collision_area.collision_layer = 0
+		upright_collision_area.collision_mask = 0
+		upright_collision_area.monitoring = false
+		upright_collision_area.monitorable = false
+		print("✓ Disabled upright collision area")
+	
+	if tipped_collision_area:
+		tipped_collision_area.collision_layer = 0
+		tipped_collision_area.collision_mask = 0
+		tipped_collision_area.monitoring = false
+		tipped_collision_area.monitorable = false
+		print("✓ Disabled tipped collision area")
+	
+	# Create explosion effect at the oil drum's position
+	print("Creating explosion at position:", global_position)
+	print("Oil drum local position:", position)
+	print("Oil drum parent position:", get_parent().global_position if get_parent() else "No parent")
+	
+	# Add explosion to the same parent as the oil drum (ObstacleLayer) so it survives when oil drum is removed
+	var explosion = Explosion.create_explosion_at_position(global_position, get_parent())
+	print("Explosion created:", explosion != null)
+	
+	if explosion:
+		print("Explosion final position:", explosion.global_position)
+		print("Explosion local position:", explosion.position)
+	
+	# Set the oil drum to be destroyed (it will be removed when the explosion completes)
+	# We'll use a timer to remove the oil drum after the explosion animation
+	var destroy_timer = Timer.new()
+	destroy_timer.wait_time = 3.0  # Wait longer for explosion to complete (increased from 2.0)
+	destroy_timer.one_shot = true
+	destroy_timer.timeout.connect(_on_explosion_complete)
+	add_child(destroy_timer)
+	destroy_timer.start()
+	
+	print("✓ Oil drum explosion initiated")
+
+func _on_explosion_complete() -> void:
+	"""Called when the explosion animation is complete - remove the oil drum"""
+	print("=== OIL DRUM EXPLOSION COMPLETE ===")
+	
+	# Remove the oil drum from the scene
+	queue_free()
+	print("✓ Oil drum removed from scene")

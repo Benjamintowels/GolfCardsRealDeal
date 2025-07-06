@@ -387,6 +387,10 @@ func clear_element() -> void:
 		element_sprite.visible = false
 		print("Element cleared from ball")
 
+func get_element():
+	"""Get the current element data from the ball"""
+	return current_element
+
 func _process(delta):
 	if landed_flag:
 		return
