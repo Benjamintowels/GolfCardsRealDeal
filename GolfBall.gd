@@ -428,6 +428,9 @@ func _process(delta):
 	# Update Y-sorting based on new position
 	update_y_sort()
 	
+	# Check for out-of-bounds collision at any height
+	check_out_of_bounds_collision()
+	
 	# OPTIMIZED: Ball handles its own tree collision detection
 	# Only check for tree collisions when ball is in the air (during launch mode)
 	if z > 0.0:
@@ -1335,6 +1338,95 @@ func _play_roof_bounce_sound(object_type: String) -> void:
 				elif obj.name.contains("GangMember") or obj.name.contains("gang") or obj.name.contains("Gang"):
 					obj._play_collision_sound()
 				break
+
+func check_out_of_bounds_collision() -> void:
+	"""
+	Check if the ball has collided with an out-of-bounds tile at any height and reflect it.
+	"""
+	if map_manager == null:
+		return
+		
+	# Calculate which tile the ball is currently on
+	var tile_pos = Vector2i(floor(position.x / cell_size), floor(position.y / cell_size))
+	
+	# Check if ball is out of bounds
+	if tile_pos.x < 0 or tile_pos.y < 0 or tile_pos.x >= map_manager.grid_width or tile_pos.y >= map_manager.grid_height:
+		print("Ball hit out-of-bounds tile at:", tile_pos, "at height:", z)
+		
+		# Reflect the ball back into bounds
+		_reflect_from_out_of_bounds(tile_pos)
+		return
+	
+	# Also check if the current tile type is considered out-of-bounds
+	var tile_type = map_manager.get_tile_type(tile_pos.x, tile_pos.y)
+	if tile_type == "W":  # Water is out-of-bounds
+		# Ice Club can pass through water tiles
+		if ice_club_active:
+			print("Ice Club effect: Ball passes through water tile")
+			return  # Continue normal physics - don't stop the ball
+		else:
+			print("Ball hit water tile at:", tile_pos, "at height:", z)
+			_reflect_from_out_of_bounds(tile_pos)
+			return
+
+func _reflect_from_out_of_bounds(tile_pos: Vector2i) -> void:
+	"""
+	Reflect the ball back into bounds when it hits an out-of-bounds tile.
+	"""
+	print("=== REFLECTING FROM OUT OF BOUNDS ===")
+	
+	# Get the ball's current velocity
+	var ball_velocity = velocity
+	print("Reflecting ball with velocity:", ball_velocity)
+	
+	# Determine which boundary was hit and calculate proper reflection
+	var reflected_velocity = Vector2.ZERO
+	
+	# Check if ball is outside grid boundaries
+	if tile_pos.x < 0:
+		# Hit left boundary - reflect horizontally
+		reflected_velocity = Vector2(abs(ball_velocity.x), ball_velocity.y)
+		# Move ball back into bounds
+		position.x = 0.0
+	elif tile_pos.x >= map_manager.grid_width:
+		# Hit right boundary - reflect horizontally
+		reflected_velocity = Vector2(-abs(ball_velocity.x), ball_velocity.y)
+		# Move ball back into bounds
+		position.x = (map_manager.grid_width - 1) * cell_size
+	elif tile_pos.y < 0:
+		# Hit top boundary - reflect vertically
+		reflected_velocity = Vector2(ball_velocity.x, abs(ball_velocity.y))
+		# Move ball back into bounds
+		position.y = 0.0
+	elif tile_pos.y >= map_manager.grid_height:
+		# Hit bottom boundary - reflect vertically
+		reflected_velocity = Vector2(ball_velocity.x, -abs(ball_velocity.y))
+		# Move ball back into bounds
+		position.y = (map_manager.grid_height - 1) * cell_size
+	else:
+		# Hit water tile - reflect away from tile center
+		var tile_center = Vector2(tile_pos.x * cell_size + cell_size / 2, tile_pos.y * cell_size + cell_size / 2)
+		var to_ball_direction = (global_position - tile_center).normalized()
+		reflected_velocity = ball_velocity - 2 * ball_velocity.dot(to_ball_direction) * to_ball_direction
+		# Move ball slightly away from the water tile
+		position += to_ball_direction * cell_size * 0.5
+	
+	# Reduce speed slightly to prevent infinite bouncing
+	reflected_velocity *= 0.8
+	
+	# Add a small amount of randomness to prevent infinite loops
+	var random_angle = randf_range(-0.1, 0.1)
+	reflected_velocity = reflected_velocity.rotated(random_angle)
+	
+	print("Reflected velocity:", reflected_velocity)
+	print("New ball position:", position)
+	
+	# Apply the reflected velocity to the ball
+	velocity = reflected_velocity
+	
+	# Play collision sound if available
+	if ball_land_sound and ball_land_sound.stream:
+		ball_land_sound.play()
 
 func check_rolling_wall_collisions() -> void:
 	"""

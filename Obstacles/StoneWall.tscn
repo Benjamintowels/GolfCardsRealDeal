@@ -24,7 +24,7 @@ position = Vector2(0, 55)
 shape = SubResource("RectangleShape2D_0b0od")
 
 [node name="TopHeight" type="Marker2D" parent="."]
-position = Vector2(0, -63)
+position = Vector2(0, -9999)
 
 [node name="StoneThunk" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("3_0b0od")

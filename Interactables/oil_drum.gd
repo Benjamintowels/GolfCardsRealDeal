@@ -841,6 +841,9 @@ func _explode_oil_drum(ball: Node2D) -> void:
 		print("Explosion final position:", explosion.global_position)
 		print("Explosion local position:", explosion.position)
 	
+	# Launch the golf ball with boosted velocity away from the explosion
+	_launch_ball_from_explosion(ball)
+	
 	# Set the oil drum to be destroyed (it will be removed when the explosion completes)
 	# We'll use a timer to remove the oil drum after the explosion animation
 	var destroy_timer = Timer.new()
@@ -859,3 +862,95 @@ func _on_explosion_complete() -> void:
 	# Remove the oil drum from the scene
 	queue_free()
 	print("✓ Oil drum removed from scene")
+
+func _launch_ball_from_explosion(ball: Node2D) -> void:
+	"""Launch the golf ball with boosted velocity away from the explosion"""
+	print("=== LAUNCHING BALL FROM EXPLOSION ===")
+	
+	# Get the ball's current position and velocity
+	var ball_pos = ball.global_position
+	var oil_drum_pos = global_position
+	
+	# Calculate direction from explosion center to ball
+	var direction_from_explosion = (ball_pos - oil_drum_pos).normalized()
+	
+	# Get the ball's current velocity
+	var current_velocity = Vector2.ZERO
+	if ball.has_method("get_velocity"):
+		current_velocity = ball.get_velocity()
+	elif "velocity" in ball:
+		current_velocity = ball.velocity
+	
+	print("Ball position:", ball_pos)
+	print("Explosion position:", oil_drum_pos)
+	print("Direction from explosion:", direction_from_explosion)
+	print("Current ball velocity:", current_velocity)
+	
+	# Calculate explosion force based on distance from explosion center
+	var distance_from_explosion = ball_pos.distance_to(oil_drum_pos)
+	var explosion_force = 400.0  # Reduced base explosion force (was 800.0)
+	
+	# Reduce force based on distance (closer = more force)
+	var distance_factor = clamp(1.0 - (distance_from_explosion / 200.0), 0.3, 1.0)
+	explosion_force *= distance_factor
+	
+	# Add some randomness to the direction for more realistic explosion
+	var random_angle = randf_range(-0.2, 0.2)  # Reduced random angle (was ±0.3)
+	var randomized_direction = direction_from_explosion.rotated(random_angle)
+	
+	# Calculate new velocity: current velocity + explosion force in direction away from explosion
+	var explosion_velocity = randomized_direction * explosion_force
+	var new_velocity = current_velocity + explosion_velocity
+	
+	# Add much stronger upward component for more dramatic vertical effect
+	var upward_force = 800.0 * distance_factor  # Increased upward force (was 400.0)
+	new_velocity.y -= upward_force  # Negative Y is up in Godot
+	
+	# Cap the maximum velocity to prevent the ball from going too fast
+	# Allow higher vertical velocity while limiting horizontal velocity
+	var max_horizontal_velocity = 600.0  # Reduced horizontal cap (was 1200.0 total)
+	var max_vertical_velocity = 1000.0   # Higher vertical cap for dramatic effect
+	
+	# Clamp horizontal velocity separately
+	var horizontal_velocity = Vector2(new_velocity.x, 0)
+	if horizontal_velocity.length() > max_horizontal_velocity:
+		horizontal_velocity = horizontal_velocity.normalized() * max_horizontal_velocity
+		new_velocity.x = horizontal_velocity.x
+	
+	# Clamp vertical velocity separately
+	if abs(new_velocity.y) > max_vertical_velocity:
+		new_velocity.y = -max_vertical_velocity if new_velocity.y < 0 else max_vertical_velocity
+	
+	print("Distance from explosion:", distance_from_explosion)
+	print("Distance factor:", distance_factor)
+	print("Explosion force:", explosion_force)
+	print("Randomized direction:", randomized_direction)
+	print("Explosion velocity:", explosion_velocity)
+	print("New velocity:", new_velocity)
+	print("Final velocity magnitude:", new_velocity.length())
+	
+	# Apply the new velocity to the ball
+	if ball.has_method("set_velocity"):
+		ball.set_velocity(new_velocity)
+		print("✓ Applied explosion velocity using set_velocity method")
+	elif "velocity" in ball:
+		ball.velocity = new_velocity
+		print("✓ Applied explosion velocity using direct velocity property")
+	else:
+		print("✗ ERROR: Could not apply explosion velocity - no set_velocity method or velocity property")
+	
+	# If the ball has a height system, give it some upward momentum
+	if ball.has_method("get_height") and ball.has_method("set_velocity"):
+		# Set a positive vertical velocity to make the ball go up
+		var current_z = ball.get_height()
+		if current_z <= 0.0:  # Only if ball is on the ground
+			# Add upward velocity component
+			var upward_velocity = -300.0  # Negative Y is up
+			new_velocity.y = upward_velocity
+			
+			# Re-apply the updated velocity
+			if ball.has_method("set_velocity"):
+				ball.set_velocity(new_velocity)
+				print("✓ Applied upward velocity for ground-level ball")
+	
+	print("=== END LAUNCHING BALL FROM EXPLOSION ===")
