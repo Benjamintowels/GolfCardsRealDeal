@@ -929,7 +929,15 @@ func _handle_player_collision(approach_direction: Vector2i = Vector2i.ZERO) -> v
 			signal_was_connected = true
 			player.moved_to_tile.disconnect(course._on_player_moved_to_tile)
 		
-		player.set_grid_position(pushback_pos)
+		# Use animated pushback if the player supports it
+		if player.has_method("push_back"):
+			player.push_back(pushback_pos)
+			print("Applied animated pushback to player")
+		else:
+			# Fallback to instant position change
+			player.set_grid_position(pushback_pos)
+			print("Applied instant pushback to player (no animation support)")
+		
 		print("Player grid position updated to: ", player.grid_pos)
 		print("Player world position: ", player.position)
 		

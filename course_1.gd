@@ -899,6 +899,42 @@ func _on_player_input(event: InputEvent) -> void:
 		else:
 			pass # Player clicked but not in move or launch phase
 
+func update_camera_to_player() -> void:
+	"""Update camera to follow player's current position (called during movement animation)"""
+	if not player_node:
+		return
+	
+	var sprite = player_node.get_node_or_null("Sprite2D")
+	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
+	var player_center: Vector2 = player_node.global_position + player_size / 2
+	
+	# Update camera snap back position
+	camera_snap_back_pos = player_center
+	
+	# Smoothly follow player during movement (small tween for smooth following)
+	var current_camera_pos = camera.position
+	var target_camera_pos = player_center
+	var follow_speed = 8.0  # How quickly camera follows during movement
+	
+	var new_camera_pos = current_camera_pos.lerp(target_camera_pos, follow_speed * get_process_delta_time())
+	camera.position = new_camera_pos
+
+func smooth_camera_to_player() -> void:
+	"""Smoothly tween camera to player's final position (called after movement animation completes)"""
+	if not player_node:
+		return
+	
+	var sprite = player_node.get_node_or_null("Sprite2D")
+	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
+	var player_center: Vector2 = player_node.global_position + player_size / 2
+	
+	# Update camera snap back position
+	camera_snap_back_pos = player_center
+	
+	# Smoothly tween camera to final position
+	var tween = get_tree().create_tween()
+	tween.tween_property(camera, "position", player_center, 0.3).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+
 func update_player_position() -> void:
 	if not player_node:
 		return
@@ -1087,6 +1123,12 @@ func start_round_after_tee_selection() -> void:
 	has_started = true
 	
 	hole_score = 0
+	
+	# Enable player movement animations after player is properly placed on tee
+	if player_node and player_node.has_method("enable_animations"):
+		player_node.enable_animations()
+		print("Player movement animations enabled after tee placement")
+	
 	enter_draw_cards_phase()  # Start with club selection phase
 	
 	print("Round started! Player at position:", player_grid_pos)
@@ -2036,6 +2078,10 @@ func reset_for_next_hole():
 	if current_hole > round_end_hole:
 		return
 	if player_node and is_instance_valid(player_node):
+		# Disable animations before hiding player for next hole
+		if player_node.has_method("disable_animations"):
+			player_node.disable_animations()
+			print("Player movement animations disabled for next hole")
 		player_node.visible = false
 	
 	map_manager.load_map_data(GolfCourseLayout.get_hole_layout(current_hole))

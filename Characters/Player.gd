@@ -17,6 +17,12 @@ var cell_size: int = 48
 var character_sprite: Sprite2D = null
 var highlight_tween: Tween = null
 
+# Movement animation properties
+var is_moving: bool = false
+var movement_tween: Tween
+var movement_duration: float = 0.3  # Duration of movement animation in seconds
+var animations_enabled: bool = false  # Only enable animations after player is placed on tee
+
 # Ball collision and health properties
 var base_collision_area: Area2D
 var max_health: int = 100
@@ -151,10 +157,66 @@ func setup(grid_size_: Vector2i, cell_size_: int, base_mobility_: int, obstacle_
 
 func set_grid_position(pos: Vector2i, ysort_objects: Array = [], shop_grid_pos: Vector2i = Vector2i.ZERO):
 	grid_pos = pos
-	self.position = Vector2(pos.x, pos.y) * cell_size + Vector2(cell_size / 2, cell_size / 2)
-	# OPTIMIZED: Always update Y-sort when player moves
-	# Camera panning doesn't change Y-sort relationships in 2.5D perspective
-	update_z_index_for_ysort(ysort_objects, shop_grid_pos)
+	var target_world_pos = Vector2(pos.x, pos.y) * cell_size + Vector2(cell_size / 2, cell_size / 2)
+	
+	# Only use animated movement if animations are enabled
+	if animations_enabled:
+		_animate_movement_to_position(target_world_pos, ysort_objects, shop_grid_pos)
+	else:
+		# Instant movement during initialization
+		self.position = target_world_pos
+		update_z_index_for_ysort(ysort_objects, shop_grid_pos)
+
+func _animate_movement_to_position(target_world_pos: Vector2, ysort_objects: Array = [], shop_grid_pos: Vector2i = Vector2i.ZERO) -> void:
+	"""Animate the player's movement to the target position using a tween"""
+	# Set moving state
+	is_moving = true
+	
+	# Stop any existing movement tween
+	if movement_tween and movement_tween.is_valid():
+		movement_tween.kill()
+	
+	# Create new tween for movement
+	movement_tween = create_tween()
+	movement_tween.set_trans(Tween.TRANS_QUAD)
+	movement_tween.set_ease(Tween.EASE_OUT)
+	
+	# Start the movement animation
+	movement_tween.tween_property(self, "position", target_world_pos, movement_duration)
+	
+	# Update Y-sorting during movement
+	movement_tween.tween_callback(update_z_index_for_ysort.bind(ysort_objects, shop_grid_pos))
+	
+	# Update camera position during movement (every frame)
+	movement_tween.tween_method(_update_camera_during_movement, 0.0, 1.0, movement_duration)
+	
+	# When movement completes
+	movement_tween.tween_callback(_on_movement_completed)
+	
+	print("Started player movement animation to position: ", target_world_pos)
+
+func _update_camera_during_movement(progress: float) -> void:
+	"""Update camera position during movement animation"""
+	# Get the course reference to update camera
+	var course = get_tree().current_scene
+	if not course or not course.has_method("update_camera_to_player"):
+		return
+	
+	# Call the course's camera update method
+	course.update_camera_to_player()
+
+func _on_movement_completed() -> void:
+	"""Called when player movement animation completes"""
+	is_moving = false
+	print("Player movement animation completed")
+	
+	# Update Y-sorting one final time (with empty arrays as defaults)
+	update_z_index_for_ysort([], Vector2i.ZERO)
+	
+	# Smoothly tween camera to final position
+	var course = get_tree().current_scene
+	if course and course.has_method("smooth_camera_to_player"):
+		course.smooth_camera_to_player()
 
 func update_z_index_for_ysort(ysort_objects: Array, shop_grid_pos: Vector2i = Vector2i.ZERO) -> void:
 	"""Update player Y-sort using the simple global system"""
@@ -525,6 +587,99 @@ func get_equipment_mobility_bonus() -> int:
 	if equipment_manager:
 		return equipment_manager.get_mobility_bonus()
 	return 0
+
+func is_currently_moving() -> bool:
+	"""Check if the player is currently moving"""
+	return is_moving
+
+func get_movement_duration() -> float:
+	"""Get the current movement animation duration"""
+	return movement_duration
+
+func set_movement_duration(duration: float) -> void:
+	"""Set the movement animation duration"""
+	movement_duration = max(0.1, duration)  # Minimum 0.1 seconds
+
+func stop_movement() -> void:
+	"""Stop any current movement animation"""
+	if is_moving and movement_tween and movement_tween.is_valid():
+		movement_tween.kill()
+		is_moving = false
+		print("Player movement stopped")
+
+func enable_animations() -> void:
+	"""Enable movement animations after player is properly placed on tee"""
+	animations_enabled = true
+	print("Player movement animations enabled")
+
+func disable_animations() -> void:
+	"""Disable movement animations (for debugging or special cases)"""
+	animations_enabled = false
+	print("Player movement animations disabled")
+
+func are_animations_enabled() -> bool:
+	"""Check if movement animations are currently enabled"""
+	return animations_enabled
+
+func push_back(target_pos: Vector2i, ysort_objects: Array = [], shop_grid_pos: Vector2i = Vector2i.ZERO) -> void:
+	"""Push the player back to a new position with smooth animation"""
+	var old_pos = grid_pos
+	grid_pos = target_pos
+	
+	# Update world position
+	var target_world_pos = Vector2(target_pos.x, target_pos.y) * cell_size + Vector2(cell_size / 2, cell_size / 2)
+	
+	# Only use animated pushback if animations are enabled
+	if animations_enabled:
+		_animate_pushback_to_position(target_world_pos, ysort_objects, shop_grid_pos)
+	else:
+		# Instant pushback during initialization
+		self.position = target_world_pos
+		update_z_index_for_ysort(ysort_objects, shop_grid_pos)
+	
+	print("Player pushed back from ", old_pos, " to ", target_pos)
+
+func _animate_pushback_to_position(target_world_pos: Vector2, ysort_objects: Array = [], shop_grid_pos: Vector2i = Vector2i.ZERO) -> void:
+	"""Animate the player's pushback to the target position using a tween"""
+	# Set moving state
+	is_moving = true
+	
+	# Stop any existing movement tween
+	if movement_tween and movement_tween.is_valid():
+		movement_tween.kill()
+	
+	# Create new tween for pushback (slightly faster than normal movement)
+	var pushback_duration = movement_duration * 0.7  # 70% of normal movement duration
+	movement_tween = create_tween()
+	movement_tween.set_trans(Tween.TRANS_QUAD)
+	movement_tween.set_ease(Tween.EASE_OUT)
+	
+	# Start the pushback animation
+	movement_tween.tween_property(self, "position", target_world_pos, pushback_duration)
+	
+	# Update Y-sorting during pushback
+	movement_tween.tween_callback(update_z_index_for_ysort.bind(ysort_objects, shop_grid_pos))
+	
+	# Update camera position during pushback (every frame)
+	movement_tween.tween_method(_update_camera_during_movement, 0.0, 1.0, pushback_duration)
+	
+	# When pushback completes
+	movement_tween.tween_callback(_on_pushback_completed)
+	
+	print("Started player pushback animation to position: ", target_world_pos)
+
+func _on_pushback_completed() -> void:
+	"""Called when player pushback animation completes"""
+	is_moving = false
+	print("Player pushback animation completed")
+	
+	# Update Y-sorting one final time (with empty arrays as defaults)
+	update_z_index_for_ysort([], Vector2i.ZERO)
+	
+	# Smoothly tween camera to final position
+	var course = get_tree().current_scene
+	if course and course.has_method("smooth_camera_to_player"):
+		course.smooth_camera_to_player()
 
 func _apply_knife_reflection(knife: Node2D) -> void:
 	"""Apply reflection effect to a knife (fallback method)"""
