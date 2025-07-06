@@ -735,10 +735,17 @@ func _process(delta):
 				# Keep the final rotation for visual effect
 				# Don't reset rotation to 0 - let it stay at the final landing rotation
 				
-				# Play knife impact sound for blade landing
-				var knife_impact = get_node_or_null("KnifeImpact")
-				if knife_impact:
-					knife_impact.play()
+				# Play appropriate sound based on which side landed
+				if is_handle_landing:
+					# Handle side landed - play handle land sound
+					var handle_land = get_node_or_null("HandleLand")
+					if handle_land:
+						handle_land.play()
+				else:
+					# Blade side landed - play knife impact sound
+					var knife_impact = get_node_or_null("KnifeImpact")
+					if knife_impact:
+						knife_impact.play()
 				
 				# Emit landed signals
 				emit_signal("knife_landed", global_position)
@@ -800,10 +807,17 @@ func _process(delta):
 				# Keep the final rotation for visual effect
 				# Don't reset rotation to 0 - let it stay at the final landing rotation
 				
-				# Play knife impact sound for blade landing
-				var knife_impact = get_node_or_null("KnifeImpact")
-				if knife_impact:
-					knife_impact.play()
+				# Play appropriate sound based on which side landed
+				if is_handle_landing:
+					# Handle side landed - play handle land sound
+					var handle_land = get_node_or_null("HandleLand")
+					if handle_land:
+						handle_land.play()
+				else:
+					# Blade side landed - play knife impact sound
+					var knife_impact = get_node_or_null("KnifeImpact")
+					if knife_impact:
+						knife_impact.play()
 				
 				# Emit landed signals
 				emit_signal("knife_landed", global_position)

@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3 uid="uid://bags75ux32be2"]
+[gd_scene load_steps=10 format=3 uid="uid://bags75ux32be2"]
 
 [ext_resource type="Texture2D" uid="uid://defhvygns48g7" path="res://Weapons/knife.png" id="1_4xl02"]
 [ext_resource type="Script" uid="uid://u8w8yuxsxurq" path="res://Weapons/ThrowingKnife.gd" id="1_script"]
@@ -6,12 +6,13 @@
 [ext_resource type="AudioStream" uid="uid://cpa2nhs0phl18" path="res://Sounds/KnifeImpact.mp3" id="5_j2xyt"]
 [ext_resource type="AudioStream" uid="uid://ewteb16eu7sl" path="res://Sounds/BladePickUp.mp3" id="6_p7ml2"]
 [ext_resource type="AudioStream" uid="uid://bau71e1lwtfjb" path="res://Sounds/BallLand.mp3" id="7_ball_land"]
+[ext_resource type="AudioStream" uid="uid://brt8wqju3a5ap" path="res://Sounds/HandleLand.mp3" id="7_j2xyt"]
 
 [sub_resource type="CompressedTexture2D" id="CompressedTexture2D_k5viu"]
 load_path = "res://.godot/imported/GolfBall.png-0516230eae0ffabe6c6d009b86188c92.ctex"
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_3kcln"]
-radius = 37.0135
+radius = 20.9689
 
 [node name="ThrowingKnife" type="Node2D" groups=["knives"]]
 script = ExtResource("1_script")
@@ -53,3 +54,6 @@ stream = ExtResource("6_p7ml2")
 [node name="BallLand" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("7_ball_land")
 volume_db = 6.443
+
+[node name="HandleLand" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("7_j2xyt")
