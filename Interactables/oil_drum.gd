@@ -16,24 +16,20 @@ const MAX_VELOCITY = 1200.0  # Maximum velocity for 88 damage
 var connected_balls: Array = []
 var ball_check_timer: Timer
 
+# Collision areas for different states
+var upright_collision_area: Area2D
+var tipped_collision_area: Area2D
+
 func _ready():
 	# Add to groups for smart optimization
 	add_to_group("interactables")
 	add_to_group("collision_objects")
 	
-	# Set up collision layers for the main Area2D node
-	var main_area = get_node_or_null("Area2D")
-	if main_area:
-		# Connect to area_entered and area_exited signals for collision detection
-		main_area.connect("area_entered", _on_area_entered)
-		main_area.connect("area_exited", _on_area_exited)
-		# Set collision layer to 1 so golf balls can detect it
-		main_area.collision_layer = 1
-		# Set collision mask to 1 so it can detect golf balls on layer 1
-		main_area.collision_mask = 1
-		print("✓ Oil drum Area2D setup complete for collision detection")
-	else:
-		print("✗ ERROR: Oil drum Area2D not found!")
+	# Initialize sprites - upright visible, tipped over hidden
+	_initialize_sprites()
+	
+	# Set up collision areas for both states
+	_setup_collision_areas()
 	
 	# Update Y-sort on ready
 	call_deferred("_update_ysort")
@@ -43,6 +39,46 @@ func _ready():
 	
 	# Set up timer to check for new balls
 	_setup_ball_check_timer()
+
+func _initialize_sprites():
+	"""Initialize the oil drum sprites - upright visible, tipped over hidden"""
+	var upright_sprite = get_node_or_null("OilDrumUpright")
+	var tipped_sprite = get_node_or_null("OilDrumTippedOver")
+	
+	if upright_sprite and tipped_sprite:
+		upright_sprite.visible = true
+		tipped_sprite.visible = false
+		print("✓ Oil drum sprites initialized - upright visible, tipped over hidden")
+	else:
+		print("✗ ERROR: Oil drum sprites not found!")
+
+func _setup_collision_areas():
+	"""Set up collision areas for both upright and tipped over states"""
+	# Get collision areas
+	upright_collision_area = get_node_or_null("Area2D")
+	tipped_collision_area = get_node_or_null("OilDrumTippedOver/Area2D")
+	
+	if upright_collision_area:
+		# Set collision layer to 1 so golf balls can detect it
+		upright_collision_area.collision_layer = 1
+		# Set collision mask to 1 so it can detect golf balls on layer 1
+		upright_collision_area.collision_mask = 1
+		# Connect to area_entered and area_exited signals for collision detection
+		upright_collision_area.connect("area_entered", _on_area_entered)
+		upright_collision_area.connect("area_exited", _on_area_exited)
+		print("✓ Oil drum upright collision area setup complete")
+	else:
+		print("✗ ERROR: Oil drum upright Area2D not found!")
+	
+	if tipped_collision_area:
+		# Initially disable tipped collision area (only active when tipped over)
+		tipped_collision_area.collision_layer = 0
+		tipped_collision_area.collision_mask = 0
+		tipped_collision_area.monitoring = false
+		tipped_collision_area.monitorable = false
+		print("✓ Oil drum tipped collision area setup complete (disabled)")
+	else:
+		print("✗ ERROR: Oil drum tipped Area2D not found!")
 
 func _setup_ball_check_timer():
 	"""Set up a timer to periodically check for new balls and connect to them"""
@@ -170,25 +206,23 @@ func _tip_over():
 		print("✗ ERROR: Oil drum sprites not found!")
 	
 	# Switch collision areas
-	var upright_area = get_node_or_null("Area2D")
-	var tipped_area = get_node_or_null("OilDrumTippedOver/Area2D")
-	
-	if upright_area and tipped_area:
-		# Disconnect from upright area
-		if upright_area.is_connected("area_entered", _on_area_entered):
-			upright_area.disconnect("area_entered", _on_area_entered)
-		if upright_area.is_connected("area_exited", _on_area_exited):
-			upright_area.disconnect("area_exited", _on_area_exited)
+	if upright_collision_area and tipped_collision_area:
+		# Disable upright area
+		upright_collision_area.collision_layer = 0
+		upright_collision_area.collision_mask = 0
+		upright_collision_area.monitoring = false
 		
-		# Connect to tipped area
-		tipped_area.connect("area_entered", _on_area_entered)
-		tipped_area.connect("area_exited", _on_area_exited)
-		tipped_area.collision_layer = 1
-		tipped_area.collision_mask = 1
+		# Enable tipped area
+		tipped_collision_area.collision_layer = 1
+		tipped_collision_area.collision_mask = 1
+		tipped_collision_area.monitoring = true
+		tipped_collision_area.monitorable = true
 		
-		# Disable upright area collision
-		upright_area.collision_layer = 0
-		upright_area.collision_mask = 0
+		# Connect to tipped area signals
+		if not tipped_collision_area.is_connected("area_entered", _on_area_entered):
+			tipped_collision_area.connect("area_entered", _on_area_entered)
+		if not tipped_collision_area.is_connected("area_exited", _on_area_exited):
+			tipped_collision_area.connect("area_exited", _on_area_exited)
 		
 		print("✓ Switched oil drum collision areas")
 	else:
@@ -215,25 +249,24 @@ func _tip_upright():
 		print("✗ ERROR: Oil drum sprites not found!")
 	
 	# Switch collision areas back
-	var upright_area = get_node_or_null("Area2D")
-	var tipped_area = get_node_or_null("OilDrumTippedOver/Area2D")
-	
-	if upright_area and tipped_area:
-		# Disconnect from tipped area
-		if tipped_area.is_connected("area_entered", _on_area_entered):
-			tipped_area.disconnect("area_entered", _on_area_entered)
-		if tipped_area.is_connected("area_exited", _on_area_exited):
-			tipped_area.disconnect("area_exited", _on_area_exited)
+	if upright_collision_area and tipped_collision_area:
+		# Enable upright area
+		upright_collision_area.collision_layer = 1
+		upright_collision_area.collision_mask = 1
+		upright_collision_area.monitoring = true
+		upright_collision_area.monitorable = true
 		
-		# Connect back to upright area
-		upright_area.connect("area_entered", _on_area_entered)
-		upright_area.connect("area_exited", _on_area_exited)
-		upright_area.collision_layer = 1
-		upright_area.collision_mask = 1
+		# Disable tipped area
+		tipped_collision_area.collision_layer = 0
+		tipped_collision_area.collision_mask = 0
+		tipped_collision_area.monitoring = false
+		tipped_collision_area.monitorable = false
 		
-		# Disable tipped area collision
-		tipped_area.collision_layer = 0
-		tipped_area.collision_mask = 0
+		# Disconnect from tipped area signals
+		if tipped_collision_area.is_connected("area_entered", _on_area_entered):
+			tipped_collision_area.disconnect("area_entered", _on_area_entered)
+		if tipped_collision_area.is_connected("area_exited", _on_area_exited):
+			tipped_collision_area.disconnect("area_exited", _on_area_exited)
 		
 		print("✓ Switched oil drum collision areas back to upright")
 	else:
@@ -278,16 +311,125 @@ func get_collision_radius() -> float:
 	"""
 	return 50.0  # Oil drum collision radius
 
+func get_height() -> float:
+	"""Get the height of this oil drum for collision detection"""
+	return Global.get_object_height_from_marker(self)
+
 func _on_area_entered(area: Area2D):
-	"""Handle collisions with the oil drum area"""
+	"""Handle collisions with the oil drum area using proper height-based detection"""
 	var projectile = area.get_parent()
-	if projectile and (projectile.name == "GolfBall" or projectile.name == "GhostBall" or projectile.has_method("is_throwing_knife")):
-		# Play oil drum thunk sound for ALL collisions (both wall and roof bounce)
-		_play_oil_drum_sound()
-		
-		# Use the simple roof bounce system for all projectiles
-		if projectile.has_method("_handle_roof_bounce_collision"):
-			projectile._handle_roof_bounce_collision(self)
+	
+	# Only handle Area2D collisions for projectiles that don't have their own collision detection
+	# Balls (GolfBall, GhostBall) will handle their own collisions through the ball's collision system
+	if projectile and projectile.has_method("is_throwing_knife") and projectile.is_throwing_knife():
+		print("Oil drum: Throwing knife detected, handling Area2D collision")
+		# Handle the collision using proper Area2D collision detection for knives
+		_handle_area_collision(projectile)
+	else:
+		# For balls, let them handle their own collision through their collision system
+		# The ball will call _handle_ball_collision on the oil drum
+		pass
+
+func _handle_area_collision(projectile: Node2D):
+	"""Handle oil drum area collisions using proper Area2D detection"""
+	print("=== HANDLING OIL DRUM AREA COLLISION ===")
+	print("Projectile name:", projectile.name)
+	print("Projectile type:", projectile.get_class())
+	
+	# Check if projectile has height information
+	if not projectile.has_method("get_height"):
+		print("✗ Projectile doesn't have height method - using fallback reflection")
+		_reflect_projectile(projectile)
+		return
+	
+	# Get projectile and oil drum heights
+	var projectile_height = projectile.get_height()
+	var oil_drum_height = Global.get_object_height_from_marker(self)
+	
+	print("Projectile height:", projectile_height)
+	print("Oil drum height:", oil_drum_height)
+	
+	# Check if this is a throwing knife (special handling)
+	if projectile.has_method("is_throwing_knife") and projectile.is_throwing_knife():
+		_handle_knife_area_collision(projectile, projectile_height, oil_drum_height)
+		return
+	
+	# Apply the collision logic:
+	# If projectile height > oil drum height: allow entry and set ground level
+	# If projectile height < oil drum height: reflect
+	if projectile_height > oil_drum_height:
+		print("✓ Projectile is above oil drum - allowing entry and setting ground level")
+		_allow_projectile_entry(projectile, oil_drum_height)
+	else:
+		print("✗ Projectile is below oil drum height - reflecting")
+		_reflect_projectile(projectile)
+
+func _handle_knife_area_collision(knife: Node2D, knife_height: float, oil_drum_height: float):
+	"""Handle knife collision with oil drum area"""
+	print("Handling knife oil drum area collision")
+	
+	if knife_height > oil_drum_height:
+		print("✓ Knife is above oil drum - allowing entry and setting ground level")
+		_allow_projectile_entry(knife, oil_drum_height)
+	else:
+		print("✗ Knife is below oil drum height - reflecting")
+		_reflect_projectile(knife)
+
+func _allow_projectile_entry(projectile: Node2D, oil_drum_height: float):
+	"""Allow projectile to enter oil drum area and set ground level"""
+	print("=== ALLOWING PROJECTILE ENTRY (OIL DRUM) ===")
+	
+	# Set the projectile's ground level to the oil drum height
+	if projectile.has_method("_set_ground_level"):
+		projectile._set_ground_level(oil_drum_height)
+	else:
+		# Fallback: directly set ground level if method doesn't exist
+		if "current_ground_level" in projectile:
+			projectile.current_ground_level = oil_drum_height
+			print("✓ Set projectile ground level to oil drum height:", oil_drum_height)
+	
+	# The projectile will now land on the oil drum instead of passing through
+	# When it exits the area, _on_area_exited will reset the ground level
+
+func _reflect_projectile(projectile: Node2D):
+	"""Reflect projectile off the oil drum"""
+	print("=== REFLECTING PROJECTILE ===")
+	
+	# Play oil drum thunk sound for reflection (not for roof bounce)
+	_play_oil_drum_sound()
+	
+	# Get the projectile's current velocity
+	var projectile_velocity = Vector2.ZERO
+	if projectile.has_method("get_velocity"):
+		projectile_velocity = projectile.get_velocity()
+	elif "velocity" in projectile:
+		projectile_velocity = projectile.velocity
+	
+	print("Reflecting projectile with velocity:", projectile_velocity)
+	
+	var projectile_pos = projectile.global_position
+	var oil_drum_center = global_position
+	
+	# Calculate the direction from oil drum center to projectile
+	var to_projectile_direction = (projectile_pos - oil_drum_center).normalized()
+	
+	# Simple reflection: reflect the velocity across the oil drum center
+	var reflected_velocity = projectile_velocity - 2 * projectile_velocity.dot(to_projectile_direction) * to_projectile_direction
+	
+	# Reduce speed slightly to prevent infinite bouncing
+	reflected_velocity *= 0.8
+	
+	# Add a small amount of randomness to prevent infinite loops
+	var random_angle = randf_range(-0.1, 0.1)
+	reflected_velocity = reflected_velocity.rotated(random_angle)
+	
+	print("Reflected velocity:", reflected_velocity)
+	
+	# Apply the reflected velocity to the projectile
+	if projectile.has_method("set_velocity"):
+		projectile.set_velocity(reflected_velocity)
+	elif "velocity" in projectile:
+		projectile.velocity = reflected_velocity
 
 func _on_area_exited(area: Area2D):
 	"""Handle when projectile exits the oil drum area - reset ground level"""
@@ -300,10 +442,6 @@ func _on_area_exited(area: Area2D):
 			# Fallback: directly reset ground level if method doesn't exist
 			if "current_ground_level" in projectile:
 				projectile.current_ground_level = 0.0
-
-
-
-
 
 func _on_tree_entered():
 	"""Called when the oil drum enters the scene tree - connect to any new balls"""
@@ -345,7 +483,7 @@ func get_grid_position() -> Vector2i:
 		return Vector2i(grid_x, grid_y)
 
 func _play_oil_drum_sound() -> void:
-	"""Play the oil drum thunk sound - called by reflection system"""
+	"""Play the oil drum thunk sound - called by reflection system only"""
 	# Check cooldown to prevent duplicate sounds
 	var current_time = Time.get_ticks_msec() / 1000.0
 	if has_meta("last_thunk_time") and get_meta("last_thunk_time") + 0.1 > current_time:
@@ -355,7 +493,7 @@ func _play_oil_drum_sound() -> void:
 	if thunk:
 		thunk.play()
 		set_meta("last_thunk_time", current_time)
-		print("✓ OilDrumThunk sound played for collision")
+		print("✓ OilDrumThunk sound played for reflection collision")
 	else:
 		print("✗ OilDrumThunk sound not found")
 
@@ -373,4 +511,253 @@ func _handle_roof_bounce_collision(projectile: Node2D) -> void:
 	# Apply damage to oil drum
 	take_damage(damage)
 	
-	# Note: Sound is now played in _on_area_entered for all collisions
+	# Note: Sound is now played in _reflect_projectile for actual collisions only
+
+func _handle_ball_collision(ball: Node2D) -> void:
+	"""Handle ball/knife collisions - check height to determine if ball/knife should pass through"""
+	print("=== HANDLING BALL COLLISION WITH OIL DRUM ===")
+	print("Ball name:", ball.name)
+	
+	# Get ball height
+	var ball_height = 0.0
+	if ball.has_method("get_height"):
+		ball_height = ball.get_height()
+	elif "z" in ball:
+		ball_height = ball.z
+	print("Ball height:", ball_height)
+	
+	# Get oil drum height
+	var oil_drum_height = Global.get_object_height_from_marker(self)
+	print("Oil drum height:", oil_drum_height)
+	
+	# Use enhanced height collision detection with TopHeight markers
+	if Global.is_object_above_obstacle(ball, self):
+		# Ball/knife is above oil drum entirely - let it pass through
+		print("Ball/knife is above oil drum entirely - passing through")
+		print("=== END HANDLING BALL COLLISION (PASS THROUGH) ===")
+		return
+	else:
+		# Ball/knife is within or below oil drum height - handle collision
+		print("Ball/knife is within oil drum height - handling collision")
+		
+		# Check if this is a throwing knife
+		if ball.has_method("is_throwing_knife") and ball.is_throwing_knife():
+			# Handle knife collision with oil drum
+			_handle_knife_collision(ball)
+		else:
+			# Handle regular ball collision
+			_handle_regular_ball_collision(ball)
+		
+		print("=== END HANDLING BALL COLLISION (COLLISION) ===")
+
+func _handle_knife_collision(knife: Node2D) -> void:
+	"""Handle knife collision with oil drum"""
+	print("Handling knife collision with oil drum")
+	
+	# Play collision sound effect
+	_play_oil_drum_sound()
+	
+	# Let the knife handle its own collision logic
+	# The knife will determine if it should bounce or stick based on which side hits
+	if knife.has_method("_handle_npc_collision"):
+		knife._handle_npc_collision(self)
+	else:
+		# Fallback: just reflect the knife
+		_apply_knife_reflection(knife)
+
+func _handle_regular_ball_collision(ball: Node2D) -> void:
+	"""Handle regular ball collision with oil drum"""
+	print("Handling regular ball collision with oil drum")
+	
+	# Play collision sound effect
+	_play_oil_drum_sound()
+	
+	# Apply collision effect to the ball
+	_apply_ball_collision_effect(ball)
+
+func _apply_knife_reflection(knife: Node2D) -> void:
+	"""Apply reflection effect to a knife (fallback method)"""
+	# Get the knife's current velocity
+	var knife_velocity = Vector2.ZERO
+	if knife.has_method("get_velocity"):
+		knife_velocity = knife.get_velocity()
+	elif "velocity" in knife:
+		knife_velocity = knife.velocity
+	
+	print("Applying knife reflection with velocity:", knife_velocity)
+	
+	var knife_pos = knife.global_position
+	var oil_drum_center = global_position
+	
+	# Calculate the direction from oil drum center to knife
+	var to_knife_direction = (knife_pos - oil_drum_center).normalized()
+	
+	# Simple reflection: reflect the velocity across the oil drum center
+	var reflected_velocity = knife_velocity - 2 * knife_velocity.dot(to_knife_direction) * to_knife_direction
+	
+	# Reduce speed slightly to prevent infinite bouncing
+	reflected_velocity *= 0.8
+	
+	# Add a small amount of randomness to prevent infinite loops
+	var random_angle = randf_range(-0.1, 0.1)
+	reflected_velocity = reflected_velocity.rotated(random_angle)
+	
+	print("Reflected knife velocity:", reflected_velocity)
+	
+	# Apply the reflected velocity to the knife
+	if knife.has_method("set_velocity"):
+		knife.set_velocity(reflected_velocity)
+	elif "velocity" in knife:
+		knife.velocity = reflected_velocity
+
+func _apply_ball_collision_effect(ball: Node2D) -> void:
+	"""Apply collision effect to the ball (bounce, damage, etc.)"""
+	print("=== APPLYING BALL COLLISION EFFECT ===")
+	print("Ball name:", ball.name)
+	print("Ball height:", ball.get_height() if ball.has_method("get_height") else "unknown")
+	
+	# Check if this is a ghost ball (shouldn't deal damage)
+	var is_ghost_ball = false
+	if ball.has_method("is_ghost"):
+		is_ghost_ball = ball.is_ghost
+	elif "is_ghost" in ball:
+		is_ghost_ball = ball.is_ghost
+	elif ball.name == "GhostBall":
+		is_ghost_ball = true
+	
+	if is_ghost_ball:
+		print("Ghost ball detected - no damage dealt, just reflection")
+		# Ghost balls only reflect, no damage
+		var ball_velocity = Vector2.ZERO
+		if ball.has_method("get_velocity"):
+			ball_velocity = ball.get_velocity()
+		elif "velocity" in ball:
+			ball_velocity = ball.velocity
+		
+		var ball_pos = ball.global_position
+		var oil_drum_center = global_position
+		
+		# Calculate the direction from oil drum center to ball
+		var to_ball_direction = (ball_pos - oil_drum_center).normalized()
+		
+		# Simple reflection: reflect the velocity across the oil drum center
+		var reflected_velocity = ball_velocity - 2 * ball_velocity.dot(to_ball_direction) * to_ball_direction
+		
+		# Reduce speed slightly to prevent infinite bouncing
+		reflected_velocity *= 0.8
+		
+		# Add a small amount of randomness to prevent infinite loops
+		var random_angle = randf_range(-0.1, 0.1)
+		reflected_velocity = reflected_velocity.rotated(random_angle)
+		
+		print("Ghost ball reflected velocity:", reflected_velocity)
+		
+		# Apply the reflected velocity to the ball
+		if ball.has_method("set_velocity"):
+			ball.set_velocity(reflected_velocity)
+		elif "velocity" in ball:
+			ball.velocity = reflected_velocity
+		return
+	
+	# Get the ball's current velocity
+	var ball_velocity = Vector2.ZERO
+	if ball.has_method("get_velocity"):
+		ball_velocity = ball.get_velocity()
+	elif "velocity" in ball:
+		ball_velocity = ball.velocity
+	
+	print("Applying collision effect to ball with velocity:", ball_velocity)
+	print("Ball velocity magnitude:", ball_velocity.length())
+	
+	# Calculate damage based on ball velocity
+	var damage = _calculate_velocity_damage(ball_velocity.length())
+	
+	print("Ball damage to oil drum:", damage)
+	print("Oil drum current health:", current_health)
+	
+	# Check if this damage will tip over the oil drum
+	var will_tip = damage >= current_health
+	
+	if will_tip:
+		# Calculate overkill damage (negative health value)
+		var overkill_damage = damage - current_health
+		print("Damage will tip over oil drum! Overkill damage:", overkill_damage)
+		
+		# Apply damage to the oil drum (this will set health to negative)
+		take_damage(damage)
+		
+		# Apply velocity dampening based on overkill damage
+		var dampened_velocity = _calculate_kill_dampening(ball_velocity, overkill_damage)
+		print("Ball passed through with dampened velocity:", dampened_velocity)
+		
+		# Apply the dampened velocity to the ball (no reflection)
+		if ball.has_method("set_velocity"):
+			ball.set_velocity(dampened_velocity)
+		elif "velocity" in ball:
+			ball.velocity = dampened_velocity
+	else:
+		# Normal collision - apply damage and reflect
+		print("Normal collision - applying damage and reflecting")
+		take_damage(damage)
+		
+		var ball_pos = ball.global_position
+		var oil_drum_center = global_position
+		
+		# Calculate the direction from oil drum center to ball
+		var to_ball_direction = (ball_pos - oil_drum_center).normalized()
+		
+		# Simple reflection: reflect the velocity across the oil drum center
+		var reflected_velocity = ball_velocity - 2 * ball_velocity.dot(to_ball_direction) * to_ball_direction
+		
+		# Reduce speed slightly to prevent infinite bouncing
+		reflected_velocity *= 0.8
+		
+		# Add a small amount of randomness to prevent infinite loops
+		var random_angle = randf_range(-0.1, 0.1)
+		reflected_velocity = reflected_velocity.rotated(random_angle)
+		
+		print("Reflected velocity:", reflected_velocity)
+		print("Reflected velocity magnitude:", reflected_velocity.length())
+		
+		# Apply the reflected velocity to the ball
+		if ball.has_method("set_velocity"):
+			ball.set_velocity(reflected_velocity)
+			print("Applied reflected velocity using set_velocity method")
+		elif "velocity" in ball:
+			ball.velocity = reflected_velocity
+			print("Applied reflected velocity using direct velocity property")
+		else:
+			print("ERROR: Could not apply reflected velocity - no set_velocity method or velocity property")
+	
+	print("=== END APPLYING BALL COLLISION EFFECT ===")
+
+func _calculate_kill_dampening(ball_velocity: Vector2, overkill_damage: int) -> Vector2:
+	"""Calculate velocity dampening when ball tips over an oil drum"""
+	# Define dampening ranges
+	const MIN_OVERKILL = 1  # Minimum overkill for maximum dampening
+	const MAX_OVERKILL = 60  # Maximum overkill for minimum dampening
+	
+	# Clamp overkill damage to our defined range
+	var clamped_overkill = clamp(overkill_damage, MIN_OVERKILL, MAX_OVERKILL)
+	
+	# Calculate dampening factor (0.0 = no dampening, 1.0 = maximum dampening)
+	# Higher overkill = less dampening (ball keeps more speed)
+	var dampening_percentage = 1.0 - ((clamped_overkill - MIN_OVERKILL) / (MAX_OVERKILL - MIN_OVERKILL))
+	
+	# Apply dampening factor to velocity
+	# Maximum dampening reduces velocity to 20% of original
+	# Minimum dampening reduces velocity to 80% of original
+	var dampening_factor = 0.2 + (dampening_percentage * 0.6)  # 0.2 to 0.8 range
+	var dampened_velocity = ball_velocity * dampening_factor
+	
+	# Debug output
+	print("=== KILL DAMPENING CALCULATION ===")
+	print("Overkill damage:", overkill_damage)
+	print("Clamped overkill:", clamped_overkill)
+	print("Dampening percentage:", dampening_percentage)
+	print("Dampening factor:", dampening_factor)
+	print("Original velocity magnitude:", ball_velocity.length())
+	print("Dampened velocity magnitude:", dampened_velocity.length())
+	print("=== END KILL DAMPENING CALCULATION ===")
+	
+	return dampened_velocity

@@ -34,6 +34,9 @@ texture = ExtResource("1_loocf")
 position = Vector2(11, -3.93403e-07)
 shape = SubResource("RectangleShape2D_loocf")
 
+[node name="TopHeight" type="Marker2D" parent="OilDrumTippedOver"]
+position = Vector2(-16, 5.72205e-05)
+
 [node name="TopHeight" type="Marker2D" parent="."]
 position = Vector2(0, -59)
 

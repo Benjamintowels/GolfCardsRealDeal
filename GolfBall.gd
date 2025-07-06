@@ -974,6 +974,7 @@ func _on_area_entered(area):
 	elif area.get_parent() and area.get_parent().has_method("_handle_ball_collision"):
 		# NPC collision detected - let the NPC handle the collision
 		# The NPC will check ball height and apply appropriate effects
+		print("GolfBall: NPC collision detected with", area.get_parent().name)
 		area.get_parent()._handle_ball_collision(self)
 	# Check if this is a Player collision
 	elif area.get_parent() and area.get_parent().has_method("take_damage"):
@@ -1000,9 +1001,13 @@ func _on_area_entered(area):
 		# Notify course to re-enable player collision since ball hit stone wall
 		notify_course_of_collision()
 	# Check if this is an Oil Drum collision
-	elif area.get_parent() and (area.get_parent().name.contains("Oil") or area.get_parent().name.contains("oil") or area.get_parent().has_method("_handle_roof_bounce_collision")):
-		# Oil drum collision detected - use new roof bounce system
-		_handle_roof_bounce_collision(area.get_parent())
+	elif area.get_parent() and (area.get_parent().name.contains("Oil") or area.get_parent().name.contains("oil") or area.get_parent().name.contains("OilDrum")):
+		# Oil drum collision detected - use the oil drum's ball collision system
+		if area.get_parent().has_method("_handle_ball_collision"):
+			area.get_parent()._handle_ball_collision(self)
+		else:
+			# Fallback to roof bounce system
+			_handle_roof_bounce_collision(area.get_parent())
 		# Notify course to re-enable player collision since ball hit oil drum
 		notify_course_of_collision()
 
