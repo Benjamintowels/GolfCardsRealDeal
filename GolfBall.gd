@@ -1371,23 +1371,25 @@ func check_out_of_bounds_collision() -> void:
 	# Calculate which tile the ball is currently on
 	var tile_pos = Vector2i(floor(position.x / cell_size), floor(position.y / cell_size))
 	
-	# Check if ball is out of bounds
+	# Check if ball is out of bounds (grid boundaries)
 	if tile_pos.x < 0 or tile_pos.y < 0 or tile_pos.x >= map_manager.grid_width or tile_pos.y >= map_manager.grid_height:
 		# Ball hit out-of-bounds tile
 		_reflect_from_out_of_bounds(tile_pos)
 		return
 	
-	# Also check if the current tile type is considered out-of-bounds
-	var tile_type = map_manager.get_tile_type(tile_pos.x, tile_pos.y)
-	if tile_type == "W":  # Water is out-of-bounds
-		# Ice Club can pass through water tiles
-		if ice_club_active:
-			pass  # Ice Club effect: Ball passes through water tile
-			# Continue normal physics - don't stop the ball
-		else:
-			# Ball hit water tile
-			_reflect_from_out_of_bounds(tile_pos)
-			return
+	# Only check for water collisions when the ball is actually on the ground
+	# This prevents balls from bouncing off water tiles when they're high in the air
+	if z <= current_ground_level:
+		var tile_type = map_manager.get_tile_type(tile_pos.x, tile_pos.y)
+		if tile_type == "W":  # Water is out-of-bounds
+			# Ice Club can pass through water tiles
+			if ice_club_active:
+				pass  # Ice Club effect: Ball passes through water tile
+				# Continue normal physics - don't stop the ball
+			else:
+				# Ball hit water tile
+				_reflect_from_out_of_bounds(tile_pos)
+				return
 
 func _reflect_from_out_of_bounds(tile_pos: Vector2i) -> void:
 	"""
