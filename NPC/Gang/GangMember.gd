@@ -154,11 +154,11 @@ func _setup_base_collision() -> void:
 	# Setup HitBox for gun collision detection
 	var hitbox = get_node_or_null("HitBox")
 	if hitbox:
-		# Set collision layer to 1 so gun can detect it
-		hitbox.collision_layer = 1
+		# Set collision layer to 2 so gun can detect it (separate from golf balls on layer 1)
+		hitbox.collision_layer = 2
 		# Set collision mask to 0 (gun doesn't need to detect this)
 		hitbox.collision_mask = 0
-		print("✓ GangMember HitBox setup complete for gun collision")
+		print("✓ GangMember HitBox setup complete for gun collision (layer 2)")
 	else:
 		print("✗ ERROR: HitBox not found!")
 

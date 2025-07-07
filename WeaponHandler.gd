@@ -373,7 +373,7 @@ func perform_raytrace() -> Node:
 	# Check for obstacles along the bullet path
 	var space_state = course.get_world_2d().direct_space_state
 	var query = PhysicsRayQueryParameters2D.create(pistol_pos, ray_end)
-	query.collision_mask = 1  # Collide with layer 1 (trees, obstacles)
+	query.collision_mask = 2  # Collide with layer 2 (HitBoxes for weapons)
 	query.collide_with_bodies = false  # We're using Area2D HitBoxes
 	query.collide_with_areas = true
 	
@@ -419,7 +419,7 @@ func perform_raytrace() -> Node:
 						if dot_product > 0.99:  # Very precise aim required
 							# Double-check no obstacles in the way
 							var final_query = PhysicsRayQueryParameters2D.create(pistol_pos, npc_pos)
-							final_query.collision_mask = 1
+							final_query.collision_mask = 2  # Check for HitBoxes on layer 2
 							final_query.collide_with_bodies = true
 							final_query.collide_with_areas = true
 							

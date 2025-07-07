@@ -84,15 +84,17 @@ func _setup_collision_areas():
 		print("✗ ERROR: Oil drum tipped Area2D not found!")
 	
 	# Setup HitBox for gun collision detection
+	# NOTE: HitBoxes use collision layer 2 to avoid conflicts with golf balls (layer 1)
+	# This prevents golf balls from colliding with HitBoxes while allowing weapons to detect them
 	var hitbox = get_node_or_null("HitBox")
 	if hitbox:
-		# Set collision layer to 1 so gun can detect it
-		hitbox.collision_layer = 1
+		# Set collision layer to 2 so gun can detect it (separate from golf balls on layer 1)
+		hitbox.collision_layer = 2
 		# Set collision mask to 0 (gun doesn't need to detect this)
 		hitbox.collision_mask = 0
 		# Add to hitboxes group for weapon system detection
 		hitbox.add_to_group("hitboxes")
-		print("✓ Oil drum HitBox setup complete for gun collision")
+		print("✓ Oil drum HitBox setup complete for gun collision (layer 2)")
 		
 		# Debug: Verify HitBox is in the group
 		call_deferred("_verify_hitbox_setup")
