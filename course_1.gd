@@ -44,7 +44,8 @@ var is_placing_player := true
 var obstacle_map: Dictionary = {}  # Vector2i -> BaseObstacle
 
 var turn_count: int = 1
-
+# Fire tile damage tracking
+var fire_tiles_that_damaged_player: Array[Vector2i] = []  # Track which fire tiles have already damaged player this turn
 var grid_size := Vector2i(50, 50)
 var cell_size: int = 48 # This will be set by the main script
 var grid_tiles = []
@@ -1352,6 +1353,9 @@ func _on_end_turn_pressed() -> void:
 	# Increment global turn counter for turn-based spawning
 	Global.increment_global_turn()
 	
+	# Reset fire damage tracking for new turn
+	reset_fire_damage_tracking()
+	
 	# Advance fire tiles to next turn
 	advance_fire_tiles()
 	
@@ -1601,6 +1605,9 @@ func advance_fire_tiles() -> void:
 	for fire_tile in fire_tiles:
 		if is_instance_valid(fire_tile) and fire_tile.has_method("advance_turn"):
 			fire_tile.advance_turn()
+	
+	# Check for fire damage at end of world turn
+	check_player_fire_damage()
 
 func update_deck_display() -> void:
 	var hud := get_node("UILayer/HUD")
@@ -2492,6 +2499,9 @@ func _on_player_moved_to_tile(new_grid_pos: Vector2i) -> void:
 	player_grid_pos = new_grid_pos
 	movement_controller.update_player_position(new_grid_pos)
 	attack_handler.update_player_position(new_grid_pos)
+	
+	# Check for fire damage when player moves to new tile
+	check_player_fire_damage()
 	
 	if player_grid_pos == shop_grid_pos and not shop_entrance_detected:
 		shop_entrance_detected = true
@@ -3385,3 +3395,93 @@ func create_camera_tween(target_position: Vector2, duration: float = 0.5, transi
 	
 	# Clean up when tween completes
 	current_camera_tween.finished.connect(func(): current_camera_tween = null)
+func check_player_fire_damage() -> void:
+	"""Check if player should take fire damage from active fire tiles"""
+	if not player_node or not player_node.has_method("take_damage"):
+		return
+	
+	var fire_tiles = get_tree().get_nodes_in_group("fire_tiles")
+	var player_took_damage = false
+	
+	for fire_tile in fire_tiles:
+		if not is_instance_valid(fire_tile) or not fire_tile.has_method("is_fire_active"):
+			continue
+		
+		# Skip if fire tile is not active (scorched)
+		if not fire_tile.is_fire_active():
+			continue
+		
+		var fire_tile_pos = fire_tile.get_tile_position()
+		
+		# Check if this fire tile has already damaged the player this turn
+		if fire_tile_pos in fire_tiles_that_damaged_player:
+			continue
+		
+		# Check if player is on the fire tile or adjacent to it
+		if _is_player_affected_by_fire_tile(fire_tile_pos):
+			# Determine damage amount
+			var damage = 30 if player_grid_pos == fire_tile_pos else 15
+			
+			# Apply damage to player
+			player_node.take_damage(damage)
+			print("Player took", damage, "fire damage from fire tile at", fire_tile_pos)
+			
+			# Play FlameOn sound effect
+			play_flame_on_sound()
+			
+			# Mark this fire tile as having damaged the player this turn
+			fire_tiles_that_damaged_player.append(fire_tile_pos)
+			player_took_damage = true
+	
+	if player_took_damage:
+		print("Player fire damage check complete - damage applied")
+
+func play_flame_on_sound() -> void:
+	"""Play the FlameOn sound effect when player takes fire damage"""
+	# Try to find an existing FlameOn sound in the scene
+	var flame_sounds = get_tree().get_nodes_in_group("flame_sounds")
+	if flame_sounds.size() > 0:
+		var flame_sound = flame_sounds[0]
+		if flame_sound and flame_sound.has_method("play"):
+			flame_sound.play()
+			return
+	
+	# Fallback: create a temporary audio player
+	var temp_audio = AudioStreamPlayer2D.new()
+	var sound_file = load("res://Sounds/FlameOn.mp3")
+	if sound_file:
+		temp_audio.stream = sound_file
+		temp_audio.volume_db = -5.0  # Slightly quieter for player damage
+		temp_audio.position = player_node.global_position if player_node else Vector2.ZERO
+		add_child(temp_audio)
+		temp_audio.play()
+		# Remove the audio player after it finishes
+		temp_audio.finished.connect(func(): temp_audio.queue_free())
+
+func _is_player_affected_by_fire_tile(fire_tile_pos: Vector2i) -> bool:
+	"""Check if player is on the fire tile or adjacent to it"""
+	# Direct hit - player is on the fire tile
+	if player_grid_pos == fire_tile_pos:
+		return true
+	
+	# Adjacent tiles (8-directional)
+	var adjacent_positions = [
+		Vector2i(0, -1),  # Up
+		Vector2i(1, 0),   # Right
+		Vector2i(0, 1),   # Down
+		Vector2i(-1, 0),  # Left
+		Vector2i(1, -1),  # Up-right
+		Vector2i(1, 1),   # Down-right
+		Vector2i(-1, 1),  # Down-left
+		Vector2i(-1, -1)  # Up-left
+	]
+	
+	for direction in adjacent_positions:
+		if player_grid_pos == fire_tile_pos + direction:
+			return true
+	
+	return false
+
+func reset_fire_damage_tracking() -> void:
+	"""Reset the fire damage tracking at the start of each turn"""
+	fire_tiles_that_damaged_player.clear()
