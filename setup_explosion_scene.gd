@@ -4,8 +4,6 @@ extends Node2D
 # Run this once to create the proper explosion scene structure
 
 func _ready():
-	print("Setting up Explosion scene structure...")
-	
 	# Create ExplosionSprite
 	var explosion_sprite = Sprite2D.new()
 	explosion_sprite.name = "ExplosionSprite"
@@ -15,9 +13,6 @@ func _ready():
 	var explosion_texture = load("res://Particles/Explosion.png")
 	if explosion_texture:
 		explosion_sprite.texture = explosion_texture
-		print("✓ Explosion texture loaded")
-	else:
-		print("✗ ERROR: Could not load explosion texture")
 	
 	add_child(explosion_sprite)
 	
@@ -30,9 +25,6 @@ func _ready():
 	if explosion_audio:
 		explosion_sound.stream = explosion_audio
 		explosion_sound.volume_db = 0.0
-		print("✓ Explosion sound loaded")
-	else:
-		print("✗ ERROR: Could not load explosion sound")
 	
 	add_child(explosion_sound)
 	
@@ -49,9 +41,6 @@ func _ready():
 	var fire_particle_texture = load("res://Particles/FireParticle.png")
 	if fire_particle_texture:
 		fire_particles.texture = fire_particle_texture
-		print("✓ Fire particle texture loaded")
-	else:
-		print("✗ ERROR: Could not load fire particle texture")
 	
 	# Create particle material
 	var particle_material = ParticleProcessMaterial.new()

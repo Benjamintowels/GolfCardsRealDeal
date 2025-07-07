@@ -933,7 +933,6 @@ func update_tile_friction() -> void:
 	if fire_club_active and (tile_type == "R" or tile_type == "F"):
 		# Fire Club effect: Reduced friction on grass/rough tiles
 		current_tile_friction = min(current_tile_friction + 0.2, 0.95)  # Reduce friction by 0.2, cap at 0.95
-		print("Fire Club effect: Reduced friction on", tile_type, "tile from", tile_friction_values.get(tile_type, 0.60), "to", current_tile_friction)
 
 func check_bounce_reduction() -> void:
 	"""Check if the ball should have its bounces reduced based on the tile it landed on"""
@@ -1425,7 +1424,6 @@ func _check_rolling_collision_delay() -> void:
 	# Enable collisions if ball has moved far enough
 	if distance_from_start >= rolling_collision_delay_distance:
 		rolling_collision_enabled = true
-		print("✓ Rolling collision delay complete - collisions enabled")
 
 func _should_allow_player_collision() -> bool:
 	"""
@@ -1436,18 +1434,15 @@ func _should_allow_player_collision() -> bool:
 	
 	# Check collision cooldown
 	if current_time - last_player_collision_time < player_collision_cooldown:
-		print("⚠ Player collision cooldown active - skipping collision")
 		return false
 	
 	# Check if we've hit the player too many times consecutively
 	if player_collision_count >= max_player_collisions:
-		print("⚠ Maximum player collisions reached - forcing escape")
 		_force_escape_from_player()
 		return false
 	
 	# Check rolling collision delay for rolling balls
 	if is_rolling and not rolling_collision_enabled:
-		print("⚠ Rolling collision delay active - skipping player collision")
 		return false
 	
 	return true

@@ -1179,55 +1179,22 @@ func _setup_swing_animation() -> void:
 	# If still not found, try a more aggressive search
 	if not swing_animation:
 		print("⚠ No swing animation system found in character scene")
-		print("Available methods on children:")
-		for child in get_children():
-			print("  ", child.name, "methods:", child.get_method_list())
-			if child is Node2D:
-				for grandchild in child.get_children():
-					print("    ", grandchild.name, "methods:", grandchild.get_method_list())
-					if grandchild is Node2D:
-						for great_grandchild in grandchild.get_children():
-							print("      ", great_grandchild.name, "methods:", great_grandchild.get_method_list())
-		
-		# Try to find by name as a fallback
-		print("Trying to find SwingAnimation by name...")
-		var swing_node = find_child("SwingAnimation", true, false)
-		if swing_node and swing_node.has_method("start_swing_animation"):
-			swing_animation = swing_node
-			print("✓ Found SwingAnimation by name:", swing_animation)
-		else:
-			print("✗ SwingAnimation not found by name either")
 	else:
 		print("✓ Swing animation system setup complete")
 
 func _update_swing_animation() -> void:
-	"""Update swing animation based on height charge state"""
-	print("=== UPDATING SWING ANIMATION ===")
-	print("Swing animation system:", swing_animation)
-	print("Is charging height:", is_charging_height)
-	print("Previous charging height:", previous_charging_height)
-	
-	if not swing_animation:
-		print("⚠ No swing animation system available")
-		return
 	
 	# Check if height charge state changed
 	if is_charging_height != previous_charging_height:
-		print("Height charge state changed!")
 		if is_charging_height:
 			# Height charge started - start swing animation
-			print("Height charge started - triggering swing animation")
 			swing_animation.start_swing_animation()
 		else:
 			# Height charge stopped - stop swing animation
-			print("Height charge stopped - stopping swing animation")
 			swing_animation.stop_swing_animation()
 		
 		# Update previous state
 		previous_charging_height = is_charging_height
-		print("Updated previous_charging_height to:", previous_charging_height)
-	else:
-		print("No height charge state change")
 
 func start_swing_animation() -> void:
 	"""Manually start the swing animation"""
@@ -1244,23 +1211,3 @@ func is_swinging() -> bool:
 	if swing_animation:
 		return swing_animation.is_currently_swinging()
 	return false
-
-# Manual test method for debugging
-func manual_test_swing() -> void:
-	"""Manual test method to trigger swing animation for debugging"""
-	print("=== MANUAL SWING TEST ===")
-	print("Swing animation system:", swing_animation)
-	
-	if swing_animation:
-		print("Calling swing_animation.start_swing_animation()")
-		swing_animation.start_swing_animation()
-		print("✓ Manual swing test triggered")
-	else:
-		print("✗ No swing animation system available")
-		# Try to find it again
-		_setup_swing_animation()
-		if swing_animation:
-			print("✓ Found swing animation system, trying again")
-			swing_animation.start_swing_animation()
-		else:
-			print("✗ Still no swing animation system found")

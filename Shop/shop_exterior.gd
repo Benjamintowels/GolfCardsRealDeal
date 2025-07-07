@@ -22,7 +22,6 @@ func _ready():
 		base_area.collision_layer = 1
 		# Set collision mask to 1 so it can detect golf balls on layer 1
 		base_area.collision_mask = 1
-		print("✓ Shop BaseArea setup complete for collision detection")
 	else:
 		print("✗ ERROR: BaseArea not found!")
 	
@@ -120,7 +119,6 @@ func _reflect_projectile(projectile: Node2D):
 	var thunk = get_node_or_null("TrunkThunk")
 	if thunk:
 		thunk.play()
-		print("✓ TrunkThunk sound played for shop collision")
 	else:
 		print("✗ TrunkThunk sound not found!")
 	

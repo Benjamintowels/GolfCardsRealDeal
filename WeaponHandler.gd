@@ -370,13 +370,6 @@ func perform_raytrace() -> Node:
 	var direction = (mouse_pos - pistol_pos).normalized()
 	var ray_end = pistol_pos + direction * weapon_range
 	
-	print("=== WEAPON RAYTRACE DEBUG ===")
-	print("Pistol position:", pistol_pos)
-	print("Mouse position:", mouse_pos)
-	print("Direction:", direction)
-	print("Ray end:", ray_end)
-	print("Weapon range:", weapon_range)
-	
 	# Check for obstacles along the bullet path
 	var space_state = course.get_world_2d().direct_space_state
 	var query = PhysicsRayQueryParameters2D.create(pistol_pos, ray_end)
@@ -391,92 +384,68 @@ func perform_raytrace() -> Node:
 		var hit_object = result.collider
 		var hit_distance = result.position.distance_to(pistol_pos)
 		
-		print("Raycast hit object:", hit_object.name if hit_object else "None")
-		print("Hit distance:", hit_distance)
-		print("Hit object class:", hit_object.get_class() if hit_object else "None")
-		
 		# Check if it's a HitBox Area2D
 		if hit_object.name == "HitBox":
 			var parent = hit_object.get_parent()
-			print("HitBox parent:", parent.name if parent else "None")
-			print("Parent script:", parent.get_script().resource_path if parent and parent.get_script() else "None")
 			
 			# Check if it's a tree's HitBox
 			if parent and (parent.name == "Tree" or "Tree" in str(parent.get_script()) or parent.has_method("_handle_trunk_collision")):
-				# Play tree thunk sound using the Tree's own sound player
-				var tree_trunk_sound = parent.get_node_or_null("TrunkThunk")
-				if tree_trunk_sound:
-					tree_trunk_sound.play()
-				print("Tree HitBox detected - blocking shot")
 				return null  # Tree blocks the shot
 			
 			# Check if it's a GangMember's HitBox
 			if parent and parent.has_method("take_damage"):
-				print("GangMember HitBox detected")
-				# Since we already hit the GangMember's HitBox, we have direct line of sight
 				return parent  # Return the parent GangMember, not the HitBox
 			
 			# Check if it's an OilDrum's HitBox
 			if parent and (parent.name == "OilDrum" or "oil_drum.gd" in str(parent.get_script())):
-				print("OilDrum HitBox detected!")
-				# Since we already hit the OilDrum's HitBox, we have direct line of sight
 				return parent  # Return the parent OilDrum, not the HitBox
 	else:
-		print("No raycast hit detected")
-	
-	# No obstacles hit, check if any NPCs are in the direct path
-	var entities = course.get_node_or_null("Entities")
-	if entities:
-		var npcs = entities.get_npcs()
-		var closest_npc = null
-		var closest_distance = weapon_range
-		
-		for npc in npcs:
-			if is_instance_valid(npc) and npc.has_method("take_damage"):
-				var npc_pos = npc.global_position
-				var to_npc = npc_pos - pistol_pos
-				var distance = to_npc.length()
-				
-				# Check if NPC is in the direct line of fire
-				if distance <= weapon_range:
-					var dot_product = to_npc.normalized().dot(direction)
-					if dot_product > 0.99:  # Very precise aim required
-						# Double-check no obstacles in the way
-						var final_query = PhysicsRayQueryParameters2D.create(pistol_pos, npc_pos)
-						final_query.collision_mask = 1
-						final_query.collide_with_bodies = true
-						final_query.collide_with_areas = true
-						
-						var final_result = space_state.intersect_ray(final_query)
-						
-						if final_result and final_result.collider == npc:
-							if distance < closest_distance:
-								closest_distance = distance
-								closest_npc = npc
-		
-		if closest_npc:
-			print("Found NPC in direct path:", closest_npc.name)
-			return closest_npc
+		# No obstacles hit, check if any NPCs are in the direct path
+		var entities = course.get_node_or_null("Entities")
+		if entities:
+			var npcs = entities.get_npcs()
+			var closest_npc = null
+			var closest_distance = weapon_range
+			
+			for npc in npcs:
+				if is_instance_valid(npc) and npc.has_method("take_damage"):
+					var npc_pos = npc.global_position
+					var to_npc = npc_pos - pistol_pos
+					var distance = to_npc.length()
+					
+					# Check if NPC is in the direct line of fire
+					if distance <= weapon_range:
+						var dot_product = to_npc.normalized().dot(direction)
+						if dot_product > 0.99:  # Very precise aim required
+							# Double-check no obstacles in the way
+							var final_query = PhysicsRayQueryParameters2D.create(pistol_pos, npc_pos)
+							final_query.collision_mask = 1
+							final_query.collide_with_bodies = true
+							final_query.collide_with_areas = true
+							
+							var final_result = space_state.intersect_ray(final_query)
+							
+							if final_result and final_result.collider == npc:
+								if distance < closest_distance:
+									closest_distance = distance
+									closest_npc = npc
+			
+			if closest_npc:
+				return closest_npc
 	
 	# Fallback: If physics raycast isn't working, try a simpler distance-based check
-	print("Using fallback distance check")
 	var fallback_hit = _fallback_distance_check(pistol_pos, direction)
 	if fallback_hit:
-		print("Fallback hit detected:", fallback_hit.name)
 		_handle_knife_hit(null, fallback_hit)
 		return fallback_hit
 	
-	print("No targets found")
-	print("=== END WEAPON RAYTRACE DEBUG ===")
 	return null
 
 func _fallback_distance_check(pistol_pos: Vector2, direction: Vector2) -> Node:
 	"""Fallback method to check for objects along the bullet path using distance calculations"""
-	print("=== FALLBACK DISTANCE CHECK DEBUG ===")
 	
 	# Check for HitBox Area2D nodes first
 	var hitboxes = get_tree().get_nodes_in_group("hitboxes")
-	print("HitBoxes in 'hitboxes' group:", hitboxes.size())
 	
 	if not hitboxes:
 		# Try to find HitBox nodes by name
@@ -484,7 +453,6 @@ func _fallback_distance_check(pistol_pos: Vector2, direction: Vector2) -> Node:
 		for node in get_tree().get_nodes_in_group("."):
 			if node.name == "HitBox":
 				hitboxes.append(node)
-		print("Found HitBoxes by name search:", hitboxes.size())
 	
 	# Check each HitBox
 	for hitbox in hitboxes:
@@ -493,34 +461,23 @@ func _fallback_distance_check(pistol_pos: Vector2, direction: Vector2) -> Node:
 			var to_hitbox = hitbox_pos - pistol_pos
 			var distance = to_hitbox.length()
 			
-			print("Checking HitBox:", hitbox.name, "at position:", hitbox_pos, "distance:", distance)
-			
 			# Check if HitBox is in the bullet path
 			if distance <= weapon_range:
 				var dot_product = to_hitbox.normalized().dot(direction)
-				print("HitBox dot product:", dot_product)
 				
 				if dot_product > 0.95:  # Within ~18 degrees of aim direction
 					var parent = hitbox.get_parent()
-					print("HitBox parent:", parent.name if parent else "None")
 					
 					# Check if it's a tree's HitBox
 					if parent and (parent.name == "Tree" or "Tree" in str(parent.get_script()) or parent.has_method("_handle_trunk_collision")):
-						# Play tree thunk sound using the Tree's own sound player
-						var tree_trunk_sound = parent.get_node_or_null("TrunkThunk")
-						if tree_trunk_sound:
-							tree_trunk_sound.play()
-						print("Tree HitBox detected in fallback")
 						return null  # Tree blocks the shot
 					
 					# Check if it's a GangMember's HitBox
 					if parent and parent.has_method("take_damage"):
-						print("GangMember HitBox detected in fallback")
 						return parent  # Return the parent GangMember
 					
 					# Check if it's an OilDrum's HitBox
 					if parent and (parent.name == "OilDrum" or "oil_drum.gd" in str(parent.get_script())):
-						print("OilDrum HitBox detected in fallback!")
 						return parent  # Return the parent OilDrum
 	
 	# Check for GangMembers (fallback for entities without HitBox)
@@ -558,11 +515,8 @@ func _fallback_distance_check(pistol_pos: Vector2, direction: Vector2) -> Node:
 							closest_npc = npc
 		
 		if closest_npc:
-			print("Found NPC in fallback check:", closest_npc.name)
 			return closest_npc
 	
-	print("No targets found in fallback check")
-	print("=== END FALLBACK DISTANCE CHECK DEBUG ===")
 	return null
 
 func exit_weapon_mode() -> void:

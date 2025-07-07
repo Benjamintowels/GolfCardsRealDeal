@@ -441,9 +441,6 @@ func _handle_npc_stick(npc: Node2D) -> void:
 			if is_headshot:
 				# Apply headshot multiplier (assuming 1.5x like GangMember)
 				final_damage = int(base_damage * 1.5)
-				print("KNIFE HEADSHOT! Height:", z, "Base damage:", base_damage, "Final damage:", final_damage)
-			else:
-				print("Knife body shot. Height:", z, "Damage:", final_damage)
 		
 		npc.take_damage(final_damage, is_headshot)
 	
