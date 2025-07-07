@@ -167,11 +167,11 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 	
 	# For hole 1, force shop placement near tees for testing
 	if current_hole == 0 and include_shop:
-		# Place shop at position (3, 4) which is near the tees at (5,5)-(7,7)
-		# This puts the shop entrance at (3,4) and blocks (4,4) to the right
-		positions.shop = Vector2i(3, 4)
+		# Place shop at position (2, 4) which is near the tees at (5,5)-(7,7)
+		# This puts the shop entrance at (2,4) with blocked tiles around it
+		positions.shop = Vector2i(2, 4)
 		placed_objects.append(positions.shop)
-		print("✓ Shop forced to position (3,4) for hole 1 testing")
+		print("✓ Shop forced to position (2,4) for hole 1 testing")
 	
 	# Get valid positions for trees and other objects
 	var valid_positions: Array = []
@@ -432,13 +432,34 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 				obstacle_layer.add_child(shop)
 				shop_grid_pos = object_positions.shop
 				print("✓ Shop placed at grid position:", shop_grid_pos)
-				var right_of_shop_pos = object_positions.shop + Vector2i(1, 0)
+				
+				# Place InvisibleBlockers around the shop entrance
+				# 1 blocked tile to the left of entrance
+				var left_of_shop_pos = object_positions.shop + Vector2i(-1, 0)
+				# 3 blocked tiles to the right of entrance
+				var right1_of_shop_pos = object_positions.shop + Vector2i(1, 0)
+				var right2_of_shop_pos = object_positions.shop + Vector2i(2, 0)
+				var right3_of_shop_pos = object_positions.shop + Vector2i(3, 0)
+				
+				# Create and place blockers in the shop row only
+				var blocker_positions = [left_of_shop_pos, right1_of_shop_pos, right2_of_shop_pos, right3_of_shop_pos]
 				var blocker_scene = preload("res://Obstacles/InvisibleBlocker.tscn")
-				var blocker = blocker_scene.instantiate()
-				var blocker_world_pos = Vector2(right_of_shop_pos.x, right_of_shop_pos.y) * cell_size
-				blocker.position = blocker_world_pos + Vector2(cell_size / 2, cell_size / 2)
-				obstacle_layer.add_child(blocker)
-				obstacle_map[right_of_shop_pos] = blocker
+				
+				for blocker_pos in blocker_positions:
+					var blocker = blocker_scene.instantiate()
+					var blocker_world_pos = Vector2(blocker_pos.x, blocker_pos.y) * cell_size
+					blocker.position = blocker_world_pos + Vector2(cell_size / 2, cell_size / 2)
+					
+					# Set the blocker's grid position metadata
+					blocker.set_meta("grid_position", blocker_pos)
+					
+					# Add blocker to groups for consistency
+					blocker.add_to_group("obstacles")
+					blocker.add_to_group("collision_objects")
+					
+					obstacle_layer.add_child(blocker)
+					obstacle_map[blocker_pos] = blocker
+					print("✓ InvisibleBlocker placed at grid position:", blocker_pos)
 	
 	# Place GangMembers
 	for gang_pos in object_positions.gang_members:

@@ -112,7 +112,7 @@ func _allow_projectile_entry(projectile: Node2D, shop_height: float):
 	# When it exits the area, _on_area_exited will reset the ground level
 
 func _reflect_projectile(projectile: Node2D):
-	"""Reflect projectile off the shop"""
+	"""Reflect projectile off the shop using proper rectangular collision detection"""
 	print("=== REFLECTING PROJECTILE ===")
 	
 	# Play trunk thunk sound for shop collision
@@ -132,13 +132,54 @@ func _reflect_projectile(projectile: Node2D):
 	print("Reflecting projectile with velocity:", projectile_velocity)
 	
 	var projectile_pos = projectile.global_position
-	var shop_center = global_position
+	var shop_pos = global_position
 	
-	# Calculate the direction from shop center to projectile
-	var to_projectile_direction = (projectile_pos - shop_center).normalized()
+	# Get the shop's collision shape to determine the rectangle bounds
+	var base_area = get_node_or_null("BaseArea")
+	var collision_shape = base_area.get_node_or_null("ShopBase") if base_area else null
 	
-	# Simple reflection: reflect the velocity across the shop center
-	var reflected_velocity = projectile_velocity - 2 * projectile_velocity.dot(to_projectile_direction) * to_projectile_direction
+	if not collision_shape:
+		print("✗ ERROR: Shop collision shape not found - using fallback reflection")
+		_fallback_reflect_projectile(projectile, projectile_velocity)
+		return
+	
+	# Calculate the shop's rectangular bounds
+	var shop_size = collision_shape.shape.size
+	var shop_scale = collision_shape.scale
+	var shop_offset = collision_shape.position
+	
+	var actual_width = shop_size.x * shop_scale.x
+	var actual_height = shop_size.y * shop_scale.y
+	
+	# Calculate the shop's world bounds
+	var shop_left = shop_pos.x + shop_offset.x - actual_width / 2
+	var shop_right = shop_pos.x + shop_offset.x + actual_width / 2
+	var shop_top = shop_pos.y + shop_offset.y - actual_height / 2
+	var shop_bottom = shop_pos.y + shop_offset.y + actual_height / 2
+	
+	print("Shop bounds: left=", shop_left, " right=", shop_right, " top=", shop_top, " bottom=", shop_bottom)
+	print("Projectile position:", projectile_pos)
+	
+	# Determine which side of the rectangle the projectile hit
+	var reflected_velocity = projectile_velocity
+	
+	# Calculate distances to each edge
+	var dist_to_left = abs(projectile_pos.x - shop_left)
+	var dist_to_right = abs(projectile_pos.x - shop_right)
+	var dist_to_top = abs(projectile_pos.y - shop_top)
+	var dist_to_bottom = abs(projectile_pos.y - shop_bottom)
+	
+	# Find the closest edge (the one that was hit)
+	var min_dist = min(dist_to_left, dist_to_right, dist_to_top, dist_to_bottom)
+	
+	if min_dist == dist_to_left or min_dist == dist_to_right:
+		# Hit left or right edge - reflect horizontally
+		reflected_velocity.x = -projectile_velocity.x
+		print("Hit left/right edge - reflecting horizontally")
+	elif min_dist == dist_to_top or min_dist == dist_to_bottom:
+		# Hit top or bottom edge - reflect vertically
+		reflected_velocity.y = -projectile_velocity.y
+		print("Hit top/bottom edge - reflecting vertically")
 	
 	# Reduce speed slightly to prevent infinite bouncing
 	reflected_velocity *= 0.8
@@ -147,7 +188,30 @@ func _reflect_projectile(projectile: Node2D):
 	var random_angle = randf_range(-0.1, 0.1)
 	reflected_velocity = reflected_velocity.rotated(random_angle)
 	
+	print("Original velocity:", projectile_velocity)
 	print("Reflected velocity:", reflected_velocity)
+	
+	# Apply the reflected velocity to the projectile
+	if projectile.has_method("set_velocity"):
+		projectile.set_velocity(reflected_velocity)
+	elif "velocity" in projectile:
+		projectile.velocity = reflected_velocity
+
+func _fallback_reflect_projectile(projectile: Node2D, projectile_velocity: Vector2):
+	"""Fallback reflection method if collision shape is not available"""
+	print("Using fallback reflection method")
+	
+	# Simple velocity reversal with some randomness
+	var reflected_velocity = -projectile_velocity
+	
+	# Reduce speed slightly to prevent infinite bouncing
+	reflected_velocity *= 0.8
+	
+	# Add a small amount of randomness to prevent infinite loops
+	var random_angle = randf_range(-0.1, 0.1)
+	reflected_velocity = reflected_velocity.rotated(random_angle)
+	
+	print("Fallback reflected velocity:", reflected_velocity)
 	
 	# Apply the reflected velocity to the projectile
 	if projectile.has_method("set_velocity"):
@@ -190,4 +254,4 @@ func get_collision_radius() -> float:
 	Get the collision radius for this shop.
 	Used by the roof bounce system to determine when ball has exited collision area.
 	"""
-	return 150.0  # Shop collision radius
+	return 48.0  # Shop collision radius (matches tile size)

@@ -5,26 +5,25 @@
 [ext_resource type="AudioStream" uid="uid://01xbvo1dq6r0" path="res://Sounds/TrunkThunk.mp3" id="3_o2kx7"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_iws6i"]
-size = Vector2(105, 50)
+size = Vector2(205, 48)
 
 [node name="Shop" type="Node2D"]
 z_index = 1
-position = Vector2(0, -81.33)
 script = ExtResource("1_iws6i")
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 z_index = 1
-position = Vector2(0, 0.330002)
+texture_filter = 1
+position = Vector2(50.335, -80.045)
 texture = ExtResource("2_iws6i")
 
 [node name="YsortPoint" type="Node2D" parent="."]
-position = Vector2(16.547, 81.891)
+texture_filter = 1
 
 [node name="BaseArea" type="Area2D" parent="."]
 
 [node name="ShopBase" type="CollisionShape2D" parent="BaseArea"]
-position = Vector2(1, 80.291)
-scale = Vector2(2, 1)
+position = Vector2(53, 0)
 shape = SubResource("RectangleShape2D_iws6i")
 
 [node name="TopHeight" type="Marker2D" parent="."]

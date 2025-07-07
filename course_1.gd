@@ -203,7 +203,7 @@ var shop_dialog: Control = null
 # Smart Performance Optimizer
 var smart_optimizer: Node
 var shop_entrance_detected := false
-var shop_grid_pos := Vector2i(3, 4)  # Position of shop from map layout (forced for hole 1 testing)
+var shop_grid_pos := Vector2i(2, 4)  # Position of shop from map layout (moved left one tile, with blocked tiles around it)
 
 var has_started := false
 
@@ -2504,10 +2504,16 @@ func _on_player_moved_to_tile(new_grid_pos: Vector2i) -> void:
 	check_player_fire_damage()
 	
 	if player_grid_pos == shop_grid_pos and not shop_entrance_detected:
+		print("=== SHOP ENTRANCE DETECTED ===")
+		print("Player grid position:", player_grid_pos)
+		print("Shop grid position:", shop_grid_pos)
+		print("Shop entrance detected flag:", shop_entrance_detected)
 		shop_entrance_detected = true
 		show_shop_entrance_dialog()
 		return  # Don't exit movement mode yet
 	elif player_grid_pos != shop_grid_pos:
+		if shop_entrance_detected:
+			print("Player moved away from shop entrance")
 		shop_entrance_detected = false
 	
 	update_player_position()

@@ -433,7 +433,7 @@ func _allow_projectile_entry(projectile: Node2D, oil_drum_height: float):
 	# When it exits the area, _on_area_exited will reset the ground level
 
 func _reflect_projectile(projectile: Node2D):
-	"""Reflect projectile off the oil drum"""
+	"""Reflect projectile off the oil drum using proper circular collision detection"""
 	print("=== REFLECTING PROJECTILE ===")
 	
 	# Play oil drum thunk sound for reflection (not for roof bounce)
@@ -448,14 +448,59 @@ func _reflect_projectile(projectile: Node2D):
 	
 	print("Reflecting projectile with velocity:", projectile_velocity)
 	
+	# Use proper circular reflection
+	var reflected_velocity = _calculate_circular_reflection(projectile, projectile_velocity)
+	
+	print("Original velocity:", projectile_velocity)
+	print("Reflected velocity:", reflected_velocity)
+	
+	# Apply the reflected velocity to the projectile
+	if projectile.has_method("set_velocity"):
+		projectile.set_velocity(reflected_velocity)
+	elif "velocity" in projectile:
+		projectile.velocity = reflected_velocity
+
+func _calculate_circular_reflection(projectile: Node2D, projectile_velocity: Vector2) -> Vector2:
+	"""Calculate proper circular reflection for the oil drum"""
 	var projectile_pos = projectile.global_position
-	var oil_drum_center = global_position
+	var oil_drum_pos = global_position
 	
-	# Calculate the direction from oil drum center to projectile
-	var to_projectile_direction = (projectile_pos - oil_drum_center).normalized()
+	# Get the oil drum's collision shape to determine the circle bounds
+	var area2d = get_node_or_null("Area2D")
+	var collision_shape = area2d.get_node_or_null("CollisionShape2D") if area2d else null
 	
-	# Simple reflection: reflect the velocity across the oil drum center
-	var reflected_velocity = projectile_velocity - 2 * projectile_velocity.dot(to_projectile_direction) * to_projectile_direction
+	if not collision_shape or not collision_shape.shape is CircleShape2D:
+		print("✗ ERROR: Oil drum collision shape not found or not circular - using fallback reflection")
+		return -projectile_velocity * 0.8  # Simple fallback
+	
+	# Get the circle's radius and position
+	var circle_radius = collision_shape.shape.radius
+	var circle_scale = collision_shape.scale
+	var circle_offset = collision_shape.position
+	
+	# Calculate the actual circle radius (accounting for scale)
+	var actual_radius = circle_radius * circle_scale.x  # Use X scale for uniform scaling
+	
+	# Calculate the circle's world center
+	var circle_center = oil_drum_pos + circle_offset
+	
+	# Calculate the direction from circle center to projectile
+	var to_projectile = projectile_pos - circle_center
+	var distance_to_center = to_projectile.length()
+	
+	# If projectile is inside the circle, push it out first
+	if distance_to_center < actual_radius:
+		var push_direction = to_projectile.normalized()
+		projectile.global_position = circle_center + push_direction * (actual_radius + 1.0)
+		print("Pushed projectile outside circle")
+	
+	# Recalculate direction after potential push
+	to_projectile = projectile.global_position - circle_center
+	var normal_direction = to_projectile.normalized()
+	
+	# Calculate reflection using the circle's normal at the collision point
+	# The normal is the direction from circle center to the collision point
+	var reflected_velocity = projectile_velocity - 2 * projectile_velocity.dot(normal_direction) * normal_direction
 	
 	# Reduce speed slightly to prevent infinite bouncing
 	reflected_velocity *= 0.8
@@ -464,13 +509,7 @@ func _reflect_projectile(projectile: Node2D):
 	var random_angle = randf_range(-0.1, 0.1)
 	reflected_velocity = reflected_velocity.rotated(random_angle)
 	
-	print("Reflected velocity:", reflected_velocity)
-	
-	# Apply the reflected velocity to the projectile
-	if projectile.has_method("set_velocity"):
-		projectile.set_velocity(reflected_velocity)
-	elif "velocity" in projectile:
-		projectile.velocity = reflected_velocity
+	return reflected_velocity
 
 func _on_area_exited(area: Area2D):
 	"""Handle when projectile exits the oil drum area - reset ground level"""
@@ -537,8 +576,6 @@ func _play_oil_drum_sound() -> void:
 		print("✓ OilDrumThunk sound played for reflection collision")
 	else:
 		print("✗ OilDrumThunk sound not found")
-
-
 
 func _handle_roof_bounce_collision(projectile: Node2D) -> void:
 	"""Handle collision with projectiles - called by roof bounce system"""
@@ -619,7 +656,7 @@ func _handle_regular_ball_collision(ball: Node2D) -> void:
 	_apply_ball_collision_effect(ball)
 
 func _apply_knife_reflection(knife: Node2D) -> void:
-	"""Apply reflection effect to a knife (fallback method)"""
+	"""Apply reflection effect to a knife using proper circular reflection"""
 	# Get the knife's current velocity
 	var knife_velocity = Vector2.ZERO
 	if knife.has_method("get_velocity"):
@@ -629,21 +666,8 @@ func _apply_knife_reflection(knife: Node2D) -> void:
 	
 	print("Applying knife reflection with velocity:", knife_velocity)
 	
-	var knife_pos = knife.global_position
-	var oil_drum_center = global_position
-	
-	# Calculate the direction from oil drum center to knife
-	var to_knife_direction = (knife_pos - oil_drum_center).normalized()
-	
-	# Simple reflection: reflect the velocity across the oil drum center
-	var reflected_velocity = knife_velocity - 2 * knife_velocity.dot(to_knife_direction) * to_knife_direction
-	
-	# Reduce speed slightly to prevent infinite bouncing
-	reflected_velocity *= 0.8
-	
-	# Add a small amount of randomness to prevent infinite loops
-	var random_angle = randf_range(-0.1, 0.1)
-	reflected_velocity = reflected_velocity.rotated(random_angle)
+	# Use proper circular reflection
+	var reflected_velocity = _calculate_circular_reflection(knife, knife_velocity)
 	
 	print("Reflected knife velocity:", reflected_velocity)
 	
@@ -677,21 +701,8 @@ func _apply_ball_collision_effect(ball: Node2D) -> void:
 		elif "velocity" in ball:
 			ball_velocity = ball.velocity
 		
-		var ball_pos = ball.global_position
-		var oil_drum_center = global_position
-		
-		# Calculate the direction from oil drum center to ball
-		var to_ball_direction = (ball_pos - oil_drum_center).normalized()
-		
-		# Simple reflection: reflect the velocity across the oil drum center
-		var reflected_velocity = ball_velocity - 2 * ball_velocity.dot(to_ball_direction) * to_ball_direction
-		
-		# Reduce speed slightly to prevent infinite bouncing
-		reflected_velocity *= 0.8
-		
-		# Add a small amount of randomness to prevent infinite loops
-		var random_angle = randf_range(-0.1, 0.1)
-		reflected_velocity = reflected_velocity.rotated(random_angle)
+		# Use proper circular reflection
+		var reflected_velocity = _calculate_circular_reflection(ball, ball_velocity)
 		
 		print("Ghost ball reflected velocity:", reflected_velocity)
 		
@@ -749,21 +760,8 @@ func _apply_ball_collision_effect(ball: Node2D) -> void:
 		print("Normal collision - applying damage and reflecting")
 		take_damage(damage)
 		
-		var ball_pos = ball.global_position
-		var oil_drum_center = global_position
-		
-		# Calculate the direction from oil drum center to ball
-		var to_ball_direction = (ball_pos - oil_drum_center).normalized()
-		
-		# Simple reflection: reflect the velocity across the oil drum center
-		var reflected_velocity = ball_velocity - 2 * ball_velocity.dot(to_ball_direction) * to_ball_direction
-		
-		# Reduce speed slightly to prevent infinite bouncing
-		reflected_velocity *= 0.8
-		
-		# Add a small amount of randomness to prevent infinite loops
-		var random_angle = randf_range(-0.1, 0.1)
-		reflected_velocity = reflected_velocity.rotated(random_angle)
+		# Use proper circular reflection
+		var reflected_velocity = _calculate_circular_reflection(ball, ball_velocity)
 		
 		print("Reflected velocity:", reflected_velocity)
 		print("Reflected velocity magnitude:", reflected_velocity.length())

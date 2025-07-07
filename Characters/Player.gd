@@ -764,7 +764,6 @@ func calculate_valid_movement_tiles():
 	var equipment_mobility = get_equipment_mobility_bonus()
 	var total_range = movement_range + base_mobility + equipment_mobility
 	
-	
 	for y in grid_size.y:
 		for x in grid_size.x:
 			var pos := Vector2i(x, y)
@@ -774,8 +773,6 @@ func calculate_valid_movement_tiles():
 					if obstacle.has_method("blocks") and obstacle.blocks():
 						continue
 				valid_movement_tiles.append(pos)
-	
-	
 
 func calculate_grid_distance(a: Vector2i, b: Vector2i) -> int:
 	return abs(a.x - b.x) + abs(a.y - b.y)
