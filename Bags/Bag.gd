@@ -37,18 +37,51 @@ var character_bag_textures = {
 }
 
 func _ready():
+	print("Bag: _ready() called")
+	process_mode = Node.PROCESS_MODE_INHERIT  # Change to inherit to ensure it processes input
 	# Set up the bag texture based on character and level
 	set_bag_level(bag_level)
 	
 	# Make the bag clickable
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	gui_input.connect(_on_bag_input_event)
+	print("Bag: Setup complete - mouse_filter:", mouse_filter, "z_index:", z_index, "process_mode:", process_mode)
+	
+	# Check TextureRect settings
+	if texture_rect:
+		print("Bag: TextureRect mouse_filter:", texture_rect.mouse_filter, "z_index:", texture_rect.z_index)
+		# Ensure TextureRect doesn't block input
+		texture_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		print("Bag: TextureRect mouse_filter set to IGNORE")
+	
+	# Also connect input to the TextureRect to see if events are reaching it
+	if texture_rect:
+		texture_rect.gui_input.connect(_on_texture_rect_input_event)
+		print("Bag: Connected TextureRect input handler")
+	
+
+	
+
+
+func _connect_to_managers():
+	"""Connect to equipment and deck managers when needed"""
+	# Connect to equipment manager signals to refresh display when equipment changes
+	var equipment_manager = get_tree().current_scene.get_node_or_null("EquipmentManager")
+	if equipment_manager and not equipment_manager.equipment_updated.is_connected(_on_equipment_updated):
+		equipment_manager.equipment_updated.connect(_on_equipment_updated)
+	
+	# Connect to current deck manager signals to refresh display when deck changes
+	var current_deck_manager = get_tree().current_scene.get_node_or_null("CurrentDeckManager")
+	if current_deck_manager and not current_deck_manager.deck_updated.is_connected(_on_deck_updated):
+		current_deck_manager.deck_updated.connect(_on_deck_updated)
 
 func _input(event):
 	"""Handle input for closing inventory with escape key"""
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 		if is_inventory_open:
 			close_inventory()
+	
+
 
 func set_character(character: String):
 	character_name = character
@@ -63,6 +96,11 @@ func _on_bag_input_event(event: InputEvent):
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		toggle_inventory()
 		bag_clicked.emit()
+
+func _on_texture_rect_input_event(event: InputEvent):
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		# Forward the event to the bag's input handler
+		_on_bag_input_event(event)
 
 func toggle_inventory():
 	"""Toggle the inventory dialog on/off"""
@@ -80,18 +118,29 @@ func close_inventory():
 	is_replacement_mode = false
 	pending_reward = null
 	pending_reward_type = ""
+	
+	# Ensure bag is clickable and reset any child-related issues
+	mouse_filter = Control.MOUSE_FILTER_STOP
+	
+	# Clear any replacement confirmation dialog that might be affecting the bag
+	if replacement_confirmation_dialog and is_instance_valid(replacement_confirmation_dialog):
+		replacement_confirmation_dialog.queue_free()
+		replacement_confirmation_dialog = null
+	
+
 
 func show_inventory():
 	"""Show the inventory dialog"""
 	if is_inventory_open:
 		return
 	
+	# Connect to managers when first used
+	_connect_to_managers()
+	
 	show_deck_dialog()
 	is_inventory_open = true
 
 func show_inventory_replacement_mode(reward_data: Resource, reward_type: String):
-	"""Show the inventory dialog in replacement mode"""
-	
 	if is_inventory_open:
 		return
 	
@@ -114,10 +163,12 @@ func show_deck_dialog():
 	var background = ColorRect.new()
 	background.color = Color(0, 0, 0, 0.7)
 	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	background.mouse_filter = Control.MOUSE_FILTER_STOP
+	background.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Allow clicks to pass through
 	background.z_index = 999
 	background.gui_input.connect(func(event):
 		if event is InputEventMouseButton and event.pressed:
+			print("Bag: Inventory dialog background received mouse input at", event.position, "event type:", event.get_class())
+			print("Bag: Inventory dialog background z_index:", background.z_index)
 			close_inventory()
 	)
 	dialog.add_child(background)
@@ -198,9 +249,16 @@ func show_deck_dialog():
 		
 		# Add actual equipment on top if available
 		if i < equipped_items.size():
-			var equipment_display = create_equipment_display(equipped_items[i])
+			var should_be_clickable = is_replacement_mode and pending_reward_type == "equipment" and pending_reward
+			var equipment_display = create_equipment_display(equipped_items[i], should_be_clickable)
 			slot_container.add_child(equipment_display)
 			# Ensure equipment appears on top by setting z_index
+			equipment_display.z_index = 1
+		elif is_replacement_mode and pending_reward_type == "equipment" and pending_reward:
+			# Empty slot but we're in equipment replacement mode - make placeholder clickable
+			var should_be_clickable = true
+			var equipment_display = create_empty_equipment_slot_display(should_be_clickable)
+			slot_container.add_child(equipment_display)
 			equipment_display.z_index = 1
 	
 	# --- DYNAMIC MOVEMENT GRID LAYOUT ---
@@ -248,10 +306,12 @@ func show_deck_dialog():
 		slot_container.add_child(placeholder)
 		# Add actual card on top if available
 		if i < movement_cards.size():
-			var should_be_clickable = is_replacement_mode and pending_reward_type == "card" and not is_club_card(pending_reward)
+			var should_be_clickable = is_replacement_mode and pending_reward_type == "card" and pending_reward and not is_club_card(pending_reward)
 			var card_display = create_card_display(movement_cards[i], 1, should_be_clickable)
 			slot_container.add_child(card_display)
-			card_display.z_index = 1
+			card_display.z_index = 10
+			# Move card display to front to ensure it's clickable
+			slot_container.move_child(card_display, slot_container.get_child_count() - 1)
 	# --- END DYNAMIC MOVEMENT GRID LAYOUT ---
 	# Club cards section (right side - single column, dynamic position)
 	var club_label = Label.new()
@@ -288,11 +348,13 @@ func show_deck_dialog():
 		
 		# Add actual card on top if available
 		if i < club_cards.size():
-			var should_be_clickable = is_replacement_mode and pending_reward_type == "card" and is_club_card(pending_reward)
+			var should_be_clickable = is_replacement_mode and pending_reward_type == "card" and pending_reward and is_club_card(pending_reward)
 			var card_display = create_card_display(club_cards[i], 1, should_be_clickable)
 			slot_container.add_child(card_display)
 			# Ensure card appears on top by setting z_index
-			card_display.z_index = 1
+			card_display.z_index = 100
+			# Move card display to front to ensure it's clickable
+			slot_container.move_child(card_display, slot_container.get_child_count() - 1)
 	
 	# Add dialog to UI layer (parent of the bag)
 	var ui_layer = get_parent()
@@ -305,39 +367,68 @@ func show_deck_dialog():
 		inventory_dialog = dialog
 
 func create_card_display(card_data: CardData, count: int, clickable: bool = false) -> Control:
-	"""Create a display for a single card with count"""
 	if clickable:
-		# Use TextureButton for clickable cards
+		# Use TextureButton for clickable cards - this is specifically designed for clickable images
 		var button = TextureButton.new()
 		button.name = "CardButton"
 		button.custom_minimum_size = Vector2(80, 100)
+		button.size = Vector2(80, 100)  # Set explicit size
 		button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		button.mouse_filter = Control.MOUSE_FILTER_STOP  # Make this clickable
+		button.z_index = 100  # Higher z_index to ensure it's clickable
+		button.focus_mode = Control.FOCUS_NONE  # Disable focus to prevent focus issues
+		button.process_mode = Node.PROCESS_MODE_WHEN_PAUSED  # Process input even when paused
+		button.pressed.connect(func():
+			_on_card_button_pressed(card_data)
+		)
+		# Set the texture directly on the TextureButton
 		button.texture_normal = card_data.image
-		button.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
+		button.texture_hover = card_data.image  # Same texture for hover
+		button.texture_pressed = card_data.image  # Same texture for pressed
+		button.texture_focused = card_data.image  # Same texture for focused
+		# Scale the button itself to fit nicely
 		button.scale = Vector2(0.075, 0.075)
-		button.mouse_filter = Control.MOUSE_FILTER_STOP
-		button.pressed.connect(_on_card_button_pressed.bind(card_data))
-		
-		# Add hover effect
+		# Add hover effect as a separate overlay
 		var hover_overlay = ColorRect.new()
 		hover_overlay.color = Color(1, 1, 0, 0.3)  # Yellow highlight
 		hover_overlay.size = Vector2(80, 100)
 		hover_overlay.visible = false
 		hover_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		button.add_child(hover_overlay)
-		
-		button.mouse_entered.connect(func(): hover_overlay.visible = true)
-		button.mouse_exited.connect(func(): hover_overlay.visible = false)
-		
+		button.mouse_entered.connect(func(): 
+			print("Bag: Mouse entered TextureButton for", card_data.name)
+			hover_overlay.visible = true
+		)
+		button.mouse_exited.connect(func(): 
+			print("Bag: Mouse exited TextureButton for", card_data.name)
+			hover_overlay.visible = false
+		)
+		# Add debug output to see if the button is being clicked
+		button.gui_input.connect(func(event):
+			if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+				print("Bag: Button gui_input received for", card_data.name, "at position", event.position)
+		)
+		print("Bag: Button created successfully for", card_data.name)
+		print("Bag: Button size:", button.size, "position:", button.position)
+		print("Bag: Button mouse_filter:", button.mouse_filter, "z_index:", button.z_index)
+		print("Bag: Button visible:", button.visible, "modulate:", button.modulate)
+		print("Bag: Button process_mode:", button.process_mode)
+		# Debug parent hierarchy
+		var parent = button.get_parent()
+		if parent:
+			print("Bag: Button parent:", parent.name, "mouse_filter:", parent.mouse_filter, "z_index:", parent.z_index)
+			var grandparent = parent.get_parent()
+			if grandparent:
+				print("Bag: Button grandparent:", grandparent.name, "mouse_filter:", grandparent.mouse_filter, "z_index:", grandparent.z_index)
 		return button
 	else:
+		print("Bag: Creating regular Control for", card_data.name)
 		# Use regular Control for non-clickable cards
 		var container = Control.new()
 		container.custom_minimum_size = Vector2(80, 100)
 		container.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		container.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		
 		# Card image
 		var image_rect = TextureRect.new()
 		image_rect.texture = card_data.image
@@ -346,25 +437,13 @@ func create_card_display(card_data: CardData, count: int, clickable: bool = fals
 		image_rect.scale = Vector2(0.075, 0.075)
 		image_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		container.add_child(image_rect)
-		
 		return container
 
 func _on_card_button_pressed(card_data: CardData):
-	"""Handle card button press in replacement mode"""
-	
 	if is_replacement_mode and pending_reward:
 		show_replacement_confirmation(card_data)
 
-func _on_card_clicked(event: InputEvent, card_data: CardData):
-	"""Handle card click in replacement mode (legacy function)"""
-	
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		if is_replacement_mode and pending_reward:
-			show_replacement_confirmation(card_data)
-
 func show_replacement_confirmation(card_to_replace: CardData):
-	"""Show confirmation dialog for card replacement"""
-	
 	# Close any existing confirmation dialog first
 	if replacement_confirmation_dialog and is_instance_valid(replacement_confirmation_dialog):
 		replacement_confirmation_dialog.queue_free()
@@ -374,6 +453,7 @@ func show_replacement_confirmation(card_to_replace: CardData):
 	replacement_confirmation_dialog.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	replacement_confirmation_dialog.z_index = 2000  # Set to 2000 for topmost
 	replacement_confirmation_dialog.mouse_filter = Control.MOUSE_FILTER_STOP
+	replacement_confirmation_dialog.process_mode = Node.PROCESS_MODE_WHEN_PAUSED
 	
 	# Background
 	var background = ColorRect.new()
@@ -420,7 +500,7 @@ func show_replacement_confirmation(card_to_replace: CardData):
 	
 	# Message
 	var message = Label.new()
-	message.text = "Are you sure you want to replace '" + (card_to_replace.name if card_to_replace != null else "null") + "' with '" + (pending_reward.name if pending_reward != null else "null") + "'?"
+	message.text = "Are you sure you want to replace '" + (card_to_replace.name if card_to_replace else "null") + "' with '" + (pending_reward.name if pending_reward else "null") + "'?"
 	message.add_theme_font_size_override("font_size", 14)
 	message.add_theme_color_override("font_color", Color.WHITE)
 	message.position = Vector2(20, 80)
@@ -439,7 +519,7 @@ func show_replacement_confirmation(card_to_replace: CardData):
 	
 	# Old card
 	var old_card_label = Label.new()
-	old_card_label.text = "Old: " + (card_to_replace.name if card_to_replace != null else "null")
+	old_card_label.text = "Old: " + (card_to_replace.name if card_to_replace else "null")
 	old_card_label.add_theme_font_size_override("font_size", 12)
 	old_card_label.add_theme_color_override("font_color", Color.RED)
 	old_card_label.z_index = 2000
@@ -455,7 +535,7 @@ func show_replacement_confirmation(card_to_replace: CardData):
 	
 	# New card
 	var new_card_label = Label.new()
-	new_card_label.text = "New: " + (pending_reward.name if pending_reward != null else "null")
+	new_card_label.text = "New: " + (pending_reward.name if pending_reward else "null")
 	new_card_label.add_theme_font_size_override("font_size", 12)
 	new_card_label.add_theme_color_override("font_color", Color.GREEN)
 	new_card_label.z_index = 2000
@@ -515,9 +595,28 @@ func _on_confirm_replacement(card_to_replace: CardData):
 		var equipment_manager = get_tree().current_scene.get_node_or_null("EquipmentManager")
 		if equipment_manager:
 			equipment_manager.add_equipment(equipment_data)
+	
+	# Sync the DeckManager with the updated CurrentDeckManager
+	var deck_manager = get_tree().current_scene.get_node_or_null("DeckManager")
+	if deck_manager and deck_manager.has_method("sync_with_current_deck"):
+		deck_manager.sync_with_current_deck()
+	else:
+		# Try to find DeckManager as a child of the current scene
+		var scene = get_tree().current_scene
+		for child in scene.get_children():
+			if child.get_script() and "DeckManager" in child.get_script().resource_path:
+				if child.has_method("sync_with_current_deck"):
+					child.sync_with_current_deck()
+					break
+	
 	# Close dialogs
 	close_replacement_confirmation()
 	close_inventory()
+	
+	# Notify shop if replacement was completed from shop context
+	var shop_interior = get_tree().current_scene.get_node_or_null("UILayer/ShopInterior")
+	if shop_interior and shop_interior.has_method("on_replacement_completed"):
+		shop_interior.on_replacement_completed(pending_reward, pending_reward_type)
 
 func _on_cancel_replacement_confirmation():
 	"""Cancel the replacement confirmation"""
@@ -558,7 +657,7 @@ func get_card_by_name(card_name: String) -> CardData:
 			return card
 	return null
 
-func create_equipment_display(equipment_data: EquipmentData) -> Control:
+func create_equipment_display(equipment_data: EquipmentData, clickable: bool = false) -> Control:
 	"""Create a display for a single piece of equipment"""
 	var container = Control.new()
 	container.custom_minimum_size = Vector2(180, 60)
@@ -624,6 +723,66 @@ func create_equipment_display(equipment_data: EquipmentData) -> Control:
 		desc_label.visible = false
 	)
 	
+	# If clickable, add click functionality
+	if clickable:
+		container.gui_input.connect(func(event):
+			if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+				_on_equipment_clicked(equipment_data)
+		)
+		
+		# Add hover effect for clickable equipment
+		container.mouse_entered.connect(func():
+			equip_bg.color = Color(0.5, 0.5, 0.3, 0.9)  # Yellow highlight
+		)
+		
+		container.mouse_exited.connect(func():
+			equip_bg.color = Color(0.3, 0.3, 0.3, 0.9)  # Normal color
+		)
+	
+	return container
+
+func create_empty_equipment_slot_display(clickable: bool = false) -> Control:
+	"""Create a display for an empty equipment slot"""
+	var container = Control.new()
+	container.custom_minimum_size = Vector2(180, 60)
+	container.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	container.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	
+	# Empty slot background
+	var empty_bg = ColorRect.new()
+	empty_bg.color = Color(0.2, 0.2, 0.2, 0.5)  # Semi-transparent
+	empty_bg.size = Vector2(180, 60)
+	empty_bg.position = Vector2(0, 0)
+	container.add_child(empty_bg)
+	
+	# Empty slot text
+	var empty_label = Label.new()
+	empty_label.text = "Empty Slot"
+	empty_label.add_theme_font_size_override("font_size", 12)
+	empty_label.add_theme_color_override("font_color", Color.LIGHT_GRAY)
+	empty_label.position = Vector2(60, 20)
+	empty_label.size = Vector2(110, 20)
+	container.add_child(empty_label)
+	
+	# Make container clickable if needed
+	if clickable:
+		container.mouse_filter = Control.MOUSE_FILTER_STOP
+		container.gui_input.connect(func(event):
+			if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+				_on_empty_equipment_slot_clicked()
+		)
+		
+		# Add hover effect for clickable empty slots
+		container.mouse_entered.connect(func():
+			empty_bg.color = Color(0.3, 0.5, 0.3, 0.7)  # Green highlight
+		)
+		
+		container.mouse_exited.connect(func():
+			empty_bg.color = Color(0.2, 0.2, 0.2, 0.5)  # Normal color
+		)
+	else:
+		container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	
 	return container
 
 func get_movement_cards() -> Array[CardData]:
@@ -684,6 +843,7 @@ func create_slot_container() -> Control:
 	container.custom_minimum_size = Vector2(80, 100)
 	container.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	container.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	container.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Don't block mouse events
 	return container
 
 func is_club_card(card_data: CardData) -> bool:
@@ -697,6 +857,7 @@ func create_placeholder_slot() -> Control:
 	container.custom_minimum_size = Vector2(80, 100)
 	container.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	container.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	container.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Don't block mouse events
 	
 	# Placeholder slot image
 	var slot_image = TextureRect.new()
@@ -705,6 +866,229 @@ func create_placeholder_slot() -> Control:
 	slot_image.position = Vector2(0, 0)
 	slot_image.scale = Vector2(0.75, 0.75)
 	slot_image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	slot_image.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Don't block mouse events
 	container.add_child(slot_image)
 	
-	return container 
+	return container
+
+func _on_equipment_clicked(equipment_data: EquipmentData):
+	"""Handle equipment click in replacement mode"""
+	if is_replacement_mode and pending_reward_type == "equipment" and pending_reward:
+		show_equipment_replacement_confirmation(equipment_data)
+
+func _on_empty_equipment_slot_clicked():
+	"""Handle empty equipment slot click in replacement mode"""
+	if is_replacement_mode and pending_reward_type == "equipment" and pending_reward:
+		# Add equipment directly to empty slot
+		var equipment_data = pending_reward as EquipmentData
+		var equipment_manager = get_tree().current_scene.get_node_or_null("EquipmentManager")
+		if equipment_manager:
+			equipment_manager.add_equipment(equipment_data)
+		close_inventory()
+
+func show_equipment_replacement_confirmation(equipment_to_replace: EquipmentData):
+	"""Show confirmation dialog for equipment replacement"""
+	
+	# Close any existing confirmation dialog first
+	if replacement_confirmation_dialog and is_instance_valid(replacement_confirmation_dialog):
+		replacement_confirmation_dialog.queue_free()
+	
+	replacement_confirmation_dialog = Control.new()
+	replacement_confirmation_dialog.name = "EquipmentReplacementConfirmationDialog"
+	replacement_confirmation_dialog.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	replacement_confirmation_dialog.z_index = 2000  # Set to 2000 for topmost
+	replacement_confirmation_dialog.mouse_filter = Control.MOUSE_FILTER_STOP
+	replacement_confirmation_dialog.process_mode = Node.PROCESS_MODE_WHEN_PAUSED
+	
+	# Background
+	var background = ColorRect.new()
+	background.color = Color(0, 0, 0, 0.9)
+	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	background.mouse_filter = Control.MOUSE_FILTER_STOP
+	background.z_index = 2000
+	replacement_confirmation_dialog.add_child(background)
+	
+	# Main container
+	var main_container = Control.new()
+	main_container.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	main_container.custom_minimum_size = Vector2(600, 300)
+	main_container.position = Vector2(-300, -150)
+	main_container.z_index = 2000
+	replacement_confirmation_dialog.add_child(main_container)
+	
+	# Panel background
+	var panel = ColorRect.new()
+	panel.color = Color(0.2, 0.2, 0.2, 0.95)
+	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	panel.z_index = 2000
+	main_container.add_child(panel)
+	
+	# Border
+	var border = ColorRect.new()
+	border.color = Color(0.8, 0.8, 0.8, 0.6)
+	border.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	border.position = Vector2(-2, -2)
+	border.size += Vector2(4, 4)
+	border.z_index = 2000
+	main_container.add_child(border)
+	
+	# Title
+	var title = Label.new()
+	title.text = "Replace Equipment"
+	title.add_theme_font_size_override("font_size", 20)
+	title.add_theme_color_override("font_color", Color.WHITE)
+	title.position = Vector2(20, 20)
+	title.size = Vector2(560, 40)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.z_index = 2000
+	main_container.add_child(title)
+	
+	# Message
+	var message = Label.new()
+	message.text = "Are you sure you want to replace '" + (equipment_to_replace.name if equipment_to_replace else "null") + "' with '" + (pending_reward.name if pending_reward else "null") + "'?"
+	message.add_theme_font_size_override("font_size", 14)
+	message.add_theme_color_override("font_color", Color.WHITE)
+	message.position = Vector2(20, 80)
+	message.size = Vector2(560, 60)
+	message.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	message.z_index = 2000
+	main_container.add_child(message)
+	
+	# Equipment comparison
+	var equipment_comparison = HBoxContainer.new()
+	equipment_comparison.position = Vector2(150, 160)
+	equipment_comparison.size = Vector2(300, 80)
+	equipment_comparison.z_index = 2000
+	main_container.add_child(equipment_comparison)
+	
+	# Old equipment
+	var old_equipment_label = Label.new()
+	old_equipment_label.text = "Old: " + (equipment_to_replace.name if equipment_to_replace else "null")
+	old_equipment_label.add_theme_font_size_override("font_size", 12)
+	old_equipment_label.add_theme_color_override("font_color", Color.RED)
+	old_equipment_label.z_index = 2000
+	equipment_comparison.add_child(old_equipment_label)
+	
+	# Arrow
+	var arrow_label = Label.new()
+	arrow_label.text = " → "
+	arrow_label.add_theme_font_size_override("font_size", 16)
+	arrow_label.add_theme_color_override("font_color", Color.WHITE)
+	arrow_label.z_index = 2000
+	equipment_comparison.add_child(arrow_label)
+	
+	# New equipment
+	var new_equipment_label = Label.new()
+	new_equipment_label.text = "New: " + (pending_reward.name if pending_reward else "null")
+	new_equipment_label.add_theme_font_size_override("font_size", 12)
+	new_equipment_label.add_theme_color_override("font_color", Color.GREEN)
+	new_equipment_label.z_index = 2000
+	equipment_comparison.add_child(new_equipment_label)
+	
+	# Buttons
+	var button_container = HBoxContainer.new()
+	button_container.position = Vector2(200, 220)
+	button_container.size = Vector2(200, 40)
+	button_container.z_index = 2000
+	main_container.add_child(button_container)
+	
+	# Yes button
+	var yes_button = Button.new()
+	yes_button.text = "Yes"
+	yes_button.size = Vector2(80, 40)
+	yes_button.pressed.connect(_on_confirm_equipment_replacement.bind(equipment_to_replace))
+	yes_button.z_index = 2000
+	button_container.add_child(yes_button)
+	
+	# No button
+	var no_button = Button.new()
+	no_button.text = "No"
+	no_button.size = Vector2(80, 40)
+	no_button.pressed.connect(_on_cancel_replacement_confirmation)
+	no_button.z_index = 2000
+	button_container.add_child(no_button)
+	
+	# Add dialog to UI layer as last child to ensure it's on top
+	var ui_layer = get_tree().current_scene.get_node_or_null("UILayer")
+	if ui_layer:
+		ui_layer.add_child(replacement_confirmation_dialog)
+		ui_layer.move_child(replacement_confirmation_dialog, ui_layer.get_child_count() - 1)
+		replacement_confirmation_dialog.visible = true
+		# Lower the z_index of the Bag inventory dialog if it exists
+		if inventory_dialog and is_instance_valid(inventory_dialog):
+			inventory_dialog.z_index = 1000
+	else:
+		get_tree().current_scene.add_child(replacement_confirmation_dialog)
+		replacement_confirmation_dialog.visible = true
+
+func _on_confirm_equipment_replacement(equipment_to_replace: EquipmentData):
+	"""Confirm the equipment replacement"""
+	print("Bag: _on_confirm_equipment_replacement called with equipment_to_replace:", equipment_to_replace.name if equipment_to_replace else "null")
+	print("Bag: pending_reward:", pending_reward.name if pending_reward else "null")
+	
+	if not pending_reward or not equipment_to_replace:
+		print("Bag: Missing data for replacement, closing confirmation")
+		close_replacement_confirmation()
+		return
+	
+	# Remove the old equipment
+	var equipment_manager = get_tree().current_scene.get_node_or_null("EquipmentManager")
+	if equipment_manager:
+		equipment_manager.remove_equipment(equipment_to_replace)
+	
+	# Add the new equipment
+	if pending_reward_type == "equipment":
+		var equipment_data = pending_reward as EquipmentData
+		equipment_manager.add_equipment(equipment_data)
+	
+	# Close dialogs
+	close_replacement_confirmation()
+	close_inventory()
+
+func _on_equipment_updated():
+	"""Called when equipment is updated - refresh the bag display if open"""
+	if is_inventory_open and inventory_dialog:
+		# Refresh the inventory display
+		close_inventory()
+		show_inventory()
+
+func _on_deck_updated():
+	"""Called when deck is updated - refresh the bag display if open"""
+	if is_inventory_open and inventory_dialog:
+		# Refresh the inventory display
+		close_inventory()
+		show_inventory()
+
+
+
+func debug_bag_state():
+	"""Debug function to check bag's current state"""
+	print("=== BAG DEBUG STATE ===")
+	print("Bag mouse_filter:", mouse_filter)
+	print("Bag z_index:", z_index)
+	print("Bag visible:", visible)
+	print("Bag process_mode:", process_mode)
+	print("Bag is_inventory_open:", is_inventory_open)
+	print("Bag is_replacement_mode:", is_replacement_mode)
+	print("Bag gui_input connections:", gui_input.get_connections().size())
+	print("Bag position:", position)
+	print("Bag size:", size)
+	print("Bag global_position:", global_position)
+	print("Bag parent:", get_parent().name if get_parent() else "None")
+	
+	# Check TextureRect state
+	if texture_rect:
+		print("TextureRect mouse_filter:", texture_rect.mouse_filter)
+		print("TextureRect z_index:", texture_rect.z_index)
+		print("TextureRect visible:", texture_rect.visible)
+		print("TextureRect position:", texture_rect.position)
+		print("TextureRect size:", texture_rect.size)
+		print("TextureRect gui_input connections:", texture_rect.gui_input.get_connections().size())
+	
+	# Check if bag is in the correct position by getting mouse position
+	var mouse_pos = get_viewport().get_mouse_position()
+	print("Current mouse position:", mouse_pos)
+	print("Bag rect:", Rect2(global_position, size))
+	print("Mouse is over bag:", Rect2(global_position, size).has_point(mouse_pos))
+	print("=== END BAG DEBUG STATE ===")

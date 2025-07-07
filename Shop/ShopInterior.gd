@@ -9,40 +9,86 @@ var current_shop_items: Array = []  # Mix of equipment and cards
 var shop_item_containers: Array[Control] = []
 var manual_containers: Array[Control] = []
 
+# Club replacement system
+var pending_reward: Resource = null
+var pending_reward_type: String = ""
+var card_replacement_dialog: Control = null
+var shop_input_enabled: bool = true  # Track if shop input should be enabled
+
+signal shop_closed
+
 func _ready():
-	# Ensure ReturnButton is always on top
-	$ReturnButton.z_index = 100
+	# Set the shop to process input even when the game is paused
+	process_mode = Node.PROCESS_MODE_WHEN_PAUSED
 	
-	# Connect the return button
-	$ReturnButton.pressed.connect(_on_return_button_pressed)
+	# Ensure ReturnButton is always on top
+	$ReturnButton.z_index = 1000
+	
+	# Connect the return button with debugging
+	var return_button = $ReturnButton
+	if return_button:
+		return_button.pressed.connect(_on_return_button_pressed)
+		print("ShopInterior: Return button connected successfully")
+		# Add a test to make sure the button is visible and clickable
+		return_button.mouse_filter = Control.MOUSE_FILTER_STOP
+		print("ShopInterior: Return button styled for visibility")
+		
+		# Add debug input handler to the return button
+		return_button.gui_input.connect(func(event):
+			if event is InputEventMouseButton and event.pressed:
+				print("ShopInterior: ReturnButton received mouse input at", event.position, "event type:", event.get_class())
+				print("ShopInterior: ReturnButton z_index:", return_button.z_index, "mouse_filter:", return_button.mouse_filter)
+		)
+	else:
+		print("ShopInterior: ERROR - Return button not found!")
+	
+	# Connect input events to the main container for debugging
+	gui_input.connect(_on_shop_input)
+	
+	# Add debug input handler to see if main shop container is blocking clicks
+	gui_input.connect(func(event):
+		if event is InputEventMouseButton and event.pressed:
+			print("ShopInterior: Main shop container received mouse input at", event.position, "event type:", event.get_class())
+			print("ShopInterior: Main shop container z_index:", z_index, "mouse_filter:", mouse_filter)
+	)
 	
 	# Play the shop music/sound when entering
 	play_shop_sound()
 	
 	# Get manual containers
 	get_manual_containers()
+	print("ShopInterior: Found", manual_containers.size(), "manual containers")
 	
 	# Load available equipment and cards
 	load_shop_items()
+	print("ShopInterior: Loaded", available_equipment.size(), "equipment and", available_cards.size(), "cards")
 	
 	# Generate random shop items
 	generate_shop_items()
+	print("ShopInterior: Generated", current_shop_items.size(), "shop items")
 	
 	# Display shop items
 	display_shop_items()
+	print("ShopInterior: Shop setup complete")
 
 func get_manual_containers():
 	"""Get the manually positioned containers from the scene"""
 	manual_containers.clear()
 	
-	# Get ItemContainer1 and ItemContainer2
+	# Get ItemContainer1, ItemContainer2, ItemContainer3, and ItemContainer4
 	var container1 = $ShopItems/ItemContainer1
 	var container2 = $ShopItems/ItemContainer2
+	var container3 = $ShopItems/ItemContainer3
+	var container4 = $ShopItems/ItemContainer4
 	
 	if container1:
 		manual_containers.append(container1)
 	if container2:
 		manual_containers.append(container2)
+	if container3:
+		manual_containers.append(container3)
+	if container4:
+		manual_containers.append(container4)
 
 func load_shop_items():
 	"""Load all available equipment and cards for the shop"""
@@ -51,30 +97,84 @@ func load_shop_items():
 		preload("res://Equipment/GolfShoes.tres")
 	]
 	
-	# Load cards from Cards folder (excluding club cards for now)
+	# Load cards from Cards folder - expanded pool
 	available_cards = [
+		# Action cards
 		preload("res://Cards/StickyShot.tres"),
 		preload("res://Cards/Bouncey.tres"),
+		preload("res://Cards/TeleportCard.tres"),
+		preload("res://Cards/KickB.tres"),
+		preload("res://Cards/ThrowingKnife.tres"),
+		preload("res://Cards/PistolCard.tres"),
+		preload("res://Cards/FireBallCard.tres"),
+		preload("res://Cards/IceBallCard.tres"),
+		preload("res://Cards/ExtraBall.tres"),
+		preload("res://Cards/FloridaScramble.tres"),
+		preload("res://Cards/Dub.tres"),
+		
+		# Movement cards
+		preload("res://Cards/Move1.tres"),
+		preload("res://Cards/Move2.tres"),
+		preload("res://Cards/Move3.tres"),
+		preload("res://Cards/Move4.tres"),
+		preload("res://Cards/Move5.tres"),
+		
+		# Club cards
 		preload("res://Cards/FireClub.tres"),
-		preload("res://Cards/IceClub.tres")
+		preload("res://Cards/IceClub.tres"),
+		preload("res://Cards/Putter.tres"),
+		preload("res://Cards/Iron.tres"),
+		preload("res://Cards/Wood.tres"),
+		preload("res://Cards/Hybrid.tres"),
+		preload("res://Cards/Driver.tres"),
+		preload("res://Cards/PitchingWedge.tres"),
+		preload("res://Cards/Wooden.tres")
 	]
 
 func generate_shop_items():
-	"""Generate random shop items (1 equipment + 1 card)"""
+	"""Generate random shop items with more variety"""
 	current_shop_items.clear()
 	
-	# Randomly select 1 equipment item
-	if available_equipment.size() > 0:
-		var random_equipment = available_equipment[randi() % available_equipment.size()]
-		current_shop_items.append(random_equipment)
+	# Randomly decide what type of items to show - now supporting up to 4 items
+	var shop_configs = [
+		{"equipment": 1, "cards": 1},      # 1 equipment + 1 card
+		{"equipment": 0, "cards": 2},      # 2 cards
+		{"equipment": 1, "cards": 0},      # 1 equipment only
+		{"equipment": 0, "cards": 1},      # 1 card only
+		{"equipment": 0, "cards": 3},      # 3 cards
+		{"equipment": 1, "cards": 2},      # 1 equipment + 2 cards
+		{"equipment": 0, "cards": 4},      # 4 cards
+		{"equipment": 1, "cards": 3},      # 1 equipment + 3 cards
+		{"equipment": 2, "cards": 1},      # 2 equipment + 1 card
+		{"equipment": 2, "cards": 2}       # 2 equipment + 2 cards
+	]
 	
-	# Randomly select 1 card
-	if available_cards.size() > 0:
-		var random_card = available_cards[randi() % available_cards.size()]
-		current_shop_items.append(random_card)
+	var selected_config = shop_configs[randi() % shop_configs.size()]
+	print("ShopInterior: Selected config:", selected_config)
+	
+	# Add equipment items
+	for i in range(selected_config.equipment):
+		if available_equipment.size() > 0:
+			var random_equipment = available_equipment[randi() % available_equipment.size()]
+			current_shop_items.append(random_equipment)
+			print("ShopInterior: Added equipment:", random_equipment.name)
+	
+	# Add card items
+	for i in range(selected_config.cards):
+		if available_cards.size() > 0:
+			var random_card = available_cards[randi() % available_cards.size()]
+			current_shop_items.append(random_card)
+			print("ShopInterior: Added card:", random_card.name)
+	
+	print("ShopInterior: Generated shop config:", selected_config, "with", current_shop_items.size(), "items")
+	print("ShopInterior: Final items list:", current_shop_items.map(func(item): return item.name))
 
 func display_shop_items():
 	"""Display shop items in the manual containers"""
+	print("ShopInterior: Starting display_shop_items()")
+	print("ShopInterior: current_shop_items size:", current_shop_items.size())
+	print("ShopInterior: manual_containers size:", manual_containers.size())
+	
 	# Clear existing shop items
 	for container in shop_item_containers:
 		if container and is_instance_valid(container):
@@ -86,34 +186,52 @@ func display_shop_items():
 		for child in manual_container.get_children():
 			child.queue_free()
 	
+	print("ShopInterior: Cleared existing items, creating new ones...")
+	
 	# Create shop item displays in manual containers
 	for i in range(current_shop_items.size()):
 		if i >= manual_containers.size():
+			print("ShopInterior: WARNING - More items than containers! Item", i, "cannot be displayed")
 			break
 		
 		var item = current_shop_items[i]
 		var manual_container = manual_containers[i]
-		var item_display = create_shop_item_display(item, manual_container.size)
+		
+		print("ShopInterior: Creating item", i, ":", item.name, "in container", manual_container.name)
+		
+		# Get the actual size of the container (accounting for scale)
+		var container_size = manual_container.size * manual_container.scale
+		var item_display = create_shop_item_display(item, container_size)
+		
+		# Position the item display to fill the container
+		item_display.size = container_size
+		item_display.position = Vector2.ZERO
+		
 		manual_container.add_child(item_display)
 		shop_item_containers.append(item_display)
+		
+		print("ShopInterior: Added", item.name, "to", manual_container.name, "with size", container_size)
+	
+	print("ShopInterior: Display complete, total shop items:", shop_item_containers.size())
 
 func create_shop_item_display(item, container_size: Vector2) -> Control:
 	"""Create a display for a shop item (equipment or card)"""
 	var container = Control.new()
 	container.size = container_size
 	container.position = Vector2.ZERO
-	container.mouse_filter = Control.MOUSE_FILTER_STOP  # Only this is clickable
+	container.mouse_filter = Control.MOUSE_FILTER_STOP  # Make this clickable
 	
-	# Background panel
+	# Background panel - make it more visible for debugging
 	var background = ColorRect.new()
 	background.color = Color(0.2, 0.2, 0.2, 0.9)
 	background.size = container_size
+	background.position = Vector2.ZERO
 	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	container.add_child(background)
 	
-	# Border
+	# Border - make it more visible
 	var border = ColorRect.new()
-	border.color = Color(0.8, 0.8, 0.8, 0.6)
+	border.color = Color(0.8, 0.8, 0.8, 0.6)  # Normal border
 	border.size = Vector2(container_size.x + 4, container_size.y + 4)
 	border.position = Vector2(-2, -2)
 	border.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -155,38 +273,68 @@ func create_shop_item_display(item, container_size: Vector2) -> Control:
 		desc_label.text = "Add to deck"
 	desc_label.add_theme_font_size_override("font_size", 12)
 	desc_label.add_theme_color_override("font_color", Color.LIGHT_GRAY)
-	name_label.add_theme_constant_override("outline_size", 1)
-	name_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	desc_label.add_theme_constant_override("outline_size", 1)
+	desc_label.add_theme_color_override("font_outline_color", Color.BLACK)
 	desc_label.position = Vector2(10, 210)
 	desc_label.size = Vector2(180, 30)
 	desc_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	desc_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	container.add_child(desc_label)
 	
-	# Make container clickable
-	container.mouse_filter = Control.MOUSE_FILTER_STOP
+	# Connect the click event to the container itself
 	container.gui_input.connect(_on_shop_item_clicked.bind(item))
 	
 	# Add hover effect
 	container.mouse_entered.connect(_on_shop_item_hover.bind(container, true))
 	container.mouse_exited.connect(_on_shop_item_hover.bind(container, false))
 	
+	# Store reference to container for potential input disabling
+	container.set_meta("shop_item_container", true)
+	
+	print("ShopInterior: Created shop item display for", item.name, "with size", container_size)
+	
 	return container
 
 func _on_shop_item_clicked(event: InputEvent, item):
-	"""Handle shop item clicks"""
+	print("ShopInterior: Shop item clicked - event type:", event.get_class())
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		if item is EquipmentData:
-			# Add equipment to inventory
-			Global.add_equipment(item)
-			show_purchase_message("Purchased " + item.name + "!")
-		else:
-			# Add card to deck (we'll need to implement this)
-			show_purchase_message("Card added to deck!")
+		print("ShopInterior: Left mouse button pressed on item:", item.name)
 		
-		# Remove item from shop
-		current_shop_items.erase(item)
-		display_shop_items()
+		# Determine item type
+		var item_type = "card" if item is CardData else "equipment"
+		
+		# Check if there are available slots
+		print("ShopInterior: Checking bag slots for", item.name, "type:", item_type)
+		var slots_available = check_bag_slots(item, item_type)
+		print("ShopInterior: Slots available:", slots_available)
+		
+		if slots_available:
+			# Slot available, add directly
+			print("ShopInterior: Adding item directly to inventory")
+			add_item_to_inventory(item, item_type)
+			show_purchase_message("Purchased " + item.name + "!")
+			play_cat_happy()
+			# Remove item from shop only after successful purchase
+			current_shop_items.erase(item)
+			display_shop_items()
+		else:
+			# No slot available, show replacement dialog
+			print("ShopInterior: No slots available, showing replacement dialog")
+			show_card_replacement_dialog(item, item_type)
+			# Don't remove item from shop yet - wait for replacement to complete
+
+func add_item_to_inventory(item: Resource, item_type: String):
+	"""Add item to the appropriate inventory - matching RewardSelectionDialog logic"""
+	if item_type == "card":
+		var card_data = item as CardData
+		var current_deck_manager = get_tree().current_scene.get_node_or_null("CurrentDeckManager")
+		if current_deck_manager:
+			current_deck_manager.add_card_to_deck(card_data)
+	elif item_type == "equipment":
+		var equipment_data = item as EquipmentData
+		var equipment_manager = get_tree().current_scene.get_node_or_null("EquipmentManager")
+		if equipment_manager:
+			equipment_manager.add_equipment(equipment_data)
 
 func _on_shop_item_hover(container: Control, is_hovering: bool):
 	"""Handle shop item hover effects"""
@@ -217,11 +365,363 @@ func show_purchase_message(message: String):
 
 func play_shop_sound():
 	"""Play the shop trinkets sound"""
-	var trinkets_sound = $Trinkets
-	if trinkets_sound and trinkets_sound.stream:
-		trinkets_sound.play()
+	var trinkets_sound = get_node_or_null("Trinkets")
+	if trinkets_sound:
+		if trinkets_sound.stream:
+			trinkets_sound.play()
+		else:
+			print("Trinkets sound stream is null")
+	else:
+		print("Trinkets AudioStreamPlayer2D not found")
 
 func _on_return_button_pressed():
-	"""Return to the course scene"""
-	# Use FadeManager for smooth transition
-	FadeManager.fade_to_black(func(): get_tree().change_scene_to_file("res://Course1.tscn"), 0.5) 
+	print("ShopInterior: Return button pressed!")
+	
+	# Clean up any replacement dialogs
+	cleanup_replacement_dialogs()
+	
+	emit_signal("shop_closed")
+	print("ShopInterior: shop_closed signal emitted")
+
+func cleanup_replacement_dialogs():
+	"""Clean up any replacement dialogs when closing the shop"""
+	if card_replacement_dialog and is_instance_valid(card_replacement_dialog):
+		card_replacement_dialog.queue_free()
+		card_replacement_dialog = null
+	
+	# Re-enable shop input
+	shop_input_enabled = true
+	enable_shop_item_containers()
+	
+	# Restore ReturnButton z-index
+	var return_button = $ReturnButton
+	if return_button:
+		return_button.z_index = 1000  # Restore original z-index
+	
+	# Close bag replacement mode
+	var bag = get_tree().current_scene.get_node_or_null("UILayer/Bag")
+	if bag:
+		bag.close_inventory()
+		# Ensure bag's mouse_filter is properly reset after cleanup
+		bag.mouse_filter = Control.MOUSE_FILTER_STOP
+		print("ShopInterior: Reset bag mouse_filter to:", bag.mouse_filter)
+	
+	pending_reward = null
+	pending_reward_type = ""
+
+func disable_shop_item_containers():
+	"""Disable input for all shop item containers"""
+	for container in shop_item_containers:
+		if container and is_instance_valid(container):
+			container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+func enable_shop_item_containers():
+	"""Enable input for all shop item containers"""
+	for container in shop_item_containers:
+		if container and is_instance_valid(container):
+			container.mouse_filter = Control.MOUSE_FILTER_STOP
+
+func play_cat_happy():
+	var cat_happy = get_node_or_null("CatHappy")
+	if cat_happy and cat_happy.stream:
+		cat_happy.play()
+
+func _on_shop_input(event: InputEvent):
+	"""Debug input handler for the main shop container"""
+	# Only process input if shop input is enabled
+	if not shop_input_enabled:
+		return
+		
+	if event is InputEventMouseButton and event.pressed:
+		print("ShopInterior: Main shop container received mouse input at", event.position)
+
+func is_club_card(card_data: CardData) -> bool:
+	"""Check if a card is a club card - matching RewardSelectionDialog logic"""
+	# Check if the card has club-related properties
+	if card_data.has_method("is_club_card"):
+		return card_data.is_club_card()
+	
+	# Use the same club names list as RewardSelectionDialog
+	var club_names = ["Putter", "Wooden", "Iron", "Hybrid", "Driver", "PitchingWedge", "Fire Club", "Ice Club"]
+	return club_names.has(card_data.name)
+
+func show_card_replacement_dialog(reward_data: Resource, reward_type: String):
+	"""Show dialog for replacing a card when bag is full"""
+	print("ShopInterior: ===== SHOWING CARD REPLACEMENT DIALOG =====")
+	print("ShopInterior: Reward data:", reward_data.name if reward_data else "null")
+	print("ShopInterior: Reward type:", reward_type)
+	
+	pending_reward = reward_data
+	pending_reward_type = reward_type
+	
+	# Disable shop input to prevent blocking clicks
+	shop_input_enabled = false
+	disable_shop_item_containers()
+	
+	# Temporarily lower ReturnButton z-index to ensure replacement dialog is on top
+	var return_button = $ReturnButton
+	if return_button:
+		return_button.z_index = 500  # Lower than replacement dialog (2000)
+	
+	# Create replacement dialog
+	card_replacement_dialog = Control.new()
+	card_replacement_dialog.name = "CardReplacementDialog"
+	card_replacement_dialog.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	card_replacement_dialog.z_index = 400  # Lower than bag's inventory dialog (999) so clicks can reach the bag
+	
+	# Background
+	var background = ColorRect.new()
+	background.color = Color(0, 0, 0, 0.8)
+	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	background.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Allow clicks to pass through to bag
+	card_replacement_dialog.add_child(background)
+	
+	# Main container
+	var main_container = Control.new()
+	main_container.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	main_container.custom_minimum_size = Vector2(800, 500)
+	main_container.position = Vector2(-400, -250)
+	main_container.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Allow clicks to pass through to bag
+	card_replacement_dialog.add_child(main_container)
+	
+	# Panel background
+	var panel = ColorRect.new()
+	panel.color = Color(0.2, 0.2, 0.2, 0.95)
+	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Allow clicks to pass through
+	main_container.add_child(panel)
+	
+	# Title
+	var title = Label.new()
+	if reward_type == "equipment":
+		title.text = "Bag Full - Select Equipment to Replace"
+	else:
+		title.text = "Bag Full - Select Card to Replace"
+	title.add_theme_font_size_override("font_size", 20)
+	title.add_theme_color_override("font_color", Color.WHITE)
+	title.position = Vector2(20, 20)
+	title.size = Vector2(760, 40)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Allow clicks to pass through
+	main_container.add_child(title)
+	
+	# New item preview
+	var new_item_label = Label.new()
+	if reward_type == "equipment":
+		new_item_label.text = "New Equipment:"
+	else:
+		new_item_label.text = "New Card:"
+	new_item_label.add_theme_font_size_override("font_size", 16)
+	new_item_label.add_theme_color_override("font_color", Color.WHITE)
+	new_item_label.position = Vector2(20, 80)
+	new_item_label.size = Vector2(200, 30)
+	new_item_label.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Allow clicks to pass through
+	main_container.add_child(new_item_label)
+	
+	var new_item_display
+	if reward_type == "equipment":
+		new_item_display = create_equipment_display(pending_reward)
+	else:
+		new_item_display = create_card_display(pending_reward, 1)
+	new_item_display.position = Vector2(20, 120)
+	new_item_display.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Allow clicks to pass through
+	main_container.add_child(new_item_display)
+	
+	# Instructions
+	var instructions = Label.new()
+	if reward_type == "equipment":
+		instructions.text = "Click on equipment in your bag to replace it with the new equipment."
+	else:
+		instructions.text = "Click on a card in your bag to replace it with the new card."
+	instructions.add_theme_font_size_override("font_size", 14)
+	instructions.add_theme_color_override("font_color", Color.LIGHT_GRAY)
+	instructions.position = Vector2(20, 240)
+	instructions.size = Vector2(760, 30)
+	instructions.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	instructions.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Allow clicks to pass through
+	main_container.add_child(instructions)
+	
+	# Cancel button
+	var cancel_button = Button.new()
+	cancel_button.text = "Cancel"
+	cancel_button.position = Vector2(350, 420)
+	cancel_button.size = Vector2(100, 40)
+	cancel_button.pressed.connect(_on_cancel_replacement)
+	main_container.add_child(cancel_button)
+	
+	# Add dialog to UILayer to ensure proper layering with bag
+	var ui_layer = get_tree().current_scene.get_node_or_null("UILayer")
+	if ui_layer:
+		ui_layer.add_child(card_replacement_dialog)
+		ui_layer.move_child(card_replacement_dialog, ui_layer.get_child_count() - 1)
+		print("ShopInterior: Added replacement dialog to UILayer, z_index:", card_replacement_dialog.z_index)
+	else:
+		# Fallback to current scene if UILayer not found
+		get_tree().current_scene.add_child(card_replacement_dialog)
+		print("ShopInterior: Added replacement dialog to current scene, z_index:", card_replacement_dialog.z_index)
+	
+	# Add debug input handler to the replacement dialog
+	card_replacement_dialog.gui_input.connect(func(event):
+		if event is InputEventMouseButton and event.pressed:
+			print("ShopInterior: Replacement dialog received mouse input at", event.position, "event type:", event.get_class())
+			print("ShopInterior: Replacement dialog z_index:", card_replacement_dialog.z_index)
+	)
+	
+	# Add debug input handler to the background
+	background.gui_input.connect(func(event):
+		if event is InputEventMouseButton and event.pressed:
+			print("ShopInterior: Background received mouse input at", event.position, "event type:", event.get_class())
+			print("ShopInterior: Background z_index:", background.z_index)
+	)
+	
+	# Open bag in replacement mode
+	var bag = get_tree().current_scene.get_node_or_null("UILayer/Bag")
+	if bag:
+		bag.show_inventory_replacement_mode(pending_reward, pending_reward_type)
+
+func _on_cancel_replacement():
+	"""Cancel the card replacement process"""
+	cleanup_replacement_dialogs()
+
+func create_card_display(card_data: CardData, count: int) -> Control:
+	"""Create a display for a single card with count"""
+	var container = Control.new()
+	container.custom_minimum_size = Vector2(80, 100)
+	container.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	container.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	container.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Allow clicks to pass through
+	
+	# Card image
+	var image_rect = TextureRect.new()
+	image_rect.texture = card_data.image
+	image_rect.size = Vector2(80, 100)
+	image_rect.position = Vector2(0, 0)
+	image_rect.scale = Vector2(0.075, 0.075)
+	image_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	image_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Allow clicks to pass through
+	container.add_child(image_rect)
+	
+	return container
+
+func create_equipment_display(equipment_data: EquipmentData) -> Control:
+	"""Create a display for a single piece of equipment"""
+	var container = Control.new()
+	container.custom_minimum_size = Vector2(180, 60)
+	container.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	container.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	container.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Allow clicks to pass through
+	
+	# Equipment background
+	var equip_bg = ColorRect.new()
+	equip_bg.color = Color(0.3, 0.3, 0.3, 0.9)
+	equip_bg.size = Vector2(180, 60)
+	equip_bg.position = Vector2(0, 0)
+	equip_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Allow clicks to pass through
+	container.add_child(equip_bg)
+	
+	# Equipment image
+	var image_rect = TextureRect.new()
+	image_rect.texture = equipment_data.image
+	image_rect.size = Vector2(40, 40)
+	image_rect.position = Vector2(10, 10)
+	image_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	image_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Allow clicks to pass through
+	container.add_child(image_rect)
+	
+	# Equipment name
+	var name_label = Label.new()
+	name_label.text = equipment_data.name
+	name_label.add_theme_font_size_override("font_size", 12)
+	name_label.add_theme_color_override("font_color", Color.WHITE)
+	name_label.position = Vector2(60, 10)
+	name_label.size = Vector2(110, 20)
+	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Allow clicks to pass through
+	container.add_child(name_label)
+	
+	return container
+
+func _exit_tree():
+	"""Clean up when the shop is removed from the scene"""
+	cleanup_replacement_dialogs()
+
+func on_replacement_completed(reward_data: Resource, reward_type: String):
+	"""Called when a card replacement is completed"""
+	print("ShopInterior: Replacement completed for", reward_data.name if reward_data else "null")
+	
+	# Play the cat happy sound for successful replacement
+	play_cat_happy()
+	
+	# Close the replacement dialog
+	if card_replacement_dialog and is_instance_valid(card_replacement_dialog):
+		card_replacement_dialog.queue_free()
+		card_replacement_dialog = null
+		print("ShopInterior: Replacement dialog cleaned up")
+	else:
+		print("ShopInterior: No replacement dialog to clean up")
+	
+	# Remove the item from shop after successful replacement
+	if pending_reward and pending_reward in current_shop_items:
+		current_shop_items.erase(pending_reward)
+		display_shop_items()
+	
+	# Reset pending reward
+	pending_reward = null
+	pending_reward_type = ""
+	
+	# Close bag inventory and ensure it's clickable
+	var bag = get_tree().current_scene.get_node_or_null("UILayer/Bag")
+	if bag:
+		bag.close_inventory()
+		# Ensure bag's mouse_filter is properly reset after replacement completion
+		bag.mouse_filter = Control.MOUSE_FILTER_STOP
+		print("ShopInterior: Reset bag mouse_filter after replacement completion to:", bag.mouse_filter)
+	
+	# Re-enable shop input
+	shop_input_enabled = true
+	enable_shop_item_containers()
+	
+	# Restore ReturnButton z-index
+	var return_button = $ReturnButton
+	if return_button:
+		return_button.z_index = 1000  # Restore original z-index
+		print("ShopInterior: Restored ReturnButton z_index to:", return_button.z_index)
+		print("ShopInterior: ReturnButton visible:", return_button.visible, "mouse_filter:", return_button.mouse_filter)
+	else:
+		print("ShopInterior: ERROR - ReturnButton not found during cleanup")
+
+func check_bag_slots(item: Resource, item_type: String) -> bool:
+	"""Check if there are available slots in the bag for the item - matching RewardSelectionDialog logic"""
+	var bag = get_tree().current_scene.get_node_or_null("UILayer/Bag")
+	if not bag:
+		print("ShopInterior: Bag not found, allowing purchase")
+		return true  # Allow if bag not found
+	
+	if item_type == "card":
+		var card_data = item as CardData
+		# Check if it's a club card by name (matching RewardSelectionDialog logic)
+		var club_names = ["Putter", "Wooden", "Iron", "Hybrid", "Driver", "PitchingWedge", "Fire Club", "Ice Club"]
+		if club_names.has(card_data.name):
+			# Check club card slots
+			var club_cards = bag.get_club_cards()
+			var club_slots = bag.get_club_slots()
+			print("ShopInterior: Club card check - cards:", club_cards.size(), "slots:", club_slots)
+			return club_cards.size() < club_slots
+		else:
+			# Check movement card slots
+			var movement_cards = bag.get_movement_cards()
+			var movement_slots = bag.get_movement_slots()
+			print("ShopInterior: Movement card check - cards:", movement_cards.size(), "slots:", movement_slots)
+			return movement_cards.size() < movement_slots
+	elif item_type == "equipment":
+		# Check equipment slots
+		var equipment_manager = get_tree().current_scene.get_node_or_null("EquipmentManager")
+		if equipment_manager:
+			var equipped_items = equipment_manager.get_equipped_equipment()
+			var equipment_slots = bag.get_equipment_slots()
+			print("ShopInterior: Equipment check - items:", equipped_items.size(), "slots:", equipment_slots)
+			return equipped_items.size() < equipment_slots
+	
+	print("ShopInterior: Default case, allowing purchase")
+	return true
+
+ 

@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://bqx8mta4q65ld"]
 
-[ext_resource type="Script" path="res://RewardSelectionDialog.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://htyvomkgt5lr" path="res://RewardSelectionDialog.gd" id="1_script"]
 
 [node name="RewardSelectionDialog" type="Control"]
 layout_mode = 3
@@ -75,4 +75,4 @@ offset_right = 200.0
 offset_bottom = 50.0
 grow_horizontal = 2
 grow_vertical = 2
-text = "Right Reward" 
+text = "Right Reward"

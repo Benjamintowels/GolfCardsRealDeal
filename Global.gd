@@ -496,3 +496,36 @@ func reset_global_turn() -> void:
 	"""Reset the global turn counter (for new games)"""
 	global_turn_count = 1
 	print("Global turn reset to: ", global_turn_count)
+
+func clear_shop_state():
+	"""Clear global state to prevent dictionary conflicts when returning from shop"""
+	print("=== CLEARING GLOBAL SHOP STATE ===")
+	
+	# Clear any debug output cache that might cause issues
+	_last_debug_output.clear()
+	
+	# Clear any saved game state that might cause conflicts
+	saved_game_state = ""
+	saved_player_grid_pos = Vector2i.ZERO
+	saved_ball_position = Vector2.ZERO
+	saved_current_turn = 1
+	saved_shot_score = 0
+	saved_global_turn_count = 1
+	saved_deck_manager_state.clear()
+	saved_discard_pile_state.clear()
+	saved_hand_state.clear()
+	saved_has_started = false
+	saved_game_phase = ""
+	
+	# Clear ball-related state
+	saved_ball_landing_tile = Vector2i.ZERO
+	saved_ball_landing_position = Vector2.ZERO
+	saved_waiting_for_player_to_reach_ball = false
+	saved_ball_exists = false
+	
+	# Clear course object positions
+	saved_tree_positions.clear()
+	saved_pin_position = Vector2i.ZERO
+	saved_shop_position = Vector2i.ZERO
+	
+	print("=== GLOBAL SHOP STATE CLEARED ===")

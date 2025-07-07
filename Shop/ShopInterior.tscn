@@ -1,9 +1,10 @@
-[gd_scene load_steps=6 format=3 uid="uid://c8kuewso70dyx"]
+[gd_scene load_steps=7 format=3 uid="uid://c8kuewso70dyx"]
 
 [ext_resource type="Texture2D" uid="uid://6gtabr7liuob" path="res://Shop/ShopInterior.png" id="1_eeho4"]
 [ext_resource type="Script" uid="uid://qri6qfxmvixl" path="res://Shop/ShopInterior.gd" id="2_shop_script"]
 [ext_resource type="AudioStream" uid="uid://cwn3uur4bgef2" path="res://Sounds/Trinkets.mp3" id="3_vsfgq"]
 [ext_resource type="Texture2D" uid="uid://b04t5rodckxfe" path="res://Shop/Tof.png" id="4_8pyis"]
+[ext_resource type="AudioStream" uid="uid://dtmkyo6yyyfqq" path="res://Sounds/CatHappy.mp3" id="4_ko7ju"]
 [ext_resource type="Texture2D" uid="uid://c38xossm3wigh" path="res://Shop/TofSign.png" id="5_ko7ju"]
 
 [node name="ShopInterior" type="Control"]
@@ -13,6 +14,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 1
 script = ExtResource("2_shop_script")
 
 [node name="TextureRect" type="TextureRect" parent="."]
@@ -42,6 +44,9 @@ text = "Return to Course"
 [node name="Trinkets" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("3_vsfgq")
 
+[node name="CatHappy" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("4_ko7ju")
+
 [node name="TextureRect2" type="TextureRect" parent="."]
 layout_mode = 0
 offset_left = 600.0
@@ -66,24 +71,39 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_bottom = -150.0
 grow_horizontal = 2
 grow_vertical = 2
-mouse_filter = 2
+mouse_filter = 1
 
 [node name="ItemContainer1" type="Panel" parent="ShopItems"]
 layout_mode = 0
-offset_left = 200.0
-offset_top = 300.0
-offset_right = 400.0
-offset_bottom = 550.0
+offset_left = 816.0
+offset_top = 45.0
+offset_right = 1016.0
+offset_bottom = 295.0
 scale = Vector2(0.59, 0.59)
-mouse_filter = 2
 
 [node name="ItemContainer2" type="Panel" parent="ShopItems"]
 layout_mode = 0
-offset_left = 830.0
-offset_top = 304.0
-offset_right = 1030.0
-offset_bottom = 554.0
+offset_left = 822.0
+offset_top = 298.0
+offset_right = 1022.0
+offset_bottom = 548.0
 scale = Vector2(0.6, 0.6)
-mouse_filter = 2
+
+[node name="ItemContainer3" type="Panel" parent="ShopItems"]
+layout_mode = 0
+offset_left = 418.0
+offset_top = 44.0
+offset_right = 618.0
+offset_bottom = 294.0
+scale = Vector2(0.59, 0.59)
+
+[node name="ItemContainer4" type="Panel" parent="ShopItems"]
+layout_mode = 0
+offset_left = 419.0
+offset_top = 297.0
+offset_right = 619.0
+offset_bottom = 547.0
+scale = Vector2(0.6, 0.6)

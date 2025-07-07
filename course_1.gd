@@ -199,6 +199,7 @@ var ysort_objects := [] # Array of {node: Node2D, grid_pos: Vector2i}
 
 # Shop interaction variables
 var shop_dialog: Control = null
+var shop_overlay: Control = null
 
 # Smart Performance Optimizer
 var smart_optimizer: Node
@@ -337,6 +338,10 @@ func update_ball_for_optimizer():
 
 func _ready() -> void:
 	add_to_group("course")
+	
+	# Clear any existing state to prevent dictionary conflicts
+	_clear_existing_state()
+	
 	if Global.putt_putt_mode:
 		print("=== PUTT PUTT MODE ENABLED ===")
 		print("Only putters will be available for club selection")
@@ -527,6 +532,10 @@ func _ready() -> void:
 	draw_cards_button.pressed.connect(_on_draw_cards_pressed)
 	
 	setup_bag_and_inventory()
+	
+	# Debug bag state after setup
+	if bag and bag.has_method("debug_bag_state"):
+		bag.debug_bag_state()
 
 	if Global.saved_game_state == "shop_entrance":
 		restore_game_state()
@@ -616,12 +625,44 @@ func _ready() -> void:
 	$UILayer.add_child(complete_hole_btn)
 	complete_hole_btn.pressed.connect(_on_complete_hole_pressed)
 
+	var test_bag_btn := Button.new()
+	test_bag_btn.name = "TestBagButton"
+	test_bag_btn.text = "Test Bag Click"
+	test_bag_btn.position = Vector2(400, 100)
+	test_bag_btn.z_index = 999
+	$UILayer.add_child(test_bag_btn)
+	test_bag_btn.pressed.connect(_on_test_bag_button_pressed)
+
 func _on_complete_hole_pressed():
 	# Clear any existing balls before showing the hole completion dialog
 	remove_all_balls()
 	show_hole_completion_dialog()
 
+func _on_test_bag_button_pressed():
+	"""Test function to manually trigger bag click"""
+	print("=== TESTING BAG CLICK ===")
+	if bag and bag.has_method("debug_bag_state"):
+		bag.debug_bag_state()
+		# Manually trigger the bag's input event
+		var fake_event = InputEventMouseButton.new()
+		fake_event.button_index = MOUSE_BUTTON_LEFT
+		fake_event.pressed = true
+		bag._on_bag_input_event(fake_event)
+	else:
+		print("Bag not found or missing debug_bag_state method")
+	print("=== END TESTING BAG CLICK ===")
+
 func _input(event: InputEvent) -> void:
+	# Debug: Check if bag is receiving input events
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		var mouse_pos = event.position
+		if bag and bag.has_method("debug_bag_state"):
+			var bag_rect = Rect2(bag.global_position, bag.size)
+			if bag_rect.has_point(mouse_pos):
+				print("Course: Mouse click detected over bag area at", mouse_pos)
+				print("Course: Bag rect:", bag_rect)
+				bag.debug_bag_state()
+	
 	# Handle weapon mode input first
 	if weapon_handler and weapon_handler.handle_input(event):
 		return
@@ -2609,8 +2650,51 @@ func show_shop_entrance_dialog():
 	print("Shop entrance dialog created")
 
 func _on_shop_enter_yes():
-	save_game_state()
-	FadeManager.fade_to_black(func(): get_tree().change_scene_to_file("res://Shop/ShopInterior.tscn"), 0.5)
+	# Instead of changing scenes, overlay the shop UI
+	show_shop_overlay()
+
+func show_shop_overlay():
+	print("=== SHOWING SHOP OVERLAY ===")
+	var shop_scene = preload("res://Shop/ShopInterior.tscn")
+	var shop_instance = shop_scene.instantiate()
+	$UILayer.add_child(shop_instance)
+	shop_instance.z_index = 1000
+	get_tree().paused = true
+	shop_overlay = shop_instance
+	shop_instance.connect("shop_closed", _on_shop_overlay_return)
+	print("=== SHOP OVERLAY SHOWN ===")
+
+func _on_shop_overlay_return():
+	"""Handle returning from shop overlay"""
+	print("=== REMOVING SHOP OVERLAY ===")
+	
+	# Unpause the game
+	get_tree().paused = false
+	
+	# Remove the shop overlay
+	if shop_overlay and is_instance_valid(shop_overlay):
+		shop_overlay.queue_free()
+		shop_overlay = null
+	
+	# Clear any shop dialog that might still be present
+	if shop_dialog:
+		shop_dialog.queue_free()
+		shop_dialog = null
+	
+	# Reset shop entrance detection
+	shop_entrance_detected = false
+	
+	# Update Y-sort for all objects to ensure proper layering
+	Global.update_all_objects_y_sort(ysort_objects)
+	
+	# Exit movement mode
+	exit_movement_mode()
+	
+	# Debug bag state after returning from shop
+	if bag and bag.has_method("debug_bag_state"):
+		bag.debug_bag_state()
+	
+	print("=== SHOP OVERLAY REMOVED ===")
 
 func _on_shop_enter_no():
 	if shop_dialog:
@@ -2618,6 +2702,9 @@ func _on_shop_enter_no():
 		shop_dialog = null
 	
 	shop_entrance_detected = false
+	
+	# Update Y-sort for all objects to ensure proper layering
+	Global.update_all_objects_y_sort(ysort_objects)
 	
 	exit_movement_mode()
 
@@ -2630,59 +2717,13 @@ func _on_shop_under_construction_input(event: InputEvent):
 			shop_dialog = null
 		restore_game_state()
 		shop_entrance_detected = false
+		
+		# Update Y-sort for all objects to ensure proper layering
+		Global.update_all_objects_y_sort(ysort_objects)
+		
 		exit_movement_mode()
 
-func save_game_state():
-	Global.saved_player_grid_pos = player_grid_pos
-	Global.saved_ball_position = launch_manager.golf_ball.global_position if launch_manager.golf_ball else Vector2.ZERO
-	Global.saved_current_turn = turn_count
-	Global.saved_shot_score = hole_score
-	# Save global turn count for turn-based spawning
-	Global.saved_global_turn_count = Global.global_turn_count
-	Global.saved_deck_manager_state = deck_manager.get_deck_state()
-	Global.saved_discard_pile_state = deck_manager.get_discard_state()
-	Global.saved_hand_state = deck_manager.get_hand_state()
-	Global.saved_game_state = "shop_entrance"
-	Global.saved_has_started = has_started
-	Global.saved_game_phase = game_phase  # Save current game phase
-	
-	Global.saved_ball_landing_tile = ball_landing_tile
-	Global.saved_ball_landing_position = ball_landing_position
-	Global.saved_waiting_for_player_to_reach_ball = waiting_for_player_to_reach_ball
-	Global.saved_ball_exists = (launch_manager.golf_ball != null and is_instance_valid(launch_manager.golf_ball))
-	
-	Global.saved_tree_positions.clear()
-	Global.saved_pin_position = Vector2i.ZERO
-	Global.saved_shop_position = Vector2i.ZERO
-	
-	for i in range(ysort_objects.size()):
-		var obj_data = ysort_objects[i]
-		var node = obj_data.node
-		var grid_pos = obj_data.grid_pos
-	
-	for obj_data in ysort_objects:
-		var node = obj_data.node
-		var grid_pos = obj_data.grid_pos
-		
-		var is_tree = false
-		if node.name == "Tree":
-			is_tree = true
-		elif node.has_method("blocks") and node.blocks():
-			is_tree = true
-		elif node.get_script() and node.get_script().get_path().find("Tree.gd") != -1:
-			is_tree = true
-		
-		if is_tree:
-			Global.saved_tree_positions.append(grid_pos)
-		
-		if node.name == "Pin" or (node.has_method("get_class") and node.get_class() == "Pin"):
-			Global.saved_pin_position = grid_pos
-		
-		if node.name == "Shop" or (node.has_method("get_class") and node.get_class() == "Shop"):
-			Global.saved_shop_position = grid_pos
-	
-	if Global.saved_shop_position == Vector2i.ZERO:
-		Global.saved_shop_position = shop_grid_pos
+
 		
 func restore_game_state():
 	if Global.saved_game_state == "shop_entrance":
@@ -3084,6 +3125,10 @@ func setup_bag_and_inventory() -> void:
 	if bag and bag.has_method("set_bag_level"):
 		bag.set_bag_level(1)  # Always start with level 1
 		print("Bag initialized with level 1")
+		print("Bag z_index:", bag.z_index, "position:", bag.position, "size:", bag.size)
+		print("Bag global_position:", bag.global_position)
+	else:
+		print("ERROR: Bag not found or missing set_bag_level method")
 
 func _on_bag_clicked() -> void:
 	# The bag handles its own click events now
@@ -3491,3 +3536,42 @@ func _is_player_affected_by_fire_tile(fire_tile_pos: Vector2i) -> bool:
 func reset_fire_damage_tracking() -> void:
 	"""Reset the fire damage tracking at the start of each turn"""
 	fire_tiles_that_damaged_player.clear()
+
+func _clear_existing_state():
+	"""Clear any existing state to prevent dictionary conflicts when scene is reloaded"""
+	print("=== CLEARING EXISTING STATE ===")
+	
+	# Clear obstacle map
+	obstacle_map.clear()
+	
+	# Clear ysort objects
+	ysort_objects.clear()
+	
+	# Clear placed objects
+	placed_objects.clear()
+	
+	# Clear any existing objects in obstacle_layer (if it exists)
+	if obstacle_layer and is_instance_valid(obstacle_layer):
+		for child in obstacle_layer.get_children():
+			if child and is_instance_valid(child):
+				child.queue_free()
+	
+	# Clear any remaining balls or projectiles in the scene tree
+	var scene_tree = get_tree()
+	var balls = scene_tree.get_nodes_in_group("balls")
+	for ball in balls:
+		if ball and is_instance_valid(ball):
+			ball.queue_free()
+	
+	var knives = scene_tree.get_nodes_in_group("knives")
+	for knife in knives:
+		if knife and is_instance_valid(knife):
+			knife.queue_free()
+	
+	# Clear any remaining explosions or particles
+	var explosions = scene_tree.get_nodes_in_group("explosions")
+	for explosion in explosions:
+		if explosion and is_instance_valid(explosion):
+			explosion.queue_free()
+	
+	print("=== EXISTING STATE CLEARED ===")
