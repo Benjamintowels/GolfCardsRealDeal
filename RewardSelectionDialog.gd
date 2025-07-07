@@ -408,7 +408,7 @@ func setup_reward_button(button: Button, reward_data: Resource, reward_type: Str
 		image_rect.texture = bag_data.image
 		image_rect.size = Vector2(80, 80)  # Square aspect ratio for bag
 		image_rect.position = Vector2(10, 10)
-		image_rect.scale = Vector2(0.15, 0.15)
+		image_rect.scale = Vector2(1.0, 1.0)  # Full scale for bags
 		image_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		image_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		container.add_child(image_rect)

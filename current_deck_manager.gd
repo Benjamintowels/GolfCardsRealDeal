@@ -17,12 +17,11 @@ var starter_deck: Array[CardData] = [
 	preload("res://Cards/KickB.tres"),
 	preload("res://Cards/KickB.tres"),
 	preload("res://Cards/Putter.tres"),
-	preload("res://Cards/FireClub.tres"),  # Changed from Wooden to FireClub
-	preload("res://Cards/IceClub.tres"),   # Added Ice Club for freeze effect testing
-	preload("res://Cards/ThrowingKnife.tres"),
-	preload("res://Cards/PistolCard.tres"),  # Added Pistol card for testing oil drum explosions
-	preload("res://Cards/FireBallCard.tres"),  # Added FireBall card for testing
-	preload("res://Cards/IceBallCard.tres")    # Added IceBall card for testing
+	preload("res://Cards/Wooden.tres"),    # Basic wooden club
+	preload("res://Cards/Iron.tres"),      # Basic iron club
+	preload("res://Cards/Hybrid.tres"),    # Basic hybrid club
+	preload("res://Cards/Driver.tres"),    # Basic driver club
+	preload("res://Cards/PitchingWedge.tres")  # Basic pitching wedge
 ]
 
 func _ready():
