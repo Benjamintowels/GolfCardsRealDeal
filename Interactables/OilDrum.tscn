@@ -59,5 +59,6 @@ stream = ExtResource("3_f8u84")
 visible = false
 
 [node name="HitBoxShape" type="CollisionShape2D" parent="HitBox"]
+visible = false
 position = Vector2(-1, -36)
 shape = SubResource("CapsuleShape2D_f8u84")

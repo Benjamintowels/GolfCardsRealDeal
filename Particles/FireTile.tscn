@@ -1,0 +1,30 @@
+[gd_scene load_steps=4 format=3 uid="uid://b5l71ig1h818i"]
+
+[ext_resource type="Texture2D" uid="uid://bdhcyx3yw6fpr" path="res://Particles/FireTile.png" id="1_hykiv"]
+[ext_resource type="Script" uid="uid://cout3kxv533og" path="res://Particles/fire_tile.gd" id="1_j2cvj"]
+[ext_resource type="AudioStream" uid="uid://icvi7c2ur6mm" path="res://Sounds/FlameOn.mp3" id="2_ko44e"]
+
+[node name="FireTile" type="Node2D"]
+script = ExtResource("1_j2cvj")
+
+[node name="FireTileSprite" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(-6, -61)
+scale = Vector2(1.8967, 1.49334)
+texture = ExtResource("1_hykiv")
+
+[node name="FireTileSprite2" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(0, -24)
+scale = Vector2(2.29, 1.803)
+texture = ExtResource("1_hykiv")
+flip_h = true
+
+[node name="FireTileSprite3" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(0, 23)
+scale = Vector2(2.0953, 1.29887)
+texture = ExtResource("1_hykiv")
+
+[node name="FlameOn" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("2_ko44e")

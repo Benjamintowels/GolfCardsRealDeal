@@ -44,7 +44,8 @@ var bounce_reduction_values = {
 	"T": 0,     # Tee - no bounce reduction
 	"Tee": 0,   # Tee - no bounce reduction
 	"P": 0,     # Pin - no bounce reduction
-	"O": 0      # Obstacle - no bounce reduction
+	"O": 0,     # Obstacle - no bounce reduction
+	"Scorched": 1  # Scorched earth - lose 1 bounce (same as base grass)
 }
 
 # Height-based rolling mechanics
@@ -69,7 +70,8 @@ var tile_friction_values = {
 	"T": 0.60,  # Tee - high friction (was 0.80)
 	"Tee": 0.60,  # Tee - high friction (was 0.80)
 	"P": 0.40,  # Pin - same as green (was 0.60)
-	"O": 0.15   # Obstacle - maximum friction (was 0.20)
+	"O": 0.15,  # Obstacle - maximum friction (was 0.20)
+	"Scorched": 1.99  # Scorched earth - same high friction as base grass
 }
 var current_tile_friction := 0.60  # Default friction (was 0.80)
 
@@ -113,6 +115,10 @@ var element_sprite: Sprite2D = null  # Reference to the Element sprite node
 # Elemental club effect variables
 var fire_club_active: bool = false  # Fire Club special effects
 var ice_club_active: bool = false  # Ice Club special effects
+
+# Fire spreading system variables
+var last_fire_tile: Vector2i = Vector2i.ZERO  # Track the last tile that caught fire
+var fire_tiles_created: Array[Vector2i] = []  # Track all fire tiles created by this ball
 
 # Ball landing highlight system
 var final_landing_tile: Vector2i = Vector2i.ZERO  # Track the final tile where ball stopped
@@ -486,10 +492,19 @@ func _process(delta):
 		# Check if ball has landed (using current ground level)
 		if z <= current_ground_level:
 			z = current_ground_level
+			print("=== BALL LANDED ===")
+			print("Landing speed:", abs(vz), "Horizontal speed:", velocity.length())
+			print("Bounce count:", bounce_count, "Max bounces:", max_bounces, "Min bounces:", min_bounces)
 			
 			# Play roof bounce sound if landing on elevated ground
 			if current_ground_level > 0.0:
 				_play_roof_bounce_sound("")
+			
+			# Check for fire spreading on landing
+			print("=== LANDING FIRE SPREADING CHECK ===")
+			print("Landing position:", position, "Tile:", Vector2i(floor(position.x / cell_size), floor(position.y / cell_size)))
+			_check_fire_spreading()
+			
 			# Check for water hazard on any bounce
 			var tile_x = int(floor(position.x / cell_size))
 			var tile_y = int(floor(position.y / cell_size))
@@ -695,6 +710,11 @@ func _process(delta):
 					if ball_land_sound and ball_land_sound.stream:
 						ball_land_sound.play()
 					
+					# Check for fire spreading on bounce
+					print("=== BOUNCE FIRE SPREADING CHECK ===")
+					print("Bounce count:", bounce_count, "Position:", position, "Tile:", Vector2i(floor(position.x / cell_size), floor(position.y / cell_size)))
+					_check_fire_spreading()
+					
 					# Simple physics: reflect the vertical velocity with energy loss
 					# The ball was falling with negative vz, so bounce it back up with positive vz
 					# Apply bounce factor to reduce energy each bounce
@@ -713,6 +733,10 @@ func _process(delta):
 		if is_rolling:
 			# Ball is rolling on the ground
 			vz = 0.0
+			
+			# Check for fire spreading while rolling
+			_check_fire_spreading()
+			
 			# Check for water hazard while rolling
 			var tile_x_roll = int(floor(position.x / cell_size))
 			var tile_y_roll = int(floor(position.y / cell_size))
@@ -1128,6 +1152,10 @@ func reset_shot_effects() -> void:
 	# Reset elemental club effects
 	fire_club_active = false
 	ice_club_active = false
+	
+	# Reset fire spreading system
+	last_fire_tile = Vector2i.ZERO
+	fire_tiles_created.clear()
 
 func notify_course_of_collision() -> void:
 	"""Notify the course that the ball has collided with something, so it can re-enable player collision"""
@@ -1554,6 +1582,96 @@ func check_rolling_wall_collisions() -> void:
 				
 				# Ball bounced off rectangular obstacle - debug info removed for performance
 				break  # Only handle one collision per frame
+
+func _check_fire_spreading() -> void:
+	"""Check if the fire ball should spread fire to the current tile"""
+	print("=== FIRE SPREADING CHECK ===")
+	print("Element:", current_element.name if current_element else "None")
+	print("Position:", position, "Tile:", Vector2i(floor(position.x / cell_size), floor(position.y / cell_size)))
+	
+	if not current_element or current_element.name != "Fire":
+		print("Not a fire ball - returning")
+		return  # Not a fire ball
+	
+	if map_manager == null:
+		return  # No map manager
+	
+	# Get current tile position
+	var current_tile = Vector2i(floor(position.x / cell_size), floor(position.y / cell_size))
+	
+	# Check if this tile is already on fire or has been scorched
+	var is_already_affected = _is_tile_on_fire_or_scorched(current_tile)
+	print("Tile already on fire/scorched:", is_already_affected)
+	if is_already_affected:
+		print("Tile already affected by fire - returning")
+		return  # Tile already affected by fire
+	
+	# Check if this is a grass tile that can catch fire
+	var tile_type = map_manager.get_tile_type(current_tile.x, current_tile.y)
+	print("Tile type:", tile_type, "Is grass:", _is_grass_tile(tile_type))
+	if not _is_grass_tile(tile_type):
+		print("Not a grass tile - returning")
+		return  # Not a grass tile
+	
+	# Check if we've already created a fire tile on this position
+	var already_created = current_tile in fire_tiles_created
+	print("Already created fire tile on this position:", already_created)
+	if already_created:
+		print("Already created fire on this tile - returning")
+		return  # Already created fire on this tile
+	
+	# Create fire tile
+	print("Creating fire tile at position:", current_tile, "on tile type:", tile_type)
+	_create_fire_tile(current_tile)
+
+func _is_tile_on_fire_or_scorched(tile_pos: Vector2i) -> bool:
+	"""Check if a tile is currently on fire or has been scorched"""
+	# Check for existing fire tiles in the scene
+	var fire_tiles = get_tree().get_nodes_in_group("fire_tiles")
+	for fire_tile in fire_tiles:
+		if fire_tile.get_tile_position() == tile_pos:
+			return true
+	return false
+
+func _is_grass_tile(tile_type: String) -> bool:
+	"""Check if a tile type is considered grass (can catch fire)"""
+	return tile_type in ["F", "R", "Base"]  # Fairway, Rough, Base grass (excludes Scorched)
+
+func _create_fire_tile(tile_pos: Vector2i) -> void:
+	"""Create a fire tile at the specified position"""
+	var fire_tile_scene = preload("res://Particles/FireTile.tscn")
+	var fire_tile = fire_tile_scene.instantiate()
+	
+	# Set the tile position
+	fire_tile.set_tile_position(tile_pos)
+	
+	# Find the camera container to add the fire tile to (so it moves with the world)
+	var camera_container = get_parent()  # The ball should be a child of the camera container
+	
+	# Position the fire tile at the tile center (relative to camera container)
+	var tile_center = Vector2(tile_pos.x * cell_size + cell_size / 2, tile_pos.y * cell_size + cell_size / 2)
+	fire_tile.position = tile_center
+	
+	# Add to fire tiles group for easy management
+	fire_tile.add_to_group("fire_tiles")
+	
+	# Connect to completion signal
+	fire_tile.fire_tile_completed.connect(_on_fire_tile_completed)
+	
+	# Add to camera container so it moves with the world
+	camera_container.add_child(fire_tile)
+	
+	# Track this fire tile
+	fire_tiles_created.append(tile_pos)
+	last_fire_tile = tile_pos
+	print("Fire tile created successfully at:", tile_pos, "z_index:", fire_tile.z_index)
+
+func _on_fire_tile_completed(tile_pos: Vector2i) -> void:
+	"""Handle when a fire tile transitions to scorched earth"""
+	# The fire tile will handle its own visual transition
+	# We just need to notify the map manager that this tile is now scorched
+	if map_manager and map_manager.has_method("set_tile_scorched"):
+		map_manager.set_tile_scorched(tile_pos.x, tile_pos.y)
 
 func _spawn_fire_particle():
 	var fire_particle_scene = preload("res://Particles/FireParticle.tscn")

@@ -1352,6 +1352,9 @@ func _on_end_turn_pressed() -> void:
 	# Increment global turn counter for turn-based spawning
 	Global.increment_global_turn()
 	
+	# Advance fire tiles to next turn
+	advance_fire_tiles()
+	
 	update_deck_display()
 	
 	if cards_to_discard > 0:
@@ -1591,6 +1594,13 @@ func get_player_reference() -> Node:
 func get_attack_handler() -> Node:
 	"""Get the attack handler reference for NPCs to use"""
 	return attack_handler
+
+func advance_fire_tiles() -> void:
+	"""Advance all fire tiles to the next turn"""
+	var fire_tiles = get_tree().get_nodes_in_group("fire_tiles")
+	for fire_tile in fire_tiles:
+		if is_instance_valid(fire_tile) and fire_tile.has_method("advance_turn"):
+			fire_tile.advance_turn()
 
 func update_deck_display() -> void:
 	var hud := get_node("UILayer/HUD")
