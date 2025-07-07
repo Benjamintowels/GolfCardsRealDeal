@@ -371,6 +371,8 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 		max_bounces = 4  # Double the maximum bounces
 		# Bouncey effect: Doubling bounces
 
+	fire_trail_timer = 0.0
+
 func set_element(element_data: ElementData) -> void:
 	"""Set the current element for the ball"""
 	current_element = element_data
@@ -400,10 +402,6 @@ func get_element():
 func _process(delta):
 	if landed_flag:
 		return
-	
-
-	
-
 	
 	# Apply progressive height resistance during flight
 	if is_applying_height_resistance and z > 0.0:
@@ -485,8 +483,6 @@ func _process(delta):
 				var spin_force = perp * lerp_spin * 0.15 * progressive_factor * delta
 				velocity += spin_force
 
-				
-		
 		# Check if ball has landed (using current ground level)
 		if z <= current_ground_level:
 			z = current_ground_level
@@ -842,6 +838,15 @@ func _process(delta):
 	
 	# Update visual effects
 	update_visual_effects()
+
+	# Fire element trail logic
+	if current_element and current_element.name == "Fire" and (z > 0.0 or is_rolling):
+		fire_trail_timer += delta
+		if fire_trail_timer >= fire_trail_interval:
+			fire_trail_timer = 0.0
+			_spawn_fire_particle()
+	else:
+		fire_trail_timer = 0.0  # Reset if not in air, not fire, or rolling
 
 func update_visual_effects():
 	if not sprite or not shadow:
@@ -1549,3 +1554,19 @@ func check_rolling_wall_collisions() -> void:
 				
 				# Ball bounced off rectangular obstacle - debug info removed for performance
 				break  # Only handle one collision per frame
+
+func _spawn_fire_particle():
+	var fire_particle_scene = preload("res://Particles/FireParticle.tscn")
+	var fire_particle = fire_particle_scene.instantiate()
+	# Spawn at the ball's visual sprite position (including height offset)
+	if sprite:
+		fire_particle.global_position = global_position + Vector2(0, sprite.position.y)
+	else:
+		fire_particle.global_position = global_position
+	# If the ball is rolling, set drop_speed to 0 so the particle does not fall
+	if is_rolling:
+		fire_particle.drop_speed = 0.0
+	get_tree().current_scene.add_child(fire_particle)
+
+var fire_trail_timer := 0.0
+var fire_trail_interval := 0.15  # How often to drop a fire particle (seconds)

@@ -1,0 +1,10 @@
+[gd_scene load_steps=3 format=3 uid="uid://d31s0bcux3tr7"]
+
+[ext_resource type="Texture2D" uid="uid://do0yyouvbx1dk" path="res://Particles/FireParticle.png" id="1_lagg3"]
+[ext_resource type="Script" uid="uid://dylsho1m84fi" path="res://Particles/FireParticle.gd" id="1_pn5nn"]
+
+[node name="FireParticle" type="Node2D"]
+script = ExtResource("1_pn5nn")
+
+[node name="FireParticleSprite" type="Sprite2D" parent="."]
+texture = ExtResource("1_lagg3")

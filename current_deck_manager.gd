@@ -18,7 +18,7 @@ var starter_deck: Array[CardData] = [
 	preload("res://Cards/KickB.tres"),
 	preload("res://Cards/TeleportCard.tres"),  # TeleportCard for testing
 	preload("res://Cards/Putter.tres"),        # Only putter
-	preload("res://Cards/Wooden.tres")         # Only wooden stick
+	preload("res://Cards/FireClub.tres")       # Fire Club instead of Wooden
 ]
 
 func _ready():
