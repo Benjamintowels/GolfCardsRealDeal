@@ -1,0 +1,17 @@
+[gd_scene load_steps=2 format=3 uid="uid://test_freeze_effect"]
+
+[ext_resource type="Script" path="res://test_freeze_effect.gd" id="1_test"]
+
+[node name="TestFreezeEffect" type="Node2D"]
+script = ExtResource("1_test")
+
+[node name="Instructions" type="Label" parent="."]
+offset_left = 10.0
+offset_top = 10.0
+offset_right = 600.0
+offset_bottom = 100.0
+text = "Freeze Effect Test
+A gang member will be created in the center.
+Press SPACE to launch an ice ball at the gang member.
+The gang member should be frozen for 1 turn when hit."
+vertical_alignment = 1 

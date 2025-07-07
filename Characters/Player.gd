@@ -40,6 +40,10 @@ var is_charging_height: bool = false  # Will be updated by parent
 var camera: Camera2D = null  # Will be set by parent
 var is_in_launch_mode: bool = false  # Track if we're in launch mode (ball flying)
 
+# Swing animation system
+var swing_animation: Node2D = null
+var previous_charging_height: bool = false  # Track previous state to detect changes
+
 # Ragdoll animation properties
 var is_ragdolling: bool = false
 var ragdoll_tween: Tween
@@ -50,6 +54,7 @@ var ragdoll_landing_position: Vector2i  # Where the player will land after ragdo
 # No camera tracking needed since camera panning doesn't affect Y-sort in 2.5D
 
 func _ready():
+	print("=== PLAYER _READY STARTED ===")
 	# Add to groups for smart optimization and roof bounce system
 	add_to_group("collision_objects")
 	add_to_group("rectangular_obstacles")  # For rolling ball collisions
@@ -74,12 +79,18 @@ func _ready():
 	# Connect to character scene's Area2D for collision detection
 	_connect_character_collision()
 	
+	print("=== ABOUT TO SETUP SWING ANIMATION ===")
+	# Setup swing animation system
+	_setup_swing_animation()
+	
 	print("[Player.gd] Player ready with health:", current_health, "/", max_health)
 	
 	# Debug visual height
 	var char_sprite = get_character_sprite()
 	if char_sprite:
 		Global.debug_visual_height(char_sprite, "Player")
+	
+	print("=== PLAYER _READY COMPLETE ===")
 
 func _connect_character_collision() -> void:
 	"""Connect to the character scene's Area2D for collision detection"""
@@ -791,6 +802,13 @@ func _process(delta):
 	
 	# Handle mouse facing system
 	_update_mouse_facing()
+	
+	# Handle swing animation based on height charge state
+	_update_swing_animation()
+	
+	# Try to setup swing animation if not already done (in case character scene is added later)
+	if not swing_animation and get_child_count() > 0:
+		_setup_swing_animation()
 
 func _update_mouse_facing() -> void:
 	"""Update player sprite to face the mouse direction when appropriate"""
@@ -1125,3 +1143,124 @@ func stop_ragdoll() -> void:
 func is_currently_ragdolling() -> bool:
 	"""Check if the player is currently ragdolling"""
 	return is_ragdolling
+
+# Swing animation methods
+func _setup_swing_animation() -> void:
+	"""Setup the swing animation system"""
+	print("=== SETTING UP SWING ANIMATION IN PLAYER ===")
+	print("Player children:", get_children())
+	
+	# Find the swing animation node in the character scene
+	for child in get_children():
+		print("Checking child:", child.name, "Type:", child.get_class())
+		if child.has_method("start_swing_animation"):
+			swing_animation = child
+			print("✓ Found swing animation system:", swing_animation)
+			break
+		elif child is Node2D:
+			# Check Node2D children (this is where the character scene nodes are)
+			print("Checking Node2D children of:", child.name)
+			for grandchild in child.get_children():
+				print("  Grandchild:", grandchild.name, "Type:", grandchild.get_class())
+				if grandchild.has_method("start_swing_animation"):
+					swing_animation = grandchild
+					print("✓ Found swing animation system:", swing_animation)
+					break
+				elif grandchild is Node2D:
+					# Check even deeper for nested character scenes
+					print("    Checking deeper children of:", grandchild.name)
+					for great_grandchild in grandchild.get_children():
+						print("      Great-grandchild:", great_grandchild.name, "Type:", great_grandchild.get_class())
+						if great_grandchild.has_method("start_swing_animation"):
+							swing_animation = great_grandchild
+							print("✓ Found swing animation system:", swing_animation)
+							break
+	
+	# If still not found, try a more aggressive search
+	if not swing_animation:
+		print("⚠ No swing animation system found in character scene")
+		print("Available methods on children:")
+		for child in get_children():
+			print("  ", child.name, "methods:", child.get_method_list())
+			if child is Node2D:
+				for grandchild in child.get_children():
+					print("    ", grandchild.name, "methods:", grandchild.get_method_list())
+					if grandchild is Node2D:
+						for great_grandchild in grandchild.get_children():
+							print("      ", great_grandchild.name, "methods:", great_grandchild.get_method_list())
+		
+		# Try to find by name as a fallback
+		print("Trying to find SwingAnimation by name...")
+		var swing_node = find_child("SwingAnimation", true, false)
+		if swing_node and swing_node.has_method("start_swing_animation"):
+			swing_animation = swing_node
+			print("✓ Found SwingAnimation by name:", swing_animation)
+		else:
+			print("✗ SwingAnimation not found by name either")
+	else:
+		print("✓ Swing animation system setup complete")
+
+func _update_swing_animation() -> void:
+	"""Update swing animation based on height charge state"""
+	print("=== UPDATING SWING ANIMATION ===")
+	print("Swing animation system:", swing_animation)
+	print("Is charging height:", is_charging_height)
+	print("Previous charging height:", previous_charging_height)
+	
+	if not swing_animation:
+		print("⚠ No swing animation system available")
+		return
+	
+	# Check if height charge state changed
+	if is_charging_height != previous_charging_height:
+		print("Height charge state changed!")
+		if is_charging_height:
+			# Height charge started - start swing animation
+			print("Height charge started - triggering swing animation")
+			swing_animation.start_swing_animation()
+		else:
+			# Height charge stopped - stop swing animation
+			print("Height charge stopped - stopping swing animation")
+			swing_animation.stop_swing_animation()
+		
+		# Update previous state
+		previous_charging_height = is_charging_height
+		print("Updated previous_charging_height to:", previous_charging_height)
+	else:
+		print("No height charge state change")
+
+func start_swing_animation() -> void:
+	"""Manually start the swing animation"""
+	if swing_animation:
+		swing_animation.start_swing_animation()
+
+func stop_swing_animation() -> void:
+	"""Manually stop the swing animation"""
+	if swing_animation:
+		swing_animation.stop_swing_animation()
+
+func is_swinging() -> bool:
+	"""Check if currently performing a swing animation"""
+	if swing_animation:
+		return swing_animation.is_currently_swinging()
+	return false
+
+# Manual test method for debugging
+func manual_test_swing() -> void:
+	"""Manual test method to trigger swing animation for debugging"""
+	print("=== MANUAL SWING TEST ===")
+	print("Swing animation system:", swing_animation)
+	
+	if swing_animation:
+		print("Calling swing_animation.start_swing_animation()")
+		swing_animation.start_swing_animation()
+		print("✓ Manual swing test triggered")
+	else:
+		print("✗ No swing animation system available")
+		# Try to find it again
+		_setup_swing_animation()
+		if swing_animation:
+			print("✓ Found swing animation system, trying again")
+			swing_animation.start_swing_animation()
+		else:
+			print("✗ Still no swing animation system found")

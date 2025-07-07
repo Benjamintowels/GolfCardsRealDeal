@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://test_ice_club_deck"]
+
+[ext_resource type="Script" path="res://test_ice_club_deck.gd" id="1_test"]
+
+[node name="TestIceClubDeck" type="Node"]
+script = ExtResource("1_test") 

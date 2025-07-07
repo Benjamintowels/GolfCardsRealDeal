@@ -1,6 +1,7 @@
-[gd_scene load_steps=3 format=3 uid="uid://dhsqc6186gu42"]
+[gd_scene load_steps=4 format=3 uid="uid://dhsqc6186gu42"]
 
 [ext_resource type="Texture2D" uid="uid://mbo7cabs6iva" path="res://Characters/LaylaChar.png" id="1_tghli"]
+[ext_resource type="Script" uid="uid://d2iiaqe57mea" path="res://Characters/SwingAnimation.gd" id="2_swing"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_tghli"]
 radius = 7.64385
@@ -25,3 +26,11 @@ position = Vector2(0, -39.925)
 position = Vector2(2.01, 37)
 scale = Vector2(1.445, 1.445)
 shape = SubResource("CircleShape2D_tghli")
+
+[node name="SwingAnimation" type="Node2D" parent="."]
+script = ExtResource("2_swing")
+
+[node name="SwingSprite" type="AnimatedSprite2D" parent="SwingAnimation"]
+visible = false
+texture_filter = 1
+position = Vector2(0, -39.925)

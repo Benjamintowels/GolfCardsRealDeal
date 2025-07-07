@@ -403,9 +403,7 @@ func _process(delta):
 	
 
 	
-	# Debug: Print ball movement every few frames
-	# if Engine.get_process_frames() % 60 == 0:  # Every 60 frames (about once per second)
-	# 	print("Ball position:", global_position, "velocity:", velocity, "z:", z, "vz:", vz, "landed_flag:", landed_flag)
+
 	
 	# Apply progressive height resistance during flight
 	if is_applying_height_resistance and z > 0.0:
@@ -930,7 +928,6 @@ func update_tile_friction() -> void:
 		current_tile_friction = tile_friction_values[tile_type]
 	else:
 		current_tile_friction = 0.60  # Default friction
-		print("Unknown tile type:", tile_type, "at position:", tile_pos, "using default friction")
 	
 	# Apply Fire Club special effect: Reduced friction on grass/rough tiles
 	if fire_club_active and (tile_type == "R" or tile_type == "F"):

@@ -35,6 +35,12 @@ var current_health: int = 30
 var is_alive: bool = true
 var is_dead: bool = false
 
+# Freeze effect properties
+var is_frozen: bool = false
+var freeze_turns_remaining: int = 0
+var original_modulate: Color
+var freeze_sound: AudioStreamPlayer
+
 # Collision and height properties
 var dead_height: float = 50.0  # Lower height when dead (laying down)
 var base_collision_area: Area2D
@@ -114,6 +120,9 @@ func _ready():
 	
 	# Defer player finding until after scene is fully loaded
 	call_deferred("_find_player_reference")
+	
+	# Initialize freeze effect system
+	_setup_freeze_system()
 
 func _find_course_script() -> Node:
 	"""Find the course_1.gd script by searching up the scene tree"""
@@ -548,6 +557,13 @@ func _apply_ball_collision_effect(ball: Node2D) -> void:
 	else:
 		print("Body shot. Ball height:", ball_height, "Damage:", damage)
 	
+	# Check for ice element and apply freeze effect
+	if ball.has_method("get_element"):
+		var ball_element = ball.get_element()
+		if ball_element and ball_element.name == "Ice":
+			print("Ice element detected! Applying freeze effect")
+			freeze()
+	
 	# Check if this damage will kill the GangMember
 	var will_kill = damage >= current_health
 	var overkill_damage = 0
@@ -712,7 +728,7 @@ func take_turn() -> void:
 	"""Called by Entities manager when it's this NPC's turn"""
 	print("GangMember taking turn: ", name)
 	
-	# Skip turn if dead or ragdolling
+	# Skip turn if dead, ragdolling, or frozen
 	if is_dead:
 		print("GangMember is dead, skipping turn")
 		call_deferred("_complete_turn")
@@ -720,6 +736,11 @@ func take_turn() -> void:
 	
 	if is_ragdolling:
 		print("GangMember is ragdolling, skipping turn")
+		call_deferred("_complete_turn")
+		return
+	
+	if is_frozen:
+		print("GangMember is frozen, skipping turn")
 		call_deferred("_complete_turn")
 		return
 	
@@ -801,6 +822,13 @@ func _on_turn_ended(npc: Node) -> void:
 
 func _complete_turn() -> void:
 	"""Complete the current turn"""
+	# Handle freeze effect thawing
+	if is_frozen:
+		freeze_turns_remaining -= 1
+		print("Freeze turns remaining:", freeze_turns_remaining)
+		if freeze_turns_remaining <= 0:
+			thaw()
+	
 	turn_completed.emit()
 	
 	# Notify Entities manager that turn is complete
@@ -1934,3 +1962,51 @@ func is_currently_ragdolling() -> bool:
 	return is_ragdolling
 
 # State Machine Class
+
+func _setup_freeze_system() -> void:
+	"""Setup the freeze effect system"""
+	# Create freeze sound player
+	freeze_sound = AudioStreamPlayer.new()
+	var freeze_sound_stream = preload("res://Sounds/IceOn.mp3")
+	freeze_sound.stream = freeze_sound_stream
+	freeze_sound.volume_db = -10.0  # Slightly quieter
+	add_child(freeze_sound)
+	
+	# Store original modulate for restoration
+	if sprite:
+		original_modulate = sprite.modulate
+
+func freeze() -> void:
+	"""Apply freeze effect to the gang member"""
+	if is_frozen or is_dead:
+		return
+	
+	is_frozen = true
+	freeze_turns_remaining = 1  # Freeze for 1 turn
+	print("GangMember frozen for", freeze_turns_remaining, "turns!")
+	
+	# Play freeze sound
+	if freeze_sound:
+		freeze_sound.play()
+	
+	# Apply light blue tint
+	if sprite:
+		var freeze_color = Color(0.7, 0.9, 1.0, 1.0)  # Light blue tint
+		sprite.modulate = freeze_color
+
+func thaw() -> void:
+	"""Remove freeze effect from the gang member"""
+	if not is_frozen:
+		return
+	
+	is_frozen = false
+	freeze_turns_remaining = 0
+	print("GangMember thawed!")
+	
+	# Restore original modulate
+	if sprite:
+		sprite.modulate = original_modulate
+
+func is_frozen_state() -> bool:
+	"""Check if the gang member is currently frozen"""
+	return is_frozen

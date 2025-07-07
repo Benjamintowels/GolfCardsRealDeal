@@ -3328,34 +3328,15 @@ func _update_player_mouse_facing_state() -> void:
 	if player_node.has_method("set_camera_reference") and camera:
 		player_node.set_camera_reference(camera)
 
-func _on_debug_top_height_button_pressed() -> void:
-	"""Handle debug TopHeight markers button press"""
-	print("=== DEBUG TOPHEIGHT MARKERS BUTTON PRESSED ===")
-	
-	# Call the global debug function to scan all TopHeight markers
-	Global.debug_all_top_height_markers()
-	
-	# Also debug specific objects in the scene
-	var player = get_node_or_null("Player")
-	if player:
-		Global.debug_top_height_marker(player)
-	
-	var trees = get_tree().get_nodes_in_group("trees")
-	for tree in trees:
-		if is_instance_valid(tree):
-			Global.debug_top_height_marker(tree)
-	
-	var gang_members = get_tree().get_nodes_in_group("gang_members")
-	for gang_member in gang_members:
-		if is_instance_valid(gang_member):
-			Global.debug_top_height_marker(gang_member)
-	
-	var pins = get_tree().get_nodes_in_group("pins")
-	for pin in pins:
-		if is_instance_valid(pin):
-			Global.debug_top_height_marker(pin)
-	
-	print("=== END DEBUG TOPHEIGHT MARKERS ===")
+
+
+func _on_swing_test_button_pressed() -> void:
+	"""Handle when the swing test button is pressed"""
+	print("=== SWING TEST BUTTON PRESSED ===")
+	if player_node:
+		player_node.manual_test_swing()
+	else:
+		print("✗ No player node found")
 
 # Add camera tween management variables at the top of the class
 var current_camera_tween: Tween = null

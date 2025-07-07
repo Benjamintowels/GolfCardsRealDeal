@@ -1,0 +1,27 @@
+[gd_scene load_steps=4 format=3 uid="uid://b2f2ka4tc2kvm"]
+
+[ext_resource type="Script" uid="uid://bkqfjhiqcwabx" path="res://Characters/Player.gd" id="1_player"]
+[ext_resource type="PackedScene" uid="uid://bc8s6t7wka23s" path="res://Characters/BennyChar.tscn" id="2_benny"]
+[ext_resource type="Script" uid="uid://cg54c3kfk8j8l" path="res://test_swing_animation.gd" id="3_test"]
+
+[node name="TestSwingAnimation" type="Node2D"]
+script = ExtResource("3_test")
+
+[node name="Player" type="CharacterBody2D" parent="."]
+script = ExtResource("1_player")
+
+[node name="BennyChar" parent="Player" instance=ExtResource("2_benny")]
+
+[node name="TestButton" type="Button" parent="."]
+offset_left = 100.0
+offset_top = 100.0
+offset_right = 100.0
+offset_bottom = 100.0
+text = "Test Swing Animation"
+
+[node name="TestButton2" type="Button" parent="."]
+offset_left = 100.0
+offset_top = 150.0
+offset_right = 100.0
+offset_bottom = 150.0
+text = "Stop Swing Animation"
