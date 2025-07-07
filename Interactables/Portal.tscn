@@ -1,0 +1,13 @@
+[gd_scene load_steps=3 format=3 uid="uid://cfihvwqk58mw4"]
+
+[ext_resource type="Texture2D" uid="uid://ew7i3lygp1e2" path="res://Interactables/Portal.png" id="1_8702j"]
+[ext_resource type="AudioStream" uid="uid://gflulrio0bag" path="res://Sounds/Teleport.mp3" id="2_jux3l"]
+
+[node name="Portal" type="Node2D"]
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture_filter = 1
+texture = ExtResource("1_8702j")
+
+[node name="Teleport" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("2_jux3l")

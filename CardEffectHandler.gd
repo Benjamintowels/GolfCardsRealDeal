@@ -34,6 +34,9 @@ func handle_card_effect(card: CardData) -> bool:
 	elif card.effect_type == "ModifyNextCard":
 		handle_modify_next_card_card(card)
 		return true
+	elif card.effect_type == "Teleport":
+		handle_teleport_effect(card)
+		return true
 	
 	return false
 
@@ -219,6 +222,108 @@ func remove_specific_card_button(card: CardData):
 				
 				print("Removed card button for:", card.name)
 				break
+
+func handle_teleport_effect(card: CardData):
+	"""Handle teleport effect - move player to ball's current location"""
+	print("CardEffectHandler: Handling Teleport card:", card.name)
+	
+	# Get the ball's current position
+	var ball_position = get_ball_position()
+	if ball_position == Vector2.ZERO:
+		print("Warning: No ball found for teleport")
+		return
+	
+	# Create portal effect at player's current position
+	create_teleport_portal(course.player_node.global_position)
+	
+	# Move player to ball position
+	teleport_player_to_ball(ball_position)
+	
+	# Handle card discard
+	if course.deck_manager.hand.has(card):
+		course.deck_manager.discard(card)
+		course.card_stack_display.animate_card_discard(card.name)
+		course.update_deck_display()
+	else:
+		# Card is from bag pile during club selection - just animate discard
+		course.card_stack_display.animate_card_discard(card.name)
+		print("Teleport card used from bag pile")
+	
+	# Remove only the specific card button, not the entire hand
+	remove_specific_card_button(card)
+
+func get_ball_position() -> Vector2:
+	"""Get the current ball's position in world coordinates"""
+	# Check if there's a ball in the launch manager
+	if course.launch_manager and course.launch_manager.golf_ball and is_instance_valid(course.launch_manager.golf_ball):
+		var ball = course.launch_manager.golf_ball
+		# Get the ball's grid position (which is calculated correctly by the ball)
+		var ball_grid_pos = Vector2i(floor(ball.position.x / ball.cell_size), floor(ball.position.y / ball.cell_size))
+		# Convert grid position to world coordinates
+		var world_pos = Vector2(ball_grid_pos.x * course.cell_size + course.cell_size/2, ball_grid_pos.y * course.cell_size + course.cell_size/2) + course.camera_container.global_position
+		return world_pos
+	
+	# Fallback: look for any ball in the scene
+	var balls = course.get_tree().get_nodes_in_group("balls")
+	for ball in balls:
+		if is_instance_valid(ball):
+			var ball_grid_pos = Vector2i(floor(ball.position.x / ball.cell_size), floor(ball.position.y / ball.cell_size))
+			var world_pos = Vector2(ball_grid_pos.x * course.cell_size + course.cell_size/2, ball_grid_pos.y * course.cell_size + course.cell_size/2) + course.camera_container.global_position
+			return world_pos
+	
+	return Vector2.ZERO
+
+func create_teleport_portal(start_position: Vector2):
+	"""Create a portal effect at the specified position"""
+	# Load the portal scene
+	var portal_scene = preload("res://Interactables/Portal.tscn")
+	var portal = portal_scene.instantiate()
+	
+	# Position the portal at the start position
+	portal.global_position = start_position
+	
+	# Add to the course scene
+	course.add_child(portal)
+	
+	# Play teleport sound
+	var teleport_sound = portal.get_node_or_null("Teleport")
+	if teleport_sound:
+		teleport_sound.play()
+		print("Playing teleport sound effect")
+	
+	# Create fade out animation
+	var tween = course.create_tween()
+	tween.tween_property(portal, "modulate:a", 0.0, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tween.tween_callback(portal.queue_free)
+	
+	print("Created teleport portal at:", start_position)
+
+func teleport_player_to_ball(ball_position: Vector2):
+	"""Teleport the player to the ball's position"""
+	# The ball_position is already in world coordinates, so we need to convert it to grid coordinates
+	# relative to the camera container
+	var ball_local_pos = ball_position - course.camera_container.global_position
+	var ball_grid_pos = Vector2i(floor(ball_local_pos.x / course.cell_size), floor(ball_local_pos.y / course.cell_size))
+	
+	# Update the course's player grid position
+	course.player_grid_pos = ball_grid_pos
+	
+	# Update the player's position
+	if course.player_node and course.player_node.has_method("set_grid_position"):
+		course.player_node.set_grid_position(ball_grid_pos, course.ysort_objects)
+	
+	# Update the course's player position
+	if course.has_method("update_player_position"):
+		course.update_player_position()
+	
+	# Update movement and attack handlers
+	if course.movement_controller and course.movement_controller.has_method("update_player_position"):
+		course.movement_controller.update_player_position(ball_grid_pos)
+	
+	if course.attack_handler and course.attack_handler.has_method("update_player_position"):
+		course.attack_handler.update_player_position(ball_grid_pos)
+	
+	print("Player teleported to ball position:", ball_grid_pos)
 
 func launch_scramble_balls(launch_direction: Vector2, power: float, height: float, spin: float):
 	"""Launch multiple balls for Florida Scramble"""

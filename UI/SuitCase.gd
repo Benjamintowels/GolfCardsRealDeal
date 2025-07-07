@@ -12,12 +12,23 @@ func _ready():
 	
 	# Connect the control's gui_input signal
 	gui_input.connect(_on_gui_input)
+	
+	# Load suitcase opening sound
+	var suitcase_sound = AudioStreamPlayer.new()
+	suitcase_sound.name = "SuitcaseSound"
+	suitcase_sound.stream = preload("res://Sounds/Suitcase.mp3")
+	add_child(suitcase_sound)
 
 func _on_gui_input(event: InputEvent):
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		open_suitcase()
 
 func open_suitcase():
+	# Play suitcase opening sound
+	var suitcase_sound = get_node_or_null("SuitcaseSound")
+	if suitcase_sound:
+		suitcase_sound.play()
+	
 	closed_sprite.visible = false
 	open_sprite.visible = true
 	suitcase_opened.emit() 

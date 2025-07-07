@@ -16,6 +16,7 @@ var starter_deck: Array[CardData] = [
 	preload("res://Cards/Move3.tres"),
 	preload("res://Cards/KickB.tres"),
 	preload("res://Cards/KickB.tres"),
+	preload("res://Cards/TeleportCard.tres"),  # TeleportCard for testing
 	preload("res://Cards/Putter.tres"),
 	preload("res://Cards/Wooden.tres"),    # Basic wooden club
 	preload("res://Cards/Iron.tres"),      # Basic iron club

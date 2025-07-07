@@ -31,6 +31,7 @@ var available_cards: Array[CardData] = [
 	preload("res://Cards/KickB.tres"),
 	preload("res://Cards/PistolCard.tres"),
 	preload("res://Cards/ThrowingKnife.tres"),
+	preload("res://Cards/TeleportCard.tres"),
 	preload("res://Cards/Putter.tres"),
 	preload("res://Cards/Wooden.tres"),
 	preload("res://Cards/Iron.tres"),
@@ -59,6 +60,12 @@ func _ready():
 	
 	# Initialize bag upgrades
 	initialize_bag_upgrades()
+	
+	# Load reward sound
+	var reward_sound = AudioStreamPlayer.new()
+	reward_sound.name = "RewardSound"
+	reward_sound.stream = preload("res://Sounds/Reward.mp3")
+	add_child(reward_sound)
 
 func initialize_bag_upgrades():
 	"""Initialize available bag upgrades based on current character and bag level"""
@@ -461,6 +468,14 @@ func _on_right_reward_selected():
 
 func handle_reward_selection(reward_data: Resource, reward_type: String):
 	"""Handle reward selection with bag slot checking"""
+	# Play reward sound
+	var reward_sound = get_node_or_null("RewardSound")
+	if reward_sound:
+		reward_sound.play()
+	
+	# Clear both reward buttons
+	clear_reward_buttons()
+	
 	if check_bag_slots(reward_data, reward_type):
 		# Slot available, add directly
 		add_reward_to_inventory(reward_data, reward_type)
@@ -502,6 +517,19 @@ func _exit_tree():
 	if card_replacement_dialog and is_instance_valid(card_replacement_dialog):
 		card_replacement_dialog.queue_free()
 
+func clear_reward_buttons():
+	"""Clear both left and right reward buttons"""
+	if left_reward_button:
+		left_reward_button.text = ""
+		for child in left_reward_button.get_children():
+			child.queue_free()
+		left_reward_button.disabled = true
+	if right_reward_button:
+		right_reward_button.text = ""
+		for child in right_reward_button.get_children():
+			child.queue_free()
+		right_reward_button.disabled = true
+
 func _on_replacement_completed(reward_data: Resource, reward_type: String):
 	"""Called when a card replacement is completed"""
 	# Close the replacement dialog
@@ -517,13 +545,4 @@ func _on_replacement_completed(reward_data: Resource, reward_type: String):
 	pending_reward_type = ""
 
 	# Clear and disable left and right reward buttons
-	if left_reward_button:
-		left_reward_button.text = ""
-		for child in left_reward_button.get_children():
-			child.queue_free()
-		left_reward_button.disabled = true
-	if right_reward_button:
-		right_reward_button.text = ""
-		for child in right_reward_button.get_children():
-			child.queue_free()
-		right_reward_button.disabled = true 
+	clear_reward_buttons() 
