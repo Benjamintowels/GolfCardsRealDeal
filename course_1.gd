@@ -1125,6 +1125,9 @@ func start_round_after_tee_selection() -> void:
 	# Reset character health for new round
 	Global.reset_character_health()
 	
+	# Reset global turn counter for new round
+	Global.reset_global_turn()
+	
 	player_stats = Global.CHARACTER_STATS.get(Global.selected_character, {})
 	
 	deck_manager.initialize_separate_decks()
@@ -1345,6 +1348,10 @@ func _on_end_turn_pressed() -> void:
 	attack_handler.clear_all_attack_ui()
 	weapon_handler.clear_all_weapon_ui()
 	turn_count += 1
+	
+	# Increment global turn counter for turn-based spawning
+	Global.increment_global_turn()
+	
 	update_deck_display()
 	
 	if cards_to_discard > 0:
@@ -1587,7 +1594,7 @@ func get_attack_handler() -> Node:
 
 func update_deck_display() -> void:
 	var hud := get_node("UILayer/HUD")
-	hud.get_node("TurnLabel").text = "Turn: %d" % turn_count
+	hud.get_node("TurnLabel").text = "Turn: %d (Global: %d)" % [turn_count, Global.global_turn_count]
 	
 	# Show separate counts for club and action cards
 	var club_draw_count = deck_manager.club_draw_pile.size()
@@ -1598,6 +1605,12 @@ func update_deck_display() -> void:
 	hud.get_node("DrawLabel").text = "Club Draw: %d | Action Draw: %d" % [club_draw_count, action_draw_count]
 	hud.get_node("DiscardLabel").text = "Club Discard: %d | Action Discard: %d" % [club_discard_count, action_discard_count]
 	hud.get_node("ShotLabel").text = "Shots: %d" % hole_score
+	
+	# Show next spawn increase milestone
+	var next_milestone = ((Global.global_turn_count - 1) / 5 + 1) * 5
+	var turns_until_milestone = next_milestone - Global.global_turn_count
+	if turns_until_milestone > 0:
+		hud.get_node("ShotLabel").text += " | Next spawn increase: %d turns" % turns_until_milestone
 	
 	# Update card stack display with total counts (for backward compatibility)
 	var total_draw_cards = action_draw_count + club_draw_count
@@ -2598,6 +2611,8 @@ func save_game_state():
 	Global.saved_ball_position = launch_manager.golf_ball.global_position if launch_manager.golf_ball else Vector2.ZERO
 	Global.saved_current_turn = turn_count
 	Global.saved_shot_score = hole_score
+	# Save global turn count for turn-based spawning
+	Global.saved_global_turn_count = Global.global_turn_count
 	Global.saved_deck_manager_state = deck_manager.get_deck_state()
 	Global.saved_discard_pile_state = deck_manager.get_discard_state()
 	Global.saved_hand_state = deck_manager.get_hand_state()
@@ -2689,6 +2704,8 @@ func restore_game_state():
 				launch_manager.golf_ball = null
 		turn_count = Global.saved_current_turn
 		hole_score = Global.saved_shot_score
+		# Restore global turn count for turn-based spawning
+		Global.global_turn_count = Global.saved_global_turn_count
 		deck_manager.restore_deck_state(Global.saved_deck_manager_state)
 		deck_manager.restore_discard_state(Global.saved_discard_pile_state)
 		deck_manager.restore_hand_state(Global.saved_hand_state)

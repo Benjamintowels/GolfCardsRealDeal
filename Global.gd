@@ -7,6 +7,9 @@ var starting_back_9 = false  # Flag for starting back 9 holes
 var final_18_hole_score = 0  # Final score for 18-hole game
 var front_9_score = 0  # Score from front 9 holes
 
+# Turn-based spawning system
+var global_turn_count: int = 1  # Global turn counter across all holes
+
 var CHARACTER_STATS = {
 	1: { "name": "Layla", "base_mobility": 3, "strength": -1, "card_draw": -1, "max_hp": 125, "current_hp": 125 },
 	2: { "name": "Benny", "base_mobility": 2, "strength": 0, "card_draw": 0, "max_hp": 150, "current_hp": 150 },
@@ -21,6 +24,7 @@ var saved_player_grid_pos := Vector2i.ZERO
 var saved_ball_position := Vector2.ZERO
 var saved_current_turn := 1
 var saved_shot_score := 0
+var saved_global_turn_count := 1
 var saved_deck_manager_state := {}
 var saved_discard_pile_state := {}
 var saved_hand_state := {}
@@ -458,3 +462,37 @@ func calculate_height_percentage(current_height: float, min_height: float, max_h
 	"""
 	var height_percentage = (current_height - min_height) / (max_height - min_height)
 	return clamp(height_percentage, 0.0, 1.0)
+
+func get_turn_based_gang_member_count() -> int:
+	"""Calculate number of gang members to spawn based on current turn"""
+	var base_count = 1
+	var turn_increment = 5  # Every 5 turns
+	
+	# Calculate additional gang members based on turn milestones
+	var additional_count = (global_turn_count - 1) / turn_increment
+	
+	# Cap at reasonable maximum (e.g., 5 gang members max)
+	var max_count = 5
+	return min(base_count + additional_count, max_count)
+
+func get_turn_based_oil_drum_count() -> int:
+	"""Calculate number of oil drums to spawn based on current turn"""
+	var base_count = 3
+	var turn_increment = 5  # Every 5 turns
+	
+	# Calculate additional oil drums based on turn milestones
+	var additional_count = (global_turn_count - 1) / turn_increment
+	
+	# Cap at reasonable maximum (e.g., 8 oil drums max)
+	var max_count = 8
+	return min(base_count + additional_count, max_count)
+
+func increment_global_turn() -> void:
+	"""Increment the global turn counter"""
+	global_turn_count += 1
+	print("Global turn incremented to: ", global_turn_count)
+
+func reset_global_turn() -> void:
+	"""Reset the global turn counter (for new games)"""
+	global_turn_count = 1
+	print("Global turn reset to: ", global_turn_count)

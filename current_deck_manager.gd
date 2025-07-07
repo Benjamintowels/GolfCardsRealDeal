@@ -6,7 +6,7 @@ signal deck_updated
 # Current deck state - this is our source of truth
 var current_deck: Array[CardData] = []
 
-# Default starter deck as specified
+# Default starter deck as specified - only wooden stick and putter for clubs
 var starter_deck: Array[CardData] = [
 	preload("res://Cards/Move1.tres"),
 	preload("res://Cards/Move1.tres"),
@@ -17,12 +17,8 @@ var starter_deck: Array[CardData] = [
 	preload("res://Cards/KickB.tres"),
 	preload("res://Cards/KickB.tres"),
 	preload("res://Cards/TeleportCard.tres"),  # TeleportCard for testing
-	preload("res://Cards/Putter.tres"),
-	preload("res://Cards/Wooden.tres"),    # Basic wooden club
-	preload("res://Cards/Iron.tres"),      # Basic iron club
-	preload("res://Cards/Hybrid.tres"),    # Basic hybrid club
-	preload("res://Cards/Driver.tres"),    # Basic driver club
-	preload("res://Cards/PitchingWedge.tres")  # Basic pitching wedge
+	preload("res://Cards/Putter.tres"),        # Only putter
+	preload("res://Cards/Wooden.tres")         # Only wooden stick
 ]
 
 func _ready():

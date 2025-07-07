@@ -140,7 +140,7 @@ func is_valid_position_for_object(pos: Vector2i, layout: Array) -> bool:
 			return false
 	return true
 
-func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include_shop: bool = true, num_gang_members: int = 1, num_oil_drums: int = 3) -> Dictionary:
+func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include_shop: bool = true, num_gang_members: int = -1, num_oil_drums: int = -1) -> Dictionary:
 	var positions = {
 		"trees": [],
 		"shop": Vector2i.ZERO,
@@ -148,6 +148,19 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 		"oil_drums": [],
 		"stone_walls": []
 	}
+	
+	# Use turn-based spawning if parameters are -1 (default)
+	if num_gang_members == -1:
+		num_gang_members = Global.get_turn_based_gang_member_count()
+	if num_oil_drums == -1:
+		num_oil_drums = Global.get_turn_based_oil_drum_count()
+	
+	print("=== TURN-BASED SPAWNING ===")
+	print("Global turn: ", Global.global_turn_count)
+	print("Gang members to spawn: ", num_gang_members)
+	print("Oil drums to spawn: ", num_oil_drums)
+	print("=== END TURN-BASED SPAWNING ===")
+	
 	randomize()
 	random_seed_value = current_hole * 1000 + randi()
 	seed(random_seed_value)
@@ -259,7 +272,8 @@ func build_map_from_layout_with_randomization(layout: Array) -> void:
 	randomize()
 	clear_existing_objects()
 	build_map_from_layout_base(layout)
-	var object_positions = get_random_positions_for_objects(layout, 8, true, 1, 3)
+	# Use turn-based spawning (-1 means use turn-based calculation)
+	var object_positions = get_random_positions_for_objects(layout, 8, true, -1, -1)
 	place_objects_at_positions(object_positions, layout)
 	# position_camera_on_pin()  # This should be called from the main scene if needed
 
