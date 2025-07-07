@@ -10,10 +10,12 @@ signal sand_landing()  # New signal for sand landing
 var cell_size: int = 48 # This will be set by the main script
 var map_manager: Node = null  # Will be set by the course to check tile types
 var chosen_landing_spot: Vector2 = Vector2.ZERO  # Target landing spot from red circle
+var shot_start_position: Vector2 = Vector2.ZERO  # Position where the shot was taken from
 
 # Audio
 var ball_land_sound: AudioStreamPlayer2D
 var ball_stop_sound: AudioStreamPlayer2D
+var land_on_green_sound: AudioStreamPlayer2D
 
 var velocity := Vector2.ZERO
 var gravity := 720.0  # Increased gravity for more satisfying ball trajectories
@@ -153,6 +155,9 @@ var max_player_collisions: int = 3  # Maximum consecutive player collisions befo
 
 # Call this to launch the ball
 func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, spin_strength_category: int = 0):
+	# Store the shot start position for distance calculations
+	shot_start_position = global_position
+	
 	# Reset landing highlight and signal flag for new shot
 	remove_landing_highlight()
 	has_emitted_landed_signal = false
@@ -811,6 +816,13 @@ func _process(delta):
 						if ball_stop_sound and ball_stop_sound.stream:
 							ball_stop_sound.play()
 					
+					# Play clap sound if ball lands on green within 1000 pixels
+					if tile_type == "G":
+						var shot_distance = shot_start_position.distance_to(global_position)
+						if shot_distance < 1000.0:
+							if ball_stop_sound and ball_stop_sound.stream:
+								ball_stop_sound.play()
+					
 					# Emit landed signal with final tile position (only once)
 					if not has_emitted_landed_signal:
 						has_emitted_landed_signal = true
@@ -846,6 +858,13 @@ func _process(delta):
 					if tile_type == "F":
 						if ball_stop_sound and ball_stop_sound.stream:
 							ball_stop_sound.play()
+					
+					# Play clap sound if ball lands on green within 1000 pixels
+					if tile_type == "G":
+						var shot_distance = shot_start_position.distance_to(global_position)
+						if shot_distance < 1000.0:
+							if ball_stop_sound and ball_stop_sound.stream:
+								ball_stop_sound.play()
 					
 					# Emit landed signal with final tile position (only once)
 					if not has_emitted_landed_signal:
@@ -991,6 +1010,7 @@ func _ready():
 	# Get references to audio players
 	ball_land_sound = get_node_or_null("BallLand")
 	ball_stop_sound = get_node_or_null("BallStop")
+	land_on_green_sound = get_node_or_null("LandOnGreen")
 	
 	# Get references to sprite and shadow
 	sprite = get_node_or_null("Sprite2D")
