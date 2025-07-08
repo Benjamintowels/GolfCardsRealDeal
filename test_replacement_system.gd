@@ -206,8 +206,13 @@ func check_bag_slots(item: Resource, item_type: String) -> bool:
 		# Check equipment slots
 		var equipment_manager = get_tree().current_scene.get_node_or_null("EquipmentManager")
 		if equipment_manager:
+			# Only count non-clothing equipment for slot checking
 			var equipped_items = equipment_manager.get_equipped_equipment()
+			var regular_equipment_count = 0
+			for equipped_item in equipped_items:
+				if not equipped_item.is_clothing:
+					regular_equipment_count += 1
 			var equipment_slots = bag.get_equipment_slots()
-			return equipped_items.size() < equipment_slots
+			return regular_equipment_count < equipment_slots
 	
 	return true 

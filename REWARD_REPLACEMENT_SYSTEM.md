@@ -36,6 +36,15 @@ When the bag is full for a specific item type, the system:
 
 ## Implementation Details
 
+### Important Note: Equipment Slot Counting
+
+The system correctly distinguishes between regular equipment and clothing items when checking slot availability:
+
+- **Regular Equipment** (Wand, Golf Shoes, etc.): Counted against bag equipment slots (1-4 based on bag level)
+- **Clothing Items** (Cape, Top Hat, etc.): Use dedicated clothing slots (head, neck, body) and don't count against regular equipment slots
+
+This prevents the system from incorrectly triggering replacement when you have clothing items equipped but available regular equipment slots.
+
 ### Key Files
 
 - `RewardSelectionDialog.gd` - Handles reward selection and triggers replacement
@@ -70,9 +79,23 @@ func check_bag_slots(item: Resource, item_type: String) -> bool:
         # Check equipment slots
         var equipment_manager = get_tree().current_scene.get_node_or_null("EquipmentManager")
         if equipment_manager:
-            var equipped_items = equipment_manager.get_equipped_equipment()
-            var equipment_slots = bag.get_equipment_slots()
-            return equipped_items.size() < equipment_slots
+            var equipment_data = item as EquipmentData
+            
+            # For clothing, check if the specific slot is available
+            if equipment_data.is_clothing:
+                var clothing_slots = equipment_manager.get_clothing_slots()
+                var slot_name = equipment_data.clothing_slot
+                return not clothing_slots.has(slot_name) or clothing_slots[slot_name] == null
+            else:
+                # For regular equipment, check equipment slots
+                # Only count non-clothing equipment for slot checking
+                var equipped_items = equipment_manager.get_equipped_equipment()
+                var regular_equipment_count = 0
+                for equipped_item in equipped_items:
+                    if not equipped_item.is_clothing:
+                        regular_equipment_count += 1
+                var equipment_slots = bag.get_equipment_slots()
+                return regular_equipment_count < equipment_slots
     
     return true
 ```

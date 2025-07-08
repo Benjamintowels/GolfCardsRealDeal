@@ -180,9 +180,14 @@ func check_bag_slots(reward_data: Resource, reward_type: String) -> bool:
 				return not clothing_slots.has(slot_name) or clothing_slots[slot_name] == null
 			else:
 				# For regular equipment, check equipment slots
+				# Only count non-clothing equipment for slot checking
 				var equipped_items = equipment_manager.get_equipped_equipment()
+				var regular_equipment_count = 0
+				for equipped_item in equipped_items:
+					if not equipped_item.is_clothing:
+						regular_equipment_count += 1
 				var equipment_slots = bag.get_equipment_slots()
-				return equipped_items.size() < equipment_slots
+				return regular_equipment_count < equipment_slots
 	
 	return true
 

@@ -3361,8 +3361,8 @@ func setup_bag_and_inventory() -> void:
 	# No need to connect to the old inventory dialog
 	
 	if bag and bag.has_method("set_bag_level"):
-		bag.set_bag_level(1)  # Always start with level 1
-		print("Bag initialized with level 1")
+		bag.set_bag_level(2)  # Start with level 2 for testing
+		print("Bag initialized with level 2")
 		print("Bag z_index:", bag.z_index, "position:", bag.position, "size:", bag.size)
 		print("Bag global_position:", bag.global_position)
 	else:
