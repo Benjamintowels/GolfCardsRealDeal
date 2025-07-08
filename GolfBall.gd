@@ -109,6 +109,7 @@ var time_percentage: float = -1.0  # -1 means not set, use power percentage inst
 # StickyShot effect variables
 var sticky_shot_active: bool = false  # Track if StickyShot effect is active
 var bouncey_shot_active: bool = false  # Track if Bouncey effect is active
+var explosive_shot_active: bool = false  # Track if Explosive effect is active
 
 # Element system variables
 var current_element: ElementData = null  # Current element applied to the ball
@@ -558,6 +559,11 @@ func _process(delta):
 					if ball_land_sound and ball_land_sound.stream:
 						ball_land_sound.play()
 					
+					# Check for explosive shot effect on first bounce
+					if explosive_shot_active and bounce_count == 1:
+						_create_explosion_at_position()
+						explosive_shot_active = false  # Clear the effect after explosion
+					
 					# Simple physics: reflect the vertical velocity with energy loss
 					# The ball was falling with negative vz, so bounce it back up with positive vz
 					# Apply bounce factor to reduce energy each bounce
@@ -636,6 +642,11 @@ func _process(delta):
 					# Play ball landing sound on every bounce
 					if ball_land_sound and ball_land_sound.stream:
 						ball_land_sound.play()
+					
+					# Check for explosive shot effect on first bounce
+					if explosive_shot_active and bounce_count == 1:
+						_create_explosion_at_position()
+						explosive_shot_active = false  # Clear the effect after explosion
 					
 					# Simple physics: reflect the vertical velocity with energy loss
 					# The ball was falling with negative vz, so bounce it back up with positive vz
@@ -937,6 +948,18 @@ func update_visual_effects():
 		if shadow:
 			shadow.scale *= 1.1
 			shadow.modulate = Color(0, 0, 0, 0.4)
+
+	# Add explosive shot visual effects
+	if explosive_shot_active and z > 0.0:
+		# Red flashing tint when ball is in the air
+		var flash_speed = 0.01  # Speed of the flash effect
+		var flash_intensity = sin(Time.get_ticks_msec() * flash_speed) * 0.5 + 0.5
+		var red_tint = Color(1.0, 0.3, 0.3, 1.0)  # Red tint
+		var original_color = Color(1.0, 1.0, 1.0, 1.0)  # Original white
+		sprite.modulate = original_color.lerp(red_tint, flash_intensity * 0.7)  # 70% intensity
+	else:
+		# Reset to normal color when not explosive or on ground
+		sprite.modulate = Color(1.0, 1.0, 1.0, 1.0)
 
 	# Add rotation based on velocity
 	var speed = velocity.length()
@@ -1710,3 +1733,19 @@ func _spawn_fire_particle():
 
 var fire_trail_timer := 0.0
 var fire_trail_interval := 0.15  # How often to drop a fire particle (seconds)
+
+func _create_explosion_at_position() -> void:
+	"""Create an explosion at the ball's current position"""
+	print("Creating explosion at position:", global_position)
+	
+	# Load the explosion scene
+	var explosion_scene = preload("res://Particles/Explosion.tscn")
+	var explosion = explosion_scene.instantiate()
+	
+	# Position the explosion at the ball's position
+	explosion.global_position = global_position
+	
+	# Add the explosion to the scene
+	get_tree().current_scene.add_child(explosion)
+	
+	print("Explosion created successfully")

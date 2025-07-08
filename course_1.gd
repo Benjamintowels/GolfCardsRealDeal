@@ -92,6 +92,7 @@ var sticky_shot_active := false  # Track if StickyShot effect is active
 var bouncey_shot_active := false  # Track if Bouncey effect is active
 var fire_ball_active := false  # Track if FireBall effect is active
 var ice_ball_active := false  # Track if IceBall effect is active
+var explosive_shot_active := false  # Track if Explosive effect is active
 var next_shot_modifier := ""  # Track what modifier to apply to next shot
 var next_card_doubled := false  # Track if the next card should have its effect doubled
 
@@ -3204,6 +3205,12 @@ func _on_ball_launched(ball: Node2D):
 			var ice_element = preload("res://Elements/Ice.tres")
 			ball.set_element(ice_element)
 			ice_ball_active = false
+			next_shot_modifier = ""
+		
+		if explosive_shot_active and next_shot_modifier == "explosive_shot":
+			# Apply explosive effect to the ball
+			ball.explosive_shot_active = true
+			explosive_shot_active = false
 			next_shot_modifier = ""
 		
 		# Handle elemental club effects

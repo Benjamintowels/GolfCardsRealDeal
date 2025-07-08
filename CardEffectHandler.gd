@@ -138,6 +138,24 @@ func handle_modify_next_card(card: CardData):
 		
 		# Remove only the specific card button, not the entire hand
 		remove_specific_card_button(card)
+	
+	elif card.name == "Explosive":
+		course.explosive_shot_active = true
+		course.next_shot_modifier = "explosive_shot"
+		print("Explosive effect applied to next shot")
+		
+		# Handle card discard - could be from hand or bag pile
+		if course.deck_manager.hand.has(card):
+			course.deck_manager.discard(card)
+			course.card_stack_display.animate_card_discard(card.name)
+			course.update_deck_display()
+		else:
+			# Card is from bag pile during club selection - just animate discard
+			course.card_stack_display.animate_card_discard(card.name)
+			print("Explosive card used from bag pile")
+		
+		# Remove only the specific card button, not the entire hand
+		remove_specific_card_button(card)
 
 func play_flame_sound():
 	"""Play the flame sound effect when FireBall card is used"""
