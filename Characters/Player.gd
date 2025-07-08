@@ -844,6 +844,11 @@ func _update_mouse_facing() -> void:
 	# Flip the sprite horizontally based on mouse position
 	# Assuming the default sprite faces right, so we flip when mouse is on the left
 	sprite.flip_h = mouse_is_left
+	
+	# Update clothing sprites to match player sprite flip
+	var equipment_manager = get_tree().current_scene.get_node_or_null("EquipmentManager")
+	if equipment_manager and equipment_manager.has_method("update_all_clothing_flip"):
+		equipment_manager.update_all_clothing_flip()
 
 # Ball collision methods - using advanced collision system
 

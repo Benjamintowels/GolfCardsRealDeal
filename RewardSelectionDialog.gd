@@ -41,7 +41,10 @@ var available_cards: Array[CardData] = [
 
 # Available equipment for rewards
 var available_equipment: Array[EquipmentData] = [
-	preload("res://Equipment/GolfShoes.tres")
+	preload("res://Equipment/GolfShoes.tres"),
+	preload("res://Equipment/Wand.tres"),
+	preload("res://Equipment/Clothes/Cape.tres"),
+	preload("res://Equipment/Clothes/TopHat.tres")
 ]
 
 # Available bag upgrades for rewards (will be populated dynamically)
@@ -160,9 +163,18 @@ func check_bag_slots(reward_data: Resource, reward_type: String) -> bool:
 		# Check equipment slots
 		var equipment_manager = get_tree().current_scene.get_node_or_null("EquipmentManager")
 		if equipment_manager:
-			var equipped_items = equipment_manager.get_equipped_equipment()
-			var equipment_slots = bag.get_equipment_slots()
-			return equipped_items.size() < equipment_slots
+			var equipment_data = reward_data as EquipmentData
+			
+			# For clothing, check if the specific slot is available
+			if equipment_data.is_clothing:
+				var clothing_slots = equipment_manager.get_clothing_slots()
+				var slot_name = equipment_data.clothing_slot
+				return not clothing_slots.has(slot_name) or clothing_slots[slot_name] == null
+			else:
+				# For regular equipment, check equipment slots
+				var equipped_items = equipment_manager.get_equipped_equipment()
+				var equipment_slots = bag.get_equipment_slots()
+				return equipped_items.size() < equipment_slots
 	
 	return true
 
@@ -283,12 +295,21 @@ func setup_reward_button(button: Button, reward_data: Resource, reward_type: Str
 		var equip_data = reward_data as EquipmentData
 		button.text = ""  # Clear button text since we're using custom display
 		
-		# Equipment image
+		# Equipment image - use display_image for clothing if available, otherwise use regular image
 		var image_rect = TextureRect.new()
-		image_rect.texture = equip_data.image
+		if equip_data.is_clothing and equip_data.display_image != null:
+			image_rect.texture = equip_data.display_image
+		else:
+			image_rect.texture = equip_data.image
 		image_rect.size = Vector2(60, 60)  # Square aspect ratio for equipment
 		image_rect.position = Vector2(20, 7.125)  # Y offset -12.875 from original 20
-		image_rect.scale = Vector2(2.0, 2.0)
+		
+		# Adjust scale based on equipment type - clothing items need different scaling
+		if equip_data.is_clothing:
+			image_rect.scale = Vector2(3.0, 3.0)  # Larger scale for clothing items
+		else:
+			image_rect.scale = Vector2(2.0, 2.0)  # Standard scale for regular equipment
+		
 		image_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		image_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		container.add_child(image_rect)

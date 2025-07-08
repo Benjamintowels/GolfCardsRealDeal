@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=3 uid="uid://dktxgtdoomfl6"]
+
+[ext_resource type="Texture2D" uid="uid://domgjhmkpmpm7" path="res://Equipment/Clothes/TopHat.png" id="1_uclo4"]
+
+[node name="TopHat" type="Node2D"]
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("1_uclo4")

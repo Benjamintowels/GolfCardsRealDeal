@@ -1,0 +1,9 @@
+[gd_scene load_steps=2 format=3 uid="uid://c6o36ero2k5cl"]
+
+[ext_resource type="Texture2D" uid="uid://bg7krp3pe6lav" path="res://Equipment/Clothes/Cape.png" id="1_7fs5q"]
+
+[node name="Cape" type="Node2D"]
+z_index = -1
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("1_7fs5q")

@@ -235,14 +235,20 @@ func show_deck_dialog():
 	
 	var equipment_container = VBoxContainer.new()
 	equipment_container.position = Vector2(40, 120)
-	equipment_container.size = Vector2(120, 400)
+	equipment_container.size = Vector2(120, 200)
 	main_container.add_child(equipment_container)
 	
-	# Get and display equipment
+	# Get and display regular equipment
 	var equipment_manager = get_tree().current_scene.get_node_or_null("EquipmentManager")
 	var equipped_items: Array[EquipmentData] = []
 	if equipment_manager:
 		equipped_items = equipment_manager.get_equipped_equipment()
+	
+	# Filter out clothing items for regular equipment display
+	var regular_equipment: Array[EquipmentData] = []
+	for item in equipped_items:
+		if not item.is_clothing:
+			regular_equipment.append(item)
 	
 	# Add equipment slots with placeholder for empty slots
 	var equipment_slots = get_equipment_slots()
@@ -255,9 +261,9 @@ func show_deck_dialog():
 		slot_container.add_child(placeholder)
 		
 		# Add actual equipment on top if available
-		if i < equipped_items.size():
+		if i < regular_equipment.size():
 			var should_be_clickable = is_replacement_mode and pending_reward_type == "equipment" and pending_reward
-			var equipment_display = create_equipment_display(equipped_items[i], should_be_clickable)
+			var equipment_display = create_equipment_display(regular_equipment[i], should_be_clickable)
 			slot_container.add_child(equipment_display)
 			# Ensure equipment appears on top by setting z_index
 			equipment_display.z_index = 1
@@ -267,6 +273,61 @@ func show_deck_dialog():
 			var equipment_display = create_empty_equipment_slot_display(should_be_clickable)
 			slot_container.add_child(equipment_display)
 			equipment_display.z_index = 1
+	
+	# Clothing section (left side - below equipment)
+	var clothing_label = Label.new()
+	clothing_label.text = "Clothing"
+	clothing_label.add_theme_font_size_override("font_size", 18)
+	clothing_label.add_theme_color_override("font_color", Color.WHITE)
+	clothing_label.position = Vector2(40, 340)
+	clothing_label.size = Vector2(120, 30)
+	main_container.add_child(clothing_label)
+	
+	var clothing_container = VBoxContainer.new()
+	clothing_container.position = Vector2(40, 380)
+	clothing_container.size = Vector2(120, 140)
+	main_container.add_child(clothing_container)
+	
+	# Display clothing slots
+	if equipment_manager:
+		var clothing_slots = equipment_manager.get_clothing_slots()
+		print("Bag: Clothing slots - Head:", clothing_slots["head"].name if clothing_slots["head"] else "empty", "Neck:", clothing_slots["neck"].name if clothing_slots["neck"] else "empty")
+		
+		# Head slot
+		var head_container = create_slot_container()
+		clothing_container.add_child(head_container)
+		var head_placeholder = create_placeholder_slot()
+		head_container.add_child(head_placeholder)
+		
+		if clothing_slots["head"]:
+			var should_be_clickable = is_replacement_mode and pending_reward_type == "equipment" and pending_reward
+			print("Bag: Creating head clothing display for:", clothing_slots["head"].name)
+			var head_display = create_equipment_display(clothing_slots["head"], should_be_clickable)
+			head_container.add_child(head_display)
+			head_display.z_index = 1
+		elif is_replacement_mode and pending_reward_type == "equipment" and pending_reward:
+			var should_be_clickable = true
+			var head_display = create_empty_equipment_slot_display(should_be_clickable)
+			head_container.add_child(head_display)
+			head_display.z_index = 1
+		
+		# Neck slot
+		var neck_container = create_slot_container()
+		clothing_container.add_child(neck_container)
+		var neck_placeholder = create_placeholder_slot()
+		neck_container.add_child(neck_placeholder)
+		
+		if clothing_slots["neck"]:
+			var should_be_clickable = is_replacement_mode and pending_reward_type == "equipment" and pending_reward
+			print("Bag: Creating neck clothing display for:", clothing_slots["neck"].name)
+			var neck_display = create_equipment_display(clothing_slots["neck"], should_be_clickable)
+			neck_container.add_child(neck_display)
+			neck_display.z_index = 1
+		elif is_replacement_mode and pending_reward_type == "equipment" and pending_reward:
+			var should_be_clickable = true
+			var neck_display = create_empty_equipment_slot_display(should_be_clickable)
+			neck_container.add_child(neck_display)
+			neck_display.z_index = 1
 	
 	# --- DYNAMIC MOVEMENT GRID LAYOUT ---
 	# Determine columns based on bag level
@@ -812,11 +873,21 @@ func create_equipment_display(equipment_data: EquipmentData, clickable: bool = f
 	equip_bg.position = Vector2(0, 0)
 	container.add_child(equip_bg)
 	
-	# Equipment image
+	# Equipment image - use display_image for clothing if available, otherwise use regular image
 	var image_rect = TextureRect.new()
-	image_rect.texture = equipment_data.image
-	image_rect.size = Vector2(40, 40)
-	image_rect.position = Vector2(10, 10)
+	if equipment_data.is_clothing and equipment_data.display_image != null:
+		image_rect.texture = equipment_data.display_image
+		print("Bag: Using display_image for", equipment_data.name)
+	else:
+		image_rect.texture = equipment_data.image
+		print("Bag: Using regular image for", equipment_data.name, "is_clothing:", equipment_data.is_clothing, "display_image null:", equipment_data.display_image == null)
+	# Adjust size and position based on equipment type - clothing items need different sizing
+	if equipment_data.is_clothing:
+		image_rect.size = Vector2(50, 50)  # Larger size for clothing items
+		image_rect.position = Vector2(5, 5)  # Adjusted position for larger size
+	else:
+		image_rect.size = Vector2(40, 40)  # Standard size for regular equipment
+		image_rect.position = Vector2(10, 10)  # Standard position
 	image_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	container.add_child(image_rect)
 	

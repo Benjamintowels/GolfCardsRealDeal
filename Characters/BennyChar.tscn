@@ -141,3 +141,12 @@ sprite_frames = SubResource("SpriteFrames_swing")
 animation = &"swing"
 frame = 7
 frame_progress = 1.0
+
+[node name="HeadClothes" type="Marker2D" parent="."]
+position = Vector2(0, -88)
+
+[node name="NeckClothes" type="Marker2D" parent="."]
+position = Vector2(1.25, -38.17)
+
+[node name="BodyClothes" type="Marker2D" parent="."]
+position = Vector2(2, -36)

@@ -115,11 +115,19 @@ func _create_item_display(item: Resource, item_type: String) -> Control:
 			equip_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			container.add_child(equip_bg)
 			
-			# Equipment image
+			# Equipment image - use display_image for clothing if available, otherwise use regular image
 			var image_rect = TextureRect.new()
-			image_rect.texture = equipment_data.image
-			image_rect.size = Vector2(40, 40)
-			image_rect.position = Vector2(10, 10)
+			if equipment_data.is_clothing and equipment_data.display_image != null:
+				image_rect.texture = equipment_data.display_image
+			else:
+				image_rect.texture = equipment_data.image
+			# Adjust size and position based on equipment type - clothing items need different sizing
+			if equipment_data.is_clothing:
+				image_rect.size = Vector2(50, 50)  # Larger size for clothing items
+				image_rect.position = Vector2(5, 5)  # Adjusted position for larger size
+			else:
+				image_rect.size = Vector2(40, 40)  # Standard size for regular equipment
+				image_rect.position = Vector2(10, 10)  # Standard position
 			image_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 			image_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			container.add_child(image_rect)
@@ -204,9 +212,18 @@ static func check_bag_slots(item: Resource, item_type: String) -> bool:
 		# Check equipment slots
 		var equipment_manager = Engine.get_main_loop().current_scene.get_node_or_null("EquipmentManager")
 		if equipment_manager:
-			var equipped_items = equipment_manager.get_equipped_equipment()
-			var equipment_slots = bag.get_equipment_slots()
-			return equipped_items.size() < equipment_slots
+			var equipment_data = item as EquipmentData
+			
+			# For clothing, check if the specific slot is available
+			if equipment_data.is_clothing:
+				var clothing_slots = equipment_manager.get_clothing_slots()
+				var slot_name = equipment_data.clothing_slot
+				return not clothing_slots.has(slot_name) or clothing_slots[slot_name] == null
+			else:
+				# For regular equipment, check equipment slots
+				var equipped_items = equipment_manager.get_equipped_equipment()
+				var equipment_slots = bag.get_equipment_slots()
+				return equipped_items.size() < equipment_slots
 	
 	return true
 

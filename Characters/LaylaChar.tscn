@@ -34,3 +34,12 @@ script = ExtResource("2_swing")
 visible = false
 texture_filter = 1
 position = Vector2(0, -39.925)
+
+[node name="HeadClothes" type="Marker2D" parent="."]
+position = Vector2(0, -66)
+
+[node name="NeckClothes" type="Marker2D" parent="."]
+position = Vector2(4, -44)
+
+[node name="BodyClothes" type="Marker2D" parent="."]
+position = Vector2(5, -34)
