@@ -1,0 +1,10 @@
+[gd_scene load_steps=3 format=3 uid="uid://ice_tile_scene"]
+
+[ext_resource type="Script" path="res://Particles/ice_tile.gd" id="1_ice_tile"]
+[ext_resource type="AudioStream" uid="uid://b8qj2k3m4n5p6" path="res://Sounds/IceOn.mp3" id="2_ice_tile"]
+
+[node name="IceTile" type="Node2D"]
+script = ExtResource("1_ice_tile")
+
+[node name="IceOn" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("2_ice_tile") 

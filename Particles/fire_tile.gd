@@ -10,6 +10,7 @@ var is_scorched: bool = false
 # Visual elements
 var fire_sprites: Array[Sprite2D] = []
 var scorched_overlay: ColorRect = null
+var original_tile_sprite: Sprite2D = null  # Reference to the original tile sprite
 
 # Audio
 var flame_on_sound: AudioStreamPlayer2D
@@ -37,6 +38,9 @@ func _ready():
 	if flame_on_sound and flame_on_sound.stream:
 		flame_on_sound.play()
 	
+	# Find and store reference to the original tile sprite
+	_find_original_tile_sprite()
+	
 	# Create scorched overlay (initially hidden)
 	_create_scorched_overlay()
 	
@@ -51,8 +55,31 @@ func _ready():
 	
 	print("FireTile ready - z_index:", z_index, "position:", global_position, "tile_position:", tile_position)
 
+func _find_original_tile_sprite():
+	"""Find and store reference to the original tile sprite at this position"""
+	# Find the course to access the obstacle map
+	var course = get_tree().current_scene
+	if not course:
+		print("Could not find course for tile sprite reference")
+		return
+	
+	# Check if course has obstacle_map
+	if "obstacle_map" in course:
+		var obstacle_map = course.obstacle_map
+		if obstacle_map.has(tile_position):
+			var tile = obstacle_map[tile_position]
+			if tile and tile.has_node("Sprite2D"):
+				original_tile_sprite = tile.get_node("Sprite2D")
+				print("Found original tile sprite for scorched earth at:", tile_position)
+			else:
+				print("Tile at", tile_position, "does not have Sprite2D child")
+		else:
+			print("No tile found in obstacle_map at position:", tile_position)
+	else:
+		print("Course does not have obstacle_map property")
+
 func _create_scorched_overlay():
-	"""Create the scorched earth overlay"""
+	"""Create the scorched earth overlay (kept for compatibility but not used)"""
 	scorched_overlay = ColorRect.new()
 	scorched_overlay.name = "ScorchedOverlay"
 	scorched_overlay.size = Vector2(48, 48)  # Match tile size
@@ -103,15 +130,22 @@ func _transition_to_scorched():
 	var fade_tween = create_tween()
 	fade_tween.tween_property(self, "modulate:a", 0.0, 0.5)  # Fade out over 0.5 seconds
 	
-	# After fade out, hide fire sprites and show scorched overlay
+	# After fade out, hide fire sprites and darken the original tile sprite
 	await fade_tween.finished
 	
 	_hide_fire_sprites()
 	modulate.a = 1.0  # Reset alpha
 	
-	# Show scorched overlay
-	if scorched_overlay:
-		scorched_overlay.visible = true
+	# Darken the original tile sprite instead of showing overlay
+	if original_tile_sprite:
+		# Apply a dark brown tint to simulate scorched earth
+		original_tile_sprite.modulate = Color(0.3, 0.2, 0.1, 1.0)  # Dark brown tint
+		print("Applied scorched earth effect to tile sprite at:", tile_position)
+	else:
+		print("No original tile sprite found for scorched earth effect at:", tile_position)
+		# Fallback to overlay if no tile sprite found
+		if scorched_overlay:
+			scorched_overlay.visible = true
 	
 	# Emit signal that fire tile is complete
 	fire_tile_completed.emit(tile_position)

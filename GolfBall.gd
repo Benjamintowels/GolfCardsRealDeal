@@ -73,7 +73,8 @@ var tile_friction_values = {
 	"Tee": 0.60,  # Tee - high friction (was 0.80)
 	"P": 0.40,  # Pin - same as green (was 0.60)
 	"O": 0.15,  # Obstacle - maximum friction (was 0.20)
-	"Scorched": 1.99  # Scorched earth - same high friction as base grass
+	"Scorched": 1.99,  # Scorched earth - same high friction as base grass
+	"Ice": 0.3  # Ice - low friction (ball slides easily)
 }
 var current_tile_friction := 0.60  # Default friction (was 0.80)
 
@@ -122,6 +123,10 @@ var ice_club_active: bool = false  # Ice Club special effects
 # Fire spreading system variables
 var last_fire_tile: Vector2i = Vector2i.ZERO  # Track the last tile that caught fire
 var fire_tiles_created: Array[Vector2i] = []  # Track all fire tiles created by this ball
+
+# Ice spreading system
+var last_ice_tile: Vector2i = Vector2i.ZERO  # Track the last tile that froze
+var ice_tiles_created: Array[Vector2i] = []  # Track all ice tiles created by this ball
 
 # Ball landing highlight system
 var final_landing_tile: Vector2i = Vector2i.ZERO  # Track the final tile where ball stopped
@@ -521,6 +526,7 @@ func _process(delta):
 				_play_roof_bounce_sound("")
 			
 			_check_fire_spreading()
+			_check_ice_spreading()
 			
 			# Check for water hazard on any bounce
 			var tile_x = int(floor(position.x / cell_size))
@@ -763,6 +769,8 @@ func _process(delta):
 			
 			# Check for fire spreading while rolling
 			_check_fire_spreading()
+			# Check for ice spreading while rolling
+			_check_ice_spreading()
 			
 			# Check for water hazard while rolling
 			var tile_x_roll = int(floor(position.x / cell_size))
@@ -1216,6 +1224,10 @@ func reset_shot_effects() -> void:
 	# Reset fire spreading system
 	last_fire_tile = Vector2i.ZERO
 	fire_tiles_created.clear()
+	
+	# Reset ice spreading system
+	last_ice_tile = Vector2i.ZERO
+	ice_tiles_created.clear()
 
 func notify_course_of_collision() -> void:
 	"""Notify the course that the ball has collided with something, so it can re-enable player collision"""
@@ -1722,6 +1734,84 @@ func _on_fire_tile_completed(tile_pos: Vector2i) -> void:
 	# We just need to notify the map manager that this tile is now scorched
 	if map_manager and map_manager.has_method("set_tile_scorched"):
 		map_manager.set_tile_scorched(tile_pos.x, tile_pos.y)
+
+func _check_ice_spreading() -> void:
+	"""Check if the ice ball should spread ice to the current tile"""
+
+	if not current_element or current_element.name != "Ice":
+		return  # Not an ice ball
+	
+	if map_manager == null:
+		return  # No map manager
+	
+	# Get current tile position
+	var current_tile = Vector2i(floor(position.x / cell_size), floor(position.y / cell_size))
+	
+	# Check if this tile is already iced or frozen
+	var is_already_affected = _is_tile_iced_or_frozen(current_tile)
+	if is_already_affected:
+		return  # Tile already affected by ice
+	
+	# Check if this is a tile that can be iced (water, sand, grass)
+	var tile_type = map_manager.get_tile_type(current_tile.x, current_tile.y)
+	if not _is_iceable_tile(tile_type):
+		return  # Not an iceable tile
+	
+	# Check if we've already created an ice tile on this position
+	var already_created = current_tile in ice_tiles_created
+	if already_created:
+		return  # Already created ice on this tile
+	
+	# Create ice tile
+	_create_ice_tile(current_tile)
+
+func _is_tile_iced_or_frozen(tile_pos: Vector2i) -> bool:
+	"""Check if a tile is currently iced or frozen"""
+	# Check for existing ice tiles in the scene
+	var ice_tiles = get_tree().get_nodes_in_group("ice_tiles")
+	for ice_tile in ice_tiles:
+		if ice_tile.get_tile_position() == tile_pos:
+			return true
+	return false
+
+func _is_iceable_tile(tile_type: String) -> bool:
+	"""Check if a tile type can be iced (water, sand, grass)"""
+	return tile_type in ["W", "S", "F", "R", "Base"]  # Water, Sand, Fairway, Rough, Base grass
+
+func _create_ice_tile(tile_pos: Vector2i) -> void:
+	"""Create an ice tile at the specified position"""
+	var ice_tile_scene = preload("res://Particles/IceTile.tscn")
+	var ice_tile = ice_tile_scene.instantiate()
+	
+	# Set the tile position
+	ice_tile.set_tile_position(tile_pos)
+	
+	# Find the camera container to add the ice tile to (so it moves with the world)
+	var camera_container = get_parent()  # The ball should be a child of the camera container
+	
+	# Position the ice tile at the tile center (relative to camera container)
+	var tile_center = Vector2(tile_pos.x * cell_size + cell_size / 2, tile_pos.y * cell_size + cell_size / 2)
+	ice_tile.position = tile_center
+	
+	# Add to ice tiles group for easy management
+	ice_tile.add_to_group("ice_tiles")
+	
+	# Connect to completion signal
+	ice_tile.ice_tile_completed.connect(_on_ice_tile_completed)
+	
+	# Add to camera container so it moves with the world
+	camera_container.add_child(ice_tile)
+	
+	# Track this ice tile
+	ice_tiles_created.append(tile_pos)
+	last_ice_tile = tile_pos
+
+func _on_ice_tile_completed(tile_pos: Vector2i) -> void:
+	"""Handle when an ice tile transitions to frozen state"""
+	# The ice tile will handle its own visual transition
+	# We just need to notify the map manager that this tile is now frozen
+	if map_manager and map_manager.has_method("set_tile_iced"):
+		map_manager.set_tile_iced(tile_pos.x, tile_pos.y)
 
 func _spawn_fire_particle():
 	var fire_particle_scene = preload("res://Particles/FireParticle.tscn")

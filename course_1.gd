@@ -1411,6 +1411,8 @@ func _on_end_turn_pressed() -> void:
 	
 	# Advance fire tiles to next turn
 	advance_fire_tiles()
+	# Advance ice tiles to next turn
+	advance_ice_tiles()
 	
 	update_deck_display()
 	
@@ -1661,6 +1663,13 @@ func advance_fire_tiles() -> void:
 	
 	# Check for fire damage at end of world turn
 	check_player_fire_damage()
+
+func advance_ice_tiles() -> void:
+	"""Advance all ice tiles to the next turn"""
+	var ice_tiles = get_tree().get_nodes_in_group("ice_tiles")
+	for ice_tile in ice_tiles:
+		if is_instance_valid(ice_tile) and ice_tile.has_method("advance_turn"):
+			ice_tile.advance_turn()
 
 func update_deck_display() -> void:
 	var hud := get_node("UILayer/HUD")
