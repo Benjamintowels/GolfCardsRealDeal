@@ -833,14 +833,9 @@ func _process(delta):
 						if shot_distance < 1000.0:
 							if ball_stop_sound and ball_stop_sound.stream:
 								ball_stop_sound.play()
-					
-					# Emit landed signal with final tile position (only once)
-					if not has_emitted_landed_signal:
-						has_emitted_landed_signal = true
-						# Ball landed on final tile
-						# Reset shot effects after the ball has landed
-						reset_shot_effects()
-						landed.emit(final_landing_tile)
+						elif shot_distance > 1000.0:
+							if land_on_green_sound and land_on_green_sound.stream:
+								land_on_green_sound.play()
 				else:
 					# Map manager is null, can't determine final tile
 					# Reset shot effects even if map manager is null
@@ -876,14 +871,9 @@ func _process(delta):
 						if shot_distance < 1000.0:
 							if ball_stop_sound and ball_stop_sound.stream:
 								ball_stop_sound.play()
-					
-					# Emit landed signal with final tile position (only once)
-					if not has_emitted_landed_signal:
-						has_emitted_landed_signal = true
-						# Ball landed on final tile
-						# Reset shot effects after the ball has landed
-						reset_shot_effects()
-						landed.emit(final_landing_tile)
+						elif shot_distance > 1000.0:
+							if land_on_green_sound and land_on_green_sound.stream:
+								land_on_green_sound.play()
 				else:
 					# Map manager is null, can't determine final tile
 					# Reset shot effects even if map manager is null
