@@ -331,6 +331,8 @@ func _get_object_type_from_node(object_node: Node2D) -> String:
 		return "player"
 	elif "gang" in node_name or "GangMember" in script_path or "GangMember" in object_node.get_class():
 		return "gang_member"
+	elif "police" in node_name or "police.gd" in script_path or "Police" in object_node.get_class():
+		return "police"
 	elif "tree" in node_name or "Tree" in script_path or "Tree" in object_node.get_class():
 		return "tree"
 	elif "pin" in node_name or "Pin" in script_path or "Pin" in object_node.get_class():
@@ -360,6 +362,8 @@ func _get_standard_height_for_type(object_type: String) -> float:
 		"player":
 			return 80.0
 		"gang_member":
+			return 80.0
+		"police":
 			return 80.0
 		"tree":
 			return 200.0

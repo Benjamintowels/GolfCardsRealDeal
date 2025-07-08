@@ -1,4 +1,4 @@
-[gd_scene load_steps=17 format=3 uid="uid://bc8s6t7wka23s"]
+[gd_scene load_steps=18 format=3 uid="uid://bc8s6t7wka23s"]
 
 [ext_resource type="Texture2D" uid="uid://bu6bwgk8aipl2" path="res://Characters/BennyChar.png" id="1_oukfo"]
 [ext_resource type="Script" uid="uid://d2iiaqe57mea" path="res://Characters/SwingAnimation.gd" id="2_swing"]
@@ -93,6 +93,10 @@ _data = {
 &"Swing": SubResource("Animation_swing")
 }
 
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_woj5g"]
+radius = 12.0
+height = 88.0
+
 [node name="BennyChar" type="Node2D"]
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
@@ -157,3 +161,10 @@ visible = false
 texture_filter = 1
 position = Vector2(4, -42)
 texture = ExtResource("4_woj5g")
+
+[node name="HitBox" type="Area2D" parent="."]
+visible = false
+
+[node name="HitBoxShape" type="CollisionShape2D" parent="HitBox"]
+position = Vector2(2, -42)
+shape = SubResource("CapsuleShape2D_woj5g")

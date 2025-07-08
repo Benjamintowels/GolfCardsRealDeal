@@ -1,0 +1,56 @@
+[gd_scene load_steps=8 format=3 uid="uid://dtn34r0e0vp1n"]
+
+[ext_resource type="Texture2D" uid="uid://loxybh6wjyek" path="res://NPC/Police/Police.png" id="1_66atq"]
+[ext_resource type="Script" uid="uid://b2vh361gg66dc" path="res://NPC/Police/police.gd" id="1_a7p3e"]
+[ext_resource type="Texture2D" uid="uid://bqc1y7rc0dcof" path="res://NPC/Police/PoliceAim.png" id="2_2oo07"]
+[ext_resource type="AudioStream" uid="uid://w3sc1j80onsl" path="res://Sounds/PistolShot.mp3" id="4_7xmow"]
+[ext_resource type="AudioStream" uid="uid://clorehgdvljmk" path="res://Sounds/DeathGroan.mp3" id="5_6xobc"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_2oo07"]
+radius = 0.909954
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_2oo07"]
+radius = 19.0
+height = 88.0
+
+[node name="Police" type="CharacterBody2D"]
+script = ExtResource("1_a7p3e")
+
+[node name="Police" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(0, -49)
+texture = ExtResource("1_66atq")
+
+[node name="YSortPoint" type="Node2D" parent="Police"]
+position = Vector2(0, 43)
+
+[node name="PoliceAim" type="Sprite2D" parent="."]
+visible = false
+texture_filter = 1
+position = Vector2(15, -49)
+texture = ExtResource("2_2oo07")
+
+[node name="BaseCollisionArea" type="Area2D" parent="."]
+position = Vector2(3, 0)
+
+[node name="BaseCollision" type="CollisionShape2D" parent="BaseCollisionArea"]
+position = Vector2(-1, -6)
+scale = Vector2(12.145, 11.409)
+shape = SubResource("CircleShape2D_2oo07")
+
+[node name="TopHeight" type="Marker2D" parent="."]
+position = Vector2(0, -97)
+
+[node name="HitBox" type="Area2D" parent="."]
+visible = false
+
+[node name="HitBoxShape" type="CollisionShape2D" parent="HitBox"]
+position = Vector2(0, -47)
+shape = SubResource("CapsuleShape2D_2oo07")
+
+[node name="PistolShot" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("4_7xmow")
+
+[node name="DeathGroan" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("5_6xobc")
+volume_db = 2.93

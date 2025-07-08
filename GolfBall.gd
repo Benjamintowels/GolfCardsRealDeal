@@ -1429,6 +1429,8 @@ func _play_roof_bounce_sound(object_type: String) -> void:
 					pass
 				elif obj.name.contains("GangMember") or obj.name.contains("gang") or obj.name.contains("Gang"):
 					obj._play_collision_sound()
+				elif obj.name.contains("Police") or obj.name.contains("police"):
+					obj._play_collision_sound()
 				break
 
 func check_out_of_bounds_collision() -> void:

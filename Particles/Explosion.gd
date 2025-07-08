@@ -79,8 +79,9 @@ func start_explosion_animation():
 func _apply_explosion_radius_effects():
 	"""Apply explosion effects to all GangMembers and Player within the explosion radius"""
 	
-	# Find all GangMembers in the scene
+	# Find all GangMembers and Police in the scene
 	var gang_members = _find_all_gang_members()
+	var police_npcs = _find_all_police()
 	
 	# Find the player
 	var player = _find_player()
@@ -96,6 +97,17 @@ func _apply_explosion_radius_effects():
 		
 		if distance <= EXPLOSION_RADIUS:
 			_affect_gang_member_with_explosion(gang_member, distance)
+			affected_count += 1
+	
+	# Check Police
+	for police in police_npcs:
+		if not is_instance_valid(police):
+			continue
+		
+		var distance = global_position.distance_to(police.global_position)
+		
+		if distance <= EXPLOSION_RADIUS:
+			_affect_police_with_explosion(police, distance)
 			affected_count += 1
 	
 	# Check Player
@@ -134,6 +146,31 @@ func _find_all_gang_members() -> Array:
 			gang_members.append(node)
 	
 	return gang_members
+
+func _find_all_police() -> Array:
+	"""Find all Police nodes in the scene"""
+	var police: Array = []
+	
+	# Method 1: Try to get from Entities system
+	var course = _find_course_script()
+	if course and course.has_node("Entities"):
+		var entities = course.get_node("Entities")
+		if entities.has_method("get_npcs"):
+			var npcs = entities.get_npcs()
+			for npc in npcs:
+				if npc.get_script() and npc.get_script().resource_path.ends_with("police.gd"):
+					police.append(npc)
+			return police
+	
+	# Method 2: Search scene tree for Police nodes
+	var scene_tree = get_tree()
+	var all_nodes = scene_tree.get_nodes_in_group("")
+	
+	for node in all_nodes:
+		if node.get_script() and node.get_script().resource_path.ends_with("police.gd"):
+			police.append(node)
+	
+	return police
 
 func _find_course_script() -> Node:
 	"""Find the course_1.gd script by searching up the scene tree"""
@@ -188,6 +225,25 @@ func _affect_gang_member_with_explosion(gang_member: Node, distance: float):
 	add_child(ragdoll_timer)
 	ragdoll_timer.start()
 
+func _affect_police_with_explosion(police: Node, distance: float):
+	"""Apply explosion effects to a specific Police"""
+	
+	# Calculate damage based on distance (closer = more damage)
+	var damage_factor = 1.0 - (distance / EXPLOSION_RADIUS)
+	var damage = int(EXPLOSION_DAMAGE * damage_factor)
+	
+	# Apply damage to the Police
+	if police.has_method("take_damage"):
+		police.take_damage(damage)
+	
+	# Start ragdoll animation after a short delay
+	var ragdoll_timer = Timer.new()
+	ragdoll_timer.wait_time = RAGDOLL_DELAY
+	ragdoll_timer.one_shot = true
+	ragdoll_timer.timeout.connect(func(): _start_police_ragdoll(police, distance))
+	add_child(ragdoll_timer)
+	ragdoll_timer.start()
+
 func _start_gang_member_ragdoll(gang_member: Node, distance: float):
 	"""Start the ragdoll animation for a GangMember"""
 	if not is_instance_valid(gang_member):
@@ -211,6 +267,30 @@ func _start_gang_member_ragdoll(gang_member: Node, distance: float):
 		# Fallback: just kill the GangMember
 		if gang_member.has_method("die"):
 			gang_member.die()
+
+func _start_police_ragdoll(police: Node, distance: float):
+	"""Start the ragdoll animation for a Police"""
+	if not is_instance_valid(police):
+		return
+	
+	# Calculate ragdoll force based on distance (closer = more force)
+	var force_factor = 1.0 - (distance / EXPLOSION_RADIUS)
+	var ragdoll_force = 300.0 * force_factor  # Base force of 300 pixels
+	
+	# Calculate direction from explosion to Police
+	var direction = (police.global_position - global_position).normalized()
+	
+	# Add some randomness to the direction
+	var random_angle = randf_range(-0.3, 0.3)  # ±0.3 radians of randomness
+	var randomized_direction = direction.rotated(random_angle)
+	
+	# Start the ragdoll animation
+	if police.has_method("start_ragdoll_animation"):
+		police.start_ragdoll_animation(randomized_direction, ragdoll_force)
+	else:
+		# Fallback: just kill the Police
+		if police.has_method("die"):
+			police.die()
 
 func _on_scale_up_complete():
 	"""Called when the explosion sprite has finished scaling up"""

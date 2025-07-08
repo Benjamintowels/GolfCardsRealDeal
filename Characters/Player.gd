@@ -575,6 +575,14 @@ func take_damage(amount: int, is_headshot: bool = false) -> void:
 	current_health = current_health - amount
 	print("Player took", amount, "damage. Current health:", current_health, "/", max_health)
 	
+	# Play push sound when taking damage
+	var push_sound = get_node_or_null("Push")
+	if push_sound and push_sound is AudioStreamPlayer2D:
+		push_sound.play()
+		print("✓ Played push sound for damage")
+	else:
+		print("✗ Push sound not found or not AudioStreamPlayer2D")
+	
 	# Update the course's health bar
 	var course = get_tree().current_scene
 	if course and course.has_method("take_damage"):

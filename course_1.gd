@@ -235,6 +235,7 @@ var object_scene_map := {
 	"SHOP": preload("res://Shop/ShopExterior.tscn"),
 	"BLOCK": preload("res://Obstacles/InvisibleBlocker.tscn"),
 	"GANG": preload("res://NPC/Gang/GangMember.tscn"),
+	"POLICE": preload("res://NPC/Police/Police.tscn"),
 	"OIL": preload("res://Interactables/OilDrum.tscn"),
 	"WALL": preload("res://Obstacles/StoneWall.tscn"),
 	"BOULDER": preload("res://Obstacles/Boulder.tscn"),
@@ -245,6 +246,7 @@ var object_to_tile_mapping := {
 	"P": "G",
 	"SHOP": "Base",
 	"GANG": "G",
+	"POLICE": "R",
 	"OIL": "Base",
 	"WALL": "Base",
 	"BOULDER": "Base",
@@ -296,8 +298,10 @@ func clear_existing_objects() -> void:
 			var is_oil_drum = obstacle.name == "OilDrum" or (obstacle.get_script() and "oil_drum.gd" in str(obstacle.get_script().get_path()))
 			# Check for stone walls by name or script
 			var is_stone_wall = obstacle.name == "StoneWall" or (obstacle.get_script() and "StoneWall.gd" in str(obstacle.get_script().get_path()))
+			# Check for police by name or script
+			var is_police = obstacle.name == "Police" or (obstacle.get_script() and "police.gd" in str(obstacle.get_script().get_path()))
 			
-			if is_tree or is_shop or is_pin or is_oil_drum or is_stone_wall:
+			if is_tree or is_shop or is_pin or is_oil_drum or is_stone_wall or is_police:
 				keys_to_remove.append(pos)
 	
 	for pos in keys_to_remove:

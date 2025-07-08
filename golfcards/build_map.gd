@@ -113,8 +113,10 @@ func clear_existing_objects() -> void:
 			var is_stone_wall = obstacle.name == "StoneWall" or (obstacle.get_script() and "StoneWall.gd" in str(obstacle.get_script().get_path()))
 			# Check for boulders by name or script
 			var is_boulder = obstacle.name == "Boulder" or (obstacle.get_script() and "boulder.gd" in str(obstacle.get_script().get_path()))
+			# Check for police by name or script
+			var is_police = obstacle.name == "Police" or (obstacle.get_script() and "police.gd" in str(obstacle.get_script().get_path()))
 			
-			if is_tree or is_shop or is_pin or is_oil_drum or is_stone_wall or is_boulder:
+			if is_tree or is_shop or is_pin or is_oil_drum or is_stone_wall or is_boulder or is_police:
 				keys_to_remove.append(pos)
 	for pos in keys_to_remove:
 		obstacle_map.erase(pos)
@@ -142,14 +144,15 @@ func is_valid_position_for_object(pos: Vector2i, layout: Array) -> bool:
 			return false
 	return true
 
-func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include_shop: bool = true, num_gang_members: int = -1, num_oil_drums: int = -1) -> Dictionary:
+func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include_shop: bool = true, num_gang_members: int = -1, num_oil_drums: int = -1, num_police: int = 2) -> Dictionary:
 	var positions = {
 		"trees": [],
 		"shop": Vector2i.ZERO,
 		"gang_members": [],
 		"oil_drums": [],
 		"stone_walls": [],
-		"boulders": []
+		"boulders": [],
+		"police": []
 	}
 	
 	# Use turn-based spawning if parameters are -1 (default)
@@ -243,6 +246,22 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 		gang_members_placed += 1
 		green_positions.remove_at(gang_index)
 	
+	# Place Police on rough tiles (R)
+	var rough_positions: Array = []
+	for y in layout.size():
+		for x in layout[y].size():
+			if layout[y][x] == "R":
+				rough_positions.append(Vector2i(x, y))
+	
+	var police_placed = 0
+	while police_placed < num_police and rough_positions.size() > 0:
+		var police_index = randi() % rough_positions.size()
+		var police_pos = rough_positions[police_index]
+		positions.police.append(police_pos)
+		placed_objects.append(police_pos)
+		police_placed += 1
+		rough_positions.remove_at(police_index)
+	
 	# Place Oil Drums on fairway tiles
 	var fairway_positions: Array = []
 	for y in layout.size():
@@ -296,7 +315,7 @@ func build_map_from_layout_with_randomization(layout: Array) -> void:
 	clear_existing_objects()
 	build_map_from_layout_base(layout)
 	# Use turn-based spawning (-1 means use turn-based calculation)
-	var object_positions = get_random_positions_for_objects(layout, 8, true, -1, -1)
+	var object_positions = get_random_positions_for_objects(layout, 8, true, -1, -1, 2)
 	place_objects_at_positions(object_positions, layout)
 	# position_camera_on_pin()  # This should be called from the main scene if needed
 
@@ -546,6 +565,38 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		
 		ysort_objects.append({"node": gang_member, "grid_pos": gang_pos})
 		obstacle_layer.add_child(gang_member)
+	
+	# Place Police
+	print("=== PLACING POLICE ===")
+	print("Police positions:", object_positions.police)
+	for police_pos in object_positions.police:
+		var scene: PackedScene = object_scene_map["POLICE"]
+		if scene == null:
+			push_error("🚫 Police scene is null")
+			continue
+		var police: Node2D = scene.instantiate() as Node2D
+		if police == null:
+			push_error("❌ Police instantiation failed at (%d,%d)" % [police_pos.x, police_pos.y])
+			continue
+		var world_pos: Vector2 = Vector2(police_pos.x, police_pos.y) * cell_size
+		police.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
+		# Let the global Y-sort system handle z_index
+		if police.has_meta("grid_position") or "grid_position" in police:
+			police.set("grid_position", police_pos)
+		else:
+			push_warning("⚠️ Police missing 'grid_position'. Type: %s" % police.get_class())
+		
+		# Setup the Police
+		if police.has_method("setup"):
+			police.setup(police_pos, cell_size)
+		
+		# Add police to groups for smart optimization
+		police.add_to_group("police")
+		police.add_to_group("collision_objects")
+		
+		ysort_objects.append({"node": police, "grid_pos": police_pos})
+		obstacle_layer.add_child(police)
+		print("✓ Police placed at grid position:", police_pos)
 	
 	# Place Oil Drums
 	print("=== PLACING OIL DRUMS ===")
