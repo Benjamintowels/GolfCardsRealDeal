@@ -2,6 +2,7 @@ extends Control
 class_name Bag
 
 signal bag_clicked
+signal replacement_completed(reward_data: Resource, reward_type: String)
 
 @onready var texture_rect: TextureRect = $TextureRect
 
@@ -307,6 +308,10 @@ func show_deck_dialog():
 		# Add actual card on top if available
 		if i < movement_cards.size():
 			var should_be_clickable = is_replacement_mode and pending_reward_type == "card" and pending_reward and not is_club_card(pending_reward)
+			print("Bag: Creating movement card display for", movement_cards[i].name, "should_be_clickable:", should_be_clickable)
+			print("Bag: is_replacement_mode:", is_replacement_mode, "pending_reward_type:", pending_reward_type, "pending_reward:", pending_reward.name if pending_reward else "null")
+			if pending_reward:
+				print("Bag: not is_club_card(pending_reward):", not is_club_card(pending_reward))
 			var card_display = create_card_display(movement_cards[i], 1, should_be_clickable)
 			slot_container.add_child(card_display)
 			card_display.z_index = 10
@@ -349,12 +354,36 @@ func show_deck_dialog():
 		# Add actual card on top if available
 		if i < club_cards.size():
 			var should_be_clickable = is_replacement_mode and pending_reward_type == "card" and pending_reward and is_club_card(pending_reward)
+			print("Bag: Creating club card display for", club_cards[i].name, "should_be_clickable:", should_be_clickable)
+			print("Bag: is_replacement_mode:", is_replacement_mode, "pending_reward_type:", pending_reward_type, "pending_reward:", pending_reward.name if pending_reward else "null")
+			if pending_reward:
+				print("Bag: is_club_card(pending_reward):", is_club_card(pending_reward))
 			var card_display = create_card_display(club_cards[i], 1, should_be_clickable)
 			slot_container.add_child(card_display)
 			# Ensure card appears on top by setting z_index
 			card_display.z_index = 100
 			# Move card display to front to ensure it's clickable
 			slot_container.move_child(card_display, slot_container.get_child_count() - 1)
+			
+			# Debug check after adding to scene
+			if should_be_clickable:
+				print("Bag: Button added to scene for", club_cards[i].name)
+				print("Bag: Button is in tree:", card_display.is_inside_tree())
+				print("Bag: Button parent:", card_display.get_parent().name if card_display.get_parent() else "null")
+				print("Bag: Button parent mouse_filter:", card_display.get_parent().mouse_filter if card_display.get_parent() else "N/A")
+				# Force the button to be processed
+				card_display.process_mode = Node.PROCESS_MODE_INHERIT
+				# Ensure the button is properly connected to the scene tree
+				if not card_display.is_inside_tree():
+					print("Bag: WARNING - Button not in tree, attempting to force add")
+					# Try to force add to the scene tree
+					get_tree().current_scene.add_child(card_display)
+					# Then move it back to the correct parent
+					slot_container.add_child(card_display)
+				# Additional debugging for button position and size
+				print("Bag: Button position:", card_display.position, "size:", card_display.size)
+				print("Bag: Button global position:", card_display.global_position)
+				print("Bag: Button visible:", card_display.visible, "modulate:", card_display.modulate)
 	
 	# Add dialog to UI layer (parent of the bag)
 	var ui_layer = get_parent()
@@ -365,6 +394,16 @@ func show_deck_dialog():
 		# Fallback to current scene if UI layer not found
 		get_tree().current_scene.add_child(dialog)
 		inventory_dialog = dialog
+	
+	# Test if buttons are receiving input after dialog is added
+	if is_replacement_mode:
+		print("Bag: Testing button input handling after dialog creation")
+		# Find all TextureButtons in the dialog and test their input
+		var buttons = dialog.find_children("*", "TextureButton", true, false)
+		for button in buttons:
+			print("Bag: Found TextureButton:", button.name, "in tree:", button.is_inside_tree())
+			print("Bag: Button mouse_filter:", button.mouse_filter, "z_index:", button.z_index)
+			print("Bag: Button parent mouse_filter:", button.get_parent().mouse_filter if button.get_parent() else "N/A")
 
 func create_card_display(card_data: CardData, count: int, clickable: bool = false) -> Control:
 	if clickable:
@@ -376,10 +415,12 @@ func create_card_display(card_data: CardData, count: int, clickable: bool = fals
 		button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		button.mouse_filter = Control.MOUSE_FILTER_STOP  # Make this clickable
+		button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND  # Show pointer cursor
 		button.z_index = 100  # Higher z_index to ensure it's clickable
 		button.focus_mode = Control.FOCUS_NONE  # Disable focus to prevent focus issues
-		button.process_mode = Node.PROCESS_MODE_WHEN_PAUSED  # Process input even when paused
+		button.process_mode = Node.PROCESS_MODE_INHERIT  # Use inherit instead of when paused
 		button.pressed.connect(func():
+			print("Bag: Button pressed signal triggered for", card_data.name)
 			_on_card_button_pressed(card_data)
 		)
 		# Set the texture directly on the TextureButton
@@ -387,8 +428,13 @@ func create_card_display(card_data: CardData, count: int, clickable: bool = fals
 		button.texture_hover = card_data.image  # Same texture for hover
 		button.texture_pressed = card_data.image  # Same texture for pressed
 		button.texture_focused = card_data.image  # Same texture for focused
-		# Scale the button itself to fit nicely
+		# Scale the button to the proper size for cards
 		button.scale = Vector2(0.075, 0.075)
+		# Don't scale the button itself - let the texture handle scaling
+		# button.scale = Vector2(0.075, 0.075)  # This was making clickable area too small
+		# Instead, scale the texture to fit the button size
+		# button.expand_mode = TextureButton.EXPAND_FILL
+		# button.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
 		# Add hover effect as a separate overlay
 		var hover_overlay = ColorRect.new()
 		hover_overlay.color = Color(1, 1, 0, 0.3)  # Yellow highlight
@@ -406,21 +452,20 @@ func create_card_display(card_data: CardData, count: int, clickable: bool = fals
 		)
 		# Add debug output to see if the button is being clicked
 		button.gui_input.connect(func(event):
+			print("Bag: Button gui_input event for", card_data.name, "event type:", event.get_class())
 			if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 				print("Bag: Button gui_input received for", card_data.name, "at position", event.position)
+				print("Bag: Button pressed - calling _on_card_button_pressed")
+				_on_card_button_pressed(card_data)
 		)
 		print("Bag: Button created successfully for", card_data.name)
 		print("Bag: Button size:", button.size, "position:", button.position)
 		print("Bag: Button mouse_filter:", button.mouse_filter, "z_index:", button.z_index)
 		print("Bag: Button visible:", button.visible, "modulate:", button.modulate)
 		print("Bag: Button process_mode:", button.process_mode)
-		# Debug parent hierarchy
-		var parent = button.get_parent()
-		if parent:
-			print("Bag: Button parent:", parent.name, "mouse_filter:", parent.mouse_filter, "z_index:", parent.z_index)
-			var grandparent = parent.get_parent()
-			if grandparent:
-				print("Bag: Button grandparent:", grandparent.name, "mouse_filter:", grandparent.mouse_filter, "z_index:", grandparent.z_index)
+		# Ensure the button is properly set up for input
+		button.mouse_filter = Control.MOUSE_FILTER_STOP
+		button.process_mode = Node.PROCESS_MODE_INHERIT
 		return button
 	else:
 		print("Bag: Creating regular Control for", card_data.name)
@@ -440,8 +485,13 @@ func create_card_display(card_data: CardData, count: int, clickable: bool = fals
 		return container
 
 func _on_card_button_pressed(card_data: CardData):
+	print("Bag: Card button pressed for", card_data.name if card_data else "null")
+	print("Bag: is_replacement_mode:", is_replacement_mode, "pending_reward:", pending_reward.name if pending_reward else "null")
 	if is_replacement_mode and pending_reward:
+		print("Bag: Showing replacement confirmation for", card_data.name)
 		show_replacement_confirmation(card_data)
+	else:
+		print("Bag: Not in replacement mode or no pending reward")
 
 func show_replacement_confirmation(card_to_replace: CardData):
 	# Close any existing confirmation dialog first
@@ -453,7 +503,7 @@ func show_replacement_confirmation(card_to_replace: CardData):
 	replacement_confirmation_dialog.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	replacement_confirmation_dialog.z_index = 2000  # Set to 2000 for topmost
 	replacement_confirmation_dialog.mouse_filter = Control.MOUSE_FILTER_STOP
-	replacement_confirmation_dialog.process_mode = Node.PROCESS_MODE_WHEN_PAUSED
+	replacement_confirmation_dialog.process_mode = Node.PROCESS_MODE_INHERIT
 	
 	# Background
 	var background = ColorRect.new()
@@ -554,6 +604,13 @@ func show_replacement_confirmation(card_to_replace: CardData):
 	yes_button.size = Vector2(80, 40)
 	yes_button.pressed.connect(_on_confirm_replacement.bind(card_to_replace))
 	yes_button.z_index = 2000
+	yes_button.process_mode = Node.PROCESS_MODE_INHERIT
+	# Add fallback input handling
+	yes_button.gui_input.connect(func(event):
+		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+			print("Bag: Yes button gui_input received")
+			_on_confirm_replacement(card_to_replace)
+	)
 	button_container.add_child(yes_button)
 	
 	# No button
@@ -562,6 +619,13 @@ func show_replacement_confirmation(card_to_replace: CardData):
 	no_button.size = Vector2(80, 40)
 	no_button.pressed.connect(_on_cancel_replacement_confirmation)
 	no_button.z_index = 2000
+	no_button.process_mode = Node.PROCESS_MODE_INHERIT
+	# Add fallback input handling
+	no_button.gui_input.connect(func(event):
+		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+			print("Bag: No button gui_input received")
+			_on_cancel_replacement_confirmation()
+	)
 	button_container.add_child(no_button)
 	
 	# Add dialog to UI layer as last child to ensure it's on top
@@ -579,7 +643,11 @@ func show_replacement_confirmation(card_to_replace: CardData):
 
 func _on_confirm_replacement(card_to_replace: CardData):
 	"""Confirm the card replacement"""
+	print("Bag: _on_confirm_replacement called with card_to_replace:", card_to_replace.name if card_to_replace else "null")
+	print("Bag: pending_reward:", pending_reward.name if pending_reward else "null")
+	
 	if not pending_reward or not card_to_replace:
+		print("Bag: Missing data for replacement, closing confirmation")
 		close_replacement_confirmation()
 		return
 	# Remove the old card
@@ -609,17 +677,22 @@ func _on_confirm_replacement(card_to_replace: CardData):
 					child.sync_with_current_deck()
 					break
 	
-	# Close dialogs
-	close_replacement_confirmation()
-	close_inventory()
+	# Emit replacement completed signal BEFORE closing inventory
+	print("Bag: Emitting replacement_completed signal with reward:", pending_reward.name if pending_reward else "null", "type:", pending_reward_type)
+	replacement_completed.emit(pending_reward, pending_reward_type)
 	
 	# Notify shop if replacement was completed from shop context
 	var shop_interior = get_tree().current_scene.get_node_or_null("UILayer/ShopInterior")
 	if shop_interior and shop_interior.has_method("on_replacement_completed"):
 		shop_interior.on_replacement_completed(pending_reward, pending_reward_type)
+	
+	# Close dialogs AFTER emitting signal
+	close_replacement_confirmation()
+	close_inventory()
 
 func _on_cancel_replacement_confirmation():
 	"""Cancel the replacement confirmation"""
+	print("Bag: _on_cancel_replacement_confirmation called")
 	close_replacement_confirmation()
 
 func close_replacement_confirmation():
@@ -843,7 +916,11 @@ func create_slot_container() -> Control:
 	container.custom_minimum_size = Vector2(80, 100)
 	container.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	container.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	container.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Don't block mouse events
+	# Allow mouse events in replacement mode, ignore otherwise
+	if is_replacement_mode:
+		container.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Don't block mouse events for buttons
+	else:
+		container.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Don't block mouse events
 	return container
 
 func is_club_card(card_data: CardData) -> bool:
@@ -898,7 +975,7 @@ func show_equipment_replacement_confirmation(equipment_to_replace: EquipmentData
 	replacement_confirmation_dialog.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	replacement_confirmation_dialog.z_index = 2000  # Set to 2000 for topmost
 	replacement_confirmation_dialog.mouse_filter = Control.MOUSE_FILTER_STOP
-	replacement_confirmation_dialog.process_mode = Node.PROCESS_MODE_WHEN_PAUSED
+	replacement_confirmation_dialog.process_mode = Node.PROCESS_MODE_INHERIT
 	
 	# Background
 	var background = ColorRect.new()
@@ -914,6 +991,7 @@ func show_equipment_replacement_confirmation(equipment_to_replace: EquipmentData
 	main_container.custom_minimum_size = Vector2(600, 300)
 	main_container.position = Vector2(-300, -150)
 	main_container.z_index = 2000
+	main_container.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Don't block mouse events
 	replacement_confirmation_dialog.add_child(main_container)
 	
 	# Panel background
@@ -991,6 +1069,7 @@ func show_equipment_replacement_confirmation(equipment_to_replace: EquipmentData
 	button_container.position = Vector2(200, 220)
 	button_container.size = Vector2(200, 40)
 	button_container.z_index = 2000
+	button_container.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Don't block mouse events
 	main_container.add_child(button_container)
 	
 	# Yes button
@@ -999,6 +1078,13 @@ func show_equipment_replacement_confirmation(equipment_to_replace: EquipmentData
 	yes_button.size = Vector2(80, 40)
 	yes_button.pressed.connect(_on_confirm_equipment_replacement.bind(equipment_to_replace))
 	yes_button.z_index = 2000
+	yes_button.process_mode = Node.PROCESS_MODE_INHERIT
+	# Add fallback input handling
+	yes_button.gui_input.connect(func(event):
+		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+			print("Bag: Yes button gui_input received")
+			_on_confirm_equipment_replacement(equipment_to_replace)
+	)
 	button_container.add_child(yes_button)
 	
 	# No button
@@ -1007,6 +1093,13 @@ func show_equipment_replacement_confirmation(equipment_to_replace: EquipmentData
 	no_button.size = Vector2(80, 40)
 	no_button.pressed.connect(_on_cancel_replacement_confirmation)
 	no_button.z_index = 2000
+	no_button.process_mode = Node.PROCESS_MODE_INHERIT
+	# Add fallback input handling
+	no_button.gui_input.connect(func(event):
+		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+			print("Bag: No button gui_input received")
+			_on_cancel_replacement_confirmation()
+	)
 	button_container.add_child(no_button)
 	
 	# Add dialog to UI layer as last child to ensure it's on top

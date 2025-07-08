@@ -1,5 +1,7 @@
 extends Control
 
+const CardReplacementDialog = preload("res://UI/card_replacement_dialog.gd")
+
 # Shop items
 var available_equipment: Array[EquipmentData] = []
 var available_cards: Array[CardData] = []
@@ -14,6 +16,7 @@ var pending_reward: Resource = null
 var pending_reward_type: String = ""
 var card_replacement_dialog: Control = null
 var shop_input_enabled: bool = true  # Track if shop input should be enabled
+var shared_replacement_dialog: Control = null
 
 signal shop_closed
 
@@ -389,6 +392,10 @@ func cleanup_replacement_dialogs():
 		card_replacement_dialog.queue_free()
 		card_replacement_dialog = null
 	
+	if shared_replacement_dialog and is_instance_valid(shared_replacement_dialog):
+		shared_replacement_dialog.queue_free()
+		shared_replacement_dialog = null
+	
 	# Re-enable shop input
 	shop_input_enabled = true
 	enable_shop_item_containers()
@@ -461,127 +468,85 @@ func show_card_replacement_dialog(reward_data: Resource, reward_type: String):
 	# Temporarily lower ReturnButton z-index to ensure replacement dialog is on top
 	var return_button = $ReturnButton
 	if return_button:
-		return_button.z_index = 500  # Lower than replacement dialog (2000)
+		return_button.z_index = 500  # Lower than replacement dialog
 	
-	# Create replacement dialog
-	card_replacement_dialog = Control.new()
-	card_replacement_dialog.name = "CardReplacementDialog"
-	card_replacement_dialog.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	card_replacement_dialog.z_index = 400  # Lower than bag's inventory dialog (999) so clicks can reach the bag
+	# Create shared replacement dialog
+	var dialog_scene = preload("res://UI/CardReplacementDialog.tscn")
+	shared_replacement_dialog = dialog_scene.instantiate()
 	
-	# Background
-	var background = ColorRect.new()
-	background.color = Color(0, 0, 0, 0.8)
-	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	background.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Allow clicks to pass through to bag
-	card_replacement_dialog.add_child(background)
-	
-	# Main container
-	var main_container = Control.new()
-	main_container.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	main_container.custom_minimum_size = Vector2(800, 500)
-	main_container.position = Vector2(-400, -250)
-	main_container.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Allow clicks to pass through to bag
-	card_replacement_dialog.add_child(main_container)
-	
-	# Panel background
-	var panel = ColorRect.new()
-	panel.color = Color(0.2, 0.2, 0.2, 0.95)
-	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Allow clicks to pass through
-	main_container.add_child(panel)
-	
-	# Title
-	var title = Label.new()
-	if reward_type == "equipment":
-		title.text = "Bag Full - Select Equipment to Replace"
-	else:
-		title.text = "Bag Full - Select Card to Replace"
-	title.add_theme_font_size_override("font_size", 20)
-	title.add_theme_color_override("font_color", Color.WHITE)
-	title.position = Vector2(20, 20)
-	title.size = Vector2(760, 40)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Allow clicks to pass through
-	main_container.add_child(title)
-	
-	# New item preview
-	var new_item_label = Label.new()
-	if reward_type == "equipment":
-		new_item_label.text = "New Equipment:"
-	else:
-		new_item_label.text = "New Card:"
-	new_item_label.add_theme_font_size_override("font_size", 16)
-	new_item_label.add_theme_color_override("font_color", Color.WHITE)
-	new_item_label.position = Vector2(20, 80)
-	new_item_label.size = Vector2(200, 30)
-	new_item_label.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Allow clicks to pass through
-	main_container.add_child(new_item_label)
-	
-	var new_item_display
-	if reward_type == "equipment":
-		new_item_display = create_equipment_display(pending_reward)
-	else:
-		new_item_display = create_card_display(pending_reward, 1)
-	new_item_display.position = Vector2(20, 120)
-	new_item_display.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Allow clicks to pass through
-	main_container.add_child(new_item_display)
-	
-	# Instructions
-	var instructions = Label.new()
-	if reward_type == "equipment":
-		instructions.text = "Click on equipment in your bag to replace it with the new equipment."
-	else:
-		instructions.text = "Click on a card in your bag to replace it with the new card."
-	instructions.add_theme_font_size_override("font_size", 14)
-	instructions.add_theme_color_override("font_color", Color.LIGHT_GRAY)
-	instructions.position = Vector2(20, 240)
-	instructions.size = Vector2(760, 30)
-	instructions.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	instructions.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Allow clicks to pass through
-	main_container.add_child(instructions)
-	
-	# Cancel button
-	var cancel_button = Button.new()
-	cancel_button.text = "Cancel"
-	cancel_button.position = Vector2(350, 420)
-	cancel_button.size = Vector2(100, 40)
-	cancel_button.pressed.connect(_on_cancel_replacement)
-	main_container.add_child(cancel_button)
+	# Connect signals
+	shared_replacement_dialog.replacement_completed.connect(_on_shared_replacement_completed)
+	shared_replacement_dialog.replacement_cancelled.connect(_on_shared_replacement_cancelled)
 	
 	# Add dialog to UILayer to ensure proper layering with bag
 	var ui_layer = get_tree().current_scene.get_node_or_null("UILayer")
 	if ui_layer:
-		ui_layer.add_child(card_replacement_dialog)
-		ui_layer.move_child(card_replacement_dialog, ui_layer.get_child_count() - 1)
-		print("ShopInterior: Added replacement dialog to UILayer, z_index:", card_replacement_dialog.z_index)
+		ui_layer.add_child(shared_replacement_dialog)
+		ui_layer.move_child(shared_replacement_dialog, ui_layer.get_child_count() - 1)
+		print("ShopInterior: Added shared replacement dialog to UILayer")
 	else:
 		# Fallback to current scene if UILayer not found
-		get_tree().current_scene.add_child(card_replacement_dialog)
-		print("ShopInterior: Added replacement dialog to current scene, z_index:", card_replacement_dialog.z_index)
+		get_tree().current_scene.add_child(shared_replacement_dialog)
+		print("ShopInterior: Added shared replacement dialog to current scene")
 	
-	# Add debug input handler to the replacement dialog
-	card_replacement_dialog.gui_input.connect(func(event):
-		if event is InputEventMouseButton and event.pressed:
-			print("ShopInterior: Replacement dialog received mouse input at", event.position, "event type:", event.get_class())
-			print("ShopInterior: Replacement dialog z_index:", card_replacement_dialog.z_index)
-	)
-	
-	# Add debug input handler to the background
-	background.gui_input.connect(func(event):
-		if event is InputEventMouseButton and event.pressed:
-			print("ShopInterior: Background received mouse input at", event.position, "event type:", event.get_class())
-			print("ShopInterior: Background z_index:", background.z_index)
-	)
-	
-	# Open bag in replacement mode
-	var bag = get_tree().current_scene.get_node_or_null("UILayer/Bag")
-	if bag:
-		bag.show_inventory_replacement_mode(pending_reward, pending_reward_type)
+	# Show the dialog
+	shared_replacement_dialog.show_replacement_dialog(pending_reward, pending_reward_type)
 
 func _on_cancel_replacement():
 	"""Cancel the card replacement process"""
 	cleanup_replacement_dialogs()
+
+func _on_shared_replacement_completed(reward_data: Resource, reward_type: String):
+	"""Handle shared replacement dialog completion"""
+	print("ShopInterior: Shared replacement completed for", reward_data.name if reward_data else "null")
+	
+	# Play the cat happy sound for successful replacement
+	play_cat_happy()
+	
+	# Remove the item from shop after successful replacement
+	if pending_reward and pending_reward in current_shop_items:
+		current_shop_items.erase(pending_reward)
+		display_shop_items()
+	
+	# Reset pending reward
+	pending_reward = null
+	pending_reward_type = ""
+	
+	# Clean up shared dialog
+	if shared_replacement_dialog and is_instance_valid(shared_replacement_dialog):
+		shared_replacement_dialog.queue_free()
+		shared_replacement_dialog = null
+	
+	# Re-enable shop input
+	shop_input_enabled = true
+	enable_shop_item_containers()
+	
+	# Restore ReturnButton z-index
+	var return_button = $ReturnButton
+	if return_button:
+		return_button.z_index = 1000  # Restore original z-index
+
+func _on_shared_replacement_cancelled():
+	"""Handle shared replacement dialog cancellation"""
+	print("ShopInterior: Shared replacement cancelled")
+	
+	# Reset pending reward
+	pending_reward = null
+	pending_reward_type = ""
+	
+	# Clean up shared dialog
+	if shared_replacement_dialog and is_instance_valid(shared_replacement_dialog):
+		shared_replacement_dialog.queue_free()
+		shared_replacement_dialog = null
+	
+	# Re-enable shop input
+	shop_input_enabled = true
+	enable_shop_item_containers()
+	
+	# Restore ReturnButton z-index
+	var return_button = $ReturnButton
+	if return_button:
+		return_button.z_index = 1000  # Restore original z-index
 
 func create_card_display(card_data: CardData, count: int) -> Control:
 	"""Create a display for a single card with count"""
@@ -690,38 +655,8 @@ func on_replacement_completed(reward_data: Resource, reward_type: String):
 		print("ShopInterior: ERROR - ReturnButton not found during cleanup")
 
 func check_bag_slots(item: Resource, item_type: String) -> bool:
-	"""Check if there are available slots in the bag for the item - matching RewardSelectionDialog logic"""
-	var bag = get_tree().current_scene.get_node_or_null("UILayer/Bag")
-	if not bag:
-		print("ShopInterior: Bag not found, allowing purchase")
-		return true  # Allow if bag not found
-	
-	if item_type == "card":
-		var card_data = item as CardData
-		# Check if it's a club card by name (matching RewardSelectionDialog logic)
-		var club_names = ["Putter", "Wooden", "Iron", "Hybrid", "Driver", "PitchingWedge", "Fire Club", "Ice Club"]
-		if club_names.has(card_data.name):
-			# Check club card slots
-			var club_cards = bag.get_club_cards()
-			var club_slots = bag.get_club_slots()
-			print("ShopInterior: Club card check - cards:", club_cards.size(), "slots:", club_slots)
-			return club_cards.size() < club_slots
-		else:
-			# Check movement card slots
-			var movement_cards = bag.get_movement_cards()
-			var movement_slots = bag.get_movement_slots()
-			print("ShopInterior: Movement card check - cards:", movement_cards.size(), "slots:", movement_slots)
-			return movement_cards.size() < movement_slots
-	elif item_type == "equipment":
-		# Check equipment slots
-		var equipment_manager = get_tree().current_scene.get_node_or_null("EquipmentManager")
-		if equipment_manager:
-			var equipped_items = equipment_manager.get_equipped_equipment()
-			var equipment_slots = bag.get_equipment_slots()
-			print("ShopInterior: Equipment check - items:", equipped_items.size(), "slots:", equipment_slots)
-			return equipped_items.size() < equipment_slots
-	
-	print("ShopInterior: Default case, allowing purchase")
-	return true
+	"""Check if there are available slots in the bag for the item"""
+	# Use the shared static function from CardReplacementDialog
+	return CardReplacementDialog.check_bag_slots(item, item_type)
 
  

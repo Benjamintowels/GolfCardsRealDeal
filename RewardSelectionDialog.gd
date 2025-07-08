@@ -1,6 +1,7 @@
 extends Control
 
 const BagData = preload("res://Bags/BagData.gd")
+const CardReplacementDialog = preload("res://UI/card_replacement_dialog.gd")
 
 signal reward_selected(reward_data: Resource, reward_type: String)
 signal advance_to_next_hole
@@ -141,116 +142,27 @@ func _on_advance_pressed():
 
 func check_bag_slots(reward_data: Resource, reward_type: String) -> bool:
 	"""Check if there are available slots in the bag for the reward"""
-	var bag = get_tree().current_scene.get_node_or_null("UILayer/Bag")
-	if not bag:
-		return true  # Allow if bag not found
-	
-	if reward_type == "card":
-		var card_data = reward_data as CardData
-		# Check if it's a club card by name (more reliable than effect_type)
-		var club_names = ["Putter", "Wooden", "Iron", "Hybrid", "Driver", "PitchingWedge", "Fire Club", "Ice Club"]
-		if club_names.has(card_data.name):
-			# Check club card slots
-			var club_cards = bag.get_club_cards()
-			var club_slots = bag.get_club_slots()
-			return club_cards.size() < club_slots
-		else:
-			# Check movement card slots
-			var movement_cards = bag.get_movement_cards()
-			var movement_slots = bag.get_movement_slots()
-			return movement_cards.size() < movement_slots
-	elif reward_type == "equipment":
-		# Check equipment slots
-		var equipment_manager = get_tree().current_scene.get_node_or_null("EquipmentManager")
-		if equipment_manager:
-			var equipped_items = equipment_manager.get_equipped_equipment()
-			var equipment_slots = bag.get_equipment_slots()
-			return equipped_items.size() < equipment_slots
-	elif reward_type == "bag_upgrade":
-		# Bag upgrades don't need slot checking - they just upgrade the bag
-		return true
-	
-	return true
+	# Use the shared static function from CardReplacementDialog
+	return CardReplacementDialog.check_bag_slots(reward_data, reward_type)
 
 func show_card_replacement_dialog(reward_data: Resource, reward_type: String):
 	"""Show dialog for replacing a card when bag is full"""
 	pending_reward = reward_data
 	pending_reward_type = reward_type
 	
-	# Create replacement dialog
-	card_replacement_dialog = Control.new()
-	card_replacement_dialog.name = "CardReplacementDialog"
-	card_replacement_dialog.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	card_replacement_dialog.z_index = 1000
+	# Create shared replacement dialog
+	var dialog_scene = preload("res://UI/CardReplacementDialog.tscn")
+	card_replacement_dialog = dialog_scene.instantiate()
 	
-	# Background
-	var background = ColorRect.new()
-	background.color = Color(0, 0, 0, 0.8)
-	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	background.mouse_filter = Control.MOUSE_FILTER_STOP
-	card_replacement_dialog.add_child(background)
-	
-	# Main container
-	var main_container = Control.new()
-	main_container.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	main_container.custom_minimum_size = Vector2(800, 500)
-	main_container.position = Vector2(-400, -250)
-	card_replacement_dialog.add_child(main_container)
-	
-	# Panel background
-	var panel = ColorRect.new()
-	panel.color = Color(0.2, 0.2, 0.2, 0.95)
-	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	main_container.add_child(panel)
-	
-	# Title
-	var title = Label.new()
-	title.text = "Bag Full - Select Card to Replace"
-	title.add_theme_font_size_override("font_size", 20)
-	title.add_theme_color_override("font_color", Color.WHITE)
-	title.position = Vector2(20, 20)
-	title.size = Vector2(760, 40)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	main_container.add_child(title)
-	
-	# New card preview
-	var new_card_label = Label.new()
-	new_card_label.text = "New Card:"
-	new_card_label.add_theme_font_size_override("font_size", 16)
-	new_card_label.add_theme_color_override("font_color", Color.WHITE)
-	new_card_label.position = Vector2(20, 80)
-	new_card_label.size = Vector2(200, 30)
-	main_container.add_child(new_card_label)
-	
-	var new_card_display = create_card_display(pending_reward, 1)
-	new_card_display.position = Vector2(20, 120)
-	main_container.add_child(new_card_display)
-	
-	# Instructions
-	var instructions = Label.new()
-	instructions.text = "Click on a card in your bag to replace it with the new card."
-	instructions.add_theme_font_size_override("font_size", 14)
-	instructions.add_theme_color_override("font_color", Color.LIGHT_GRAY)
-	instructions.position = Vector2(20, 240)
-	instructions.size = Vector2(760, 30)
-	instructions.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	main_container.add_child(instructions)
-	
-	# Cancel button
-	var cancel_button = Button.new()
-	cancel_button.text = "Cancel"
-	cancel_button.position = Vector2(350, 420)
-	cancel_button.size = Vector2(100, 40)
-	cancel_button.pressed.connect(_on_cancel_replacement)
-	main_container.add_child(cancel_button)
+	# Connect signals
+	card_replacement_dialog.replacement_completed.connect(_on_shared_replacement_completed)
+	card_replacement_dialog.replacement_cancelled.connect(_on_shared_replacement_cancelled)
 	
 	# Add dialog to scene
 	get_tree().current_scene.add_child(card_replacement_dialog)
 	
-	# Open bag in replacement mode
-	var bag = get_tree().current_scene.get_node_or_null("UILayer/Bag")
-	if bag:
-		bag.show_inventory_replacement_mode(pending_reward, pending_reward_type)
+	# Show the dialog
+	card_replacement_dialog.show_replacement_dialog(pending_reward, pending_reward_type)
 
 func _on_cancel_replacement():
 	"""Cancel the card replacement process"""
@@ -265,6 +177,39 @@ func _on_cancel_replacement():
 	
 	pending_reward = null
 	pending_reward_type = ""
+
+func _on_shared_replacement_completed(reward_data: Resource, reward_type: String):
+	"""Handle shared replacement dialog completion"""
+	
+	# Emit the reward selected signal
+	reward_selected.emit(reward_data, reward_type)
+	
+	# Reset pending reward
+	pending_reward = null
+	pending_reward_type = ""
+	
+	# Clean up dialog
+	if card_replacement_dialog and is_instance_valid(card_replacement_dialog):
+		card_replacement_dialog.queue_free()
+		card_replacement_dialog = null
+	
+	# Clear and disable left and right reward buttons
+	clear_reward_buttons()
+	
+	# Hide the dialog
+	visible = false
+
+func _on_shared_replacement_cancelled():
+	"""Handle shared replacement dialog cancellation"""
+	
+	# Reset pending reward
+	pending_reward = null
+	pending_reward_type = ""
+	
+	# Clean up dialog
+	if card_replacement_dialog and is_instance_valid(card_replacement_dialog):
+		card_replacement_dialog.queue_free()
+		card_replacement_dialog = null
 
 func create_card_display(card_data: CardData, count: int) -> Control:
 	"""Create a display for a single card with count"""
