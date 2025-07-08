@@ -113,16 +113,20 @@ func toggle_inventory():
 func close_inventory():
 	"""Close the inventory dialog"""
 	if inventory_dialog and is_instance_valid(inventory_dialog):
+		# If in shop, restore DeckDialog mouse_filter
+		var shop_interior = get_tree().current_scene.get_node_or_null("UILayer/ShopInterior")
+		if shop_interior:
+			var shop_deck_dialog = shop_interior.get_node_or_null("DeckDialog")
+			if shop_deck_dialog:
+				shop_deck_dialog.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		inventory_dialog.queue_free()
 		inventory_dialog = null
 	is_inventory_open = false
 	is_replacement_mode = false
 	pending_reward = null
 	pending_reward_type = ""
-	
 	# Ensure bag is clickable and reset any child-related issues
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	
 	# Clear any replacement confirmation dialog that might be affecting the bag
 	if replacement_confirmation_dialog and is_instance_valid(replacement_confirmation_dialog):
 		replacement_confirmation_dialog.queue_free()
@@ -154,6 +158,8 @@ func show_inventory_replacement_mode(reward_data: Resource, reward_type: String)
 
 func show_deck_dialog():
 	"""Show a dialog displaying all cards and equipment"""
+	print("Bag: show_deck_dialog called - is_replacement_mode:", is_replacement_mode, "pending_reward:", pending_reward.name if pending_reward else "null")
+	
 	# Create the dialog
 	var dialog = Control.new()
 	dialog.name = "DeckDialog"
@@ -387,13 +393,24 @@ func show_deck_dialog():
 	
 	# Add dialog to UI layer (parent of the bag)
 	var ui_layer = get_parent()
-	if ui_layer:
-		ui_layer.add_child(dialog)
+	var shop_deck_dialog = null
+	var shop_interior = get_tree().current_scene.get_node_or_null("UILayer/ShopInterior")
+	if shop_interior:
+		shop_deck_dialog = shop_interior.get_node_or_null("DeckDialog")
+	if shop_deck_dialog:
+		shop_deck_dialog.add_child(dialog)
+		shop_deck_dialog.mouse_filter = Control.MOUSE_FILTER_STOP
 		inventory_dialog = dialog
+		print("Bag: Dialog added to Shop DeckDialog node")
 	else:
-		# Fallback to current scene if UI layer not found
-		get_tree().current_scene.add_child(dialog)
-		inventory_dialog = dialog
+		if ui_layer:
+			ui_layer.add_child(dialog)
+			inventory_dialog = dialog
+			print("Bag: Dialog added to UI layer:", ui_layer.name)
+		else:
+			get_tree().current_scene.add_child(dialog)
+			inventory_dialog = dialog
+			print("Bag: Dialog added to current scene:", get_tree().current_scene.name)
 	
 	# Test if buttons are receiving input after dialog is added
 	if is_replacement_mode:
@@ -419,6 +436,7 @@ func create_card_display(card_data: CardData, count: int, clickable: bool = fals
 		button.z_index = 100  # Higher z_index to ensure it's clickable
 		button.focus_mode = Control.FOCUS_NONE  # Disable focus to prevent focus issues
 		button.process_mode = Node.PROCESS_MODE_INHERIT  # Use inherit instead of when paused
+		button.scale = Vector2(0.075, 0.075) # Ensure correct scale in all contexts
 		button.pressed.connect(func():
 			print("Bag: Button pressed signal triggered for", card_data.name)
 			_on_card_button_pressed(card_data)
@@ -428,13 +446,8 @@ func create_card_display(card_data: CardData, count: int, clickable: bool = fals
 		button.texture_hover = card_data.image  # Same texture for hover
 		button.texture_pressed = card_data.image  # Same texture for pressed
 		button.texture_focused = card_data.image  # Same texture for focused
-		# Scale the button to the proper size for cards
-		button.scale = Vector2(0.075, 0.075)
-		# Don't scale the button itself - let the texture handle scaling
-		# button.scale = Vector2(0.075, 0.075)  # This was making clickable area too small
-		# Instead, scale the texture to fit the button size
-		# button.expand_mode = TextureButton.EXPAND_FILL
-		# button.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
+		# Don't scale the button - this makes the clickable area too small
+		# The texture will be automatically scaled to fit the button size
 		# Add hover effect as a separate overlay
 		var hover_overlay = ColorRect.new()
 		hover_overlay.color = Color(1, 1, 0, 0.3)  # Yellow highlight
@@ -458,6 +471,15 @@ func create_card_display(card_data: CardData, count: int, clickable: bool = fals
 				print("Bag: Button pressed - calling _on_card_button_pressed")
 				_on_card_button_pressed(card_data)
 		)
+		
+		# Debug: Check if button is properly set up for input
+		print("Bag: Button input setup for", card_data.name, "- mouse_filter:", button.mouse_filter, "process_mode:", button.process_mode)
+		
+		# Also connect the pressed signal as a fallback
+		button.pressed.connect(func():
+			print("Bag: Button pressed signal triggered for", card_data.name)
+			_on_card_button_pressed(card_data)
+		)
 		print("Bag: Button created successfully for", card_data.name)
 		print("Bag: Button size:", button.size, "position:", button.position)
 		print("Bag: Button mouse_filter:", button.mouse_filter, "z_index:", button.z_index)
@@ -466,6 +488,14 @@ func create_card_display(card_data: CardData, count: int, clickable: bool = fals
 		# Ensure the button is properly set up for input
 		button.mouse_filter = Control.MOUSE_FILTER_STOP
 		button.process_mode = Node.PROCESS_MODE_INHERIT
+		
+		# Add a simple test to verify the button is working
+		button.mouse_entered.connect(func():
+			print("Bag: TEST - Mouse entered button for", card_data.name)
+		)
+		button.mouse_exited.connect(func():
+			print("Bag: TEST - Mouse exited button for", card_data.name)
+		)
 		return button
 	else:
 		print("Bag: Creating regular Control for", card_data.name)
@@ -487,11 +517,14 @@ func create_card_display(card_data: CardData, count: int, clickable: bool = fals
 func _on_card_button_pressed(card_data: CardData):
 	print("Bag: Card button pressed for", card_data.name if card_data else "null")
 	print("Bag: is_replacement_mode:", is_replacement_mode, "pending_reward:", pending_reward.name if pending_reward else "null")
+	print("Bag: pending_reward_type:", pending_reward_type)
 	if is_replacement_mode and pending_reward:
 		print("Bag: Showing replacement confirmation for", card_data.name)
 		show_replacement_confirmation(card_data)
 	else:
 		print("Bag: Not in replacement mode or no pending reward")
+		print("Bag: is_replacement_mode =", is_replacement_mode)
+		print("Bag: pending_reward =", pending_reward)
 
 func show_replacement_confirmation(card_to_replace: CardData):
 	# Close any existing confirmation dialog first
@@ -629,17 +662,32 @@ func show_replacement_confirmation(card_to_replace: CardData):
 	button_container.add_child(no_button)
 	
 	# Add dialog to UI layer as last child to ensure it's on top
-	var ui_layer = get_tree().current_scene.get_node_or_null("UILayer")
-	if ui_layer:
-		ui_layer.add_child(replacement_confirmation_dialog)
-		ui_layer.move_child(replacement_confirmation_dialog, ui_layer.get_child_count() - 1)
+	var shop_replacement = null
+	var shop_interior = get_tree().current_scene.get_node_or_null("UILayer/ShopInterior")
+	if shop_interior:
+		shop_replacement = shop_interior.get_node_or_null("ReplacementConfirmation")
+	if shop_replacement:
+		shop_replacement.add_child(replacement_confirmation_dialog)
+		shop_replacement.mouse_filter = Control.MOUSE_FILTER_STOP
 		replacement_confirmation_dialog.visible = true
 		# Lower the z_index of the Bag inventory dialog if it exists
 		if inventory_dialog and is_instance_valid(inventory_dialog):
 			inventory_dialog.z_index = 1000
+		print("Bag: Replacement confirmation added to Shop ReplacementConfirmation node")
 	else:
-		get_tree().current_scene.add_child(replacement_confirmation_dialog)
-		replacement_confirmation_dialog.visible = true
+		var ui_layer = get_tree().current_scene.get_node_or_null("UILayer")
+		if ui_layer:
+			ui_layer.add_child(replacement_confirmation_dialog)
+			ui_layer.move_child(replacement_confirmation_dialog, ui_layer.get_child_count() - 1)
+			replacement_confirmation_dialog.visible = true
+			# Lower the z_index of the Bag inventory dialog if it exists
+			if inventory_dialog and is_instance_valid(inventory_dialog):
+				inventory_dialog.z_index = 1000
+			print("Bag: Replacement confirmation added to UI layer")
+		else:
+			get_tree().current_scene.add_child(replacement_confirmation_dialog)
+			replacement_confirmation_dialog.visible = true
+			print("Bag: Replacement confirmation added to current scene")
 
 func _on_confirm_replacement(card_to_replace: CardData):
 	"""Confirm the card replacement"""
@@ -650,24 +698,34 @@ func _on_confirm_replacement(card_to_replace: CardData):
 		print("Bag: Missing data for replacement, closing confirmation")
 		close_replacement_confirmation()
 		return
+	
+	# Store the reward data before closing inventory (which clears these variables)
+	var reward_data = pending_reward
+	var reward_type = pending_reward_type
+	
 	# Remove the old card
 	var current_deck_manager = get_tree().current_scene.get_node_or_null("CurrentDeckManager")
 	if current_deck_manager:
 		current_deck_manager.remove_card_from_deck(card_to_replace)
+		print("Bag: Removed card:", card_to_replace.name)
+	
 	# Add the new card
-	if pending_reward_type == "card":
-		var card_data = pending_reward as CardData
+	if reward_type == "card":
+		var card_data = reward_data as CardData
 		current_deck_manager.add_card_to_deck(card_data)
-	elif pending_reward_type == "equipment":
-		var equipment_data = pending_reward as EquipmentData
+		print("Bag: Added card:", card_data.name)
+	elif reward_type == "equipment":
+		var equipment_data = reward_data as EquipmentData
 		var equipment_manager = get_tree().current_scene.get_node_or_null("EquipmentManager")
 		if equipment_manager:
 			equipment_manager.add_equipment(equipment_data)
+		print("Bag: Added equipment:", equipment_data.name)
 	
 	# Sync the DeckManager with the updated CurrentDeckManager
 	var deck_manager = get_tree().current_scene.get_node_or_null("DeckManager")
 	if deck_manager and deck_manager.has_method("sync_with_current_deck"):
 		deck_manager.sync_with_current_deck()
+		print("Bag: Synced DeckManager")
 	else:
 		# Try to find DeckManager as a child of the current scene
 		var scene = get_tree().current_scene
@@ -675,16 +733,20 @@ func _on_confirm_replacement(card_to_replace: CardData):
 			if child.get_script() and "DeckManager" in child.get_script().resource_path:
 				if child.has_method("sync_with_current_deck"):
 					child.sync_with_current_deck()
+					print("Bag: Synced DeckManager (found as child)")
 					break
 	
 	# Emit replacement completed signal BEFORE closing inventory
-	print("Bag: Emitting replacement_completed signal with reward:", pending_reward.name if pending_reward else "null", "type:", pending_reward_type)
-	replacement_completed.emit(pending_reward, pending_reward_type)
+	print("Bag: Emitting replacement_completed signal with reward:", reward_data.name if reward_data else "null", "type:", reward_type)
+	replacement_completed.emit(reward_data, reward_type)
 	
 	# Notify shop if replacement was completed from shop context
 	var shop_interior = get_tree().current_scene.get_node_or_null("UILayer/ShopInterior")
 	if shop_interior and shop_interior.has_method("on_replacement_completed"):
-		shop_interior.on_replacement_completed(pending_reward, pending_reward_type)
+		print("Bag: Notifying shop of replacement completion (card)")
+		shop_interior.on_replacement_completed(reward_data, reward_type)
+	else:
+		print("Bag: Shop interior not found or missing on_replacement_completed method (card)")
 	
 	# Close dialogs AFTER emitting signal
 	close_replacement_confirmation()
@@ -698,6 +760,12 @@ func _on_cancel_replacement_confirmation():
 func close_replacement_confirmation():
 	"""Close the replacement confirmation dialog"""
 	if replacement_confirmation_dialog and is_instance_valid(replacement_confirmation_dialog):
+		# If in shop, restore ReplacementConfirmation mouse_filter
+		var shop_interior = get_tree().current_scene.get_node_or_null("UILayer/ShopInterior")
+		if shop_interior:
+			var shop_replacement = shop_interior.get_node_or_null("ReplacementConfirmation")
+			if shop_replacement:
+				shop_replacement.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		replacement_confirmation_dialog.queue_free()
 		replacement_confirmation_dialog = null
 
@@ -1103,17 +1171,32 @@ func show_equipment_replacement_confirmation(equipment_to_replace: EquipmentData
 	button_container.add_child(no_button)
 	
 	# Add dialog to UI layer as last child to ensure it's on top
-	var ui_layer = get_tree().current_scene.get_node_or_null("UILayer")
-	if ui_layer:
-		ui_layer.add_child(replacement_confirmation_dialog)
-		ui_layer.move_child(replacement_confirmation_dialog, ui_layer.get_child_count() - 1)
+	var shop_replacement = null
+	var shop_interior = get_tree().current_scene.get_node_or_null("UILayer/ShopInterior")
+	if shop_interior:
+		shop_replacement = shop_interior.get_node_or_null("ReplacementConfirmation")
+	if shop_replacement:
+		shop_replacement.add_child(replacement_confirmation_dialog)
+		shop_replacement.mouse_filter = Control.MOUSE_FILTER_STOP
 		replacement_confirmation_dialog.visible = true
 		# Lower the z_index of the Bag inventory dialog if it exists
 		if inventory_dialog and is_instance_valid(inventory_dialog):
 			inventory_dialog.z_index = 1000
+		print("Bag: Replacement confirmation added to Shop ReplacementConfirmation node")
 	else:
-		get_tree().current_scene.add_child(replacement_confirmation_dialog)
-		replacement_confirmation_dialog.visible = true
+		var ui_layer = get_tree().current_scene.get_node_or_null("UILayer")
+		if ui_layer:
+			ui_layer.add_child(replacement_confirmation_dialog)
+			ui_layer.move_child(replacement_confirmation_dialog, ui_layer.get_child_count() - 1)
+			replacement_confirmation_dialog.visible = true
+			# Lower the z_index of the Bag inventory dialog if it exists
+			if inventory_dialog and is_instance_valid(inventory_dialog):
+				inventory_dialog.z_index = 1000
+			print("Bag: Replacement confirmation added to UI layer")
+		else:
+			get_tree().current_scene.add_child(replacement_confirmation_dialog)
+			replacement_confirmation_dialog.visible = true
+			print("Bag: Replacement confirmation added to current scene")
 
 func _on_confirm_equipment_replacement(equipment_to_replace: EquipmentData):
 	"""Confirm the equipment replacement"""
@@ -1125,17 +1208,32 @@ func _on_confirm_equipment_replacement(equipment_to_replace: EquipmentData):
 		close_replacement_confirmation()
 		return
 	
+	# Store the reward data before closing inventory (which clears these variables)
+	var reward_data = pending_reward
+	var reward_type = pending_reward_type
+	
 	# Remove the old equipment
 	var equipment_manager = get_tree().current_scene.get_node_or_null("EquipmentManager")
 	if equipment_manager:
 		equipment_manager.remove_equipment(equipment_to_replace)
+		print("Bag: Removed equipment:", equipment_to_replace.name)
 	
 	# Add the new equipment
-	if pending_reward_type == "equipment":
-		var equipment_data = pending_reward as EquipmentData
+	if reward_type == "equipment":
+		var equipment_data = reward_data as EquipmentData
 		equipment_manager.add_equipment(equipment_data)
+		print("Bag: Added equipment:", equipment_data.name)
 	
-	# Close dialogs
+	# Emit replacement completed signal BEFORE closing inventory
+	print("Bag: Emitting replacement_completed signal with reward:", reward_data.name if reward_data else "null", "type:", reward_type)
+	replacement_completed.emit(reward_data, reward_type)
+	
+	# Notify shop if replacement was completed from shop context
+	var shop_interior = get_tree().current_scene.get_node_or_null("UILayer/ShopInterior")
+	if shop_interior and shop_interior.has_method("on_replacement_completed"):
+		shop_interior.on_replacement_completed(reward_data, reward_type)
+	
+	# Close dialogs AFTER emitting signal
 	close_replacement_confirmation()
 	close_inventory()
 

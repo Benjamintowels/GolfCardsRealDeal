@@ -1,7 +1,6 @@
 extends Control
 
 const BagData = preload("res://Bags/BagData.gd")
-const CardReplacementDialog = preload("res://UI/card_replacement_dialog.gd")
 
 signal reward_selected(reward_data: Resource, reward_type: String)
 signal advance_to_next_hole
@@ -14,9 +13,6 @@ var left_reward_data: Resource
 var right_reward_data: Resource
 var left_reward_type: String
 var right_reward_type: String
-var pending_reward: Resource
-var pending_reward_type: String
-var card_replacement_dialog: Control = null
 
 # Available cards for rewards
 var available_cards: Array[CardData] = [
@@ -142,74 +138,33 @@ func _on_advance_pressed():
 
 func check_bag_slots(reward_data: Resource, reward_type: String) -> bool:
 	"""Check if there are available slots in the bag for the reward"""
-	# Use the shared static function from CardReplacementDialog
-	return CardReplacementDialog.check_bag_slots(reward_data, reward_type)
-
-func show_card_replacement_dialog(reward_data: Resource, reward_type: String):
-	"""Show dialog for replacing a card when bag is full"""
-	pending_reward = reward_data
-	pending_reward_type = reward_type
-	
-	# Create shared replacement dialog
-	var dialog_scene = preload("res://UI/CardReplacementDialog.tscn")
-	card_replacement_dialog = dialog_scene.instantiate()
-	
-	# Connect signals
-	card_replacement_dialog.replacement_completed.connect(_on_shared_replacement_completed)
-	card_replacement_dialog.replacement_cancelled.connect(_on_shared_replacement_cancelled)
-	
-	# Add dialog to scene
-	get_tree().current_scene.add_child(card_replacement_dialog)
-	
-	# Show the dialog
-	card_replacement_dialog.show_replacement_dialog(pending_reward, pending_reward_type)
-
-func _on_cancel_replacement():
-	"""Cancel the card replacement process"""
-	if card_replacement_dialog:
-		card_replacement_dialog.queue_free()
-		card_replacement_dialog = null
-	
-	# Close bag replacement mode
 	var bag = get_tree().current_scene.get_node_or_null("UILayer/Bag")
-	if bag:
-		bag.close_inventory()
+	if not bag:
+		return true  # Allow if bag not found
 	
-	pending_reward = null
-	pending_reward_type = ""
-
-func _on_shared_replacement_completed(reward_data: Resource, reward_type: String):
-	"""Handle shared replacement dialog completion"""
+	if reward_type == "card":
+		var card_data = reward_data as CardData
+		# Check if it's a club card by name
+		var club_names = ["Putter", "Wooden", "Iron", "Hybrid", "Driver", "PitchingWedge", "Fire Club", "Ice Club"]
+		if club_names.has(card_data.name):
+			# Check club card slots
+			var club_cards = bag.get_club_cards()
+			var club_slots = bag.get_club_slots()
+			return club_cards.size() < club_slots
+		else:
+			# Check movement card slots
+			var movement_cards = bag.get_movement_cards()
+			var movement_slots = bag.get_movement_slots()
+			return movement_cards.size() < movement_slots
+	elif reward_type == "equipment":
+		# Check equipment slots
+		var equipment_manager = get_tree().current_scene.get_node_or_null("EquipmentManager")
+		if equipment_manager:
+			var equipped_items = equipment_manager.get_equipped_equipment()
+			var equipment_slots = bag.get_equipment_slots()
+			return equipped_items.size() < equipment_slots
 	
-	# Emit the reward selected signal
-	reward_selected.emit(reward_data, reward_type)
-	
-	# Reset pending reward
-	pending_reward = null
-	pending_reward_type = ""
-	
-	# Clean up dialog
-	if card_replacement_dialog and is_instance_valid(card_replacement_dialog):
-		card_replacement_dialog.queue_free()
-		card_replacement_dialog = null
-	
-	# Clear and disable left and right reward buttons
-	clear_reward_buttons()
-	
-	# Hide the dialog
-	visible = false
-
-func _on_shared_replacement_cancelled():
-	"""Handle shared replacement dialog cancellation"""
-	
-	# Reset pending reward
-	pending_reward = null
-	pending_reward_type = ""
-	
-	# Clean up dialog
-	if card_replacement_dialog and is_instance_valid(card_replacement_dialog):
-		card_replacement_dialog.queue_free()
-		card_replacement_dialog = null
+	return true
 
 func create_card_display(card_data: CardData, count: int) -> Control:
 	"""Create a display for a single card with count"""
@@ -418,17 +373,46 @@ func handle_reward_selection(reward_data: Resource, reward_type: String):
 	if reward_sound:
 		reward_sound.play()
 	
-	# Clear both reward buttons
-	clear_reward_buttons()
+	# Check if there are available slots in the bag
+	var slots_available = check_bag_slots(reward_data, reward_type)
 	
-	if check_bag_slots(reward_data, reward_type):
-		# Slot available, add directly
+	if slots_available:
+		# Clear both reward buttons
+		clear_reward_buttons()
+		
+		# Add reward directly since slots are available
 		add_reward_to_inventory(reward_data, reward_type)
 		reward_selected.emit(reward_data, reward_type)
 		visible = false
 	else:
-		# No slot available, show replacement dialog
-		show_card_replacement_dialog(reward_data, reward_type)
+		# Bag is full - trigger replacement system
+		print("RewardSelectionDialog: Bag is full, triggering replacement system")
+		trigger_replacement_system(reward_data, reward_type)
+
+func trigger_replacement_system(reward_data: Resource, reward_type: String):
+	"""Trigger the replacement system when bag is full"""
+	# Clear reward buttons
+	clear_reward_buttons()
+	
+	# Create and show replacement dialog
+	var replacement_dialog = preload("res://UI/CardReplacementDialog.tscn").instantiate()
+	
+	# Add to UI layer
+	var ui_layer = get_tree().current_scene.get_node_or_null("UILayer")
+	if ui_layer:
+		ui_layer.add_child(replacement_dialog)
+	else:
+		get_tree().current_scene.add_child(replacement_dialog)
+	
+	# Connect signals
+	replacement_dialog.replacement_completed.connect(_on_replacement_completed)
+	replacement_dialog.replacement_cancelled.connect(_on_replacement_cancelled)
+	
+	# Show the replacement dialog
+	replacement_dialog.show_replacement_dialog(reward_data, reward_type)
+	
+	# Hide the reward selection dialog
+	visible = false
 
 func add_reward_to_inventory(reward_data: Resource, reward_type: String):
 	"""Add reward to the appropriate inventory"""
@@ -459,8 +443,7 @@ func apply_bag_upgrade(bag_data: BagData):
 
 func _exit_tree():
 	"""Clean up when the dialog is removed"""
-	if card_replacement_dialog and is_instance_valid(card_replacement_dialog):
-		card_replacement_dialog.queue_free()
+	pass
 
 func clear_reward_buttons():
 	"""Clear both left and right reward buttons"""
@@ -477,17 +460,19 @@ func clear_reward_buttons():
 
 func _on_replacement_completed(reward_data: Resource, reward_type: String):
 	"""Called when a card replacement is completed"""
-	# Close the replacement dialog
-	if card_replacement_dialog:
-		card_replacement_dialog.queue_free()
-		card_replacement_dialog = null
-	
 	# Emit the reward selected signal
 	reward_selected.emit(reward_data, reward_type)
-	
-	# Reset pending reward
-	pending_reward = null
-	pending_reward_type = ""
 
 	# Clear and disable left and right reward buttons
 	clear_reward_buttons() 
+
+func _on_replacement_cancelled():
+	"""Called when replacement is cancelled"""
+	print("RewardSelectionDialog: Replacement cancelled")
+	# Show the reward selection dialog again
+	visible = true
+	# Re-enable reward buttons
+	if left_reward_button:
+		left_reward_button.disabled = false
+	if right_reward_button:
+		right_reward_button.disabled = false 

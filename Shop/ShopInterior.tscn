@@ -107,3 +107,21 @@ offset_top = 297.0
 offset_right = 619.0
 offset_bottom = 547.0
 scale = Vector2(0.6, 0.6)
+
+[node name="DeckDialog" type="Control" parent="."]
+z_index = 1000
+anchors_preset = 0
+offset_left = 613.83
+offset_top = 310.89
+offset_right = 613.83
+offset_bottom = 310.89
+mouse_filter = 1
+
+[node name="ReplacementConfirmation" type="Control" parent="."]
+z_index = 2000
+anchors_preset = 0
+offset_left = 573.0
+offset_top = 385.0
+offset_right = 573.0
+offset_bottom = 385.0
+mouse_filter = 1
