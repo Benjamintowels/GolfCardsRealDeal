@@ -326,21 +326,27 @@ func apply_knockback(npc: Node, current_pos: Vector2i) -> void:
 	# For grid-based movement, we need to handle direction differently
 	var knockback_pos = current_pos
 	
+	# Check if this is a GangMember and if it's frozen
+	var actual_knockback_distance = knockback_distance
+	if npc.has_method("is_frozen_state") and npc.is_frozen_state():
+		actual_knockback_distance = knockback_distance * 3
+		print("GangMember is frozen - applying triple knockback distance:", actual_knockback_distance)
+	
 	if direction.x > 0:
-		knockback_pos.x += knockback_distance
+		knockback_pos.x += actual_knockback_distance
 	elif direction.x < 0:
-		knockback_pos.x -= knockback_distance
+		knockback_pos.x -= actual_knockback_distance
 	elif direction.y > 0:
-		knockback_pos.y += knockback_distance
+		knockback_pos.y += actual_knockback_distance
 	elif direction.y < 0:
-		knockback_pos.y -= knockback_distance
+		knockback_pos.y -= actual_knockback_distance
 	
 	# Check if knockback position is valid
 	if is_position_valid_for_knockback(knockback_pos):
 		# Use animated pushback if the NPC supports it
 		if npc.has_method("push_back"):
 			npc.push_back(knockback_pos)
-			print("Applied animated pushback to NPC")
+			print("Applied animated pushback to NPC (distance:", actual_knockback_distance, ")")
 		else:
 			# Fallback to instant position change
 			npc.set_grid_position(knockback_pos)
@@ -348,7 +354,7 @@ func apply_knockback(npc: Node, current_pos: Vector2i) -> void:
 			# Update Y-sorting
 			if npc.has_method("update_z_index_for_ysort"):
 				npc.update_z_index_for_ysort()
-			print("Applied instant pushback to NPC (no animation support)")
+			print("Applied instant pushback to NPC (distance:", actual_knockback_distance, ", no animation support)")
 
 func is_position_valid_for_knockback(pos: Vector2i) -> bool:
 	"""Check if a position is valid for NPC knockback"""

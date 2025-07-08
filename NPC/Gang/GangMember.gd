@@ -902,6 +902,9 @@ func _on_turn_ended(npc: Node) -> void:
 
 func _complete_turn() -> void:
 	"""Complete the current turn"""
+	# Check for nearby fire tiles that could thaw the GangMember
+	_check_fire_tile_thawing()
+	
 	# Handle freeze effect thawing
 	if is_frozen:
 		freeze_turns_remaining -= 1
@@ -2092,7 +2095,7 @@ func freeze() -> void:
 		return
 	
 	is_frozen = true
-	freeze_turns_remaining = 2  # Freeze for 2 turns
+	freeze_turns_remaining = 3  # Freeze for 3 turns
 	print("GangMember frozen for", freeze_turns_remaining, "turns!")
 	
 	# Play freeze sound
@@ -2210,3 +2213,37 @@ func thaw() -> void:
 func is_frozen_state() -> bool:
 	"""Check if the gang member is currently frozen"""
 	return is_frozen
+
+func _check_fire_tile_thawing() -> void:
+	"""Check if the GangMember is within 2 tiles of a fire tile and thaw if so"""
+	if not is_frozen:
+		return  # Not frozen, nothing to thaw
+	
+	# Get all active fire tiles
+	var fire_tiles = get_tree().get_nodes_in_group("fire_tiles")
+	var nearby_fire_tiles = []
+	
+	for fire_tile in fire_tiles:
+		if not is_instance_valid(fire_tile) or not fire_tile.has_method("is_fire_active"):
+			continue
+		
+		# Skip if fire tile is not active (scorched)
+		if not fire_tile.is_fire_active():
+			continue
+		
+		var fire_tile_pos = fire_tile.get_tile_position()
+		var distance = grid_position.distance_to(fire_tile_pos)
+		
+		# Check if within 2 tiles of the fire tile
+		if distance <= 2:
+			nearby_fire_tiles.append(fire_tile)
+	
+	# If there are nearby fire tiles, thaw the GangMember
+	if nearby_fire_tiles.size() > 0:
+		print("GangMember is within 2 tiles of", nearby_fire_tiles.size(), "fire tile(s) - thawing immediately!")
+		thaw()
+		
+		# Allow the GangMember to take their turn if they haven't already
+		if not is_dead and not is_ragdolling:
+			print("GangMember thawed by fire - allowing turn to proceed")
+			# The turn will continue normally since we're not skipping it
