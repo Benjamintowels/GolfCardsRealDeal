@@ -1,13 +1,12 @@
 [gd_resource type="Resource" script_class="EquipmentData" load_steps=3 format=3 uid="uid://dhyonsse34kca"]
 
 [ext_resource type="Script" uid="uid://cf85ta7k8ivt1" path="res://Equipment/EquipmentData.gd" id="1_equipment_script"]
-
-[sub_resource type="CompressedTexture2D" id="CompressedTexture2D_7rag7"]
+[ext_resource type="Texture2D" uid="uid://dhgijofp854q8" path="res://Equipment/Wand.png" id="1_pug26"]
 
 [resource]
 script = ExtResource("1_equipment_script")
 name = "Wand"
-image = SubResource("CompressedTexture2D_7rag7")
+image = ExtResource("1_pug26")
 description = "A magical wand that increases your strength."
 buff_type = "strength"
 buff_value = 2
@@ -15,3 +14,4 @@ price = 300
 is_clothing = false
 clothing_slot = ""
 clothing_scene_path = ""
+display_image = ExtResource("1_pug26")

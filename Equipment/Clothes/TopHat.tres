@@ -1,15 +1,13 @@
 [gd_resource type="Resource" script_class="EquipmentData" load_steps=4 format=3 uid="uid://mqobbxnhgnra"]
 
+[ext_resource type="Texture2D" uid="uid://dxp8n3ehbk5fu" path="res://Equipment/Clothes/TopHatDisplayImage.png" id="1_75xym"]
 [ext_resource type="Script" uid="uid://cf85ta7k8ivt1" path="res://Equipment/EquipmentData.gd" id="1_equipment_script"]
-
-[sub_resource type="CompressedTexture2D" id="CompressedTexture2D_display"]
-
-[sub_resource type="CompressedTexture2D" id="CompressedTexture2D_7rag7"]
+[ext_resource type="Texture2D" uid="uid://domgjhmkpmpm7" path="res://Equipment/Clothes/TopHat.png" id="2_1cv8l"]
 
 [resource]
 script = ExtResource("1_equipment_script")
 name = "Top Hat"
-image = SubResource("CompressedTexture2D_7rag7")
+image = ExtResource("2_1cv8l")
 description = "A fancy top hat that increases your card draw."
 buff_type = "card_draw"
 buff_value = 1
@@ -17,4 +15,4 @@ price = 250
 is_clothing = true
 clothing_slot = "head"
 clothing_scene_path = "res://Equipment/Clothes/TopHat.tscn"
-display_image = SubResource("CompressedTexture2D_display")
+display_image = ExtResource("1_75xym")
