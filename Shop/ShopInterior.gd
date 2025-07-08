@@ -414,9 +414,8 @@ func is_club_card(card_data: CardData) -> bool:
 	# Check if the card has club-related properties
 	if card_data.has_method("is_club_card"):
 		return card_data.is_club_card()
-	
 	# Use the same club names list as RewardSelectionDialog
-	var club_names = ["Putter", "Wooden", "Iron", "Hybrid", "Driver", "PitchingWedge", "Fire Club", "Ice Club"]
+	var club_names = ["Putter", "Wood", "Wooden", "Iron", "Hybrid", "Driver", "PitchingWedge", "Fire Club", "Ice Club"]
 	return club_names.has(card_data.name)
 
 
@@ -493,7 +492,7 @@ func check_bag_slots(item: Resource, item_type: String) -> bool:
 	if item_type == "card":
 		var card_data = item as CardData
 		# Check if it's a club card by name
-		var club_names = ["Putter", "Wooden", "Iron", "Hybrid", "Driver", "PitchingWedge", "Fire Club", "Ice Club"]
+		var club_names = ["Putter", "Wood", "Wooden", "Iron", "Hybrid", "Driver", "PitchingWedge", "Fire Club", "Ice Club"]
 		if club_names.has(card_data.name):
 			# Check club card slots
 			var club_cards = bag.get_club_cards()

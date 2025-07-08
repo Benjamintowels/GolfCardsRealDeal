@@ -993,7 +993,7 @@ func create_slot_container() -> Control:
 
 func is_club_card(card_data: CardData) -> bool:
 	"""Check if a card is a club card based on its name"""
-	var club_names = ["Putter", "Wooden", "Iron", "Hybrid", "Driver", "PitchingWedge", "Fire Club", "Ice Club"]
+	var club_names = ["Putter", "Wood", "Wooden", "Iron", "Hybrid", "Driver", "PitchingWedge", "Fire Club", "Ice Club"]
 	return club_names.has(card_data.name)
 
 func create_placeholder_slot() -> Control:
