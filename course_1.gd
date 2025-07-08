@@ -229,6 +229,7 @@ var object_scene_map := {
 	"GANG": preload("res://NPC/Gang/GangMember.tscn"),
 	"OIL": preload("res://Interactables/OilDrum.tscn"),
 	"WALL": preload("res://Obstacles/StoneWall.tscn"),
+	"BOULDER": preload("res://Obstacles/Boulder.tscn"),
 }
 
 var object_to_tile_mapping := {
@@ -238,6 +239,7 @@ var object_to_tile_mapping := {
 	"GANG": "G",
 	"OIL": "Base",
 	"WALL": "Base",
+	"BOULDER": "Base",
 }
 
 # Add these variables after the existing object_scene_map and object_to_tile_mapping
@@ -2092,6 +2094,14 @@ func reset_for_next_hole():
 	if existing_reward_dialog:
 		existing_reward_dialog.queue_free()
 		print("Cleaned up existing reward dialog")
+	
+	# Reset launch manager state for new hole
+	if launch_manager and launch_manager.has_method("set_ball_in_flight"):
+		launch_manager.set_ball_in_flight(false)
+		print("Launch manager ball in flight state reset for new hole")
+	
+	# Clear any existing balls from the previous hole
+	remove_all_balls()
 	
 	current_hole += 1
 	var round_end_hole = 0

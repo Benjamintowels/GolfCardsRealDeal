@@ -111,8 +111,10 @@ func clear_existing_objects() -> void:
 			var is_oil_drum = obstacle.name == "OilDrum" or (obstacle.get_script() and "oil_drum.gd" in str(obstacle.get_script().get_path()))
 			# Check for stone walls by name or script
 			var is_stone_wall = obstacle.name == "StoneWall" or (obstacle.get_script() and "StoneWall.gd" in str(obstacle.get_script().get_path()))
+			# Check for boulders by name or script
+			var is_boulder = obstacle.name == "Boulder" or (obstacle.get_script() and "boulder.gd" in str(obstacle.get_script().get_path()))
 			
-			if is_tree or is_shop or is_pin or is_oil_drum or is_stone_wall:
+			if is_tree or is_shop or is_pin or is_oil_drum or is_stone_wall or is_boulder:
 				keys_to_remove.append(pos)
 	for pos in keys_to_remove:
 		obstacle_map.erase(pos)
@@ -146,7 +148,8 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 		"shop": Vector2i.ZERO,
 		"gang_members": [],
 		"oil_drums": [],
-		"stone_walls": []
+		"stone_walls": [],
+		"boulders": []
 	}
 	
 	# Use turn-based spawning if parameters are -1 (default)
@@ -203,6 +206,26 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 			placed_objects.append(tree_pos)
 			trees_placed += 1
 		valid_positions.remove_at(tree_index)
+	
+	# Place Boulders on remaining base tiles (after trees)
+	var num_boulders = 4  # Place 4 boulders per hole
+	var boulders_placed = 0
+	while boulders_placed < num_boulders and valid_positions.size() > 0:
+		var boulder_index = randi() % valid_positions.size()
+		var boulder_pos = valid_positions[boulder_index]
+		var valid = true
+		for placed_pos in placed_objects:
+			var distance = max(abs(boulder_pos.x - placed_pos.x), abs(boulder_pos.y - placed_pos.y))
+			if distance < 6:  # Slightly closer spacing than trees
+				valid = false
+				break
+		if valid:
+			positions.boulders.append(boulder_pos)
+			placed_objects.append(boulder_pos)
+			boulders_placed += 1
+		valid_positions.remove_at(boulder_index)
+	
+	print("✓ Placed", boulders_placed, "boulders on remaining base tiles")
 	
 	# Place GangMembers on green tiles
 	var green_positions: Array = []
@@ -410,6 +433,38 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		obstacle_layer.add_child(tree)
 		if tree.has_method("blocks") and tree.blocks():
 			obstacle_map[tree_pos] = tree
+	
+	# Place Boulders
+	print("=== PLACING BOULDERS ===")
+	print("Boulder positions:", object_positions.boulders)
+	for boulder_pos in object_positions.boulders:
+		var scene: PackedScene = object_scene_map["BOULDER"]
+		if scene == null:
+			push_error("🚫 Boulder scene is null")
+			continue
+		print("✓ Boulder scene loaded successfully")
+		var boulder: Node2D = scene.instantiate() as Node2D
+		if boulder == null:
+			push_error("❌ Boulder instantiation failed at (%d,%d)" % [boulder_pos.x, boulder_pos.y])
+			continue
+		print("✓ Boulder instantiated successfully")
+		var world_pos: Vector2 = Vector2(boulder_pos.x, boulder_pos.y) * cell_size
+		boulder.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
+		
+		# Always set the grid_position property unconditionally
+		boulder.set_meta("grid_position", boulder_pos)
+		print("✓ Set boulder grid_position to:", boulder_pos)
+		
+		# Add boulder to groups for smart optimization
+		boulder.add_to_group("boulders")
+		boulder.add_to_group("collision_objects")
+		
+		ysort_objects.append({"node": boulder, "grid_pos": boulder_pos})
+		obstacle_layer.add_child(boulder)
+		print("✓ Boulder placed at grid position:", boulder_pos, "world position:", world_pos)
+		print("✓ Boulder name:", boulder.name)
+		print("✓ Boulder grid_position property:", boulder.get_meta("grid_position") if boulder.get_meta("grid_position") != null else "null")
+	print("=== END PLACING BOULDERS ===")
 	if object_positions.shop != Vector2i.ZERO:
 		var scene: PackedScene = object_scene_map["SHOP"]
 		if scene == null:

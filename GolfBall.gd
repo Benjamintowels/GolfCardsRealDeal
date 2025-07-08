@@ -1135,6 +1135,12 @@ func _on_area_entered(area):
 			_handle_roof_bounce_collision(area.get_parent())
 		# Notify course to re-enable player collision since ball hit oil drum
 		notify_course_of_collision()
+	# Check if this is a Boulder collision
+	elif area.get_parent() and area.get_parent().has_method("_handle_boulder_collision"):
+		# Boulder collision detected - use roof bounce system
+		_handle_roof_bounce_collision(area.get_parent())
+		# Notify course to re-enable player collision since ball hit boulder
+		notify_course_of_collision()
 
 
 func _on_area_exited(area):

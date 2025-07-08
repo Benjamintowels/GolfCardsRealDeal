@@ -252,7 +252,10 @@ func _on_area_entered(area: Area2D) -> void:
 		_handle_roof_bounce_collision(object)
 		return
 	
-
+	# Check if this is a Boulder collision
+	if object.has_method("_handle_boulder_collision"):
+		_handle_roof_bounce_collision(object)
+		return
 	
 	# Check if this is a player collision
 	if object.has_method("take_damage") and object.name == "Player":

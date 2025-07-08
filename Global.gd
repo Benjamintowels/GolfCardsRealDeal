@@ -341,6 +341,8 @@ func _get_object_type_from_node(object_node: Node2D) -> String:
 		return "golf_ball"
 	elif "knife" in node_name or "ThrowingKnife" in script_path or "ThrowingKnife" in object_node.get_class():
 		return "throwing_knife"
+	elif "boulder" in node_name or "Boulder" in script_path or "Boulder" in object_node.get_class():
+		return "boulder"
 	else:
 		return "unknown"
 
@@ -369,6 +371,8 @@ func _get_standard_height_for_type(object_type: String) -> float:
 			return 10.0
 		"throwing_knife":
 			return 5.0
+		"boulder":
+			return 60.0
 		_:
 			return 100.0  # Default fallback height
 
