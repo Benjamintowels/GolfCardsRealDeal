@@ -204,32 +204,21 @@ func exit_knife_mode() -> void:
 
 func launch_golf_ball(launch_direction: Vector2, final_power: float, height: float, launch_spin: float = 0.0, spin_strength_category: int = 0):
 	"""Launch the golf ball with the specified parameters"""
-	print("=== LAUNCHING GOLF BALL ===")
-	print("Launch direction:", launch_direction)
-	print("Final power:", final_power)
-	print("Height:", height)
-	print("Spin:", launch_spin)
-	print("Spin strength category:", spin_strength_category)
 	
 	# Find the existing ball in the scene
 	var existing_ball = null
 	var balls = get_tree().get_nodes_in_group("balls")
-	print("DEBUG: Found", balls.size(), "balls in 'balls' group")
 	
 	for ball in balls:
-		print("DEBUG: Checking ball:", ball.name, "valid:", is_instance_valid(ball), "type:", ball.get_class())
 		if is_instance_valid(ball):
 			existing_ball = ball
-			print("DEBUG: Found existing ball at position:", ball.global_position)
 			break
 	
 	if not existing_ball:
-		print("ERROR: No existing ball found in scene")
 		return
 	
 	# Use the existing ball
 	golf_ball = existing_ball
-	print("Golf ball reference set to:", golf_ball.name)
 	
 	# Set ball properties
 	golf_ball.chosen_landing_spot = chosen_landing_spot
@@ -276,7 +265,6 @@ func launch_throwing_knife(launch_direction: Vector2, final_power: float, height
 				break
 
 	if not existing_knife:
-		print("No available knife found - creating new knife instance")
 		# Create a new knife instance
 		var throwing_knife_scene = preload("res://Weapons/ThrowingKnife.tscn")
 		existing_knife = throwing_knife_scene.instantiate()
@@ -296,7 +284,6 @@ func launch_throwing_knife(launch_direction: Vector2, final_power: float, height
 				card_effect_handler.course.add_child(existing_knife)
 				existing_knife.global_position = player_node.global_position
 		else:
-			print("ERROR: Cannot find course to add knife")
 			return
 
 	# Use the existing knife
@@ -505,19 +492,10 @@ func handle_input(event: InputEvent) -> bool:
 				if is_charging:
 					is_charging = false
 					var is_putting = club_data.get(selected_club, {}).get("is_putter", false)
-					print("=== HEIGHT METER DEBUG ===")
-					print("Selected club:", selected_club)
-					print("Club data keys:", club_data.keys())
-					print("Selected club data:", club_data.get(selected_club, {}))
-					print("Is putting:", is_putting)
-					print("Is knife mode:", is_knife_mode)
-					print("=== END HEIGHT METER DEBUG ===")
 					if not is_putting:
-						print("Showing height meter - not a putter")
 						is_charging_height = true
 						launch_height = 0.0
 					else:
-						print("Not showing height meter - is a putter")
 						# Calculate final power and launch the projectile
 						var final_power = calculate_final_power()
 						launch_direction = calculate_launch_direction()
@@ -600,13 +578,6 @@ func calculate_final_power() -> float:
 	time_percent = clamp(time_percent, 0.0, 1.0)
 	var actual_power = 0.0
 	
-	print("=== POWER CALCULATION DEBUG ===")
-	print("Charge time:", charge_time, "Max charge time:", max_charge_time)
-	print("Time percent:", time_percent)
-	print("Chosen landing spot:", chosen_landing_spot)
-	print("Selected club:", selected_club)
-	print("Is knife mode:", is_knife_mode)
-	
 	if chosen_landing_spot != Vector2.ZERO:
 		var sprite = player_node.get_node_or_null("Sprite2D")
 		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
@@ -660,12 +631,6 @@ func calculate_final_power() -> float:
 	if strength_modifier != 0:
 		var strength_multiplier = 1.0 + (strength_modifier * 0.1)
 		final_power *= strength_multiplier
-	
-	print("Actual power:", actual_power)
-	print("Height resistance multiplier:", height_resistance_multiplier)
-	print("Strength modifier:", strength_modifier)
-	print("Final power:", final_power)
-	print("=== END POWER CALCULATION DEBUG ===")
 	
 	return final_power
 

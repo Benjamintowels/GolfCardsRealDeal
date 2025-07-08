@@ -71,23 +71,17 @@ const HEIGHT_SHADOW_SCALE_FACTOR = 0.5  # How much to scale shadow per unit of h
 # Standard height values for common objects (in pixels)
 # These values represent the actual visual height of sprites in the game world
 
-func _ready():
-	print("Global script loaded, selected_character = ", selected_character)
-	# Global Y-sort system initialized - using Godot's built-in Y-sorting
-
 # Equipment functions
 func add_equipment(equipment: EquipmentData) -> void:
 	"""Add equipment to inventory and apply buffs"""
 	if not equipped_items.has(equipment):
 		equipped_items.append(equipment)
-		print("Added equipment:", equipment.name, "to inventory")
 		apply_equipment_buffs()
 
 func remove_equipment(equipment: EquipmentData) -> void:
 	"""Remove equipment from inventory"""
 	if equipped_items.has(equipment):
 		equipped_items.erase(equipment)
-		print("Removed equipment:", equipment.name, "from inventory")
 		apply_equipment_buffs()
 
 func apply_equipment_buffs() -> void:
@@ -139,7 +133,6 @@ func update_screen_height():
 	pass
 
 # Store last debug output to avoid spam
-var _last_debug_output = {}
 
 func get_y_sort_z_index(world_position: Vector2, object_type: String = "objects") -> int:
 	"""
@@ -153,16 +146,6 @@ func get_y_sort_z_index(world_position: Vector2, object_type: String = "objects"
 	# Add offset based on object type
 	var offset = Z_INDEX_OFFSETS.get(object_type, 0)
 	var z_index = base_z_index + offset
-	
-	# Debug output for significant changes only
-	if object_type == "characters" or object_type == "balls":
-		var debug_key = str(world_position) + "_" + object_type
-		var current_debug = str(z_index)
-		
-		# Only print if this is a new position or significant change
-		if not _last_debug_output.has(debug_key) or _last_debug_output[debug_key] != current_debug:
-			# Y-sort update - pos: world_position, z_index: z_index, type: object_type
-			_last_debug_output[debug_key] = current_debug
 	
 	return z_index
 
@@ -310,7 +293,6 @@ func get_object_height_from_marker(object_node: Node2D) -> float:
 			# The marker's Y position represents the height from the object's base to its top
 			# Since the marker is positioned at the top of the dead sprite, we take the absolute value
 			var height_from_marker = abs(dead_gang_top_height_marker.position.y)
-			print("Using DeadGangTopHeight marker for dead", object_node.name, "- height:", height_from_marker)
 			return height_from_marker
 	
 	# Look for regular TopHeight Marker2D
@@ -319,13 +301,11 @@ func get_object_height_from_marker(object_node: Node2D) -> float:
 		# The marker's Y position represents the height from the object's base to its top
 		# Since the marker is positioned at the top of the sprite, we take the absolute value
 		var height_from_marker = abs(top_height_marker.position.y)
-		print("Using TopHeight marker for", object_node.name, "- height:", height_from_marker)
 		return height_from_marker
 	
 	# Fallback to standard height based on object type
 	var object_type = _get_object_type_from_node(object_node)
 	var fallback_height = _get_standard_height_for_type(object_type)
-	print("Using fallback height for", object_node.name, "- type:", object_type, "- height:", fallback_height)
 	return fallback_height
 
 func _get_object_type_from_node(object_node: Node2D) -> String:
@@ -490,19 +470,13 @@ func get_turn_based_oil_drum_count() -> int:
 func increment_global_turn() -> void:
 	"""Increment the global turn counter"""
 	global_turn_count += 1
-	print("Global turn incremented to: ", global_turn_count)
 
 func reset_global_turn() -> void:
 	"""Reset the global turn counter (for new games)"""
 	global_turn_count = 1
-	print("Global turn reset to: ", global_turn_count)
 
 func clear_shop_state():
 	"""Clear global state to prevent dictionary conflicts when returning from shop"""
-	print("=== CLEARING GLOBAL SHOP STATE ===")
-	
-	# Clear any debug output cache that might cause issues
-	_last_debug_output.clear()
 	
 	# Clear any saved game state that might cause conflicts
 	saved_game_state = ""
@@ -527,5 +501,3 @@ func clear_shop_state():
 	saved_tree_positions.clear()
 	saved_pin_position = Vector2i.ZERO
 	saved_shop_position = Vector2i.ZERO
-	
-	print("=== GLOBAL SHOP STATE CLEARED ===")

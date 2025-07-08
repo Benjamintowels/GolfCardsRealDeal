@@ -573,33 +573,17 @@ func _ready() -> void:
 	is_placing_player = true
 	highlight_tee_tiles()
 
-	print("=== INITIALIZATION DEBUG ===")
-	print("Loading map data for hole:", current_hole + 1)
 	map_manager.load_map_data(GolfCourseLayout.get_hole_layout(current_hole))
 	build_map.build_map_from_layout_with_randomization(map_manager.level_layout)
 	
 	# Sync shop grid position with build_map
 	shop_grid_pos = build_map.shop_grid_pos
 	
-	# Debug: Check if pin was created
-	print("=== PIN CREATION DEBUG ===")
-	print("ysort_objects size after map building:", ysort_objects.size())
-	for i in range(ysort_objects.size()):
-		var obj = ysort_objects[i]
-		if obj.has("node") and obj.node:
-			print("Object", i, ":", obj.node.name, "at grid pos:", obj.grid_pos)
-		else:
-			print("Object", i, ": Invalid object")
-	print("=== END PIN CREATION DEBUG ===")
 	
 	# Ensure Y-sort objects are properly registered for pin detection
 	update_all_ysort_z_indices()
-	print("Y-sort updated after map building")
 	hole_score = 0
-	print("Map data loaded, building map...")
-	print("Map built, positioning camera on pin...")
 	position_camera_on_pin()  # Add the camera positioning call
-	print("=== END INITIALIZATION DEBUG ===")
 
 	update_hole_and_score_display()
 
@@ -631,26 +615,11 @@ func _ready() -> void:
 	test_bag_btn.position = Vector2(400, 100)
 	test_bag_btn.z_index = 999
 	$UILayer.add_child(test_bag_btn)
-	test_bag_btn.pressed.connect(_on_test_bag_button_pressed)
 
 func _on_complete_hole_pressed():
 	# Clear any existing balls before showing the hole completion dialog
 	remove_all_balls()
 	show_hole_completion_dialog()
-
-func _on_test_bag_button_pressed():
-	"""Test function to manually trigger bag click"""
-	print("=== TESTING BAG CLICK ===")
-	if bag and bag.has_method("debug_bag_state"):
-		bag.debug_bag_state()
-		# Manually trigger the bag's input event
-		var fake_event = InputEventMouseButton.new()
-		fake_event.button_index = MOUSE_BUTTON_LEFT
-		fake_event.pressed = true
-		bag._on_bag_input_event(fake_event)
-	else:
-		print("Bag not found or missing debug_bag_state method")
-	print("=== END TESTING BAG CLICK ===")
 
 func _input(event: InputEvent) -> void:
 	# Debug: Check if bag is receiving input events
@@ -1381,10 +1350,6 @@ func _on_end_turn_pressed() -> void:
 	deck_manager.hand.clear()
 	print("End turn: Hand cleared, final hand size:", deck_manager.hand.size())
 	
-	# Debug: Print deck state after discarding
-	print("=== DECK STATE AFTER DISCARD ===")
-	deck_manager.debug_print_state()
-	print("=== END DECK STATE ===")
 	
 	movement_controller.clear_all_movement_ui()
 	attack_handler.clear_all_attack_ui()
@@ -1937,18 +1902,9 @@ func draw_cards_for_shot(card_count: int = 3) -> void:
 	final_card_count = max(1, final_card_count)
 	print("Final card count (with modifier):", final_card_count)
 	
-	# Debug: Print deck state before drawing
-	print("=== DECK STATE BEFORE DRAWING ===")
-	deck_manager.debug_print_state()
-	print("=== END DECK STATE ===")
 	
 	deck_manager.draw_action_cards_to_hand(final_card_count)
 	
-	# Debug: Print deck state after drawing
-	print("=== DECK STATE AFTER DRAWING ===")
-	deck_manager.debug_print_state()
-	print("=== END DECK STATE ===")
-	print("=== END DRAWING CARDS FOR SHOT ===")
 
 func start_shot_sequence() -> void:
 	enter_aiming_phase()
@@ -2074,20 +2030,11 @@ func show_reward_phase():
 	suitcase.name = "SuitCase"  # Give it a specific name for cleanup
 	$UILayer.add_child(suitcase)
 	
-	# Debug: Check suitcase position and visibility
-	print("Suitcase created and added to UILayer")
-	print("Suitcase position:", suitcase.position)
-	print("Suitcase global position:", suitcase.global_position)
-	print("Suitcase visible:", suitcase.visible)
-	print("Suitcase size:", suitcase.size)
 	
 	# Connect the suitcase opened signal
 	suitcase.suitcase_opened.connect(_on_suitcase_opened)
 
 func _on_suitcase_opened():
-	"""Handle when the suitcase is opened - show reward selection"""
-	print("Suitcase opened, showing reward selection...")
-	
 	# Create and show the reward selection dialog
 	var reward_dialog_scene = preload("res://RewardSelectionDialog.tscn")
 	var reward_dialog = reward_dialog_scene.instantiate()
@@ -2396,11 +2343,6 @@ func draw_club_cards() -> void:
 		child.queue_free()
 	movement_buttons.clear()
 	
-	# Debug: Print deck state before drawing club cards
-	print("=== DECK STATE BEFORE DRAWING CLUB CARDS ===")
-	deck_manager.debug_print_state()
-	print("=== END DECK STATE ===")
-	
 	# Calculate how many club cards we need to draw
 	var base_club_count = 2  # Default number of clubs to show
 	var card_draw_modifier = player_stats.get("card_draw", 0)
@@ -2408,12 +2350,6 @@ func draw_club_cards() -> void:
 	
 	# Actually draw club cards to hand first - draw enough for the selection
 	deck_manager.draw_club_cards_to_hand(final_club_count)
-	
-	# Debug: Print deck state after drawing club cards
-	print("=== DECK STATE AFTER DRAWING CLUB CARDS ===")
-	deck_manager.debug_print_state()
-	print("=== END DECK STATE ===")
-	print("=== END DRAWING CLUB CARDS ===")
 	
 	# Then get available clubs from the hand
 	var available_clubs = deck_manager.hand.filter(func(card): return deck_manager.is_club_card(card))

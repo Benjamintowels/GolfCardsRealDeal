@@ -51,7 +51,6 @@ func _initialize_sprites():
 	if upright_sprite and tipped_sprite:
 		upright_sprite.visible = true
 		tipped_sprite.visible = false
-		print("✓ Oil drum sprites initialized - upright visible, tipped over hidden")
 	else:
 		print("✗ ERROR: Oil drum sprites not found!")
 
@@ -69,7 +68,6 @@ func _setup_collision_areas():
 		# Connect to area_entered and area_exited signals for collision detection
 		upright_collision_area.connect("area_entered", _on_area_entered)
 		upright_collision_area.connect("area_exited", _on_area_exited)
-		print("✓ Oil drum upright collision area setup complete")
 	else:
 		print("✗ ERROR: Oil drum upright Area2D not found!")
 	
@@ -79,7 +77,6 @@ func _setup_collision_areas():
 		tipped_collision_area.collision_mask = 0
 		tipped_collision_area.monitoring = false
 		tipped_collision_area.monitorable = false
-		print("✓ Oil drum tipped collision area setup complete (disabled)")
 	else:
 		print("✗ ERROR: Oil drum tipped Area2D not found!")
 	
@@ -94,10 +91,6 @@ func _setup_collision_areas():
 		hitbox.collision_mask = 0
 		# Add to hitboxes group for weapon system detection
 		hitbox.add_to_group("hitboxes")
-		print("✓ Oil drum HitBox setup complete for gun collision (layer 2)")
-		
-		# Debug: Verify HitBox is in the group
-		call_deferred("_verify_hitbox_setup")
 	else:
 		print("✗ ERROR: Oil drum HitBox not found!")
 
@@ -122,7 +115,6 @@ func _check_for_new_balls():
 				ball.disconnect("landed", _on_ball_landed)
 			ball.connect("landed", _on_ball_landed)
 			connected_balls.append(ball)
-			print("✓ Connected to new golf ball landed signal")
 	
 	# Check throwing knives
 	for knife in knives:
@@ -132,7 +124,6 @@ func _check_for_new_balls():
 				knife.disconnect("landed", _on_ball_landed)
 			knife.connect("landed", _on_ball_landed)
 			connected_balls.append(knife)
-			print("✓ Connected to new throwing knife landed signal")
 	
 	# Clean up invalid references
 	connected_balls = connected_balls.filter(func(ball): return is_instance_valid(ball))
@@ -145,7 +136,6 @@ func connect_to_new_ball(ball: Node2D):
 			ball.disconnect("landed", _on_ball_landed)
 		ball.connect("landed", _on_ball_landed)
 		connected_balls.append(ball)
-		print("✓ Connected to new ball landed signal:", ball.name)
 
 func _connect_to_ball_landed_signals():
 	"""Connect to ball landed signals to reset oil drum health"""
@@ -157,7 +147,6 @@ func _connect_to_ball_landed_signals():
 			if ball.is_connected("landed", _on_ball_landed):
 				ball.disconnect("landed", _on_ball_landed)
 			ball.connect("landed", _on_ball_landed)
-			print("✓ Connected to existing golf ball landed signal")
 	
 	# Also connect to any throwing knives in the scene
 	var knives = get_tree().get_nodes_in_group("knives")
@@ -167,12 +156,10 @@ func _connect_to_ball_landed_signals():
 			if knife.is_connected("landed", _on_ball_landed):
 				knife.disconnect("landed", _on_ball_landed)
 			knife.connect("landed", _on_ball_landed)
-			print("✓ Connected to existing throwing knife landed signal")
 
 func _on_ball_landed(final_tile: Vector2i):
 	"""Reset oil drum health when ball lands"""
 	if is_tipped_over:
-		print("Oil drum health reset to", max_health, "after ball landed")
 		current_health = max_health
 		is_tipped_over = false
 		_tip_upright()
@@ -191,20 +178,11 @@ func _calculate_velocity_damage(velocity_magnitude: float) -> int:
 	# Return as integer
 	var final_damage = int(damage)
 	
-	print("=== OIL DRUM VELOCITY DAMAGE CALCULATION ===")
-	print("Raw velocity magnitude:", velocity_magnitude)
-	print("Clamped velocity:", clamped_velocity)
-	print("Damage percentage:", damage_percentage)
-	print("Calculated damage:", damage)
-	print("Final damage (int):", final_damage)
-	print("=== END OIL DRUM VELOCITY DAMAGE CALCULATION ===")
-	
 	return final_damage
 
 func take_damage(amount: int) -> void:
 	"""Take damage and handle tipping over if health reaches 0, or explode if overkilled"""
 	current_health = max(0, current_health - amount)
-	print("Oil drum took", amount, "damage. Current health:", current_health, "/", max_health)
 	
 	# Check if this damage would overkill the oil drum
 	# Overkill = damage - current_health (how much damage exceeds current health)
@@ -212,7 +190,6 @@ func take_damage(amount: int) -> void:
 	
 	# Overkill threshold: need at least 50 overkill damage to trigger explosion
 	if overkill_damage >= 50:
-		print("Oil drum overkilled with", overkill_damage, "overkill damage (threshold: 50) - EXPLODING!")
 		# Create a temporary ball node to pass to the explosion function
 		var temp_ball = Node2D.new()
 		temp_ball.name = "OverkillExplosionBall"
@@ -227,13 +204,11 @@ func take_damage(amount: int) -> void:
 		# Remove the temporary ball
 		temp_ball.queue_free()
 	elif current_health <= 0 and not is_tipped_over:
-		print("Oil drum health reached 0 - tipping over!")
 		is_tipped_over = true
 		_tip_over()
 
 func _tip_over():
 	"""Tip the oil drum over - switch sprites and collision shapes"""
-	print("=== TIPPING OIL DRUM OVER ===")
 	
 	# Hide upright sprite and show tipped over sprite
 	var upright_sprite = get_node_or_null("OilDrumUpright")
@@ -242,9 +217,6 @@ func _tip_over():
 	if upright_sprite and tipped_sprite:
 		upright_sprite.visible = false
 		tipped_sprite.visible = true
-		print("✓ Switched oil drum sprites")
-	else:
-		print("✗ ERROR: Oil drum sprites not found!")
 	
 	# Switch collision areas
 	if upright_collision_area and tipped_collision_area:
@@ -265,18 +237,11 @@ func _tip_over():
 		if not tipped_collision_area.is_connected("area_exited", _on_area_exited):
 			tipped_collision_area.connect("area_exited", _on_area_exited)
 		
-		print("✓ Switched oil drum collision areas")
-	else:
-		print("✗ ERROR: Oil drum collision areas not found!")
-	
 	# Update Y-sort for the new position
 	call_deferred("_update_ysort")
-	
-	print("=== OIL DRUM TIPPED OVER ===")
 
 func _tip_upright():
 	"""Tip the oil drum back upright - switch sprites and collision shapes back"""
-	print("=== TIPPING OIL DRUM UPRIGHT ===")
 	
 	# Show upright sprite and hide tipped over sprite
 	var upright_sprite = get_node_or_null("OilDrumUpright")
@@ -285,9 +250,6 @@ func _tip_upright():
 	if upright_sprite and tipped_sprite:
 		upright_sprite.visible = true
 		tipped_sprite.visible = false
-		print("✓ Switched oil drum sprites back to upright")
-	else:
-		print("✗ ERROR: Oil drum sprites not found!")
 	
 	# Switch collision areas back
 	if upright_collision_area and tipped_collision_area:
@@ -309,14 +271,8 @@ func _tip_upright():
 		if tipped_collision_area.is_connected("area_exited", _on_area_exited):
 			tipped_collision_area.disconnect("area_exited", _on_area_exited)
 		
-		print("✓ Switched oil drum collision areas back to upright")
-	else:
-		print("✗ ERROR: Oil drum collision areas not found!")
-	
 	# Update Y-sort for the new position
 	call_deferred("_update_ysort")
-	
-	print("=== OIL DRUM TIPPED UPRIGHT ===")
 
 func get_y_sort_point() -> float:
 	"""
@@ -339,11 +295,6 @@ func _update_ysort():
 	"""Update the Oil Drum's z_index for proper Y-sorting"""
 	# Force update the Ysort using the global system
 	Global.update_object_y_sort(self, "objects")
-	
-	# Only print debug info once
-	if not has_meta("ysort_update_printed"):
-		print("Oil Drum Ysort updated - z_index:", z_index, " global_position:", global_position)
-		set_meta("ysort_update_printed", true)
 
 func get_collision_radius() -> float:
 	"""
@@ -363,8 +314,6 @@ func _on_area_entered(area: Area2D):
 	# Only handle Area2D collisions for projectiles that don't have their own collision detection
 	# Balls (GolfBall, GhostBall) will handle their own collisions through the ball's collision system
 	if projectile and projectile.has_method("is_throwing_knife") and projectile.is_throwing_knife():
-		print("Oil drum: Throwing knife detected, handling Area2D collision")
-		# Handle the collision using proper Area2D collision detection for knives
 		_handle_area_collision(projectile)
 	else:
 		# For balls, let them handle their own collision through their collision system
@@ -373,22 +322,15 @@ func _on_area_entered(area: Area2D):
 
 func _handle_area_collision(projectile: Node2D):
 	"""Handle oil drum area collisions using proper Area2D detection"""
-	print("=== HANDLING OIL DRUM AREA COLLISION ===")
-	print("Projectile name:", projectile.name)
-	print("Projectile type:", projectile.get_class())
 	
 	# Check if projectile has height information
 	if not projectile.has_method("get_height"):
-		print("✗ Projectile doesn't have height method - using fallback reflection")
 		_reflect_projectile(projectile)
 		return
 	
 	# Get projectile and oil drum heights
 	var projectile_height = projectile.get_height()
 	var oil_drum_height = Global.get_object_height_from_marker(self)
-	
-	print("Projectile height:", projectile_height)
-	print("Oil drum height:", oil_drum_height)
 	
 	# Check if this is a throwing knife (special handling)
 	if projectile.has_method("is_throwing_knife") and projectile.is_throwing_knife():
@@ -399,26 +341,20 @@ func _handle_area_collision(projectile: Node2D):
 	# If projectile height > oil drum height: allow entry and set ground level
 	# If projectile height < oil drum height: reflect
 	if projectile_height > oil_drum_height:
-		print("✓ Projectile is above oil drum - allowing entry and setting ground level")
 		_allow_projectile_entry(projectile, oil_drum_height)
 	else:
-		print("✗ Projectile is below oil drum height - reflecting")
 		_reflect_projectile(projectile)
 
 func _handle_knife_area_collision(knife: Node2D, knife_height: float, oil_drum_height: float):
 	"""Handle knife collision with oil drum area"""
-	print("Handling knife oil drum area collision")
 	
 	if knife_height > oil_drum_height:
-		print("✓ Knife is above oil drum - allowing entry and setting ground level")
 		_allow_projectile_entry(knife, oil_drum_height)
 	else:
-		print("✗ Knife is below oil drum height - reflecting")
 		_reflect_projectile(knife)
 
 func _allow_projectile_entry(projectile: Node2D, oil_drum_height: float):
 	"""Allow projectile to enter oil drum area and set ground level"""
-	print("=== ALLOWING PROJECTILE ENTRY (OIL DRUM) ===")
 	
 	# Set the projectile's ground level to the oil drum height
 	if projectile.has_method("_set_ground_level"):
@@ -427,14 +363,12 @@ func _allow_projectile_entry(projectile: Node2D, oil_drum_height: float):
 		# Fallback: directly set ground level if method doesn't exist
 		if "current_ground_level" in projectile:
 			projectile.current_ground_level = oil_drum_height
-			print("✓ Set projectile ground level to oil drum height:", oil_drum_height)
 	
 	# The projectile will now land on the oil drum instead of passing through
 	# When it exits the area, _on_area_exited will reset the ground level
 
 func _reflect_projectile(projectile: Node2D):
 	"""Reflect projectile off the oil drum using proper circular collision detection"""
-	print("=== REFLECTING PROJECTILE ===")
 	
 	# Play oil drum thunk sound for reflection (not for roof bounce)
 	_play_oil_drum_sound()
@@ -446,13 +380,8 @@ func _reflect_projectile(projectile: Node2D):
 	elif "velocity" in projectile:
 		projectile_velocity = projectile.velocity
 	
-	print("Reflecting projectile with velocity:", projectile_velocity)
-	
 	# Use proper circular reflection
 	var reflected_velocity = _calculate_circular_reflection(projectile, projectile_velocity)
-	
-	print("Original velocity:", projectile_velocity)
-	print("Reflected velocity:", reflected_velocity)
 	
 	# Apply the reflected velocity to the projectile
 	if projectile.has_method("set_velocity"):
@@ -470,7 +399,6 @@ func _calculate_circular_reflection(projectile: Node2D, projectile_velocity: Vec
 	var collision_shape = area2d.get_node_or_null("CollisionShape2D") if area2d else null
 	
 	if not collision_shape or not collision_shape.shape is CircleShape2D:
-		print("✗ ERROR: Oil drum collision shape not found or not circular - using fallback reflection")
 		return -projectile_velocity * 0.8  # Simple fallback
 	
 	# Get the circle's radius and position
@@ -492,7 +420,6 @@ func _calculate_circular_reflection(projectile: Node2D, projectile_velocity: Vec
 	if distance_to_center < actual_radius:
 		var push_direction = to_projectile.normalized()
 		projectile.global_position = circle_center + push_direction * (actual_radius + 1.0)
-		print("Pushed projectile outside circle")
 	
 	# Recalculate direction after potential push
 	to_projectile = projectile.global_position - circle_center
@@ -573,9 +500,6 @@ func _play_oil_drum_sound() -> void:
 	if thunk:
 		thunk.play()
 		set_meta("last_thunk_time", current_time)
-		print("✓ OilDrumThunk sound played for reflection collision")
-	else:
-		print("✗ OilDrumThunk sound not found")
 
 func _handle_roof_bounce_collision(projectile: Node2D) -> void:
 	"""Handle collision with projectiles - called by roof bounce system"""
@@ -595,8 +519,6 @@ func _handle_roof_bounce_collision(projectile: Node2D) -> void:
 
 func _handle_ball_collision(ball: Node2D) -> void:
 	"""Handle ball/knife collisions - check height to determine if ball/knife should pass through"""
-	print("=== HANDLING BALL COLLISION WITH OIL DRUM ===")
-	print("Ball name:", ball.name)
 	
 	# Get ball height
 	var ball_height = 0.0
@@ -604,21 +526,16 @@ func _handle_ball_collision(ball: Node2D) -> void:
 		ball_height = ball.get_height()
 	elif "z" in ball:
 		ball_height = ball.z
-	print("Ball height:", ball_height)
 	
 	# Get oil drum height
 	var oil_drum_height = Global.get_object_height_from_marker(self)
-	print("Oil drum height:", oil_drum_height)
 	
 	# Use enhanced height collision detection with TopHeight markers
 	if Global.is_object_above_obstacle(ball, self):
 		# Ball/knife is above oil drum entirely - let it pass through
-		print("Ball/knife is above oil drum entirely - passing through")
-		print("=== END HANDLING BALL COLLISION (PASS THROUGH) ===")
 		return
 	else:
 		# Ball/knife is within or below oil drum height - handle collision
-		print("Ball/knife is within oil drum height - handling collision")
 		
 		# Check if this is a throwing knife
 		if ball.has_method("is_throwing_knife") and ball.is_throwing_knife():
@@ -628,11 +545,9 @@ func _handle_ball_collision(ball: Node2D) -> void:
 			# Handle regular ball collision
 			_handle_regular_ball_collision(ball)
 		
-		print("=== END HANDLING BALL COLLISION (COLLISION) ===")
 
 func _handle_knife_collision(knife: Node2D) -> void:
 	"""Handle knife collision with oil drum"""
-	print("Handling knife collision with oil drum")
 	
 	# Play collision sound effect
 	_play_oil_drum_sound()
@@ -647,7 +562,6 @@ func _handle_knife_collision(knife: Node2D) -> void:
 
 func _handle_regular_ball_collision(ball: Node2D) -> void:
 	"""Handle regular ball collision with oil drum"""
-	print("Handling regular ball collision with oil drum")
 	
 	# Play collision sound effect
 	_play_oil_drum_sound()
@@ -664,12 +578,8 @@ func _apply_knife_reflection(knife: Node2D) -> void:
 	elif "velocity" in knife:
 		knife_velocity = knife.velocity
 	
-	print("Applying knife reflection with velocity:", knife_velocity)
-	
 	# Use proper circular reflection
 	var reflected_velocity = _calculate_circular_reflection(knife, knife_velocity)
-	
-	print("Reflected knife velocity:", reflected_velocity)
 	
 	# Apply the reflected velocity to the knife
 	if knife.has_method("set_velocity"):
@@ -679,9 +589,6 @@ func _apply_knife_reflection(knife: Node2D) -> void:
 
 func _apply_ball_collision_effect(ball: Node2D) -> void:
 	"""Apply collision effect to the ball (bounce, damage, etc.)"""
-	print("=== APPLYING BALL COLLISION EFFECT ===")
-	print("Ball name:", ball.name)
-	print("Ball height:", ball.get_height() if ball.has_method("get_height") else "unknown")
 	
 	# Check if this is a ghost ball (shouldn't deal damage)
 	var is_ghost_ball = false
@@ -693,7 +600,6 @@ func _apply_ball_collision_effect(ball: Node2D) -> void:
 		is_ghost_ball = true
 	
 	if is_ghost_ball:
-		print("Ghost ball detected - no damage dealt, just reflection")
 		# Ghost balls only reflect, no damage
 		var ball_velocity = Vector2.ZERO
 		if ball.has_method("get_velocity"):
@@ -704,8 +610,6 @@ func _apply_ball_collision_effect(ball: Node2D) -> void:
 		# Use proper circular reflection
 		var reflected_velocity = _calculate_circular_reflection(ball, ball_velocity)
 		
-		print("Ghost ball reflected velocity:", reflected_velocity)
-		
 		# Apply the reflected velocity to the ball
 		if ball.has_method("set_velocity"):
 			ball.set_velocity(reflected_velocity)
@@ -715,7 +619,6 @@ func _apply_ball_collision_effect(ball: Node2D) -> void:
 	
 	# Check if this is a fire element ball - if so, explode the oil drum
 	if _is_fire_element_ball(ball):
-		print("🔥 FIRE ELEMENT BALL DETECTED - EXPLODING OIL DRUM! 🔥")
 		_explode_oil_drum(ball)
 		return
 	
@@ -726,14 +629,8 @@ func _apply_ball_collision_effect(ball: Node2D) -> void:
 	elif "velocity" in ball:
 		ball_velocity = ball.velocity
 	
-	print("Applying collision effect to ball with velocity:", ball_velocity)
-	print("Ball velocity magnitude:", ball_velocity.length())
-	
 	# Calculate damage based on ball velocity
 	var damage = _calculate_velocity_damage(ball_velocity.length())
-	
-	print("Ball damage to oil drum:", damage)
-	print("Oil drum current health:", current_health)
 	
 	# Check if this damage will tip over the oil drum
 	var will_tip = damage >= current_health
@@ -741,14 +638,12 @@ func _apply_ball_collision_effect(ball: Node2D) -> void:
 	if will_tip:
 		# Calculate overkill damage (negative health value)
 		var overkill_damage = damage - current_health
-		print("Damage will tip over oil drum! Overkill damage:", overkill_damage)
 		
 		# Apply damage to the oil drum (this will set health to negative)
 		take_damage(damage)
 		
 		# Apply velocity dampening based on overkill damage
 		var dampened_velocity = _calculate_kill_dampening(ball_velocity, overkill_damage)
-		print("Ball passed through with dampened velocity:", dampened_velocity)
 		
 		# Apply the dampened velocity to the ball (no reflection)
 		if ball.has_method("set_velocity"):
@@ -757,26 +652,14 @@ func _apply_ball_collision_effect(ball: Node2D) -> void:
 			ball.velocity = dampened_velocity
 	else:
 		# Normal collision - apply damage and reflect
-		print("Normal collision - applying damage and reflecting")
-		take_damage(damage)
-		
 		# Use proper circular reflection
 		var reflected_velocity = _calculate_circular_reflection(ball, ball_velocity)
-		
-		print("Reflected velocity:", reflected_velocity)
-		print("Reflected velocity magnitude:", reflected_velocity.length())
 		
 		# Apply the reflected velocity to the ball
 		if ball.has_method("set_velocity"):
 			ball.set_velocity(reflected_velocity)
-			print("Applied reflected velocity using set_velocity method")
 		elif "velocity" in ball:
 			ball.velocity = reflected_velocity
-			print("Applied reflected velocity using direct velocity property")
-		else:
-			print("ERROR: Could not apply reflected velocity - no set_velocity method or velocity property")
-	
-	print("=== END APPLYING BALL COLLISION EFFECT ===")
 
 func _calculate_kill_dampening(ball_velocity: Vector2, overkill_damage: int) -> Vector2:
 	"""Calculate velocity dampening when ball tips over an oil drum"""
@@ -797,48 +680,25 @@ func _calculate_kill_dampening(ball_velocity: Vector2, overkill_damage: int) -> 
 	var dampening_factor = 0.2 + (dampening_percentage * 0.6)  # 0.2 to 0.8 range
 	var dampened_velocity = ball_velocity * dampening_factor
 	
-	# Debug output
-	print("=== KILL DAMPENING CALCULATION ===")
-	print("Overkill damage:", overkill_damage)
-	print("Clamped overkill:", clamped_overkill)
-	print("Dampening percentage:", dampening_percentage)
-	print("Dampening factor:", dampening_factor)
-	print("Original velocity magnitude:", ball_velocity.length())
-	print("Dampened velocity magnitude:", dampened_velocity.length())
-	print("=== END KILL DAMPENING CALCULATION ===")
-	
 	return dampened_velocity
 
 func _is_fire_element_ball(ball: Node2D) -> bool:
 	"""Check if the ball has a fire element"""
-	print("=== CHECKING FOR FIRE ELEMENT ===")
-	print("Ball name:", ball.name)
-	print("Ball has get_element method:", ball.has_method("get_element"))
 	
 	if not ball.has_method("get_element"):
-		print("✗ Ball doesn't have get_element method")
 		return false
 	
 	var element = ball.get_element()
-	print("Element retrieved:", element)
 	if element:
-		print("Element name:", element.name)
 		if element.name == "Fire":
-			print("✓ Fire element detected on ball")
 			return true
 		else:
-			print("✗ Element is not Fire, it's:", element.name)
+			return false
 	else:
-		print("✗ No element found on ball")
-	
-	print("✗ No fire element detected on ball")
-	return false
+		return false
 
 func _explode_oil_drum(ball: Node2D) -> void:
 	"""Explode the oil drum when hit by a fire element ball"""
-	print("=== EXPLODING OIL DRUM ===")
-	print("Oil drum position:", global_position)
-	print("Oil drum parent:", get_parent().name if get_parent() else "No parent")
 	
 	# Hide the oil drum sprites
 	var upright_sprite = get_node_or_null("OilDrumUpright")
@@ -846,10 +706,8 @@ func _explode_oil_drum(ball: Node2D) -> void:
 	
 	if upright_sprite:
 		upright_sprite.visible = false
-		print("✓ Hidden upright sprite")
 	if tipped_sprite:
 		tipped_sprite.visible = false
-		print("✓ Hidden tipped sprite")
 	
 	# Disable collision areas
 	if upright_collision_area:
@@ -857,53 +715,34 @@ func _explode_oil_drum(ball: Node2D) -> void:
 		upright_collision_area.collision_mask = 0
 		upright_collision_area.monitoring = false
 		upright_collision_area.monitorable = false
-		print("✓ Disabled upright collision area")
-	
 	if tipped_collision_area:
 		tipped_collision_area.collision_layer = 0
 		tipped_collision_area.collision_mask = 0
 		tipped_collision_area.monitoring = false
 		tipped_collision_area.monitorable = false
-		print("✓ Disabled tipped collision area")
 	
 	# Create explosion effect at the oil drum's position
-	print("Creating explosion at position:", global_position)
-	print("Oil drum local position:", position)
-	print("Oil drum parent position:", get_parent().global_position if get_parent() else "No parent")
-	
-	# Add explosion to the same parent as the oil drum (ObstacleLayer) so it survives when oil drum is removed
 	var explosion = Explosion.create_explosion_at_position(global_position, get_parent())
-	print("Explosion created:", explosion != null)
 	
 	if explosion:
-		print("Explosion final position:", explosion.global_position)
-		print("Explosion local position:", explosion.position)
-	
-	# Launch the golf ball with boosted velocity away from the explosion
-	_launch_ball_from_explosion(ball)
-	
-	# Set the oil drum to be destroyed (it will be removed when the explosion completes)
-	# We'll use a timer to remove the oil drum after the explosion animation
-	var destroy_timer = Timer.new()
-	destroy_timer.wait_time = 3.0  # Wait longer for explosion to complete (increased from 2.0)
-	destroy_timer.one_shot = true
-	destroy_timer.timeout.connect(_on_explosion_complete)
-	add_child(destroy_timer)
-	destroy_timer.start()
-	
-	print("✓ Oil drum explosion initiated")
+		# Launch the golf ball with boosted velocity away from the explosion
+		_launch_ball_from_explosion(ball)
+		
+		# Set the oil drum to be destroyed (it will be removed when the explosion completes)
+		# We'll use a timer to remove the oil drum after the explosion animation
+		var destroy_timer = Timer.new()
+		destroy_timer.wait_time = 3.0  # Wait longer for explosion to complete (increased from 2.0)
+		destroy_timer.one_shot = true
+		destroy_timer.timeout.connect(_on_explosion_complete)
+		add_child(destroy_timer)
+		destroy_timer.start()
 
 func _on_explosion_complete() -> void:
 	"""Called when the explosion animation is complete - remove the oil drum"""
-	print("=== OIL DRUM EXPLOSION COMPLETE ===")
-	
-	# Remove the oil drum from the scene
 	queue_free()
-	print("✓ Oil drum removed from scene")
 
 func _launch_ball_from_explosion(ball: Node2D) -> void:
 	"""Launch the golf ball with boosted velocity away from the explosion"""
-	print("=== LAUNCHING BALL FROM EXPLOSION ===")
 	
 	# Get the ball's current position and velocity
 	var ball_pos = ball.global_position
@@ -918,11 +757,6 @@ func _launch_ball_from_explosion(ball: Node2D) -> void:
 		current_velocity = ball.get_velocity()
 	elif "velocity" in ball:
 		current_velocity = ball.velocity
-	
-	print("Ball position:", ball_pos)
-	print("Explosion position:", oil_drum_pos)
-	print("Direction from explosion:", direction_from_explosion)
-	print("Current ball velocity:", current_velocity)
 	
 	# Calculate explosion force based on distance from explosion center
 	var distance_from_explosion = ball_pos.distance_to(oil_drum_pos)
@@ -959,23 +793,11 @@ func _launch_ball_from_explosion(ball: Node2D) -> void:
 	if abs(new_velocity.y) > max_vertical_velocity:
 		new_velocity.y = -max_vertical_velocity if new_velocity.y < 0 else max_vertical_velocity
 	
-	print("Distance from explosion:", distance_from_explosion)
-	print("Distance factor:", distance_factor)
-	print("Explosion force:", explosion_force)
-	print("Randomized direction:", randomized_direction)
-	print("Explosion velocity:", explosion_velocity)
-	print("New velocity:", new_velocity)
-	print("Final velocity magnitude:", new_velocity.length())
-	
 	# Apply the new velocity to the ball
 	if ball.has_method("set_velocity"):
 		ball.set_velocity(new_velocity)
-		print("✓ Applied explosion velocity using set_velocity method")
 	elif "velocity" in ball:
 		ball.velocity = new_velocity
-		print("✓ Applied explosion velocity using direct velocity property")
-	else:
-		print("✗ ERROR: Could not apply explosion velocity - no set_velocity method or velocity property")
 	
 	# If the ball has a height system, give it some upward momentum
 	if ball.has_method("get_height") and ball.has_method("set_velocity"):
@@ -989,30 +811,3 @@ func _launch_ball_from_explosion(ball: Node2D) -> void:
 			# Re-apply the updated velocity
 			if ball.has_method("set_velocity"):
 				ball.set_velocity(new_velocity)
-				print("✓ Applied upward velocity for ground-level ball")
-	
-	print("=== END LAUNCHING BALL FROM EXPLOSION ===")
-
-func _verify_hitbox_setup():
-	"""Verify that the HitBox is properly set up and can be found by the weapon system"""
-	var hitbox = get_node_or_null("HitBox")
-	if not hitbox:
-		print("✗ ERROR: HitBox not found during verification!")
-		return
-	
-	# Check if HitBox is in the hitboxes group
-	var hitboxes_group = get_tree().get_nodes_in_group("hitboxes")
-	var found_in_group = false
-	for hb in hitboxes_group:
-		if hb == hitbox:
-			found_in_group = true
-			break
-	
-	print("=== HITBOX VERIFICATION ===")
-	print("HitBox name:", hitbox.name)
-	print("HitBox collision layer:", hitbox.collision_layer)
-	print("HitBox collision mask:", hitbox.collision_mask)
-	print("HitBox in 'hitboxes' group:", found_in_group)
-	print("Total HitBoxes in group:", hitboxes_group.size())
-	print("HitBox global position:", hitbox.global_position)
-	print("=== END HITBOX VERIFICATION ===")

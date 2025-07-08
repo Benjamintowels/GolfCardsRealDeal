@@ -25,23 +25,19 @@ func register_npc(npc: Node) -> void:
 	"""Register an NPC to be managed by this system"""
 	if npc not in npcs:
 		npcs.append(npc)
-		print("Registered NPC: ", npc.name)
 
 func unregister_npc(npc: Node) -> void:
 	"""Unregister an NPC from the system"""
 	if npc in npcs:
 		npcs.erase(npc)
-		print("Unregistered NPC: ", npc.name)
 
 func _on_player_end_turn() -> void:
 	"""Called when the player ends their turn"""
-	print("Player ended turn, starting NPC turns...")
 	start_npc_turns()
 
 func start_npc_turns() -> void:
 	"""Start the NPC turn sequence"""
 	if npcs.is_empty():
-		print("No NPCs to take turns")
 		all_npcs_turn_completed.emit()
 		return
 	
@@ -58,14 +54,12 @@ func _take_next_npc_turn() -> void:
 	
 	var current_npc = npcs[current_npc_index]
 	if is_instance_valid(current_npc):
-		print("NPC taking turn: ", current_npc.name)
 		npc_turn_started.emit(current_npc)
 		
 		# Call the NPC's take_turn method
 		if current_npc.has_method("take_turn"):
 			current_npc.take_turn()
 		else:
-			print("Warning: NPC ", current_npc.name, " doesn't have take_turn method")
 			_on_npc_turn_completed()
 	else:
 		# NPC was destroyed, skip to next
@@ -85,7 +79,6 @@ func _end_npc_turns() -> void:
 	"""End the NPC turn sequence"""
 	is_npc_turn = false
 	current_npc_index = -1
-	print("All NPC turns completed")
 	all_npcs_turn_completed.emit()
 
 func get_npcs() -> Array[Node]:
@@ -151,7 +144,6 @@ func handle_npc_ball_collision(npc: Node, ball: Node) -> void:
 		npc.handle_ball_collision(ball)
 	else:
 		# Default collision handling with velocity-based damage
-		print("Default NPC-ball collision handling for: ", npc.name)
 		_apply_default_velocity_damage(npc, ball)
 
 func _apply_default_velocity_damage(npc: Node, ball: Node) -> void:
@@ -166,7 +158,6 @@ func _apply_default_velocity_damage(npc: Node, ball: Node) -> void:
 		is_ghost_ball = true
 	
 	if is_ghost_ball:
-		print("Ghost ball detected - no damage dealt, just reflection")
 		# Ghost balls only reflect, no damage
 		var ball_velocity = Vector2.ZERO
 		if ball.has_method("get_velocity"):
@@ -200,7 +191,6 @@ func _apply_default_velocity_damage(npc: Node, ball: Node) -> void:
 	
 	# Calculate damage based on ball velocity
 	var damage = _calculate_default_velocity_damage(ball_velocity.length())
-	print("Default NPC collision damage calculated:", damage)
 	
 	# Check if this damage will kill the NPC
 	var current_health = 30  # Default health for NPCs
@@ -215,7 +205,6 @@ func _apply_default_velocity_damage(npc: Node, ball: Node) -> void:
 	if will_kill:
 		# Calculate overkill damage
 		overkill_damage = damage - current_health
-		print("Damage will kill NPC! Overkill damage:", overkill_damage)
 		
 		# Apply damage to the NPC
 		if npc.has_method("take_damage"):
@@ -225,7 +214,6 @@ func _apply_default_velocity_damage(npc: Node, ball: Node) -> void:
 		
 		# Apply velocity dampening based on overkill damage
 		var dampened_velocity = _calculate_default_kill_dampening(ball_velocity, overkill_damage)
-		print("Ball passed through with dampened velocity:", dampened_velocity)
 		
 		# Apply the dampened velocity to the ball (no reflection)
 		if ball.has_method("set_velocity"):
@@ -274,15 +262,6 @@ func _calculate_default_velocity_damage(velocity_magnitude: float) -> int:
 	# Return as integer
 	var final_damage = int(damage)
 	
-	# Debug output
-	print("=== DEFAULT VELOCITY DAMAGE CALCULATION ===")
-	print("Raw velocity magnitude:", velocity_magnitude)
-	print("Clamped velocity:", clamped_velocity)
-	print("Damage percentage:", damage_percentage)
-	print("Calculated damage:", damage)
-	print("Final damage (int):", final_damage)
-	print("=== END DEFAULT VELOCITY DAMAGE CALCULATION ===")
-	
 	return final_damage
 
 func _calculate_default_kill_dampening(ball_velocity: Vector2, overkill_damage: int) -> Vector2:
@@ -303,15 +282,5 @@ func _calculate_default_kill_dampening(ball_velocity: Vector2, overkill_damage: 
 	# Minimum dampening reduces velocity to 80% of original
 	var dampening_factor = 0.2 + (dampening_percentage * 0.6)  # 0.2 to 0.8 range
 	var dampened_velocity = ball_velocity * dampening_factor
-	
-	# Debug output
-	print("=== DEFAULT KILL DAMPENING CALCULATION ===")
-	print("Overkill damage:", overkill_damage)
-	print("Clamped overkill:", clamped_overkill)
-	print("Dampening percentage:", dampening_percentage)
-	print("Dampening factor:", dampening_factor)
-	print("Original velocity magnitude:", ball_velocity.length())
-	print("Dampened velocity magnitude:", dampened_velocity.length())
-	print("=== END DEFAULT KILL DAMPENING CALCULATION ===")
 	
 	return dampened_velocity 

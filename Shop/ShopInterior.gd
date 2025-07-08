@@ -31,17 +31,10 @@ func _ready():
 	var return_button = $ReturnButton
 	if return_button:
 		return_button.pressed.connect(_on_return_button_pressed)
-		print("ShopInterior: Return button connected successfully")
+		
 		# Add a test to make sure the button is visible and clickable
 		return_button.mouse_filter = Control.MOUSE_FILTER_STOP
-		print("ShopInterior: Return button styled for visibility")
 		
-		# Add debug input handler to the return button
-		return_button.gui_input.connect(func(event):
-			if event is InputEventMouseButton and event.pressed:
-				print("ShopInterior: ReturnButton received mouse input at", event.position, "event type:", event.get_class())
-				print("ShopInterior: ReturnButton z_index:", return_button.z_index, "mouse_filter:", return_button.mouse_filter)
-		)
 	else:
 		print("ShopInterior: ERROR - Return button not found!")
 	
