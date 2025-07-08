@@ -2119,6 +2119,9 @@ func _on_grenade_landed(final_tile: Vector2i) -> void:
 	if smart_optimizer:
 		smart_optimizer.update_game_state("move", false, false, false)
 	
+	# Set game phase to move to allow movement cards
+	game_phase = "move"
+	
 	# Pause for 1 second to let player see where grenade landed
 	var pause_timer = get_tree().create_timer(1.0)
 	pause_timer.timeout.connect(func():
@@ -2148,6 +2151,9 @@ func _on_grenade_out_of_bounds() -> void:
 	if smart_optimizer:
 		smart_optimizer.update_game_state("move", false, false, false)
 	
+	# Set game phase to move to allow movement cards
+	game_phase = "move"
+	
 	# Tween camera back to player immediately
 	if player_node and camera:
 		create_camera_tween(player_node.global_position, 0.5, Tween.TRANS_LINEAR)
@@ -2176,6 +2182,9 @@ func _on_grenade_sand_landing() -> void:
 	# Update smart optimizer state
 	if smart_optimizer:
 		smart_optimizer.update_game_state("move", false, false, false)
+	
+	# Set game phase to move to allow movement cards
+	game_phase = "move"
 	
 	# Pause for 1 second to let player see where grenade landed
 	var pause_timer = get_tree().create_timer(1.0)
@@ -3470,6 +3479,7 @@ func _on_ball_launched(ball: Node2D):
 		ball.landed.connect(_on_grenade_landed)
 		ball.out_of_bounds.connect(_on_grenade_out_of_bounds)
 		ball.sand_landing.connect(_on_grenade_sand_landing)
+		ball.grenade_exploded.connect(_on_grenade_exploded)
 		
 		# Set camera following
 		camera_following_ball = true
@@ -3565,16 +3575,25 @@ func _on_launch_phase_entered():
 	_update_player_mouse_facing_state()
 
 func _on_launch_phase_exited():
-	print("Course: Entering ball_flying phase!")
-	game_phase = "ball_flying"
-	_update_player_mouse_facing_state()
-	# Disable player collision shape during ball flight
-	if player_node and player_node.has_method("disable_collision_shape"):
-		player_node.disable_collision_shape()
-	
-	# Update smart optimizer for ball flying phase
-	if smart_optimizer:
-		smart_optimizer.update_game_state("ball_flying", true, false, false)
+	# Check if we're in grenade mode and the grenade has already exploded
+	if launch_manager and launch_manager.is_grenade_mode:
+		# If grenade mode is still active, the grenade hasn't exploded yet
+		# So we should enter ball_flying phase
+		print("Course: Entering ball_flying phase!")
+		game_phase = "ball_flying"
+		_update_player_mouse_facing_state()
+		# Disable player collision shape during ball flight
+		if player_node and player_node.has_method("disable_collision_shape"):
+			player_node.disable_collision_shape()
+		
+		# Update smart optimizer for ball flying phase
+		if smart_optimizer:
+			smart_optimizer.update_game_state("ball_flying", true, false, false)
+	else:
+		# Not in grenade mode, or grenade has already exploded
+		# Don't change the game phase - let the explosion handler manage it
+		print("Course: Launch phase exited but not entering ball_flying (grenade may have exploded)")
+		_update_player_mouse_facing_state()
 
 func _on_charging_state_changed(charging: bool, charging_height: bool) -> void:
 	"""Handle charging state changes from LaunchManager"""
@@ -3838,3 +3857,36 @@ func _clear_existing_state():
 			explosion.queue_free()
 	
 	print("=== EXISTING STATE CLEARED ===")
+
+func _on_grenade_exploded(explosion_position: Vector2) -> void:
+	"""Handle when a grenade explodes"""
+	print("Grenade exploded at position:", explosion_position)
+	
+	# Set explosion in progress flag to prevent launch phase exit
+	if launch_manager:
+		launch_manager.grenade_explosion_in_progress = true
+	
+	# Update smart optimizer state immediately when grenade explodes
+	if smart_optimizer:
+		smart_optimizer.update_game_state("move", false, false, false)
+	
+	# Only set game phase to move if it's not already set (to avoid overriding landing handler)
+	if game_phase != "move":
+		game_phase = "move"
+		print("Game phase set to 'move' after grenade explosion")
+	
+	# Set ball in flight to false to allow movement cards
+	if launch_manager:
+		launch_manager.set_ball_in_flight(false)
+		print("Set ball_in_flight to false after grenade explosion")
+	
+	# Exit grenade mode immediately after explosion
+	if launch_manager:
+		launch_manager.exit_grenade_mode()
+		print("Exited grenade mode after explosion")
+	
+	# Reset explosion in progress flag
+	if launch_manager:
+		launch_manager.grenade_explosion_in_progress = false
+	
+	camera_following_ball = false

@@ -133,7 +133,8 @@ func _find_all_gang_members() -> Array:
 		if entities.has_method("get_npcs"):
 			var npcs = entities.get_npcs()
 			for npc in npcs:
-				if npc.get_script() and npc.get_script().resource_path.ends_with("GangMember.gd"):
+				# Add null check before calling get_script()
+				if is_instance_valid(npc) and npc.get_script() and npc.get_script().resource_path.ends_with("GangMember.gd"):
 					gang_members.append(npc)
 			return gang_members
 	
@@ -142,7 +143,8 @@ func _find_all_gang_members() -> Array:
 	var all_nodes = scene_tree.get_nodes_in_group("")
 	
 	for node in all_nodes:
-		if node.get_script() and node.get_script().resource_path.ends_with("GangMember.gd"):
+		# Add null check before calling get_script()
+		if is_instance_valid(node) and node.get_script() and node.get_script().resource_path.ends_with("GangMember.gd"):
 			gang_members.append(node)
 	
 	return gang_members
@@ -158,7 +160,8 @@ func _find_all_police() -> Array:
 		if entities.has_method("get_npcs"):
 			var npcs = entities.get_npcs()
 			for npc in npcs:
-				if npc.get_script() and npc.get_script().resource_path.ends_with("police.gd"):
+				# Add null check before calling get_script()
+				if is_instance_valid(npc) and npc.get_script() and npc.get_script().resource_path.ends_with("police.gd"):
 					police.append(npc)
 			return police
 	
@@ -167,7 +170,8 @@ func _find_all_police() -> Array:
 	var all_nodes = scene_tree.get_nodes_in_group("")
 	
 	for node in all_nodes:
-		if node.get_script() and node.get_script().resource_path.ends_with("police.gd"):
+		# Add null check before calling get_script()
+		if is_instance_valid(node) and node.get_script() and node.get_script().resource_path.ends_with("police.gd"):
 			police.append(node)
 	
 	return police
@@ -176,7 +180,8 @@ func _find_course_script() -> Node:
 	"""Find the course_1.gd script by searching up the scene tree"""
 	var current_node = self
 	while current_node:
-		if current_node.get_script() and current_node.get_script().resource_path.ends_with("course_1.gd"):
+		# Add null check before calling get_script()
+		if is_instance_valid(current_node) and current_node.get_script() and current_node.get_script().resource_path.ends_with("course_1.gd"):
 			return current_node
 		current_node = current_node.get_parent()
 	return null
@@ -201,7 +206,8 @@ func _find_player() -> Node:
 	var all_nodes = scene_tree.get_nodes_in_group("")
 	
 	for node in all_nodes:
-		if node.name == "Player":
+		# Add null check before accessing node properties
+		if is_instance_valid(node) and node.name == "Player":
 			return node
 	
 	return null
@@ -429,7 +435,8 @@ func _is_tile_on_fire_or_scorched(tile_pos: Vector2i) -> bool:
 	# Check for existing fire tiles in the scene
 	var fire_tiles = get_tree().get_nodes_in_group("fire_tiles")
 	for fire_tile in fire_tiles:
-		if fire_tile.get_tile_position() == tile_pos:
+		# Add null check before accessing fire tile properties
+		if is_instance_valid(fire_tile) and fire_tile.get_tile_position() == tile_pos:
 			return true
 	
 	# Check if tile is scorched via map manager
@@ -462,7 +469,8 @@ func _find_map_manager() -> Node:
 	var all_nodes = scene_tree.get_nodes_in_group("")
 	
 	for node in all_nodes:
-		if node.get_script() and node.get_script().resource_path.ends_with("MapManager.gd"):
+		# Add null check before calling get_script()
+		if is_instance_valid(node) and node.get_script() and node.get_script().resource_path.ends_with("MapManager.gd"):
 			return node
 	
 	return null
@@ -479,7 +487,8 @@ func _find_camera_container() -> Node:
 	var all_nodes = scene_tree.get_nodes_in_group("")
 	
 	for node in all_nodes:
-		if node.name == "CameraContainer":
+		# Add null check before accessing node properties
+		if is_instance_valid(node) and node.name == "CameraContainer":
 			return node
 	
 	return null

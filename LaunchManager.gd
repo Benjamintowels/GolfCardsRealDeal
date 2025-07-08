@@ -65,6 +65,7 @@ signal charging_state_changed(charging: bool, charging_height: bool)
 var ball_in_flight := false
 var previous_golf_ball: Node2D = null  # Store golf ball reference when entering knife mode
 var grenade: Node2D = null  # Store grenade reference
+var grenade_explosion_in_progress := false  # Track if grenade explosion is in progress
 
 func _ready():
 	pass
@@ -251,8 +252,12 @@ func exit_grenade_mode() -> void:
 				break
 	previous_golf_ball = null
 	throwing_knife = null
+	grenade = null  # Clear grenade reference when exiting grenade mode
 	
-	exit_launch_phase()
+	# Only exit launch phase if we're not in the middle of a grenade explosion
+	# The explosion handler will manage the game phase transition
+	if not grenade_explosion_in_progress:
+		exit_launch_phase()
 
 func launch_golf_ball(launch_direction: Vector2, final_power: float, height: float, launch_spin: float = 0.0, spin_strength_category: int = 0):
 	"""Launch the golf ball with the specified parameters"""

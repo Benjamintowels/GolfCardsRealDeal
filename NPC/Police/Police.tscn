@@ -1,10 +1,11 @@
-[gd_scene load_steps=8 format=3 uid="uid://dtn34r0e0vp1n"]
+[gd_scene load_steps=10 format=3 uid="uid://dtn34r0e0vp1n"]
 
 [ext_resource type="Texture2D" uid="uid://loxybh6wjyek" path="res://NPC/Police/Police.png" id="1_66atq"]
 [ext_resource type="Script" uid="uid://b2vh361gg66dc" path="res://NPC/Police/police.gd" id="1_a7p3e"]
 [ext_resource type="Texture2D" uid="uid://bqc1y7rc0dcof" path="res://NPC/Police/PoliceAim.png" id="2_2oo07"]
 [ext_resource type="AudioStream" uid="uid://w3sc1j80onsl" path="res://Sounds/PistolShot.mp3" id="4_7xmow"]
 [ext_resource type="AudioStream" uid="uid://clorehgdvljmk" path="res://Sounds/DeathGroan.mp3" id="5_6xobc"]
+[ext_resource type="Texture2D" uid="uid://y7aaku2h7xgf" path="res://NPC/Police/PoliceDead.png" id="6_fvdg8"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_2oo07"]
 radius = 0.909954
@@ -12,6 +13,9 @@ radius = 0.909954
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_2oo07"]
 radius = 19.0
 height = 88.0
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_fvdg8"]
+radius = 14.1421
 
 [node name="Police" type="CharacterBody2D"]
 script = ExtResource("1_a7p3e")
@@ -54,3 +58,19 @@ stream = ExtResource("4_7xmow")
 [node name="DeathGroan" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("5_6xobc")
 volume_db = 2.93
+
+[node name="Dead" type="Sprite2D" parent="."]
+visible = false
+texture_filter = 1
+position = Vector2(0, -16)
+texture = ExtResource("6_fvdg8")
+
+[node name="Area2D" type="Area2D" parent="Dead"]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Dead/Area2D"]
+position = Vector2(0, 12)
+scale = Vector2(3.22, 0.35)
+shape = SubResource("CircleShape2D_fvdg8")
+
+[node name="DeadTopHeight" type="Marker2D" parent="Dead"]
+position = Vector2(0, -5)

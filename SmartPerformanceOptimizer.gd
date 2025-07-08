@@ -53,13 +53,19 @@ func update_ball_state(ball_pos: Vector2, ball_velocity: Vector2) -> void:
 	last_ball_position = ball_pos
 	ball_is_moving = ball_velocity.length() > 10.0  # Ball is moving if velocity > 10
 
-func update_knife_ysort():
-	"""Update Y-sort for any knives in flight"""
+func update_projectile_ysort():
+	"""Update Y-sort for any knives or grenades in flight"""
 	var knives = get_tree().get_nodes_in_group("knives")
 	for knife in knives:
 		if is_instance_valid(knife) and knife.has_method("is_in_flight") and knife.is_in_flight():
 			# Use the knife's own update_y_sort method
 			knife.update_y_sort()
+	
+	var grenades = get_tree().get_nodes_in_group("grenades")
+	for grenade in grenades:
+		if is_instance_valid(grenade) and grenade.has_method("is_in_flight") and grenade.is_in_flight():
+			# Use the grenade's own update_y_sort method
+			grenade.update_y_sort()
 
 func update_camera_state(camera_position: Vector2):
 	"""Update camera state to determine if Y-sort updates are needed"""
@@ -109,6 +115,11 @@ func update_essential_systems(course_instance):
 		var knife_pos = course_instance.launch_manager.throwing_knife.global_position
 		var knife_velocity = course_instance.launch_manager.throwing_knife.velocity if "velocity" in course_instance.launch_manager.throwing_knife else Vector2.ZERO
 		update_ball_state(knife_pos, knife_velocity)
+	elif course_instance.launch_manager.grenade and is_instance_valid(course_instance.launch_manager.grenade):
+		# Update grenade state for Y-sorting
+		var grenade_pos = course_instance.launch_manager.grenade.global_position
+		var grenade_velocity = course_instance.launch_manager.grenade.velocity if "velocity" in course_instance.launch_manager.grenade else Vector2.ZERO
+		update_ball_state(grenade_pos, grenade_velocity)
 	
 	# Camera following (when ball or knife is active)
 	if course_instance.camera_following_ball:
@@ -119,6 +130,11 @@ func update_essential_systems(course_instance):
 		if course_instance.launch_manager.throwing_knife and is_instance_valid(course_instance.launch_manager.throwing_knife):
 			if course_instance.launch_manager.throwing_knife.is_in_flight():
 				target_position = course_instance.launch_manager.throwing_knife.global_position
+				has_target = true
+		# Check for grenade if it exists and is in flight
+		elif course_instance.launch_manager.grenade and is_instance_valid(course_instance.launch_manager.grenade):
+			if course_instance.launch_manager.grenade.is_in_flight():
+				target_position = course_instance.launch_manager.grenade.global_position
 				has_target = true
 		# Otherwise, follow golf ball
 		elif course_instance.launch_manager.golf_ball and is_instance_valid(course_instance.launch_manager.golf_ball):
@@ -186,6 +202,10 @@ func update_nearby_collision_objects(course_instance):
 	var check_position: Vector2
 	if course_instance.launch_manager.golf_ball and is_instance_valid(course_instance.launch_manager.golf_ball):
 		check_position = course_instance.launch_manager.golf_ball.global_position
+	elif course_instance.launch_manager.throwing_knife and is_instance_valid(course_instance.launch_manager.throwing_knife):
+		check_position = course_instance.launch_manager.throwing_knife.global_position
+	elif course_instance.launch_manager.grenade and is_instance_valid(course_instance.launch_manager.grenade):
+		check_position = course_instance.launch_manager.grenade.global_position
 	else:
 		check_position = course_instance.player_node.global_position if course_instance.player_node else Vector2.ZERO
 	

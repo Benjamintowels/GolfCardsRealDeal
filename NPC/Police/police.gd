@@ -160,6 +160,50 @@ func _on_area_exited(area: Area2D) -> void:
 			if "current_ground_level" in projectile:
 				projectile.current_ground_level = 0.0
 
+func _on_dead_area_entered(area: Area2D) -> void:
+	"""Handle collisions with the dead Police area"""
+	var projectile = area.get_parent()
+	if projectile and (projectile.name == "GolfBall" or projectile.name == "GhostBall" or projectile.has_method("is_throwing_knife")):
+		_handle_dead_area_collision(projectile)
+
+func _on_dead_area_exited(area: Area2D) -> void:
+	"""Handle when projectile exits the dead Police area - reset ground level"""
+	var projectile = area.get_parent()
+	if projectile and projectile.has_method("get_height"):
+		if projectile.has_method("_reset_ground_level"):
+			projectile._reset_ground_level()
+		else:
+			if "current_ground_level" in projectile:
+				projectile.current_ground_level = 0.0
+
+func _handle_dead_area_collision(projectile: Node2D):
+	"""Handle dead Police area collisions using proper Area2D detection"""
+	print("=== HANDLING DEAD POLICE AREA COLLISION ===")
+	print("Projectile name:", projectile.name)
+	
+	# Check if projectile has height information
+	if not projectile.has_method("get_height"):
+		print("✗ Projectile doesn't have height method - using fallback reflection")
+		_reflect_projectile(projectile)
+		return
+	
+	# Get projectile and dead Police heights
+	var projectile_height = projectile.get_height()
+	var dead_police_height = Global.get_object_height_from_marker(get_node_or_null("Dead"))
+	
+	print("Projectile height:", projectile_height)
+	print("Dead Police height:", dead_police_height)
+	
+	# Apply the collision logic:
+	# If projectile height > dead Police height: allow entry and set ground level
+	# If projectile height < dead Police height: reflect
+	if projectile_height > dead_police_height:
+		print("✓ Projectile is above dead Police - allowing entry and setting ground level")
+		_allow_projectile_entry(projectile, dead_police_height)
+	else:
+		print("✗ Projectile is below dead Police height - reflecting")
+		_reflect_projectile(projectile)
+
 func _handle_area_collision(projectile: Node2D):
 	"""Handle Police area collisions using proper Area2D detection"""
 	print("=== HANDLING POLICE AREA COLLISION ===")
@@ -483,13 +527,31 @@ func update_z_index_for_ysort() -> void:
 	var z_index = int(y_sort_point)
 	z_index = z_index
 	
-	# Set z_index for both sprites
-	if police_sprite:
-		police_sprite.z_index = z_index
-	if police_aim_sprite:
-		police_aim_sprite.z_index = z_index
+	# Set z_index for appropriate sprites based on state
+	if is_dead:
+		var dead_sprite = get_node_or_null("Dead")
+		if dead_sprite:
+			dead_sprite.z_index = z_index
+	else:
+		# Set z_index for normal sprites
+		if police_sprite:
+			police_sprite.z_index = z_index
+		if police_aim_sprite:
+			police_aim_sprite.z_index = z_index
 
 func get_y_sort_point() -> float:
+	# Use dead sprite's Y-sort point if Police is dead
+	if is_dead:
+		var dead_ysort_point = get_node_or_null("Dead/YSortPoint")
+		if dead_ysort_point:
+			return dead_ysort_point.global_position.y
+		else:
+			# Fallback to dead sprite's position
+			var dead_sprite = get_node_or_null("Dead")
+			if dead_sprite:
+				return dead_sprite.global_position.y
+	
+	# Use normal sprite's Y-sort point
 	var ysort_point_node = get_node_or_null("Police/YSortPoint")
 	if ysort_point_node:
 		return ysort_point_node.global_position.y
@@ -571,15 +633,22 @@ func die() -> void:
 	if health_bar_container:
 		health_bar_container.visible = false
 	
-	# Fade out sprites
-	if police_sprite:
-		var tween = create_tween()
-		tween.tween_property(police_sprite, "modulate:a", 0.0, 1.0)
-		tween.tween_callback(queue_free)
+	# Switch to dead sprite and collision system
+	_switch_to_dead_collision()
 	
+	# Hide normal sprites
+	if police_sprite:
+		police_sprite.visible = false
 	if police_aim_sprite:
-		var tween = create_tween()
-		tween.tween_property(police_aim_sprite, "modulate:a", 0.0, 1.0)
+		police_aim_sprite.visible = false
+	
+	# Show dead sprite
+	var dead_sprite = get_node_or_null("Dead")
+	if dead_sprite:
+		dead_sprite.visible = true
+		print("✓ Police dead sprite activated")
+	else:
+		print("✗ ERROR: Dead sprite not found!")
 
 func attack_player() -> void:
 	"""Attack the player with a pistol shot"""
@@ -647,6 +716,42 @@ func ensure_normal_sprite_visible() -> void:
 		if police_aim_sprite:
 			police_aim_sprite.visible = false
 		print("✓ Police normal sprite visibility ensured")
+
+func _switch_to_dead_collision() -> void:
+	"""Switch to the dead collision system"""
+	print("=== SWITCHING TO DEAD COLLISION SYSTEM ===")
+	
+	# Disable normal collision areas
+	if base_collision_area:
+		base_collision_area.monitoring = false
+		base_collision_area.monitorable = false
+		print("✓ Disabled base collision area")
+	
+	var hitbox = get_node_or_null("HitBox")
+	if hitbox:
+		hitbox.monitoring = false
+		hitbox.monitorable = false
+		print("✓ Disabled HitBox")
+	
+	# Enable dead collision area
+	var dead_area = get_node_or_null("Dead/Area2D")
+	if dead_area:
+		dead_area.monitoring = true
+		dead_area.monitorable = true
+		# Set collision layer to 1 so golf balls can detect it
+		dead_area.collision_layer = 1
+		# Set collision mask to 1 so it can detect golf balls on layer 1
+		dead_area.collision_mask = 1
+		# Connect to area_entered and area_exited signals for collision detection
+		if not dead_area.area_entered.is_connected(_on_dead_area_entered):
+			dead_area.connect("area_entered", _on_dead_area_entered)
+		if not dead_area.area_exited.is_connected(_on_dead_area_exited):
+			dead_area.connect("area_exited", _on_dead_area_exited)
+		print("✓ Enabled dead collision area")
+	else:
+		print("✗ ERROR: Dead Area2D not found!")
+	
+	print("=== DEAD COLLISION SYSTEM ACTIVATED ===")
 
 func _perform_attack_raycast() -> Node:
 	"""Perform a raycast to check what's in the line of fire"""
