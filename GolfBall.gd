@@ -411,6 +411,11 @@ func get_element():
 	"""Get the current element data from the ball"""
 	return current_element
 
+func is_in_flight() -> bool:
+	"""Check if the ball is currently in flight (moving or rolling)"""
+	# Ball is in flight if it's not landed and has velocity
+	return not landed_flag and (velocity.length() > 0.1 or vz != 0.0 or z > current_ground_level)
+
 func _process(delta):
 	if landed_flag:
 		return
@@ -821,6 +826,11 @@ func _process(delta):
 					# Ball finally stopped on tile
 					create_landing_highlight(final_landing_tile)
 					
+					# Emit landed signal with final tile position (only once)
+					if not has_emitted_landed_signal:
+						landed.emit(final_landing_tile)
+						has_emitted_landed_signal = true
+					
 					# Only play ball stop sound if on fairway tile
 					var tile_type = map_manager.get_tile_type(final_landing_tile.x, final_landing_tile.y)
 					if tile_type == "F":
@@ -858,6 +868,11 @@ func _process(delta):
 					final_landing_tile = Vector2i(floor(position.x / cell_size), floor(position.y / cell_size))
 					# Ball finally stopped on tile
 					create_landing_highlight(final_landing_tile)
+					
+					# Emit landed signal with final tile position (only once)
+					if not has_emitted_landed_signal:
+						landed.emit(final_landing_tile)
+						has_emitted_landed_signal = true
 					
 					# Only play ball stop sound if on fairway tile
 					var tile_type = map_manager.get_tile_type(final_landing_tile.x, final_landing_tile.y)

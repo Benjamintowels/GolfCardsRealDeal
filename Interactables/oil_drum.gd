@@ -182,7 +182,28 @@ func _calculate_velocity_damage(velocity_magnitude: float) -> int:
 
 func take_damage(amount: int) -> void:
 	"""Take damage and handle tipping over if health reaches 0, or explode if overkilled"""
+	
+	# Check if this damage is from fire (fire tile damage)
+	var is_fire_damage = _is_damage_from_fire()
+	
 	current_health = max(0, current_health - amount)
+	
+	# If this is fire damage, trigger explosion immediately
+	if is_fire_damage:
+		# Create a temporary ball node to pass to the explosion function
+		var temp_ball = Node2D.new()
+		temp_ball.name = "FireDamageExplosionBall"
+		
+		# Add the ball to the scene temporarily
+		get_parent().add_child(temp_ball)
+		temp_ball.global_position = global_position
+		
+		# Trigger the explosion using the existing fire element logic
+		_explode_oil_drum(temp_ball)
+		
+		# Remove the temporary ball
+		temp_ball.queue_free()
+		return
 	
 	# Check if this damage would overkill the oil drum
 	# Overkill = damage - current_health (how much damage exceeds current health)
@@ -696,6 +717,20 @@ func _is_fire_element_ball(ball: Node2D) -> bool:
 			return false
 	else:
 		return false
+
+func _is_damage_from_fire() -> bool:
+	"""Check if the current damage call is from fire tile damage"""
+	
+	# Check if there are active fire tiles at our position
+	var fire_tiles = get_tree().get_nodes_in_group("fire_tiles")
+	for fire_tile in fire_tiles:
+		if is_instance_valid(fire_tile) and fire_tile.has_method("get_tile_position"):
+			var fire_tile_pos = fire_tile.get_tile_position()
+			var our_pos = get_grid_position()
+			if fire_tile_pos == our_pos and fire_tile.has_method("is_fire_active") and fire_tile.is_fire_active():
+				return true
+	
+	return false
 
 func _explode_oil_drum(ball: Node2D) -> void:
 	"""Explode the oil drum when hit by a fire element ball"""

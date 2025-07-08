@@ -475,8 +475,8 @@ func hide_height_meter():
 func handle_input(event: InputEvent) -> bool:
 	"""Handle input events for launch mechanics. Returns true if event was handled."""
 	
-	# Check if a ball is currently in flight - if so, don't allow new launches
-	if is_ball_in_flight():
+	# Check if a ball is available for launch - if not, don't allow new launches
+	if not is_ball_available_for_launch():
 		return false
 	
 	if event is InputEventMouseButton:
@@ -696,6 +696,86 @@ func is_ball_in_flight() -> bool:
 					return true
 	
 	return false
+
+func is_ball_available_for_launch() -> bool:
+	"""Check if there's a ball available for launching (not in flight and not landed)"""
+	# First check the ball_in_flight variable - if true, ball is not available
+	if ball_in_flight:
+		return false
+	
+	# Check if we have a golf ball reference
+	if golf_ball and is_instance_valid(golf_ball):
+		if golf_ball.has_method("is_in_flight"):
+			if golf_ball.is_in_flight():
+				return false  # Ball is in flight, not available
+		elif "landed_flag" in golf_ball:
+			if golf_ball.landed_flag:
+				return false  # Ball has landed, not available for launch
+		elif "in_flight" in golf_ball:
+			if golf_ball.in_flight:
+				return false  # Ball is in flight, not available
+		elif golf_ball.has_method("get_velocity"):
+			var velocity = golf_ball.get_velocity()
+			if velocity.length() > 0.1:
+				return false  # Ball is moving, not available
+		elif "velocity" in golf_ball:
+			var velocity = golf_ball.velocity
+			if velocity.length() > 0.1:
+				return false  # Ball is moving, not available
+	
+	# Check if we have a throwing knife reference
+	if throwing_knife and is_instance_valid(throwing_knife):
+		if throwing_knife.has_method("is_in_flight"):
+			if throwing_knife.is_in_flight():
+				return false  # Knife is in flight, not available
+		elif throwing_knife.has_method("get_velocity"):
+			var velocity = throwing_knife.get_velocity()
+			if velocity.length() > 0.1:
+				return false  # Knife is moving, not available
+		elif "velocity" in throwing_knife:
+			var velocity = throwing_knife.velocity
+			if velocity.length() > 0.1:
+				return false  # Knife is moving, not available
+	
+	# Also check for any balls in the scene
+	var balls = get_tree().get_nodes_in_group("balls")
+	for ball in balls:
+		if is_instance_valid(ball):
+			if ball.has_method("is_in_flight"):
+				if ball.is_in_flight():
+					return false  # Ball is in flight, not available
+			elif "landed_flag" in ball:
+				if ball.landed_flag:
+					return false  # Ball has landed, not available for launch
+			elif "in_flight" in ball:
+				if ball.in_flight:
+					return false  # Ball is in flight, not available
+			elif ball.has_method("get_velocity"):
+				var velocity = ball.get_velocity()
+				if velocity.length() > 0.1:
+					return false  # Ball is moving, not available
+			elif "velocity" in ball:
+				var velocity = ball.velocity
+				if velocity.length() > 0.1:
+					return false  # Ball is moving, not available
+	
+	# Also check for any knives in the scene
+	var knives = get_tree().get_nodes_in_group("knives")
+	for knife in knives:
+		if is_instance_valid(knife):
+			if knife.has_method("is_in_flight"):
+				if knife.is_in_flight():
+					return false  # Knife is in flight, not available
+			elif knife.has_method("get_velocity"):
+				var velocity = knife.get_velocity()
+				if velocity.length() > 0.1:
+					return false  # Knife is moving, not available
+			elif "velocity" in knife:
+				var velocity = knife.velocity
+				if velocity.length() > 0.1:
+					return false  # Knife is moving, not available
+	
+	return true  # No balls or knives are in flight or landed, so launch is available
 
 func set_ball_in_flight(in_flight: bool) -> void:
 	"""Set the ball in flight state"""

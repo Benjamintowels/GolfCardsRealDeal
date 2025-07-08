@@ -20,6 +20,9 @@ const ADJACENT_TILE_DAMAGE: int = 15  # Damage to objects on adjacent tiles
 var damage_dealt: bool = false  # Track if damage has been dealt to prevent multiple applications
 
 func _ready():
+	# Add to fire_tiles group for damage detection
+	add_to_group("fire_tiles")
+	
 	# Get references to fire sprites
 	fire_sprites = [
 		get_node_or_null("FireTileSprite"),
