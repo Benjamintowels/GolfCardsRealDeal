@@ -91,8 +91,8 @@ func smart_process(delta: float, course_instance):
 func update_essential_systems(course_instance):
 	"""Update systems that always need to run"""
 	# Update LaunchManager (essential for gameplay)
-	# Don't overwrite chosen_landing_spot, selected_club, or club_data if we're in knife mode
-	if not course_instance.launch_manager.is_knife_mode:
+	# Don't overwrite chosen_landing_spot, selected_club, or club_data if we're in knife mode or grenade mode
+	if not course_instance.launch_manager.is_knife_mode and not course_instance.launch_manager.is_grenade_mode:
 		course_instance.launch_manager.chosen_landing_spot = course_instance.chosen_landing_spot
 		course_instance.launch_manager.selected_club = course_instance.selected_club
 		course_instance.launch_manager.club_data = course_instance.club_data

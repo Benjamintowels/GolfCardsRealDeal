@@ -2070,6 +2070,93 @@ func _on_golf_ball_sand_landing():
 		_on_golf_ball_landed(final_tile)
 		_on_golf_ball_landed(final_tile)
 
+func _on_grenade_landed(final_tile: Vector2i) -> void:
+	"""Handle when a grenade lands"""
+	print("Grenade landed at tile:", final_tile)
+	
+	# Update smart optimizer state immediately when grenade lands
+	if smart_optimizer:
+		smart_optimizer.update_game_state("move", false, false, false)
+	
+	# Pause for 1 second to let player see where grenade landed
+	var pause_timer = get_tree().create_timer(1.0)
+	pause_timer.timeout.connect(func():
+		# After pause, tween camera back to player
+		if player_node and camera:
+			create_camera_tween(player_node.global_position, 0.5, Tween.TRANS_LINEAR)
+			current_camera_tween.tween_callback(func():
+				# Exit grenade mode and reset camera following after tween completes
+				if launch_manager:
+					launch_manager.exit_grenade_mode()
+					print("Exited grenade mode after camera tween completed")
+				camera_following_ball = false
+			)
+		else:
+			# Fallback if no player or camera
+			if launch_manager:
+				launch_manager.exit_grenade_mode()
+				print("Exited grenade mode (fallback)")
+			camera_following_ball = false
+	)
+
+func _on_grenade_out_of_bounds() -> void:
+	"""Handle when a grenade goes out of bounds"""
+	print("Grenade went out of bounds")
+	
+	# Update smart optimizer state
+	if smart_optimizer:
+		smart_optimizer.update_game_state("move", false, false, false)
+	
+	# Tween camera back to player immediately
+	if player_node and camera:
+		create_camera_tween(player_node.global_position, 0.5, Tween.TRANS_LINEAR)
+		current_camera_tween.tween_callback(func():
+			# Exit grenade mode and reset camera following after tween completes
+			if launch_manager:
+				launch_manager.exit_grenade_mode()
+				print("Exited grenade mode after out of bounds")
+			camera_following_ball = false
+		)
+	else:
+		# Fallback if no player or camera
+		if launch_manager:
+			launch_manager.exit_grenade_mode()
+			print("Exited grenade mode (fallback)")
+		camera_following_ball = false
+
+func _on_grenade_sand_landing() -> void:
+	"""Handle when a grenade lands in sand"""
+	print("Grenade landed in sand")
+	
+	# Play sand landing sound
+	if sand_thunk_sound and sand_thunk_sound.stream:
+		sand_thunk_sound.play()
+	
+	# Update smart optimizer state
+	if smart_optimizer:
+		smart_optimizer.update_game_state("move", false, false, false)
+	
+	# Pause for 1 second to let player see where grenade landed
+	var pause_timer = get_tree().create_timer(1.0)
+	pause_timer.timeout.connect(func():
+		# After pause, tween camera back to player
+		if player_node and camera:
+			create_camera_tween(player_node.global_position, 0.5, Tween.TRANS_LINEAR)
+			current_camera_tween.tween_callback(func():
+				# Exit grenade mode and reset camera following after tween completes
+				if launch_manager:
+					launch_manager.exit_grenade_mode()
+					print("Exited grenade mode after sand landing")
+				camera_following_ball = false
+			)
+		else:
+			# Fallback if no player or camera
+			if launch_manager:
+				launch_manager.exit_grenade_mode()
+				print("Exited grenade mode (fallback)")
+			camera_following_ball = false
+	)
+
 func show_sand_landing_dialog():
 	var dialog = AcceptDialog.new()
 	dialog.title = "Sand Trap!"
@@ -3303,8 +3390,9 @@ func _on_ball_launched(ball: Node2D):
 	# Set up ball properties that require course_1.gd references
 	ball.map_manager = map_manager
 	
-	# Check if this is a throwing knife or golf ball
+	# Check if this is a throwing knife, grenade, or golf ball
 	var is_knife = ball.has_method("is_throwing_knife") and ball.is_throwing_knife()
+	var is_grenade = ball.has_method("is_grenade_weapon") and ball.is_grenade_weapon()
 	
 	if is_knife:
 		# Handle throwing knife
@@ -3325,12 +3413,33 @@ func _on_ball_launched(ball: Node2D):
 		# Set camera following
 		camera_following_ball = true
 		
+	elif is_grenade:
+		# Handle grenade
+		print("=== HANDLING GRENADE LAUNCH ===")
+		
+		# Play grenade whoosh sound when launched
+		var grenade_whoosh = ball.get_node_or_null("GrenadeWhoosh")
+		if grenade_whoosh:
+			grenade_whoosh.play()
+			print("Playing grenade whoosh sound")
+		else:
+			print("Warning: GrenadeWhoosh sound not found on grenade")
+		
+		# Connect grenade signals
+		ball.landed.connect(_on_grenade_landed)
+		ball.out_of_bounds.connect(_on_grenade_out_of_bounds)
+		ball.sand_landing.connect(_on_grenade_sand_landing)
+		
+		# Set camera following
+		camera_following_ball = true
+		print("Camera following set to true for grenade")
+		
 	else:
 		# Handle golf ball
 		print("=== HANDLING GOLF BALL LAUNCH ===")
 		
 		# Play swing sound for golf ball
-		play_swing_sound(ball.final_power if ball.has_method("get_final_power") else 0.0)
+		play_swing_sound(ball.get_final_power() if ball.has_method("get_final_power") else 0.0)
 		
 		# Set ball launch position for player collision delay system
 		if player_node and player_node.has_method("set_ball_launch_position"):

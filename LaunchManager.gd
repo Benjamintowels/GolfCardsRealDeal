@@ -12,6 +12,7 @@ var launch_direction := Vector2.ZERO
 var is_charging := false
 var is_charging_height := false
 var is_knife_mode := false  # Track if we're launching a knife instead of a ball
+var is_grenade_mode := false  # Track if we're launching a grenade instead of a ball
 
 # Launch constants
 const MAX_LAUNCH_POWER := 1200.0
@@ -42,7 +43,11 @@ var ui_layer: Node
 var player_node: Node2D
 var cell_size: int
 var chosen_landing_spot: Vector2
-var selected_club: String
+var selected_club: String:
+	set(value):
+		if selected_club != value:
+			print("LaunchManager: selected_club changed from '", selected_club, "' to '", value, "'")
+		selected_club = value
 var club_data: Dictionary
 var player_stats: Dictionary
 var card_effect_handler: Node
@@ -59,6 +64,7 @@ signal charging_state_changed(charging: bool, charging_height: bool)
 # Ball state tracking
 var ball_in_flight := false
 var previous_golf_ball: Node2D = null  # Store golf ball reference when entering knife mode
+var grenade: Node2D = null  # Store grenade reference
 
 func _ready():
 	pass
@@ -105,6 +111,7 @@ func enter_launch_phase() -> void:
 	emit_signal("launch_phase_entered")
 	charge_time = 0.0
 	original_aim_mouse_pos = camera.get_global_mouse_position()
+	print("LaunchManager: enter_launch_phase - selected_club:", selected_club, " is_grenade_mode:", is_grenade_mode, " club_data:", club_data)
 	show_power_meter()
 	
 	# Set max_charge_time based on club and distance
@@ -153,6 +160,7 @@ func exit_launch_phase() -> void:
 	is_charging = false
 	is_charging_height = false
 	is_knife_mode = false  # Reset knife mode
+	is_grenade_mode = false  # Reset grenade mode
 	
 	# Reset ball in flight state when exiting launch phase
 	set_ball_in_flight(false)
@@ -186,6 +194,50 @@ func enter_knife_mode() -> void:
 func exit_knife_mode() -> void:
 	"""Exit knife throwing mode"""
 	is_knife_mode = false
+	
+	# Restore golf ball reference from stored reference or find one in scene
+	if previous_golf_ball and is_instance_valid(previous_golf_ball):
+		golf_ball = previous_golf_ball
+	else:
+		# Fallback: find any valid ball in the scene
+		var balls = get_tree().get_nodes_in_group("balls")
+		for ball in balls:
+			if is_instance_valid(ball):
+				golf_ball = ball
+				break
+	previous_golf_ball = null
+
+func enter_grenade_mode() -> void:
+	"""Enter grenade throwing mode"""
+	is_grenade_mode = true
+	selected_club = "GrenadeCard"  # Use GrenadeCard club stats for grenade throwing
+	print("LaunchManager: enter_grenade_mode - selected_club:", selected_club, " is_grenade_mode:", is_grenade_mode)
+	
+	# Store the current golf ball reference before entering grenade mode
+	previous_golf_ball = golf_ball
+	
+	# Create character-specific grenade data based on strength
+	var character_strength = player_stats.get("strength", 0)
+	var base_max_distance = 400.0  # Base distance for strength 0 (Benny)
+	var strength_multiplier = 1.0 + (character_strength * 0.25)  # +25% per strength point
+	var max_distance = base_max_distance * strength_multiplier
+	
+	# Set up character-specific grenade data
+	club_data = {
+		"GrenadeCard": {
+			"max_distance": max_distance,
+			"min_distance": 200.0,
+			"trailoff_forgiveness": 0.8,
+			"is_putter": false
+		}
+	}
+	print("LaunchManager: enter_grenade_mode - club_data:", club_data)
+	
+	enter_launch_phase()
+
+func exit_grenade_mode() -> void:
+	"""Exit grenade throwing mode"""
+	is_grenade_mode = false
 	
 	# Restore golf ball reference from stored reference or find one in scene
 	if previous_golf_ball and is_instance_valid(previous_golf_ball):
@@ -322,9 +374,105 @@ func launch_throwing_knife(launch_direction: Vector2, final_power: float, height
 	# Exit launch phase to transition to ball flying phase
 	exit_launch_phase()
 
+func launch_grenade(launch_direction: Vector2, final_power: float, height: float, launch_spin: float = 0.0, spin_strength_category: int = 0):
+	"""Launch the grenade with the specified parameters"""
+	print("LaunchManager: launch_grenade called with power:", final_power, " height:", height, " direction:", launch_direction)
+	golf_ball = null
+	var existing_grenade = null
+	var grenades = get_tree().get_nodes_in_group("grenades")
+	
+	# Find an available grenade in the scene (not landed)
+	for grenade in grenades:
+		if is_instance_valid(grenade):
+			# Check if this grenade is available (not landed)
+			var is_available = false
+			if grenade.has_method("is_in_flight"):
+				is_available = grenade.is_in_flight()
+			elif "landed_flag" in grenade:
+				is_available = not grenade.landed_flag
+			else:
+				# If we can't determine if it's landed, assume it's available
+				is_available = true
+			
+			if is_available:
+				existing_grenade = grenade
+				break
+
+	if not existing_grenade:
+		# Create a new grenade instance
+		var grenade_scene = preload("res://Weapons/Grenade.tscn")
+		existing_grenade = grenade_scene.instantiate()
+		
+		# Add grenade to groups for smart optimization
+		existing_grenade.add_to_group("grenades")
+		existing_grenade.add_to_group("collision_objects")
+		
+		# Add to the CameraContainer like golf balls
+		if card_effect_handler and card_effect_handler.course:
+			var camera_container = card_effect_handler.course.get_node_or_null("CameraContainer")
+			if camera_container:
+				camera_container.add_child(existing_grenade)
+				# Position at player center like golf ball
+				var sprite = player_node.get_node_or_null("Sprite2D")
+				var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
+				var player_center = player_node.global_position + player_size / 2
+				existing_grenade.global_position = player_center
+			else:
+				# Fallback to course if CameraContainer not found
+				card_effect_handler.course.add_child(existing_grenade)
+				# Position at player center like golf ball
+				var sprite = player_node.get_node_or_null("Sprite2D")
+				var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
+				var player_center = player_node.global_position + player_size / 2
+				existing_grenade.global_position = player_center
+		else:
+			return
+
+	# Use the existing grenade
+	self.grenade = existing_grenade
+
+	# Set grenade properties using character-specific grenade stats
+	var grenade_club_info = club_data.get("GrenadeCard", {
+		"max_distance": 400.0,
+		"min_distance": 200.0,
+		"trailoff_forgiveness": 0.8
+	})
+	self.grenade.chosen_landing_spot = chosen_landing_spot
+	self.grenade.set_club_info(grenade_club_info)
+	
+	# Set cell_size and map_manager like golf ball
+	if card_effect_handler and card_effect_handler.course:
+		self.grenade.cell_size = card_effect_handler.course.cell_size
+		self.grenade.map_manager = card_effect_handler.course.map_manager
+
+	# Calculate time percentage for the grenade
+	var time_percent = charge_time / max_charge_time
+	time_percent = clamp(time_percent, 0.0, 1.0)
+	self.grenade.set_time_percentage(time_percent)
+
+	# Calculate correct launch direction from player center to target
+	var sprite = player_node.get_node_or_null("Sprite2D")
+	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
+	var player_center = player_node.global_position + player_size / 2
+	var direction = (chosen_landing_spot - player_center).normalized()
+	
+	# Launch the grenade
+	self.grenade.launch(direction, final_power, height, launch_spin, spin_strength_category)
+
+	# Set ball in flight state (reusing the same system)
+	set_ball_in_flight(true)
+
+	# Store reference and emit signal
+	emit_signal("ball_launched", self.grenade)  # Reuse ball_launched signal for compatibility
+	
+	# Exit launch phase to transition to ball flying phase
+	exit_launch_phase()
+
 func show_power_meter():
 	if power_meter:
 		power_meter.queue_free()
+	
+	print("LaunchManager: show_power_meter - selected_club:", selected_club, " club_data:", club_data)
 	
 	power_for_target = MIN_LAUNCH_POWER  # Default if no target
 	max_power_for_bar = MAX_LAUNCH_POWER  # Default
@@ -337,6 +485,7 @@ func show_power_meter():
 		var club_max = club_data[selected_club]["max_distance"] if selected_club in club_data else MAX_LAUNCH_POWER
 		power_for_target = min(distance_to_target, club_max)
 		max_power_for_bar = club_max
+		print("LaunchManager: show_power_meter - calculated power_for_target:", power_for_target, " max_power_for_bar:", max_power_for_bar)
 	
 	power_meter = Control.new()
 	power_meter.name = "PowerMeter"
@@ -498,15 +647,20 @@ func handle_input(event: InputEvent) -> bool:
 				if is_charging:
 					is_charging = false
 					var is_putting = club_data.get(selected_club, {}).get("is_putter", false)
+					print("LaunchManager: Power charging finished. is_putting:", is_putting, " selected_club:", selected_club, " is_grenade_mode:", is_grenade_mode)
 					if not is_putting:
+						print("LaunchManager: Transitioning to height charging")
 						is_charging_height = true
 						launch_height = 0.0
 					else:
+						print("LaunchManager: Launching immediately (putter)")
 						# Calculate final power and launch the projectile
 						var final_power = calculate_final_power()
 						launch_direction = calculate_launch_direction()
 						if is_knife_mode:
 							launch_throwing_knife(launch_direction, final_power, launch_height)
+						elif is_grenade_mode:
+							launch_grenade(launch_direction, final_power, launch_height)
 						else:
 							launch_golf_ball(launch_direction, final_power, launch_height)
 						hide_power_meter()
@@ -514,13 +668,19 @@ func handle_input(event: InputEvent) -> bool:
 					return true
 				elif is_charging_height:
 					is_charging_height = false
+					print("LaunchManager: Height charging finished. Final height:", launch_height, " is_grenade_mode:", is_grenade_mode)
 					# Don't reset launch_height here - keep the charged value
 					# Calculate final power and launch the projectile
 					var final_power = calculate_final_power()
 					launch_direction = calculate_launch_direction()
 					if is_knife_mode:
+						print("LaunchManager: Launching throwing knife")
 						launch_throwing_knife(launch_direction, final_power, launch_height)
+					elif is_grenade_mode:
+						print("LaunchManager: Launching grenade")
+						launch_grenade(launch_direction, final_power, launch_height)
 					else:
+						print("LaunchManager: Launching golf ball")
 						launch_golf_ball(launch_direction, final_power, launch_height)
 					hide_power_meter()
 					hide_height_meter()
@@ -555,6 +715,13 @@ func calculate_launch_direction() -> Vector2:
 		for knife in knives:
 			if is_instance_valid(knife):
 				projectile_position = knife.global_position
+				break
+	elif is_grenade_mode:
+		# For grenades, check grenade instances
+		var grenades = get_tree().get_nodes_in_group("grenades")
+		for grenade in grenades:
+			if is_instance_valid(grenade):
+				projectile_position = grenade.global_position
 				break
 	else:
 		# For balls, check ball instances
@@ -666,6 +833,17 @@ func is_ball_in_flight() -> bool:
 			var velocity = throwing_knife.velocity
 			return velocity.length() > 0.1  # Knife is moving
 	
+	# Check if we have a grenade reference and it's in flight
+	if grenade and is_instance_valid(grenade):
+		if grenade.has_method("is_in_flight"):
+			return grenade.is_in_flight()
+		elif grenade.has_method("get_velocity"):
+			var velocity = grenade.get_velocity()
+			return velocity.length() > 0.1  # Grenade is moving
+		elif "velocity" in grenade:
+			var velocity = grenade.velocity
+			return velocity.length() > 0.1  # Grenade is moving
+	
 	# Also check for any balls in the scene that might be in flight
 	var balls = get_tree().get_nodes_in_group("balls")
 	for ball in balls:
@@ -698,6 +876,22 @@ func is_ball_in_flight() -> bool:
 					return true
 			elif "velocity" in knife:
 				var velocity = knife.velocity
+				if velocity.length() > 0.1:
+					return true
+	
+	# Also check for any grenades in the scene that might be in flight
+	var grenades = get_tree().get_nodes_in_group("grenades")
+	for grenade in grenades:
+		if is_instance_valid(grenade):
+			if grenade.has_method("is_in_flight"):
+				if grenade.is_in_flight():
+					return true
+			elif grenade.has_method("get_velocity"):
+				var velocity = grenade.get_velocity()
+				if velocity.length() > 0.1:
+					return true
+			elif "velocity" in grenade:
+				var velocity = grenade.velocity
 				if velocity.length() > 0.1:
 					return true
 	
@@ -743,6 +937,20 @@ func is_ball_available_for_launch() -> bool:
 			if velocity.length() > 0.1:
 				return false  # Knife is moving, not available
 	
+	# Check if we have a grenade reference
+	if grenade and is_instance_valid(grenade):
+		if grenade.has_method("is_in_flight"):
+			if grenade.is_in_flight():
+				return false  # Grenade is in flight, not available
+		elif grenade.has_method("get_velocity"):
+			var velocity = grenade.get_velocity()
+			if velocity.length() > 0.1:
+				return false  # Grenade is moving, not available
+		elif "velocity" in grenade:
+			var velocity = grenade.velocity
+			if velocity.length() > 0.1:
+				return false  # Grenade is moving, not available
+	
 	# Also check for any balls in the scene
 	var balls = get_tree().get_nodes_in_group("balls")
 	for ball in balls:
@@ -781,7 +989,23 @@ func is_ball_available_for_launch() -> bool:
 				if velocity.length() > 0.1:
 					return false  # Knife is moving, not available
 	
-	return true  # No balls or knives are in flight or landed, so launch is available
+	# Also check for any grenades in the scene
+	var grenades = get_tree().get_nodes_in_group("grenades")
+	for grenade in grenades:
+		if is_instance_valid(grenade):
+			if grenade.has_method("is_in_flight"):
+				if grenade.is_in_flight():
+					return false  # Grenade is in flight, not available
+			elif grenade.has_method("get_velocity"):
+				var velocity = grenade.get_velocity()
+				if velocity.length() > 0.1:
+					return false  # Grenade is moving, not available
+			elif "velocity" in grenade:
+				var velocity = grenade.velocity
+				if velocity.length() > 0.1:
+					return false  # Grenade is moving, not available
+	
+	return true  # No balls, knives, or grenades are in flight or landed, so launch is available
 
 func set_ball_in_flight(in_flight: bool) -> void:
 	"""Set the ball in flight state"""

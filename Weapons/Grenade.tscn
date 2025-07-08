@@ -1,9 +1,43 @@
-[gd_scene load_steps=2 format=3 uid="uid://o44xwbcddxg6"]
+[gd_scene load_steps=7 format=3 uid="uid://bgtsrbdlo67t7"]
 
 [ext_resource type="Texture2D" uid="uid://dcc0h8tdx1x7a" path="res://Weapons/Grenade.png" id="1_pynrk"]
+[ext_resource type="Script" uid="uid://n7hkb2m3avld" path="res://Weapons/Grenade.gd" id="2_script"]
+[ext_resource type="AudioStream" uid="uid://bau71e1lwtfjb" path="res://Sounds/BallLand.mp3" id="5_3byxg"]
+[ext_resource type="AudioStream" uid="uid://b6akh4wu4kriu" path="res://Sounds/WaterPlunk.mp3" id="6_water_plunk"]
+
+[sub_resource type="CompressedTexture2D" id="CompressedTexture2D_fm2t1"]
+load_path = "res://.godot/imported/GolfBall.png-0516230eae0ffabe6c6d009b86188c92.ctex"
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_khca5"]
+radius = 109.999
 
 [node name="Grenade" type="Node2D"]
+script = ExtResource("2_script")
+
+[node name="Shadow" type="Sprite2D" parent="."]
+modulate = Color(0, 0, 0, 0.3)
+position = Vector2(0, 6.37)
+scale = Vector2(0.176, 0.105)
+texture = SubResource("CompressedTexture2D_fm2t1")
+
+[node name="Area2D" type="Area2D" parent="Shadow"]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Shadow/Area2D"]
+position = Vector2(-4.76191, 8.96)
+scale = Vector2(0.4, 0.636)
+shape = SubResource("CircleShape2D_khca5")
 
 [node name="GrenadeSprite" type="Sprite2D" parent="."]
 texture_filter = 1
 texture = ExtResource("1_pynrk")
+
+[node name="BallLand" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("5_3byxg")
+volume_db = 6.443
+
+[node name="WaterPlunk" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("6_water_plunk")
+
+[node name="YSortPoint" type="Node2D" parent="."]
+position = Vector2(-5.96046e-08, 4.44375)
+scale = Vector2(0.21, 0.125)

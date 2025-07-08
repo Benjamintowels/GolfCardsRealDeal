@@ -1198,6 +1198,13 @@ func _setup_swing_animation() -> void:
 		print("✓ Swing animation system setup complete")
 
 func _update_swing_animation() -> void:
+	# Check if we're in weapon mode (knife or grenade) - don't play swing animation for weapons
+	var course = get_tree().current_scene
+	if course and course.has_method("get_launch_manager"):
+		var launch_manager = course.get_launch_manager()
+		if launch_manager and (launch_manager.is_knife_mode or launch_manager.is_grenade_mode):
+			# Don't play swing animation for weapons
+			return
 	
 	# Check if height charge state changed
 	if is_charging_height != previous_charging_height:

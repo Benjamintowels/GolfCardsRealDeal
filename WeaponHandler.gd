@@ -38,6 +38,7 @@ var pistol_scene = preload("res://Weapons/Pistol.tscn")
 var throwing_knife_scene = preload("res://Weapons/ThrowingKnife.tscn")
 var burst_shot_scene = preload("res://Weapons/BurstShot.tscn")
 var shotgun_scene = preload("res://Weapons/Shotgun.tscn")
+var grenade_scene = preload("res://Weapons/Grenade.tscn")
 var reticle_texture = preload("res://UI/Reticle.png")
 
 # Signals
@@ -118,6 +119,9 @@ func enter_weapon_aiming_mode() -> void:
 	if selected_card and selected_card.name == "Throwing Knife":
 		# Hide mouse cursor for knife aiming (only use aiming circle)
 		Input.set_custom_mouse_cursor(null)
+	elif selected_card and selected_card.name == "GrenadeCard":
+		# Hide mouse cursor for grenade aiming (only use aiming circle)
+		Input.set_custom_mouse_cursor(null)
 	elif selected_card and selected_card.name == "ShotgunCard":
 		# Use regular reticle for shotgun aiming
 		var reticle_texture = preload("res://UI/Reticle.png")
@@ -145,6 +149,32 @@ func enter_weapon_aiming_mode() -> void:
 		
 		# Show knife-specific aiming instruction
 		show_knife_aiming_instruction()
+		
+		# Store original club to restore later
+		set_meta("original_club", original_club)
+		
+		# Position camera on player initially
+		var sprite = player_node.get_node_or_null("Sprite2D")
+		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
+		var player_center = player_node.global_position + player_size / 2
+		var tween := get_tree().create_tween()
+		tween.tween_property(course.camera, "position", player_center, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	
+	# For grenade mode, set up camera following like normal shot placement
+	elif selected_card and selected_card.name == "GrenadeCard" and card_effect_handler and card_effect_handler.course:
+		var course = card_effect_handler.course
+		# Set up camera to follow mouse during grenade aiming
+		course.is_aiming_phase = true
+		
+		# Set a temporary club for grenade aiming (use GrenadeCard for character-specific range)
+		var original_club = course.selected_club
+		course.selected_club = "GrenadeCard"
+		
+		# Show aiming circle with grenade reticle image
+		show_grenade_aiming_circle()
+		
+		# Show grenade-specific aiming instruction
+		show_grenade_aiming_instruction()
 		
 		# Store original club to restore later
 		set_meta("original_club", original_club)
@@ -266,8 +296,49 @@ func show_shotgun_aiming_instruction() -> void:
 	
 	course.get_node("UILayer").add_child(instruction_label)
 
+func show_grenade_aiming_circle() -> void:
+	"""Show aiming circle with grenade reticle image"""
+	if not card_effect_handler or not card_effect_handler.course:
+		return
+	
+	var course = card_effect_handler.course
+	
+	# Use the course's show_aiming_circle function but override the texture
+	course.show_aiming_circle()
+	
+	# Replace the target circle texture with grenade reticle texture
+	if course.aiming_circle:
+		var circle = course.aiming_circle.get_node_or_null("CircleVisual")
+		if circle:
+			var grenade_reticle_texture = preload("res://UI/Reticle.png")  # Use regular reticle for now
+			circle.texture = grenade_reticle_texture
+
+func show_grenade_aiming_instruction() -> void:
+	"""Show grenade-specific aiming instruction"""
+	if not card_effect_handler or not card_effect_handler.course:
+		return
+	
+	var course = card_effect_handler.course
+	var existing_instruction = course.get_node_or_null("UILayer/AimingInstructionLabel")
+	if existing_instruction:
+		existing_instruction.queue_free()
+	
+	var instruction_label := Label.new()
+	instruction_label.name = "AimingInstructionLabel"
+	instruction_label.text = "Move mouse to set grenade target\nLeft click to throw, Right click to cancel"
+	
+	instruction_label.add_theme_font_size_override("font_size", 18)
+	instruction_label.add_theme_color_override("font_color", Color.RED)
+	instruction_label.add_theme_constant_override("outline_size", 2)
+	instruction_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	
+	instruction_label.position = Vector2(400, 50)
+	instruction_label.z_index = 200
+	
+	course.get_node("UILayer").add_child(instruction_label)
+
 func create_weapon_instance() -> void:
-	"""Create the weapon instance (pistol, knife, burst shot, or shotgun) in front of the player"""
+	"""Create the weapon instance (pistol, knife, burst shot, shotgun, or grenade) in front of the player"""
 	if weapon_instance:
 		weapon_instance.queue_free()
 	
@@ -275,6 +346,8 @@ func create_weapon_instance() -> void:
 	var weapon_scene = pistol_scene  # Default to pistol
 	if selected_card and selected_card.name == "Throwing Knife":
 		weapon_scene = throwing_knife_scene
+	elif selected_card and selected_card.name == "GrenadeCard":
+		weapon_scene = grenade_scene
 	elif selected_card and selected_card.name == "BurstShot":
 		weapon_scene = burst_shot_scene
 	elif selected_card and selected_card.name == "ShotgunCard":
@@ -346,7 +419,7 @@ func update_weapon_rotation() -> void:
 		weapon_instance.position = weapon_offset
 
 func fire_weapon() -> void:
-	"""Fire the weapon and perform raytrace or launch knife"""
+	"""Fire the weapon and perform raytrace or launch knife/grenade"""
 	if not weapon_instance or not player_node:
 		return
 	
@@ -354,6 +427,12 @@ func fire_weapon() -> void:
 	if selected_card and selected_card.name == "Throwing Knife" and launch_manager:
 		# Use LaunchManager for knife throwing
 		launch_throwing_knife()
+		return
+	
+	# Check if this is a grenade and we have LaunchManager
+	if selected_card and selected_card.name == "GrenadeCard" and launch_manager:
+		# Use LaunchManager for grenade throwing
+		launch_grenade()
 		return
 	
 	# Check if this is a BurstShot weapon
@@ -759,6 +838,28 @@ func launch_throwing_knife() -> void:
 	# Exit weapon mode (LaunchManager will handle the rest)
 	exit_weapon_mode()
 
+func launch_grenade() -> void:
+	"""Launch a grenade using the LaunchManager system"""
+	if not launch_manager or not weapon_instance or not camera:
+		return
+	
+	# Get the landing spot from the aiming circle if available, otherwise use mouse position
+	var landing_spot = camera.get_global_mouse_position()  # Default to mouse position
+	if card_effect_handler and card_effect_handler.course:
+		var course = card_effect_handler.course
+		if course.chosen_landing_spot != Vector2.ZERO:
+			landing_spot = course.chosen_landing_spot
+	
+	# Set up LaunchManager for grenade mode
+	launch_manager.chosen_landing_spot = landing_spot
+	launch_manager.player_stats = player_stats
+	
+	# Enter grenade mode in LaunchManager (it will handle grenade creation)
+	launch_manager.enter_grenade_mode()
+	
+	# Exit weapon mode (LaunchManager will handle the rest)
+	exit_weapon_mode()
+
 func perform_raytrace() -> Node:
 	"""Perform raytrace from pistol center to mouse position with proper bullet physics"""
 	if not weapon_instance or not player_node or not camera:
@@ -952,6 +1053,18 @@ func exit_weapon_mode() -> void:
 			course.selected_club = get_meta("original_club")
 			remove_meta("original_club")
 	
+	# Clean up grenade aiming mode if it was active
+	if selected_card and selected_card.name == "GrenadeCard" and card_effect_handler and card_effect_handler.course:
+		var course = card_effect_handler.course
+		course.is_aiming_phase = false
+		course.hide_aiming_circle()
+		course.hide_aiming_instruction()
+		
+		# Restore original club if it was stored
+		if has_meta("original_club"):
+			course.selected_club = get_meta("original_club")
+			remove_meta("original_club")
+	
 	# Clean up shotgun aiming mode if it was active
 	if selected_card and selected_card.name == "ShotgunCard" and card_effect_handler and card_effect_handler.course:
 		var course = card_effect_handler.course
@@ -1018,6 +1131,12 @@ func handle_input(event: InputEvent) -> bool:
 		
 		# For knife mode, update aiming circle like normal shot placement
 		if selected_card and selected_card.name == "Throwing Knife" and card_effect_handler and card_effect_handler.course:
+			var course = card_effect_handler.course
+			if course.is_aiming_phase and course.aiming_circle:
+				course.update_aiming_circle()
+		
+		# For grenade mode, update aiming circle like normal shot placement
+		if selected_card and selected_card.name == "GrenadeCard" and card_effect_handler and card_effect_handler.course:
 			var course = card_effect_handler.course
 			if course.is_aiming_phase and course.aiming_circle:
 				course.update_aiming_circle()
