@@ -1,0 +1,9 @@
+[gd_scene load_steps=2 format=3 uid="uid://o44xwbcddxg6"]
+
+[ext_resource type="Texture2D" uid="uid://dcc0h8tdx1x7a" path="res://Weapons/Grenade.png" id="1_pynrk"]
+
+[node name="Grenade" type="Node2D"]
+
+[node name="GrenadeSprite" type="Sprite2D" parent="."]
+texture_filter = 1
+texture = ExtResource("1_pynrk")

@@ -860,10 +860,9 @@ func _process(delta):
 						elif shot_distance > 1000.0:
 							if land_on_green_sound and land_on_green_sound.stream:
 								land_on_green_sound.play()
-				else:
-					# Map manager is null, can't determine final tile
-					# Reset shot effects even if map manager is null
-					reset_shot_effects()
+				
+				# Reset shot effects when ball finally stops (for both map manager cases)
+				reset_shot_effects()
 				return
 			
 			# MUCH MORE AGGRESSIVE FRICTION: Lose a fixed percentage per frame
@@ -903,10 +902,9 @@ func _process(delta):
 						elif shot_distance > 1000.0:
 							if land_on_green_sound and land_on_green_sound.stream:
 								land_on_green_sound.play()
-				else:
-					# Map manager is null, can't determine final tile
-					# Reset shot effects even if map manager is null
-					reset_shot_effects()
+				
+				# Reset shot effects when ball finally stops (for both map manager cases)
+				reset_shot_effects()
 				return
 	
 	# Update visual effects

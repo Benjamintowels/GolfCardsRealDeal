@@ -375,10 +375,6 @@ func show_deck_dialog():
 		# Add actual card on top if available
 		if i < movement_cards.size():
 			var should_be_clickable = is_replacement_mode and pending_reward_type == "card" and pending_reward and not is_club_card(pending_reward)
-			print("Bag: Creating movement card display for", movement_cards[i].name, "should_be_clickable:", should_be_clickable)
-			print("Bag: is_replacement_mode:", is_replacement_mode, "pending_reward_type:", pending_reward_type, "pending_reward:", pending_reward.name if pending_reward else "null")
-			if pending_reward:
-				print("Bag: not is_club_card(pending_reward):", not is_club_card(pending_reward))
 			var card_display = create_card_display(movement_cards[i], 1, should_be_clickable)
 			slot_container.add_child(card_display)
 			card_display.z_index = 10
@@ -421,10 +417,6 @@ func show_deck_dialog():
 		# Add actual card on top if available
 		if i < club_cards.size():
 			var should_be_clickable = is_replacement_mode and pending_reward_type == "card" and pending_reward and is_club_card(pending_reward)
-			print("Bag: Creating club card display for", club_cards[i].name, "should_be_clickable:", should_be_clickable)
-			print("Bag: is_replacement_mode:", is_replacement_mode, "pending_reward_type:", pending_reward_type, "pending_reward:", pending_reward.name if pending_reward else "null")
-			if pending_reward:
-				print("Bag: is_club_card(pending_reward):", is_club_card(pending_reward))
 			var card_display = create_card_display(club_cards[i], 1, should_be_clickable)
 			slot_container.add_child(card_display)
 			# Ensure card appears on top by setting z_index
@@ -434,24 +426,14 @@ func show_deck_dialog():
 			
 			# Debug check after adding to scene
 			if should_be_clickable:
-				print("Bag: Button added to scene for", club_cards[i].name)
-				print("Bag: Button is in tree:", card_display.is_inside_tree())
-				print("Bag: Button parent:", card_display.get_parent().name if card_display.get_parent() else "null")
-				print("Bag: Button parent mouse_filter:", card_display.get_parent().mouse_filter if card_display.get_parent() else "N/A")
-				# Force the button to be processed
 				card_display.process_mode = Node.PROCESS_MODE_INHERIT
 				# Ensure the button is properly connected to the scene tree
 				if not card_display.is_inside_tree():
-					print("Bag: WARNING - Button not in tree, attempting to force add")
 					# Try to force add to the scene tree
 					get_tree().current_scene.add_child(card_display)
 					# Then move it back to the correct parent
 					slot_container.add_child(card_display)
 				# Additional debugging for button position and size
-				print("Bag: Button position:", card_display.position, "size:", card_display.size)
-				print("Bag: Button global position:", card_display.global_position)
-				print("Bag: Button visible:", card_display.visible, "modulate:", card_display.modulate)
-	
 	# Add dialog to UI layer (parent of the bag)
 	var ui_layer = get_parent()
 	var shop_deck_dialog = null

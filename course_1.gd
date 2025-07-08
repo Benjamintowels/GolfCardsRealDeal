@@ -138,7 +138,8 @@ var club_max_distances = {
 	"Iron": 600.0,           # Medium distance
 	"Wooden": 350.0,         # Slightly better than Putter
 	"Putter": 200.0,         # Shortest distance (now rolling only)
-	"PitchingWedge": 200.0   # Same as old Putter settings
+	"PitchingWedge": 200.0,  # Same as old Putter settings
+	"ShotgunCard": 350.0     # Shotgun range
 }
 
 # New club data with min distances and trailoff stats
@@ -188,6 +189,11 @@ var club_data = {
 		"max_distance": 900.0,
 		"min_distance": 400.0,    # Medium gap (500)
 		"trailoff_forgiveness": 0.5  # Medium forgiving
+	},
+	"ShotgunCard": {
+		"max_distance": 350.0,
+		"min_distance": 50.0,     # Very short range weapon
+		"trailoff_forgiveness": 0.8  # Forgiving for weapon
 	}
 }
 
@@ -1274,7 +1280,12 @@ func update_aiming_circle():
 	var direction = (mouse_pos - player_center).normalized()
 	var distance = player_center.distance_to(mouse_pos)
 	
-	var clamped_distance = min(distance, max_shot_distance)
+	# Check if this is shotgun mode and limit range to 350 pixels
+	var effective_max_distance = max_shot_distance
+	if selected_club == "ShotgunCard":
+		effective_max_distance = 350.0
+	
+	var clamped_distance = min(distance, effective_max_distance)
 	var clamped_position = player_center + direction * clamped_distance
 	
 	aiming_circle.global_position = clamped_position - aiming_circle.size / 2
@@ -1434,9 +1445,9 @@ func start_npc_turn_sequence() -> void:
 	"""Handle the NPC turn sequence with camera transitions and UI"""
 	print("Starting NPC turn sequence...")
 	
-	# Check if there are any alive NPCs on the map
-	if not has_alive_npcs():
-		print("No alive NPCs found on the map, skipping World Turn and entering next player turn")
+	# Check if there are any active NPCs on the map (alive and not frozen, or will thaw this turn)
+	if not has_active_npcs():
+		print("No active NPCs found on the map (all alive NPCs are frozen and won't thaw this turn), skipping World Turn and entering next player turn")
 		
 		# Show "Your Turn" message immediately
 		show_turn_message("Your Turn", 2.0)
@@ -1502,7 +1513,7 @@ func start_npc_turn_sequence() -> void:
 		draw_cards_button.visible = false
 
 func find_nearest_visible_npc() -> Node:
-	"""Find the nearest NPC that is visible to the player and alive"""
+	"""Find the nearest NPC that is visible to the player, alive, and active (not frozen or will thaw this turn)"""
 	var entities = get_node_or_null("Entities")
 	if not entities:
 		print("ERROR: No Entities node found!")
@@ -1529,10 +1540,30 @@ func find_nearest_visible_npc() -> Node:
 				print("NPC ", npc.name, " is dead, skipping")
 				continue
 			
+			# Check if NPC is frozen and won't thaw this turn
+			var is_frozen = false
+			if npc.has_method("is_frozen_state"):
+				is_frozen = npc.is_frozen_state()
+			elif "is_frozen" in npc:
+				is_frozen = npc.is_frozen
+			
+			var will_thaw_this_turn = false
+			if is_frozen and npc.has_method("get_freeze_turns_remaining"):
+				var turns_remaining = npc.get_freeze_turns_remaining()
+				will_thaw_this_turn = turns_remaining <= 1
+			elif is_frozen and "freeze_turns_remaining" in npc:
+				var turns_remaining = npc.freeze_turns_remaining
+				will_thaw_this_turn = turns_remaining <= 1
+			
+			# Skip NPCs that are frozen and won't thaw this turn
+			if is_frozen and not will_thaw_this_turn:
+				print("NPC ", npc.name, " is frozen and won't thaw this turn, skipping")
+				continue
+			
 			var npc_pos = npc.get_grid_position()
 			var distance = player_grid_pos.distance_to(npc_pos)
 			
-			print("NPC ", npc.name, " at distance ", distance, " from player")
+			print("NPC ", npc.name, " at distance ", distance, " from player (frozen: ", is_frozen, ", will thaw: ", will_thaw_this_turn, ")")
 			
 			# Check if NPC is within vision range (12 tiles)
 			if distance <= 12 and distance < nearest_distance:
@@ -1573,6 +1604,56 @@ func has_alive_npcs() -> bool:
 			print("Invalid NPC found, skipping")
 	
 	print("No alive NPCs found on the map")
+	return false
+
+func has_active_npcs() -> bool:
+	"""Check if there are any alive NPCs that are not frozen and will thaw this turn"""
+	var entities = get_node_or_null("Entities")
+	if not entities:
+		print("ERROR: No Entities node found!")
+		return false
+	
+	var npcs = entities.get_npcs()
+	print("Checking for active NPCs among ", npcs.size(), " total NPCs")
+	
+	for npc in npcs:
+		if is_instance_valid(npc):
+			# Check if NPC is alive
+			var is_alive = true
+			if npc.has_method("get_is_dead"):
+				is_alive = not npc.get_is_dead()
+			elif npc.has_method("is_dead"):
+				is_alive = not npc.is_dead()
+			elif "is_dead" in npc:
+				is_alive = not npc.is_dead
+			
+			if is_alive:
+				# Check if NPC is frozen
+				var is_frozen = false
+				if npc.has_method("is_frozen_state"):
+					is_frozen = npc.is_frozen_state()
+				elif "is_frozen" in npc:
+					is_frozen = npc.is_frozen
+				
+				# Check if NPC will thaw this turn
+				var will_thaw_this_turn = false
+				if is_frozen and npc.has_method("get_freeze_turns_remaining"):
+					var turns_remaining = npc.get_freeze_turns_remaining()
+					will_thaw_this_turn = turns_remaining <= 1
+				elif is_frozen and "freeze_turns_remaining" in npc:
+					var turns_remaining = npc.freeze_turns_remaining
+					will_thaw_this_turn = turns_remaining <= 1
+				
+				# NPC is active if not frozen, or if frozen but will thaw this turn
+				if not is_frozen or will_thaw_this_turn:
+					print("Found active NPC: ", npc.name, " (frozen: ", is_frozen, ", will thaw: ", will_thaw_this_turn, ")")
+					return true
+				else:
+					print("Found frozen NPC that won't thaw this turn: ", npc.name)
+		else:
+			print("Invalid NPC found, skipping")
+	
+	print("No active NPCs found on the map")
 	return false
 
 func transition_camera_to_npc(npc: Node) -> void:

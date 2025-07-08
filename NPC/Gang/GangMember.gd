@@ -2214,6 +2214,10 @@ func is_frozen_state() -> bool:
 	"""Check if the gang member is currently frozen"""
 	return is_frozen
 
+func get_freeze_turns_remaining() -> int:
+	"""Get the number of turns remaining until the gang member thaws"""
+	return freeze_turns_remaining
+
 func _check_fire_tile_thawing() -> void:
 	"""Check if the GangMember is within 2 tiles of a fire tile and thaw if so"""
 	if not is_frozen:

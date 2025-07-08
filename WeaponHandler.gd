@@ -37,6 +37,7 @@ var weapon_range := 1000.0  # Maximum shooting distance
 var pistol_scene = preload("res://Weapons/Pistol.tscn")
 var throwing_knife_scene = preload("res://Weapons/ThrowingKnife.tscn")
 var burst_shot_scene = preload("res://Weapons/BurstShot.tscn")
+var shotgun_scene = preload("res://Weapons/Shotgun.tscn")
 var reticle_texture = preload("res://UI/Reticle.png")
 
 # Signals
@@ -117,6 +118,10 @@ func enter_weapon_aiming_mode() -> void:
 	if selected_card and selected_card.name == "Throwing Knife":
 		# Hide mouse cursor for knife aiming (only use aiming circle)
 		Input.set_custom_mouse_cursor(null)
+	elif selected_card and selected_card.name == "ShotgunCard":
+		# Use regular reticle for shotgun aiming
+		var reticle_texture = preload("res://UI/Reticle.png")
+		Input.set_custom_mouse_cursor(reticle_texture, Input.CURSOR_ARROW, Vector2(16, 16))
 	else:
 		# Use regular reticle for pistol aiming
 		var reticle_texture = preload("res://UI/Reticle.png")
@@ -140,6 +145,32 @@ func enter_weapon_aiming_mode() -> void:
 		
 		# Show knife-specific aiming instruction
 		show_knife_aiming_instruction()
+		
+		# Store original club to restore later
+		set_meta("original_club", original_club)
+		
+		# Position camera on player initially
+		var sprite = player_node.get_node_or_null("Sprite2D")
+		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
+		var player_center = player_node.global_position + player_size / 2
+		var tween := get_tree().create_tween()
+		tween.tween_property(course.camera, "position", player_center, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	
+	# For shotgun mode, set up camera following like normal shot placement
+	elif selected_card and selected_card.name == "ShotgunCard" and card_effect_handler and card_effect_handler.course:
+		var course = card_effect_handler.course
+		# Set up camera to follow mouse during shotgun aiming
+		course.is_aiming_phase = true
+		
+		# Set a temporary club for shotgun aiming (use ShotgunCard for character-specific range)
+		var original_club = course.selected_club
+		course.selected_club = "ShotgunCard"
+		
+		# Show aiming circle with shotgun reticle image
+		show_shotgun_aiming_circle()
+		
+		# Show shotgun-specific aiming instruction
+		show_shotgun_aiming_instruction()
 		
 		# Store original club to restore later
 		set_meta("original_club", original_club)
@@ -194,8 +225,49 @@ func show_knife_aiming_instruction() -> void:
 	
 	course.get_node("UILayer").add_child(instruction_label)
 
+func show_shotgun_aiming_circle() -> void:
+	"""Show aiming circle with shotgun reticle image"""
+	if not card_effect_handler or not card_effect_handler.course:
+		return
+	
+	var course = card_effect_handler.course
+	
+	# Use the course's show_aiming_circle function but override the texture
+	course.show_aiming_circle()
+	
+	# Replace the target circle texture with shotgun reticle texture
+	if course.aiming_circle:
+		var circle = course.aiming_circle.get_node_or_null("CircleVisual")
+		if circle:
+			var shotgun_reticle_texture = preload("res://UI/Reticle.png")  # Use regular reticle for now
+			circle.texture = shotgun_reticle_texture
+
+func show_shotgun_aiming_instruction() -> void:
+	"""Show shotgun-specific aiming instruction"""
+	if not card_effect_handler or not card_effect_handler.course:
+		return
+	
+	var course = card_effect_handler.course
+	var existing_instruction = course.get_node_or_null("UILayer/AimingInstructionLabel")
+	if existing_instruction:
+		existing_instruction.queue_free()
+	
+	var instruction_label := Label.new()
+	instruction_label.name = "AimingInstructionLabel"
+	instruction_label.text = "Move mouse to aim shotgun\nLeft click to fire, Right click to cancel"
+	
+	instruction_label.add_theme_font_size_override("font_size", 18)
+	instruction_label.add_theme_color_override("font_color", Color.ORANGE)
+	instruction_label.add_theme_constant_override("outline_size", 2)
+	instruction_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	
+	instruction_label.position = Vector2(400, 50)
+	instruction_label.z_index = 200
+	
+	course.get_node("UILayer").add_child(instruction_label)
+
 func create_weapon_instance() -> void:
-	"""Create the weapon instance (pistol, knife, or burst shot) in front of the player"""
+	"""Create the weapon instance (pistol, knife, burst shot, or shotgun) in front of the player"""
 	if weapon_instance:
 		weapon_instance.queue_free()
 	
@@ -205,6 +277,8 @@ func create_weapon_instance() -> void:
 		weapon_scene = throwing_knife_scene
 	elif selected_card and selected_card.name == "BurstShot":
 		weapon_scene = burst_shot_scene
+	elif selected_card and selected_card.name == "ShotgunCard":
+		weapon_scene = shotgun_scene
 	
 	weapon_instance = weapon_scene.instantiate()
 	player_node.add_child(weapon_instance)
@@ -247,6 +321,10 @@ func update_weapon_rotation() -> void:
 				if selected_card and selected_card.name == "Throwing Knife":
 					weapon_sprite.flip_h = true
 					weapon_sprite.flip_v = false
+				elif selected_card and selected_card.name == "ShotgunCard":
+					# Shotgun behavior (same as pistol)
+					weapon_sprite.flip_h = false
+					weapon_sprite.flip_v = true
 				else:
 					# Pistol and BurstShot behavior
 					weapon_sprite.flip_h = false
@@ -255,6 +333,10 @@ func update_weapon_rotation() -> void:
 			if weapon_sprite:
 				# For knife, we might want different flip behavior
 				if selected_card and selected_card.name == "Throwing Knife":
+					weapon_sprite.flip_h = false
+					weapon_sprite.flip_v = false
+				elif selected_card and selected_card.name == "ShotgunCard":
+					# Shotgun behavior (same as pistol)
 					weapon_sprite.flip_h = false
 					weapon_sprite.flip_v = false
 				else:
@@ -279,12 +361,20 @@ func fire_weapon() -> void:
 		fire_burst_shot()
 		return
 	
+	# Check if this is a ShotgunCard weapon
+	if selected_card and selected_card.name == "ShotgunCard":
+		fire_shotgun()
+		return
+	
 	# Otherwise use the original raytrace system for pistols
 	# Play weapon sound from player node based on weapon type
 	var weapon_sound = null
 	if selected_card and selected_card.name == "Throwing Knife":
 		# For now, use pistol sound for knife - you can add a knife sound later
 		weapon_sound = player_node.get_node_or_null("PistolShot")
+	elif selected_card and selected_card.name == "ShotgunCard":
+		# Use shotgun sound if available, otherwise pistol sound
+		weapon_sound = player_node.get_node_or_null("Shotgun") or player_node.get_node_or_null("PistolShot")
 	else:
 		weapon_sound = player_node.get_node_or_null("PistolShot")
 	
@@ -396,6 +486,70 @@ func fire_single_burst_shot(is_last_shot: bool) -> void:
 	if is_last_shot:
 		exit_weapon_mode()
 
+func fire_shotgun() -> void:
+	"""Fire 5 bullets in a spread pattern with short range"""
+	if not weapon_instance or not player_node or not camera:
+		return
+	
+	# Play shotgun sound
+	var shotgun_sound = player_node.get_node_or_null("ShotgunShot")
+	if not shotgun_sound:
+		shotgun_sound = player_node.get_node_or_null("PistolShot")  # Fallback
+	if shotgun_sound and shotgun_sound is AudioStreamPlayer2D:
+		shotgun_sound.play()
+		# Play ShotgunCock sound after ShotgunShot finishes
+		shotgun_sound.finished.connect(_on_shotgun_shot_finished, CONNECT_ONE_SHOT)
+	
+	# Shotgun settings - 5 shots in a spread pattern
+	var spread_count = 5
+	var spread_angle = 0.3  # ~17 degrees total spread (0.3 radians)
+	var base_direction = Vector2.ZERO
+	
+	# Get the base direction from weapon to mouse
+	var mouse_pos = camera.get_global_mouse_position()
+	var weapon_pos = weapon_instance.global_position
+	base_direction = (mouse_pos - weapon_pos).normalized()
+	
+	# Calculate spread angles
+	var angle_step = spread_angle / (spread_count - 1)
+	var start_angle = -spread_angle / 2
+	
+	# Fire all shots at once
+	for i in range(spread_count):
+		var current_angle = start_angle + (i * angle_step)
+		var spread_direction = base_direction.rotated(current_angle)
+		
+		# Create visual tracer line for this shot
+		var end_pos = weapon_pos + spread_direction * 350.0  # Shotgun range is 350 pixels
+		create_tracer_line(weapon_pos, end_pos)
+		
+		# Perform raytrace with limited range for shotgun
+		var hit_target = perform_raytrace_with_direction_and_range(weapon_pos, spread_direction, 350.0)
+		
+		if hit_target:
+			# Deal damage to all targets (including oil drums)
+			if hit_target.has_method("take_damage"):
+				# Check what type of target this is and call take_damage with appropriate parameters
+				var weapon_pos_global = weapon_instance.global_position if weapon_instance else Vector2.ZERO
+				
+				if hit_target.get_script() and hit_target.get_script().resource_path.ends_with("oil_drum.gd"):
+					# Oil drum only takes damage amount
+					hit_target.take_damage(weapon_damage)
+				elif hit_target.get_script() and hit_target.get_script().resource_path.ends_with("GangMember.gd"):
+					# GangMember takes damage, is_headshot, and weapon_position
+					hit_target.take_damage(weapon_damage, false, weapon_pos_global)
+				elif hit_target.get_script() and hit_target.get_script().resource_path.ends_with("Player.gd"):
+					# Player takes damage and is_headshot
+					hit_target.take_damage(weapon_damage, false)
+				else:
+					# Default: just pass damage amount
+					hit_target.take_damage(weapon_damage)
+				
+				emit_signal("npc_shot", hit_target, weapon_damage)
+	
+	# Exit weapon mode after firing
+	exit_weapon_mode()
+
 func create_tracer_line(start_pos: Vector2, end_pos: Vector2) -> void:
 	"""Create a grey thin tracer line that flashes briefly"""
 	# Create a Line2D node for the tracer
@@ -474,6 +628,80 @@ func perform_raytrace_with_direction(weapon_pos: Vector2, direction: Vector2) ->
 					
 					# Check if NPC is in the direct line of fire
 					if distance <= weapon_range:
+						var dot_product = to_npc.normalized().dot(direction)
+						if dot_product > 0.99:  # Very precise aim required
+							# Double-check no obstacles in the way
+							var final_query = PhysicsRayQueryParameters2D.create(weapon_pos, npc_pos)
+							final_query.collision_mask = 2  # Check for HitBoxes on layer 2
+							final_query.collide_with_bodies = true
+							final_query.collide_with_areas = true
+							
+							var final_result = space_state.intersect_ray(final_query)
+							
+							if final_result and final_result.collider == npc:
+								if distance < closest_distance:
+									closest_distance = distance
+									closest_npc = npc
+			
+			if closest_npc:
+				return closest_npc
+	
+	return null
+
+func perform_raytrace_with_direction_and_range(weapon_pos: Vector2, direction: Vector2, custom_range: float) -> Node:
+	"""Perform raytrace from weapon position in the specified direction with custom range"""
+	if not card_effect_handler or not card_effect_handler.course:
+		return null
+	
+	var course = card_effect_handler.course
+	
+	# Cast ray from weapon position in the specified direction with custom range
+	var ray_end = weapon_pos + direction * custom_range
+	
+	# Check for obstacles along the bullet path
+	var space_state = course.get_world_2d().direct_space_state
+	var query = PhysicsRayQueryParameters2D.create(weapon_pos, ray_end)
+	query.collision_mask = 2  # Collide with layer 2 (HitBoxes for weapons)
+	query.collide_with_bodies = false  # We're using Area2D HitBoxes
+	query.collide_with_areas = true
+	
+	var result = space_state.intersect_ray(query)
+	
+	if result:
+		# Bullet hit something
+		var hit_object = result.collider
+		
+		# Check if it's a HitBox Area2D
+		if hit_object.name == "HitBox":
+			var parent = hit_object.get_parent()
+			
+			# Check if it's a tree's HitBox
+			if parent and (parent.name == "Tree" or "Tree" in str(parent.get_script()) or parent.has_method("_handle_trunk_collision")):
+				return null  # Tree blocks the shot
+			
+			# Check if it's a GangMember's HitBox
+			if parent and parent.has_method("take_damage"):
+				return parent  # Return the parent GangMember, not the HitBox
+			
+			# Check if it's an OilDrum's HitBox
+			if parent and (parent.name == "OilDrum" or "oil_drum.gd" in str(parent.get_script())):
+				return parent  # Return the parent OilDrum, not the HitBox
+	else:
+		# No obstacles hit, check if any NPCs are in the direct path
+		var entities = course.get_node_or_null("Entities")
+		if entities:
+			var npcs = entities.get_npcs()
+			var closest_npc = null
+			var closest_distance = custom_range
+			
+			for npc in npcs:
+				if is_instance_valid(npc) and npc.has_method("take_damage"):
+					var npc_pos = npc.global_position
+					var to_npc = npc_pos - weapon_pos
+					var distance = to_npc.length()
+					
+					# Check if NPC is in the direct line of fire
+					if distance <= custom_range:
 						var dot_product = to_npc.normalized().dot(direction)
 						if dot_product > 0.99:  # Very precise aim required
 							# Double-check no obstacles in the way
@@ -724,6 +952,18 @@ func exit_weapon_mode() -> void:
 			course.selected_club = get_meta("original_club")
 			remove_meta("original_club")
 	
+	# Clean up shotgun aiming mode if it was active
+	if selected_card and selected_card.name == "ShotgunCard" and card_effect_handler and card_effect_handler.course:
+		var course = card_effect_handler.course
+		course.is_aiming_phase = false
+		course.hide_aiming_circle()
+		course.hide_aiming_instruction()
+		
+		# Restore original club if it was stored
+		if has_meta("original_club"):
+			course.selected_club = get_meta("original_club")
+			remove_meta("original_club")
+	
 	# Input is handled by the course's _input function
 	
 	selected_card = null
@@ -781,6 +1021,12 @@ func handle_input(event: InputEvent) -> bool:
 			var course = card_effect_handler.course
 			if course.is_aiming_phase and course.aiming_circle:
 				course.update_aiming_circle()
+		
+		# For shotgun mode, update aiming circle like normal shot placement
+		if selected_card and selected_card.name == "ShotgunCard" and card_effect_handler and card_effect_handler.course:
+			var course = card_effect_handler.course
+			if course.is_aiming_phase and course.aiming_circle:
+				course.update_aiming_circle()
 		return true
 	
 	# Handle left click for firing
@@ -828,3 +1074,13 @@ func _handle_knife_hit(knife_instance: Node2D, hit_target: Node) -> void:
 	
 	# Exit weapon mode after hitting
 	exit_weapon_mode()
+
+func _on_shotgun_shot_finished() -> void:
+	"""Called when the ShotgunShot sound finishes playing"""
+	# Play ShotgunCock sound
+	var shotgun_cock_sound = player_node.get_node_or_null("ShotgunCock")
+	if shotgun_cock_sound and shotgun_cock_sound is AudioStreamPlayer2D:
+		shotgun_cock_sound.play()
+		print("Playing ShotgunCock sound after ShotgunShot")
+	else:
+		print("Warning: ShotgunCock audio player not found")
