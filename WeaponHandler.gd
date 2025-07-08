@@ -38,6 +38,7 @@ var pistol_scene = preload("res://Weapons/Pistol.tscn")
 var throwing_knife_scene = preload("res://Weapons/ThrowingKnife.tscn")
 var burst_shot_scene = preload("res://Weapons/BurstShot.tscn")
 var shotgun_scene = preload("res://Weapons/Shotgun.tscn")
+var sniper_scene = preload("res://Weapons/Sniper.tscn")
 var grenade_scene = preload("res://Weapons/Grenade.tscn")
 var reticle_texture = preload("res://UI/Reticle.png")
 
@@ -126,6 +127,10 @@ func enter_weapon_aiming_mode() -> void:
 		# Use regular reticle for shotgun aiming
 		var reticle_texture = preload("res://UI/Reticle.png")
 		Input.set_custom_mouse_cursor(reticle_texture, Input.CURSOR_ARROW, Vector2(16, 16))
+	elif selected_card and selected_card.name == "SniperCard":
+		# Use regular reticle for sniper aiming
+		var reticle_texture = preload("res://UI/Reticle.png")
+		Input.set_custom_mouse_cursor(reticle_texture, Input.CURSOR_ARROW, Vector2(16, 16))
 	else:
 		# Use regular reticle for pistol aiming
 		var reticle_texture = preload("res://UI/Reticle.png")
@@ -201,6 +206,32 @@ func enter_weapon_aiming_mode() -> void:
 		
 		# Show shotgun-specific aiming instruction
 		show_shotgun_aiming_instruction()
+		
+		# Store original club to restore later
+		set_meta("original_club", original_club)
+		
+		# Position camera on player initially
+		var sprite = player_node.get_node_or_null("Sprite2D")
+		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
+		var player_center = player_node.global_position + player_size / 2
+		var tween := get_tree().create_tween()
+		tween.tween_property(course.camera, "position", player_center, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	
+	# For sniper mode, set up camera following like normal shot placement
+	elif selected_card and selected_card.name == "SniperCard" and card_effect_handler and card_effect_handler.course:
+		var course = card_effect_handler.course
+		# Set up camera to follow mouse during sniper aiming
+		course.is_aiming_phase = true
+		
+		# Set a temporary club for sniper aiming (use SniperCard for character-specific range)
+		var original_club = course.selected_club
+		course.selected_club = "SniperCard"
+		
+		# Show aiming circle with sniper reticle image
+		show_sniper_aiming_circle()
+		
+		# Show sniper-specific aiming instruction
+		show_sniper_aiming_instruction()
 		
 		# Store original club to restore later
 		set_meta("original_club", original_club)
@@ -296,6 +327,47 @@ func show_shotgun_aiming_instruction() -> void:
 	
 	course.get_node("UILayer").add_child(instruction_label)
 
+func show_sniper_aiming_circle() -> void:
+	"""Show aiming circle with sniper reticle image"""
+	if not card_effect_handler or not card_effect_handler.course:
+		return
+	
+	var course = card_effect_handler.course
+	
+	# Use the course's show_aiming_circle function but override the texture
+	course.show_aiming_circle()
+	
+	# Replace the target circle texture with sniper reticle texture
+	if course.aiming_circle:
+		var circle = course.aiming_circle.get_node_or_null("CircleVisual")
+		if circle:
+			var sniper_reticle_texture = preload("res://UI/Reticle.png")  # Use regular reticle for now
+			circle.texture = sniper_reticle_texture
+
+func show_sniper_aiming_instruction() -> void:
+	"""Show sniper-specific aiming instruction"""
+	if not card_effect_handler or not card_effect_handler.course:
+		return
+	
+	var course = card_effect_handler.course
+	var existing_instruction = course.get_node_or_null("UILayer/AimingInstructionLabel")
+	if existing_instruction:
+		existing_instruction.queue_free()
+	
+	var instruction_label := Label.new()
+	instruction_label.name = "AimingInstructionLabel"
+	instruction_label.text = "Move mouse to aim sniper rifle\nLeft click to fire, Right click to cancel"
+	
+	instruction_label.add_theme_font_size_override("font_size", 18)
+	instruction_label.add_theme_color_override("font_color", Color.RED)
+	instruction_label.add_theme_constant_override("outline_size", 2)
+	instruction_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	
+	instruction_label.position = Vector2(400, 50)
+	instruction_label.z_index = 200
+	
+	course.get_node("UILayer").add_child(instruction_label)
+
 func show_grenade_aiming_circle() -> void:
 	"""Show aiming circle with grenade reticle image"""
 	if not card_effect_handler or not card_effect_handler.course:
@@ -352,6 +424,8 @@ func create_weapon_instance() -> void:
 		weapon_scene = burst_shot_scene
 	elif selected_card and selected_card.name == "ShotgunCard":
 		weapon_scene = shotgun_scene
+	elif selected_card and selected_card.name == "SniperCard":
+		weapon_scene = sniper_scene
 	
 	weapon_instance = weapon_scene.instantiate()
 	player_node.add_child(weapon_instance)
@@ -398,6 +472,10 @@ func update_weapon_rotation() -> void:
 					# Shotgun behavior (same as pistol)
 					weapon_sprite.flip_h = false
 					weapon_sprite.flip_v = true
+				elif selected_card and selected_card.name == "SniperCard":
+					# Sniper behavior (same as pistol)
+					weapon_sprite.flip_h = false
+					weapon_sprite.flip_v = true
 				else:
 					# Pistol and BurstShot behavior
 					weapon_sprite.flip_h = false
@@ -410,6 +488,10 @@ func update_weapon_rotation() -> void:
 					weapon_sprite.flip_v = false
 				elif selected_card and selected_card.name == "ShotgunCard":
 					# Shotgun behavior (same as pistol)
+					weapon_sprite.flip_h = false
+					weapon_sprite.flip_v = false
+				elif selected_card and selected_card.name == "SniperCard":
+					# Sniper behavior (same as pistol)
 					weapon_sprite.flip_h = false
 					weapon_sprite.flip_v = false
 				else:
@@ -443,6 +525,11 @@ func fire_weapon() -> void:
 	# Check if this is a ShotgunCard weapon
 	if selected_card and selected_card.name == "ShotgunCard":
 		fire_shotgun()
+		return
+	
+	# Check if this is a SniperCard weapon
+	if selected_card and selected_card.name == "SniperCard":
+		fire_sniper()
 		return
 	
 	# Otherwise use the original raytrace system for pistols
@@ -625,6 +712,65 @@ func fire_shotgun() -> void:
 					hit_target.take_damage(weapon_damage)
 				
 				emit_signal("npc_shot", hit_target, weapon_damage)
+	
+	# Exit weapon mode after firing
+	exit_weapon_mode()
+
+func fire_sniper() -> void:
+	"""Fire a single piercing bullet with long range"""
+	if not weapon_instance or not player_node or not camera:
+		return
+	
+	# Play sniper sound
+	var sniper_sound = player_node.get_node_or_null("SniperShot")
+	if not sniper_sound:
+		sniper_sound = player_node.get_node_or_null("PistolShot")  # Fallback
+	if sniper_sound and sniper_sound is AudioStreamPlayer2D:
+		sniper_sound.play()
+		# Play SniperCock sound after SniperShot finishes
+		sniper_sound.finished.connect(_on_sniper_shot_finished, CONNECT_ONE_SHOT)
+	
+	# Sniper settings - single piercing shot with long range
+	var weapon_pos = weapon_instance.global_position
+	var mouse_pos = camera.get_global_mouse_position()
+	var direction = (mouse_pos - weapon_pos).normalized()
+	
+	# Create visual tracer line for sniper shot
+	var end_pos = weapon_pos + direction * 1500.0  # Sniper range is 1500 pixels
+	create_tracer_line(weapon_pos, end_pos)
+	
+	# Perform piercing raytrace with sniper range
+	var hit_targets = perform_piercing_raytrace(weapon_pos, direction, 1500.0)
+	
+	# Deal damage to all hit targets
+	for hit_target in hit_targets:
+		if hit_target.has_method("take_damage"):
+			# Check what type of target this is and call take_damage with appropriate parameters
+			var weapon_pos_global = weapon_instance.global_position if weapon_instance else Vector2.ZERO
+			
+			if hit_target.get_script() and hit_target.get_script().resource_path.ends_with("oil_drum.gd"):
+				# Oil drum only takes damage amount
+				hit_target.take_damage(weapon_damage)
+			elif hit_target.get_script() and hit_target.get_script().resource_path.ends_with("GangMember.gd"):
+				# GangMember takes damage, is_headshot, and weapon_position
+				hit_target.take_damage(weapon_damage, false, weapon_pos_global)
+			elif hit_target.get_script() and hit_target.get_script().resource_path.ends_with("Player.gd"):
+				# Player takes damage and is_headshot
+				hit_target.take_damage(weapon_damage, false)
+			else:
+				# Default: just pass damage amount
+				hit_target.take_damage(weapon_damage)
+			
+			emit_signal("npc_shot", hit_target, weapon_damage)
+	
+	# Tween camera back to player after firing
+	if card_effect_handler and card_effect_handler.course:
+		var course = card_effect_handler.course
+		var sprite = player_node.get_node_or_null("Sprite2D")
+		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
+		var player_center = player_node.global_position + player_size / 2
+		var tween := get_tree().create_tween()
+		tween.tween_property(course.camera, "position", player_center, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	
 	# Exit weapon mode after firing
 	exit_weapon_mode()
@@ -1077,6 +1223,18 @@ func exit_weapon_mode() -> void:
 			course.selected_club = get_meta("original_club")
 			remove_meta("original_club")
 	
+	# Clean up sniper aiming mode if it was active
+	if selected_card and selected_card.name == "SniperCard" and card_effect_handler and card_effect_handler.course:
+		var course = card_effect_handler.course
+		course.is_aiming_phase = false
+		course.hide_aiming_circle()
+		course.hide_aiming_instruction()
+		
+		# Restore original club if it was stored
+		if has_meta("original_club"):
+			course.selected_club = get_meta("original_club")
+			remove_meta("original_club")
+	
 	# Input is handled by the course's _input function
 	
 	selected_card = null
@@ -1146,6 +1304,12 @@ func handle_input(event: InputEvent) -> bool:
 			var course = card_effect_handler.course
 			if course.is_aiming_phase and course.aiming_circle:
 				course.update_aiming_circle()
+		
+		# For sniper mode, update aiming circle like normal shot placement
+		if selected_card and selected_card.name == "SniperCard" and card_effect_handler and card_effect_handler.course:
+			var course = card_effect_handler.course
+			if course.is_aiming_phase and course.aiming_circle:
+				course.update_aiming_circle()
 		return true
 	
 	# Handle left click for firing
@@ -1203,3 +1367,90 @@ func _on_shotgun_shot_finished() -> void:
 		print("Playing ShotgunCock sound after ShotgunShot")
 	else:
 		print("Warning: ShotgunCock audio player not found")
+
+func _on_sniper_shot_finished() -> void:
+	"""Called when the SniperShot sound finishes playing"""
+	# Play SniperCock sound
+	var sniper_cock_sound = player_node.get_node_or_null("SniperCock")
+	if sniper_cock_sound and sniper_cock_sound is AudioStreamPlayer2D:
+		sniper_cock_sound.play()
+		print("Playing SniperCock sound after SniperShot")
+	else:
+		print("Warning: SniperCock audio player not found")
+
+func perform_piercing_raytrace(weapon_pos: Vector2, direction: Vector2, max_range: float) -> Array:
+	"""Perform raytrace that pierces through the first object and stops on the second"""
+	if not card_effect_handler or not card_effect_handler.course:
+		return []
+	
+	var course = card_effect_handler.course
+	var hit_targets = []
+	var current_pos = weapon_pos
+	var remaining_range = max_range
+	
+	# First raytrace - pierce through first object
+	var first_ray_end = current_pos + direction * remaining_range
+	var space_state = course.get_world_2d().direct_space_state
+	var first_query = PhysicsRayQueryParameters2D.create(current_pos, first_ray_end)
+	first_query.collision_mask = 2  # Collide with layer 2 (HitBoxes for weapons)
+	first_query.collide_with_bodies = false
+	first_query.collide_with_areas = true
+	
+	var first_result = space_state.intersect_ray(first_query)
+	
+	if first_result:
+		# Bullet hit first object
+		var first_hit_object = first_result.collider
+		
+		# Check if it's a HitBox Area2D
+		if first_hit_object.name == "HitBox":
+			var parent = first_hit_object.get_parent()
+			
+			# Check if parent has take_damage method (NPC, Player, etc.)
+			if parent and parent.has_method("take_damage"):
+				hit_targets.append(parent)
+			
+			# Check if parent is an oil drum
+			elif parent and parent.get_script() and parent.get_script().resource_path.ends_with("oil_drum.gd"):
+				hit_targets.append(parent)
+		else:
+			# Direct hit on object with take_damage method
+			if first_hit_object.has_method("take_damage"):
+				hit_targets.append(first_hit_object)
+		
+		# Calculate remaining range after first hit
+		var first_hit_distance = current_pos.distance_to(first_result.position)
+		remaining_range -= first_hit_distance
+		current_pos = first_result.position
+		
+		# Second raytrace - stop on second object
+		if remaining_range > 0:
+			var second_ray_end = current_pos + direction * remaining_range
+			var second_query = PhysicsRayQueryParameters2D.create(current_pos, second_ray_end)
+			second_query.collision_mask = 2
+			second_query.collide_with_bodies = false
+			second_query.collide_with_areas = true
+			
+			var second_result = space_state.intersect_ray(second_query)
+			
+			if second_result:
+				# Bullet hit second object
+				var second_hit_object = second_result.collider
+				
+				# Check if it's a HitBox Area2D
+				if second_hit_object.name == "HitBox":
+					var parent = second_hit_object.get_parent()
+					
+					# Check if parent has take_damage method (NPC, Player, etc.)
+					if parent and parent.has_method("take_damage"):
+						hit_targets.append(parent)
+					
+					# Check if parent is an oil drum
+					elif parent and parent.get_script() and parent.get_script().resource_path.ends_with("oil_drum.gd"):
+						hit_targets.append(parent)
+				else:
+					# Direct hit on object with take_damage method
+					if second_hit_object.has_method("take_damage"):
+						hit_targets.append(second_hit_object)
+	
+	return hit_targets

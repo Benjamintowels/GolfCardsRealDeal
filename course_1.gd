@@ -139,7 +139,8 @@ var club_max_distances = {
 	"Wooden": 350.0,         # Slightly better than Putter
 	"Putter": 200.0,         # Shortest distance (now rolling only)
 	"PitchingWedge": 200.0,  # Same as old Putter settings
-	"ShotgunCard": 350.0     # Shotgun range
+	"ShotgunCard": 350.0,    # Shotgun range
+	"SniperCard": 1500.0     # Sniper range
 }
 
 # New club data with min distances and trailoff stats
@@ -1284,6 +1285,8 @@ func update_aiming_circle():
 	var effective_max_distance = max_shot_distance
 	if selected_club == "ShotgunCard":
 		effective_max_distance = 350.0
+	elif selected_club == "SniperCard":
+		effective_max_distance = 1500.0
 	
 	var clamped_distance = min(distance, effective_max_distance)
 	var clamped_position = player_center + direction * clamped_distance

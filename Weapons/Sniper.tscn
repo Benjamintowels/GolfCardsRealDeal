@@ -1,0 +1,9 @@
+[gd_scene load_steps=2 format=3 uid="uid://e6b4a6p17yno"]
+
+[ext_resource type="Texture2D" uid="uid://b4duikkrrsji6" path="res://Weapons/Sniper.png" id="1_268sc"]
+
+[node name="Sniper" type="Node2D"]
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture_filter = 1
+texture = ExtResource("1_268sc")
