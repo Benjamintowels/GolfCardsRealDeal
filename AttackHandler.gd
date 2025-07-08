@@ -41,6 +41,7 @@ signal attack_mode_exited
 signal card_selected(card: CardData)
 signal card_discarded(card: CardData)
 signal npc_attacked(npc: Node, damage: int)
+signal kick_attack_performed
 
 func _init():
 	pass
@@ -287,6 +288,9 @@ func perform_attack(npc: Node, target_pos: Vector2i) -> void:
 			print("✓ KickSound played for NPC attack")
 		else:
 			print("✗ KickSound not found for NPC attack")
+		
+		# Emit kick attack signal for animation
+		emit_signal("kick_attack_performed")
 	
 	# Check if NPC is dead
 	var is_dead = false
@@ -469,6 +473,9 @@ func perform_kickb_attack_on_oil_drum(oil_drum: Node, target_pos: Vector2i) -> v
 		print("✓ KickSound played")
 	else:
 		print("✗ KickSound not found")
+	
+	# Emit kick attack signal for animation
+	emit_signal("kick_attack_performed")
 	
 	# Check if oil drum is already tipped over
 	var is_tipped = false

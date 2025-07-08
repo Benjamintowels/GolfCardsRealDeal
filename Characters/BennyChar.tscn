@@ -1,8 +1,9 @@
-[gd_scene load_steps=16 format=3 uid="uid://bc8s6t7wka23s"]
+[gd_scene load_steps=17 format=3 uid="uid://bc8s6t7wka23s"]
 
 [ext_resource type="Texture2D" uid="uid://bu6bwgk8aipl2" path="res://Characters/BennyChar.png" id="1_oukfo"]
 [ext_resource type="Script" uid="uid://d2iiaqe57mea" path="res://Characters/SwingAnimation.gd" id="2_swing"]
 [ext_resource type="Texture2D" uid="uid://cbtrxx8kk5abt" path="res://Characters/Swingserererer2.png" id="3_spritesheet"]
+[ext_resource type="Texture2D" uid="uid://v4jenktcxsee" path="res://Characters/BennyKick.png" id="4_woj5g"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_oukfo"]
 radius = 7.64385
@@ -150,3 +151,9 @@ position = Vector2(1, -38)
 
 [node name="BodyClothes" type="Marker2D" parent="."]
 position = Vector2(2, -36)
+
+[node name="BennyKick" type="Sprite2D" parent="."]
+visible = false
+texture_filter = 1
+position = Vector2(4, -42)
+texture = ExtResource("4_woj5g")

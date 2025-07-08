@@ -44,6 +44,13 @@ var is_in_launch_mode: bool = false  # Track if we're in launch mode (ball flyin
 var swing_animation: Node2D = null
 var previous_charging_height: bool = false  # Track previous state to detect changes
 
+# Kick animation system
+var kick_animation: Node2D = null
+var kick_sprite: Sprite2D = null
+var is_kicking: bool = false
+var kick_duration: float = 0.5  # Duration of the kick animation
+var kick_tween: Tween
+
 # Ragdoll animation properties
 var is_ragdolling: bool = false
 var ragdoll_tween: Tween
@@ -82,6 +89,11 @@ func _ready():
 	print("=== ABOUT TO SETUP SWING ANIMATION ===")
 	# Setup swing animation system
 	_setup_swing_animation()
+	
+	print("=== ABOUT TO SETUP KICK ANIMATION ===")
+	# Setup kick animation system
+	_setup_kick_animation()
+	print("=== KICK ANIMATION SETUP CALLED ===")
 	
 	print("[Player.gd] Player ready with health:", current_health, "/", max_health)
 	
@@ -806,6 +818,10 @@ func _process(delta):
 	# Try to setup swing animation if not already done (in case character scene is added later)
 	if not swing_animation and get_child_count() > 0:
 		_setup_swing_animation()
+	
+	# Try to setup kick animation if not already done (in case character scene is added later)
+	if not kick_sprite and get_child_count() > 0:
+		_setup_kick_animation()
 
 func _update_mouse_facing() -> void:
 	"""Update player sprite to face the mouse direction when appropriate"""
@@ -1213,3 +1229,111 @@ func is_swinging() -> bool:
 	if swing_animation:
 		return swing_animation.is_currently_swinging()
 	return false
+
+# Kick animation methods
+func _setup_kick_animation() -> void:
+	"""Setup the kick animation system"""
+	print("=== SETTING UP KICK ANIMATION IN PLAYER ===")
+	print("Player node path:", get_path())
+	print("Player children count:", get_child_count())
+	
+	# Try to find the kick sprite using a recursive search
+	kick_sprite = _find_kick_sprite_recursive(self)
+	
+	if not kick_sprite:
+		print("⚠ No kick sprite found in character scene")
+		print("Available children for debugging:")
+		for child in get_children():
+			print("  -", child.name, "(", child.get_class(), ")")
+			if child is Node2D:
+				for grandchild in child.get_children():
+					print("    -", grandchild.name, "(", grandchild.get_class(), ")")
+	else:
+		print("✓ Kick animation system setup complete")
+
+func _find_kick_sprite_recursive(node: Node) -> Sprite2D:
+	"""Recursively search for the BennyKick sprite in the node tree"""
+	print("Searching in node:", node.name, "(", node.get_class(), ") - Children:", node.get_child_count())
+	for child in node.get_children():
+		print("  Checking child:", child.name, "(", child.get_class(), ")")
+		if child.name == "BennyKick" and child is Sprite2D:
+			print("✓ Found kick sprite:", child.name, "at path:", child.get_path())
+			return child
+		elif child is Node2D:
+			# Recursively search in Node2D children
+			print("    Recursively searching in:", child.name)
+			var result = _find_kick_sprite_recursive(child)
+			if result:
+				return result
+	print("  No kick sprite found in:", node.name)
+	return null
+
+func start_kick_animation() -> void:
+	"""Start the kick animation - switch to kick sprite"""
+	if is_kicking:
+		print("Already kicking, ignoring new kick request")
+		return
+	
+	print("=== STARTING KICK ANIMATION ===")
+	is_kicking = true
+	
+	# Get the normal character sprite
+	var normal_sprite = get_character_sprite()
+	if not normal_sprite or not kick_sprite:
+		print("✗ Required sprites not found for kick animation!")
+		print("  Normal sprite:", normal_sprite)
+		print("  Kick sprite:", kick_sprite)
+		return
+	
+	# Hide the normal sprite and show the kick sprite
+	normal_sprite.visible = false
+	kick_sprite.visible = true
+	print("✓ Switched to kick sprite")
+	
+	# Start the kick animation timer
+	if kick_tween and kick_tween.is_valid():
+		kick_tween.kill()
+	
+	kick_tween = create_tween()
+	kick_tween.tween_callback(_on_kick_animation_complete).set_delay(kick_duration)
+	
+	print("✓ Kick animation started")
+
+func _on_kick_animation_complete() -> void:
+	"""Called when the kick animation completes"""
+	print("=== KICK ANIMATION COMPLETE ===")
+	
+	# Get the normal character sprite
+	var normal_sprite = get_character_sprite()
+	if normal_sprite and kick_sprite:
+		# Switch back to normal sprite
+		kick_sprite.visible = false
+		normal_sprite.visible = true
+		print("✓ Switched back to normal sprite")
+	
+	is_kicking = false
+	print("✓ Kick animation complete")
+
+func stop_kick_animation() -> void:
+	"""Stop the kick animation if it's currently running"""
+	if is_kicking:
+		print("=== STOPPING KICK ANIMATION ===")
+		
+		# Get the normal character sprite
+		var normal_sprite = get_character_sprite()
+		if normal_sprite and kick_sprite:
+			# Switch back to normal sprite
+			kick_sprite.visible = false
+			normal_sprite.visible = true
+			print("✓ Switched back to normal sprite")
+		
+		# Stop the tween
+		if kick_tween and kick_tween.is_valid():
+			kick_tween.kill()
+		
+		is_kicking = false
+		print("✓ Kick animation stopped")
+
+func is_currently_kicking() -> bool:
+	"""Check if currently performing a kick animation"""
+	return is_kicking

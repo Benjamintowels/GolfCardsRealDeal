@@ -503,6 +503,7 @@ func _ready() -> void:
 	
 	# Connect attack handler signals
 	attack_handler.npc_attacked.connect(_on_npc_attacked)
+	attack_handler.kick_attack_performed.connect(_on_kick_attack_performed)
 	
 	# Connect weapon handler signals
 	weapon_handler.npc_shot.connect(_on_npc_shot)
@@ -3343,6 +3344,15 @@ func _on_ball_collision_detected() -> void:
 func _on_npc_attacked(npc: Node, damage: int) -> void:
 	"""Handle when an NPC is attacked"""
 	print("NPC attacked:", npc.name, "Damage dealt:", damage)
+
+func _on_kick_attack_performed() -> void:
+	"""Handle when a kick attack is performed - trigger kick animation"""
+	print("=== KICK ATTACK PERFORMED ===")
+	if player_node and player_node.has_method("start_kick_animation"):
+		player_node.start_kick_animation()
+		print("✓ Kick animation started")
+	else:
+		print("✗ Player node or kick animation method not found")
 
 func _on_npc_shot(npc: Node, damage: int) -> void:
 	"""Handle when an NPC is shot with a weapon"""

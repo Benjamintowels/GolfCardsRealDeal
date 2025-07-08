@@ -1,0 +1,20 @@
+[gd_scene load_steps=3 format=3 uid="uid://test_kick_animation"]
+
+[ext_resource type="Script" uid="uid://bkqfjhiqcwabx" path="res://Characters/Player.gd" id="1_player"]
+[ext_resource type="PackedScene" uid="uid://bc8s6t7wka23s" path="res://Characters/BennyChar.tscn" id="2_benny"]
+[ext_resource type="Script" path="res://test_kick_animation.gd" id="3_test"]
+
+[node name="TestKickAnimation" type="Node2D"]
+script = ExtResource("3_test")
+
+[node name="Player" type="CharacterBody2D" parent="."]
+script = ExtResource("1_player")
+
+[node name="BennyChar" parent="Player" instance=ExtResource("2_benny")]
+
+[node name="TestButton" type="Button" parent="."]
+offset_left = 100.0
+offset_top = 100.0
+offset_right = 200.0
+offset_bottom = 130.0
+text = "Test Kick Animation" 
