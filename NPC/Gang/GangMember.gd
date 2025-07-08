@@ -23,8 +23,6 @@ var is_moving: bool = false
 var movement_tween: Tween
 var movement_duration: float = 0.3  # Duration of movement animation in seconds
 
-
-
 # Facing direction properties
 var facing_direction: Vector2i = Vector2i(1, 0)  # Start facing right
 var last_movement_direction: Vector2i = Vector2i(1, 0)  # Track last movement direction
@@ -40,6 +38,12 @@ var is_frozen: bool = false
 var freeze_turns_remaining: int = 0
 var original_modulate: Color
 var freeze_sound: AudioStreamPlayer
+
+# Ice sprite and collision references
+var ice_sprite: Sprite2D
+var ice_collision_area: Area2D
+var ice_top_height_marker: Marker2D
+var ice_ysort_point: Node2D
 
 # Collision and height properties
 var dead_height: float = 50.0  # Lower height when dead (laying down)
@@ -94,6 +98,9 @@ func _ready():
 	# Add to groups for smart optimization and roof bounce system
 	add_to_group("collision_objects")
 	
+	# Get references to ice sprite and collision areas
+	_setup_ice_references()
+	
 	# Connect to Entities manager
 	# Find the course_1.gd script by searching up the scene tree
 	course = _find_course_script()
@@ -123,6 +130,33 @@ func _ready():
 	
 	# Initialize freeze effect system
 	_setup_freeze_system()
+
+func _setup_ice_references() -> void:
+	"""Setup references to ice sprite and collision areas"""
+	ice_sprite = get_node_or_null("GangMemberIce")
+	ice_collision_area = get_node_or_null("GangMemberIce/BaseCollisionArea")
+	ice_top_height_marker = get_node_or_null("GangMemberIce/GangMemberIceTopHeight")
+	ice_ysort_point = get_node_or_null("GangMemberIce/YSortPoint")
+	
+	if ice_sprite:
+		print("✓ Ice sprite reference found")
+	else:
+		print("✗ ERROR: GangMemberIce sprite not found!")
+	
+	if ice_collision_area:
+		print("✓ Ice collision area reference found")
+	else:
+		print("✗ ERROR: GangMemberIce/BaseCollisionArea not found!")
+	
+	if ice_top_height_marker:
+		print("✓ Ice top height marker reference found")
+	else:
+		print("✗ ERROR: GangMemberIce/GangMemberIceTopHeight not found!")
+	
+	if ice_ysort_point:
+		print("✓ Ice Y-sort point reference found")
+	else:
+		print("✗ ERROR: GangMemberIce/YSortPoint not found!")
 
 func _find_course_script() -> Node:
 	"""Find the course_1.gd script by searching up the scene tree"""
@@ -249,6 +283,21 @@ func _allow_projectile_entry(projectile: Node2D, gang_member_height: float):
 	"""Allow projectile to enter GangMember area and set ground level"""
 	print("=== ALLOWING PROJECTILE ENTRY (GANGMEMBER) ===")
 	
+	# Get projectile height for freeze effect logic
+	var projectile_height = 0.0
+	if projectile.has_method("get_height"):
+		projectile_height = projectile.get_height()
+	
+	# Only apply freeze effect if projectile is above GangMember height
+	# This handles the case where ball bounces off roof and lands on GangMember's head
+	if projectile_height > gang_member_height:
+		# Check for ice element and apply freeze effect (for roof bounces landing on head)
+		if projectile.has_method("get_element"):
+			var projectile_element = projectile.get_element()
+			if projectile_element and projectile_element.name == "Ice":
+				print("Ice element detected on projectile landing (roof bounce)! Applying freeze effect")
+				freeze()
+	
 	# Set the projectile's ground level to the GangMember height
 	if projectile.has_method("_set_ground_level"):
 		projectile._set_ground_level(gang_member_height)
@@ -264,6 +313,23 @@ func _allow_projectile_entry(projectile: Node2D, gang_member_height: float):
 func _reflect_projectile(projectile: Node2D):
 	"""Reflect projectile off the GangMember"""
 	print("=== REFLECTING PROJECTILE ===")
+	
+	# Get projectile height for freeze effect logic
+	var projectile_height = 0.0
+	if projectile.has_method("get_height"):
+		projectile_height = projectile.get_height()
+	
+	var gang_member_height = Global.get_object_height_from_marker(self)
+	
+	# Only apply freeze effect if projectile is below GangMember height (wall bounces)
+	# This handles the case where ball hits GangMember's body and reflects
+	if projectile_height < gang_member_height:
+		# Check for ice element and apply freeze effect (for wall bounces)
+		if projectile.has_method("get_element"):
+			var projectile_element = projectile.get_element()
+			if projectile_element and projectile_element.name == "Ice":
+				print("Ice element detected on projectile reflection (wall bounce)! Applying freeze effect")
+				freeze()
 	
 	# Play collision sound for GangMember collision
 	_play_collision_sound()
@@ -328,6 +394,13 @@ func _handle_knife_collision(knife: Node2D) -> void:
 	
 	# Play collision sound effect
 	_play_collision_sound()
+	
+	# Check for ice element and apply freeze effect
+	if knife.has_method("get_element"):
+		var knife_element = knife.get_element()
+		if knife_element and knife_element.name == "Ice":
+			print("Ice element detected on knife! Applying freeze effect")
+			freeze()
 	
 	# Let the knife handle its own collision logic
 	# The knife will determine if it should bounce or stick based on which side hits
@@ -448,6 +521,13 @@ func _handle_regular_ball_collision(ball: Node2D) -> void:
 
 func _apply_knife_reflection(knife: Node2D) -> void:
 	"""Apply reflection effect to a knife (fallback method)"""
+	# Check for ice element and apply freeze effect
+	if knife.has_method("get_element"):
+		var knife_element = knife.get_element()
+		if knife_element and knife_element.name == "Ice":
+			print("Ice element detected on knife reflection! Applying freeze effect")
+			freeze()
+	
 	# Get the knife's current velocity
 	var knife_velocity = Vector2.ZERO
 	if knife.has_method("get_velocity"):
@@ -1277,6 +1357,10 @@ func _update_sprite_facing() -> void:
 		elif facing_direction.x > 0:
 			dead_sprite.flip_h = false
 	
+	# Update ice sprite if it's visible
+	if is_frozen and ice_sprite and ice_sprite.visible:
+		_update_ice_sprite_facing()
+	
 	# Update attached knives to flip with the GangMember
 	_update_attached_knives_facing()
 	
@@ -1342,6 +1426,10 @@ func _face_player() -> void:
 	facing_direction = direction_to_player
 	_update_sprite_facing()
 	
+	# Also update ice sprite facing if frozen
+	if is_frozen and ice_sprite and ice_sprite.visible:
+		_update_ice_sprite_facing()
+	
 	print("Facing player - Direction: ", facing_direction)
 
 func _update_dead_sprite_facing() -> void:
@@ -1357,6 +1445,10 @@ func _update_dead_sprite_facing() -> void:
 	elif facing_direction.x > 0:
 		dead_sprite.flip_h = false
 	
+	# Update ice sprite if it's visible and frozen
+	if is_frozen and ice_sprite and ice_sprite.visible:
+		_update_ice_sprite_facing()
+	
 	# Update attached knives to flip with the dead GangMember
 	_update_attached_knives_facing()
 	
@@ -1365,14 +1457,22 @@ func _update_dead_sprite_facing() -> void:
 # Height and collision shape methods for Entities system
 func get_height() -> float:
 	"""Get the height of this GangMember for collision detection"""
-	return Global.get_object_height_from_marker(self)
+	# Use ice height marker when frozen
+	if is_frozen and ice_top_height_marker:
+		return ice_top_height_marker.global_position.y
+	else:
+		return Global.get_object_height_from_marker(self)
 
 func get_y_sort_point() -> float:
-	var ysort_point_node = get_node_or_null("YsortPoint")
-	if ysort_point_node:
-		return ysort_point_node.global_position.y
+	# Use ice Y-sort point when frozen
+	if is_frozen and ice_ysort_point:
+		return ice_ysort_point.global_position.y
 	else:
-		return global_position.y
+		var ysort_point_node = get_node_or_null("YsortPoint")
+		if ysort_point_node:
+			return ysort_point_node.global_position.y
+		else:
+			return global_position.y
 
 func get_base_collision_shape() -> Dictionary:
 	"""Get the base collision shape dimensions for this GangMember"""
@@ -1676,6 +1776,10 @@ func _change_to_dead_sprite() -> void:
 	if sprite:
 		sprite.visible = false
 	
+	# Hide the ice sprite if it's visible
+	if is_frozen and ice_sprite:
+		ice_sprite.visible = false
+	
 	# Show the dead sprite
 	var dead_sprite = get_node_or_null("Dead")
 	if dead_sprite:
@@ -1696,6 +1800,12 @@ func _switch_to_dead_collision() -> void:
 		base_collision_area.monitoring = false
 		base_collision_area.monitorable = false
 		print("✓ Disabled main collision area")
+	
+	# Disable the ice collision area if it's active
+	if is_frozen and ice_collision_area:
+		ice_collision_area.monitoring = false
+		ice_collision_area.monitorable = false
+		print("✓ Disabled ice collision area")
 	
 	# Enable the dead collision area
 	var dead_collision_area = get_node_or_null("Dead/BaseCollisionArea")
@@ -1982,17 +2092,108 @@ func freeze() -> void:
 		return
 	
 	is_frozen = true
-	freeze_turns_remaining = 1  # Freeze for 1 turn
+	freeze_turns_remaining = 2  # Freeze for 2 turns
 	print("GangMember frozen for", freeze_turns_remaining, "turns!")
 	
 	# Play freeze sound
 	if freeze_sound:
 		freeze_sound.play()
 	
-	# Apply light blue tint
+	# Switch to ice sprite and collision
+	_switch_to_ice_state()
+
+func _switch_to_ice_state() -> void:
+	"""Switch to ice sprite and collision state"""
+	print("=== SWITCHING TO ICE STATE ===")
+	
+	# Hide the normal sprite
 	if sprite:
-		var freeze_color = Color(0.7, 0.9, 1.0, 1.0)  # Light blue tint
-		sprite.modulate = freeze_color
+		sprite.visible = false
+		print("✓ Hidden normal sprite")
+	
+	# Show the ice sprite
+	if ice_sprite:
+		ice_sprite.visible = true
+		# Apply the same facing direction to the ice sprite
+		_update_ice_sprite_facing()
+		print("✓ Showed ice sprite")
+	else:
+		print("✗ ERROR: Ice sprite not found!")
+	
+	# Disable normal collision area
+	if base_collision_area:
+		base_collision_area.monitoring = false
+		base_collision_area.monitorable = false
+		print("✓ Disabled normal collision area")
+	
+	# Enable ice collision area
+	if ice_collision_area:
+		ice_collision_area.monitoring = true
+		ice_collision_area.monitorable = true
+		# Set collision layer to 1 so golf balls can detect it
+		ice_collision_area.collision_layer = 1
+		# Set collision mask to 1 so it can detect golf balls on layer 1
+		ice_collision_area.collision_mask = 1
+		# Connect to area_entered and area_exited signals for collision detection
+		if not ice_collision_area.is_connected("area_entered", _on_base_area_entered):
+			ice_collision_area.connect("area_entered", _on_base_area_entered)
+		if not ice_collision_area.is_connected("area_exited", _on_area_exited):
+			ice_collision_area.connect("area_exited", _on_area_exited)
+		print("✓ Enabled ice collision area")
+	else:
+		print("✗ ERROR: Ice collision area not found!")
+	
+	print("✓ Ice state switch complete")
+
+func _switch_to_normal_state() -> void:
+	"""Switch back to normal sprite and collision state"""
+	print("=== SWITCHING TO NORMAL STATE ===")
+	
+	# Hide the ice sprite
+	if ice_sprite:
+		ice_sprite.visible = false
+		print("✓ Hidden ice sprite")
+	
+	# Show the normal sprite
+	if sprite:
+		sprite.visible = true
+		# Restore original modulate
+		sprite.modulate = original_modulate
+		# Update facing direction
+		_update_sprite_facing()
+		print("✓ Showed normal sprite")
+	else:
+		print("✗ ERROR: Normal sprite not found!")
+	
+	# Disable ice collision area
+	if ice_collision_area:
+		ice_collision_area.monitoring = false
+		ice_collision_area.monitorable = false
+		print("✓ Disabled ice collision area")
+	
+	# Enable normal collision area
+	if base_collision_area:
+		base_collision_area.monitoring = true
+		base_collision_area.monitorable = true
+		print("✓ Enabled normal collision area")
+	else:
+		print("✗ ERROR: Normal collision area not found!")
+	
+	print("✓ Normal state switch complete")
+
+func _update_ice_sprite_facing() -> void:
+	"""Update the ice sprite facing direction based on facing_direction"""
+	if not ice_sprite:
+		return
+	
+	# Flip ice sprite horizontally based on facing direction
+	# If facing left (negative x), flip the sprite
+	if facing_direction.x < 0:
+		ice_sprite.flip_h = true
+	elif facing_direction.x > 0:
+		ice_sprite.flip_h = false
+	
+	print("Updated ice sprite facing - Direction: ", facing_direction, ", Flip H: ", ice_sprite.flip_h)
 
 func thaw() -> void:
 	"""Remove freeze effect from the gang member"""
@@ -2003,9 +2204,8 @@ func thaw() -> void:
 	freeze_turns_remaining = 0
 	print("GangMember thawed!")
 	
-	# Restore original modulate
-	if sprite:
-		sprite.modulate = original_modulate
+	# Switch back to normal sprite and collision
+	_switch_to_normal_state()
 
 func is_frozen_state() -> bool:
 	"""Check if the gang member is currently frozen"""

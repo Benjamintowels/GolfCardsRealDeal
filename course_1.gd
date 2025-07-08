@@ -669,9 +669,6 @@ func _input(event: InputEvent) -> void:
 		# Handle launch input through LaunchManager
 		if launch_manager.handle_input(event):
 			return
-	elif game_phase == "ball_flying":
-		print("Course: Ball flying phase - input event:", event.get_class(), "game_phase:", game_phase)
-		
 		# Handle BallHop ability for Wand equipment
 		if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
 			print("Course: Left click detected during ball flight!")

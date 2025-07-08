@@ -9,7 +9,8 @@ var ball_created: bool = false
 func _ready():
 	print("=== FREEZE EFFECT TEST SCENE ===")
 	print("Press SPACE to launch ice ball at gang member")
-	print("GangMember should be frozen for 1 turn when hit")
+	print("GangMember should be frozen for 2 turns when hit")
+	print("GangMember should switch to ice sprite and collision")
 	
 	# Create test entities automatically
 	_create_test_gang_member()
@@ -51,6 +52,7 @@ func _launch_ice_ball():
 	
 	print("✓ Ice ball launched with velocity:", velocity)
 	print("Ball has ice element:", ball.get_element().name if ball.get_element() else "None")
+	print("Expected: GangMember should switch to ice sprite and be frozen for 2 turns")
 
 func _create_test_gang_member():
 	"""Create a test GangMember"""
