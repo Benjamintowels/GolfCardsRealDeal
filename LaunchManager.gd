@@ -240,6 +240,9 @@ func launch_golf_ball(launch_direction: Vector2, final_power: float, height: flo
 	# Store reference and emit signal
 	self.golf_ball = golf_ball
 	emit_signal("ball_launched", golf_ball)
+	
+	# Exit launch phase to transition to ball flying phase
+	exit_launch_phase()
 
 func launch_throwing_knife(launch_direction: Vector2, final_power: float, height: float, launch_spin: float = 0.0, spin_strength_category: int = 0):
 	"""Launch the throwing knife with the specified parameters"""
@@ -315,6 +318,9 @@ func launch_throwing_knife(launch_direction: Vector2, final_power: float, height
 	# Store reference and emit signal
 	self.throwing_knife = throwing_knife
 	emit_signal("ball_launched", throwing_knife)  # Reuse ball_launched signal for compatibility
+	
+	# Exit launch phase to transition to ball flying phase
+	exit_launch_phase()
 
 func show_power_meter():
 	if power_meter:

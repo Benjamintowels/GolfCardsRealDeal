@@ -154,6 +154,11 @@ var player_collision_cooldown: float = 0.5  # Cooldown between player collisions
 var player_collision_count: int = 0  # Number of consecutive player collisions
 var max_player_collisions: int = 3  # Maximum consecutive player collisions before forcing escape
 
+# BallHop system variables (for Wand equipment)
+var ballhop_cooldown: float = 0.0
+var ballhop_cooldown_duration: float = 1.0  # 1 second cooldown
+var ballhop_force: float = 350.0  # Vertical force applied by BallHop (reduced for less intense effect)
+
 # Call this to launch the ball
 func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, spin_strength_category: int = 0):
 	# Store the shot start position for distance calculations
@@ -420,6 +425,10 @@ func _process(delta):
 	if landed_flag:
 		return
 	
+	# Update BallHop cooldown
+	if ballhop_cooldown > 0.0:
+		ballhop_cooldown -= delta
+	
 	# Apply progressive height resistance during flight
 	if is_applying_height_resistance and z > 0.0:
 		# Use the initial height percentage that was set at launch
@@ -511,9 +520,6 @@ func _process(delta):
 			if current_ground_level > 0.0:
 				_play_roof_bounce_sound("")
 			
-			# Check for fire spreading on landing
-			print("=== LANDING FIRE SPREADING CHECK ===")
-			print("Landing position:", position, "Tile:", Vector2i(floor(position.x / cell_size), floor(position.y / cell_size)))
 			_check_fire_spreading()
 			
 			# Check for water hazard on any bounce
@@ -1641,12 +1647,8 @@ func check_rolling_wall_collisions() -> void:
 
 func _check_fire_spreading() -> void:
 	"""Check if the fire ball should spread fire to the current tile"""
-	print("=== FIRE SPREADING CHECK ===")
-	print("Element:", current_element.name if current_element else "None")
-	print("Position:", position, "Tile:", Vector2i(floor(position.x / cell_size), floor(position.y / cell_size)))
-	
+
 	if not current_element or current_element.name != "Fire":
-		print("Not a fire ball - returning")
 		return  # Not a fire ball
 	
 	if map_manager == null:
@@ -1657,27 +1659,20 @@ func _check_fire_spreading() -> void:
 	
 	# Check if this tile is already on fire or has been scorched
 	var is_already_affected = _is_tile_on_fire_or_scorched(current_tile)
-	print("Tile already on fire/scorched:", is_already_affected)
 	if is_already_affected:
-		print("Tile already affected by fire - returning")
 		return  # Tile already affected by fire
 	
 	# Check if this is a grass tile that can catch fire
 	var tile_type = map_manager.get_tile_type(current_tile.x, current_tile.y)
-	print("Tile type:", tile_type, "Is grass:", _is_grass_tile(tile_type))
 	if not _is_grass_tile(tile_type):
-		print("Not a grass tile - returning")
 		return  # Not a grass tile
 	
 	# Check if we've already created a fire tile on this position
 	var already_created = current_tile in fire_tiles_created
-	print("Already created fire tile on this position:", already_created)
 	if already_created:
-		print("Already created fire on this tile - returning")
 		return  # Already created fire on this tile
 	
 	# Create fire tile
-	print("Creating fire tile at position:", current_tile, "on tile type:", tile_type)
 	_create_fire_tile(current_tile)
 
 func _is_tile_on_fire_or_scorched(tile_pos: Vector2i) -> bool:
@@ -1720,7 +1715,6 @@ func _create_fire_tile(tile_pos: Vector2i) -> void:
 	# Track this fire tile
 	fire_tiles_created.append(tile_pos)
 	last_fire_tile = tile_pos
-	print("Fire tile created successfully at:", tile_pos, "z_index:", fire_tile.z_index)
 
 func _on_fire_tile_completed(tile_pos: Vector2i) -> void:
 	"""Handle when a fire tile transitions to scorched earth"""
@@ -1753,10 +1747,47 @@ func _create_explosion_at_position() -> void:
 	var explosion_scene = preload("res://Particles/Explosion.tscn")
 	var explosion = explosion_scene.instantiate()
 	
-	# Position the explosion at the ball's position
+	# Posi=== FIRE SPREADING CHECK ===tion the explosion at the ball's position
 	explosion.global_position = global_position
 	
 	# Add the explosion to the scene
 	get_tree().current_scene.add_child(explosion)
 	
 	print("Explosion created successfully")
+
+func ballhop():
+	"""Apply BallHop effect - makes the ball bounce"""
+	print("GolfBall: BallHop called - cooldown:", ballhop_cooldown, "landed_flag:", landed_flag, "is_rolling:", is_rolling)
+	
+	if ballhop_cooldown > 0.0:
+		print("GolfBall: BallHop failed - still on cooldown")
+		return false  # Still on cooldown
+	
+	# Check if ball has already landed and stopped
+	if landed_flag:
+		print("GolfBall: BallHop failed - ball has already landed and stopped")
+		return false  # Ball has already landed and stopped
+	
+	# Apply bounce effect - give the ball upward velocity
+	vz = ballhop_force
+	
+	# Set cooldown
+	ballhop_cooldown = ballhop_cooldown_duration
+	
+	# Reset rolling state if ball was rolling
+	if is_rolling:
+		is_rolling = false
+		print("GolfBall: BallHop reset rolling state")
+	
+	# Play BallHop sound effect
+	var ballhop_sound = get_node_or_null("BallHop")
+	if ballhop_sound and ballhop_sound.stream:
+		ballhop_sound.play()
+		print("GolfBall: Playing BallHop sound effect")
+	
+	print("GolfBall: BallHop applied successfully!")
+	print("  - New vz:", vz)
+	print("  - Ballhop force:", ballhop_force)
+	print("  - Cooldown set to:", ballhop_cooldown)
+	print("  - Ball position:", global_position, "z:", z)
+	return true

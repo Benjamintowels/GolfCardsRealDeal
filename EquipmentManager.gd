@@ -437,3 +437,10 @@ func force_update_clothing_flip():
 	"""Force update all clothing sprites to match player sprite flip"""
 	print("EquipmentManager: Force updating clothing flip")
 	update_all_clothing_flip() 
+
+func has_wand() -> bool:
+	"""Check if the player has a Wand equipped"""
+	for equipment in equipped_equipment:
+		if equipment.name == "Wand":
+			return true
+	return false 

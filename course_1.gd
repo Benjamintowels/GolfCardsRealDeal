@@ -431,6 +431,14 @@ func _ready() -> void:
 	equipment_manager.name = "EquipmentManager"
 	add_child(equipment_manager)
 	
+	# Give player a Wand by default
+	var wand_equipment = preload("res://Equipment/Wand.tres")
+	if wand_equipment:
+		equipment_manager.add_equipment(wand_equipment)
+		print("Course: Gave player a Wand by default")
+	else:
+		print("Course: Failed to load Wand equipment resource")
+	
 	# Force sync with CurrentDeckManager immediately
 	deck_manager.sync_with_current_deck()
 	
@@ -625,6 +633,10 @@ func _on_complete_hole_pressed():
 	show_hole_completion_dialog()
 
 func _input(event: InputEvent) -> void:
+	# Debug: Log all left click events to see what phase we're in
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		print("Course: Left click detected - current game_phase:", game_phase)
+	
 	# Debug: Check if bag is receiving input events
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		var mouse_pos = event.position
@@ -657,6 +669,29 @@ func _input(event: InputEvent) -> void:
 		if launch_manager.handle_input(event):
 			return
 	elif game_phase == "ball_flying":
+		print("Course: Ball flying phase - input event:", event.get_class(), "game_phase:", game_phase)
+		
+		# Handle BallHop ability for Wand equipment
+		if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+			print("Course: Left click detected during ball flight!")
+			var equipment_manager = get_node_or_null("EquipmentManager")
+			if equipment_manager and equipment_manager.has_wand():
+				print("Course: Wand is equipped, checking for active ball...")
+				# Check if there's an active ball to apply BallHop to
+				var active_ball = launch_manager.golf_ball if launch_manager else null
+				if active_ball and is_instance_valid(active_ball) and active_ball.has_method("ballhop"):
+					print("Course: Active ball found, calling ballhop()...")
+					if active_ball.ballhop():
+						print("Course: BallHop applied successfully!")
+					else:
+						print("Course: BallHop failed - ball not in flight or on cooldown")
+				else:
+					print("Course: No active ball found for BallHop")
+			else:
+				print("Course: Wand not equipped - BallHop not available")
+			return  # Return after handling BallHop to prevent other input processing
+		
+		# Handle camera panning with middle mouse button
 		if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_MIDDLE:
 			is_panning = event.pressed
 			if is_panning:
@@ -664,10 +699,14 @@ func _input(event: InputEvent) -> void:
 			else:
 				var tween := get_tree().create_tween()
 				tween.tween_property(camera, "position", camera_snap_back_pos, 0.6).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+			return  # Return after handling camera panning
 		elif event is InputEventMouseMotion and is_panning:
 			var delta: Vector2 = event.position - pan_start_pos
 			camera.position -= delta
 			pan_start_pos = event.position
+			return  # Return after handling camera motion
+		
+		# If we get here, no ball_flying specific input was handled
 		return  # Don't process other input during ball flight
 
 	if event is InputEventMouseButton and event.pressed:
@@ -1091,6 +1130,12 @@ func _on_tile_mouse_exited(x: int, y: int) -> void:
 func _on_tile_input(event: InputEvent, x: int, y: int) -> void:
 	if event is InputEventMouseButton and event.pressed and not is_panning and event.button_index == MOUSE_BUTTON_LEFT:
 		var clicked := Vector2i(x, y)
+		
+		# Skip tile input handling during ball flying phase to allow BallHop to work
+		if game_phase == "ball_flying":
+			print("Course: Tile input ignored during ball flying phase - BallHop should handle this")
+			return
+		
 		if is_placing_player:
 			if map_manager.get_tile_type(x, y) == "Tee":
 				# Cancel any ongoing pin-to-tee transition
@@ -1268,6 +1313,7 @@ func launch_golf_ball(direction: Vector2, charged_power: float, height: float):
 	launch_manager.launch_golf_ball(direction, charged_power, height, 0.0, 0)
 	
 func _on_golf_ball_landed(tile: Vector2i):
+	print("Course: Ball landed - exiting ball_flying phase!")
 	print("DEBUG: Ball landed, hole_score before increment =", hole_score)
 	hole_score += 1
 	print("DEBUG: Ball landed, hole_score after increment =", hole_score)
@@ -3274,6 +3320,7 @@ func _on_launch_phase_entered():
 	_update_player_mouse_facing_state()
 
 func _on_launch_phase_exited():
+	print("Course: Entering ball_flying phase!")
 	game_phase = "ball_flying"
 	_update_player_mouse_facing_state()
 	# Disable player collision shape during ball flight

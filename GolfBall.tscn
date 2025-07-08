@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3 uid="uid://ccplraisoursi"]
+[gd_scene load_steps=11 format=3 uid="uid://ccplraisoursi"]
 
 [ext_resource type="Texture2D" uid="uid://cvys8vcc4i6hi" path="res://GolfBall.png" id="1_c77dq"]
 [ext_resource type="Script" uid="uid://bn6hvthphgj16" path="res://GolfBall.gd" id="1_coy0q"]
@@ -7,6 +7,7 @@
 [ext_resource type="AudioStream" uid="uid://icvi7c2ur6mm" path="res://Sounds/FlameOn.mp3" id="5_b06et"]
 [ext_resource type="AudioStream" uid="uid://0ctnruc7nulo" path="res://Sounds/IceOn.mp3" id="6_kkqca"]
 [ext_resource type="AudioStream" uid="uid://cubvv16iyvywp" path="res://Sounds/NiceShot.mp3" id="7_uuxce"]
+[ext_resource type="AudioStream" uid="uid://cqm2ebplq8wlo" path="res://Sounds/BallHop.mp3" id="8_skc11"]
 
 [sub_resource type="CompressedTexture2D" id="CompressedTexture2D_k5viu"]
 load_path = "res://.godot/imported/GolfBall.png-0516230eae0ffabe6c6d009b86188c92.ctex"
@@ -59,3 +60,7 @@ stream = ExtResource("6_kkqca")
 
 [node name="LandOnGreen" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("7_uuxce")
+
+[node name="BallHop" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("8_skc11")
+volume_db = -10.254
