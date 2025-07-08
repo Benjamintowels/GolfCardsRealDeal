@@ -1,8 +1,9 @@
-[gd_scene load_steps=4 format=3 uid="uid://clxh2b81uxvtv"]
+[gd_scene load_steps=5 format=3 uid="uid://clxh2b81uxvtv"]
 
 [ext_resource type="Script" uid="uid://bkqfjhiqcwabx" path="res://Characters/Player.gd" id="1_yweqe"]
 [ext_resource type="AudioStream" uid="uid://w3sc1j80onsl" path="res://Sounds/PistolShot.mp3" id="2_5tbhv"]
 [ext_resource type="AudioStream" uid="uid://fmo3bamkgajl" path="res://Sounds/Kicksound.mp3" id="3_fngfj"]
+[ext_resource type="AudioStream" uid="uid://2p5emwcir25h" path="res://Sounds/Burst.mp3" id="4_burst"]
 
 [node name="Player1" type="CharacterBody2D"]
 script = ExtResource("1_yweqe")
@@ -12,3 +13,6 @@ stream = ExtResource("2_5tbhv")
 
 [node name="KickSound" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("3_fngfj")
+
+[node name="BurstShot" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("4_burst")

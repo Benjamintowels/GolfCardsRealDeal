@@ -285,9 +285,6 @@ func perform_attack(npc: Node, target_pos: Vector2i) -> void:
 	if selected_card and selected_card.name == "Kick":
 		if kick_sound:
 			kick_sound.play()
-			print("✓ KickSound played for NPC attack")
-		else:
-			print("✗ KickSound not found for NPC attack")
 		
 		# Emit kick attack signal for animation
 		emit_signal("kick_attack_performed")
@@ -470,9 +467,6 @@ func perform_kickb_attack_on_oil_drum(oil_drum: Node, target_pos: Vector2i) -> v
 	# Play KickSound
 	if kick_sound:
 		kick_sound.play()
-		print("✓ KickSound played")
-	else:
-		print("✗ KickSound not found")
 	
 	# Emit kick attack signal for animation
 	emit_signal("kick_attack_performed")

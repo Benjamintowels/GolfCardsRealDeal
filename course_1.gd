@@ -2001,6 +2001,13 @@ func show_hole_completion_dialog():
 	print("=== SHOW_HOLE_COMPLETION_DIALOG CALLED ===")
 	print("Current hole:", current_hole)
 	print("Hole score:", hole_score)
+	
+	# Play hole complete sound
+	var hole_complete_sound = $HoleComplete
+	if hole_complete_sound and hole_complete_sound.stream:
+		hole_complete_sound.play()
+		print("Playing hole complete sound")
+	
 	round_scores.append(hole_score)
 	var hole_par = GolfCourseLayout.get_hole_par(current_hole)
 	var score_vs_par = hole_score - hole_par
@@ -3347,12 +3354,8 @@ func _on_npc_attacked(npc: Node, damage: int) -> void:
 
 func _on_kick_attack_performed() -> void:
 	"""Handle when a kick attack is performed - trigger kick animation"""
-	print("=== KICK ATTACK PERFORMED ===")
 	if player_node and player_node.has_method("start_kick_animation"):
 		player_node.start_kick_animation()
-		print("✓ Kick animation started")
-	else:
-		print("✗ Player node or kick animation method not found")
 
 func _on_npc_shot(npc: Node, damage: int) -> void:
 	"""Handle when an NPC is shot with a weapon"""

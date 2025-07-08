@@ -36,6 +36,7 @@ var weapon_range := 1000.0  # Maximum shooting distance
 # Weapon scene references
 var pistol_scene = preload("res://Weapons/Pistol.tscn")
 var throwing_knife_scene = preload("res://Weapons/ThrowingKnife.tscn")
+var burst_shot_scene = preload("res://Weapons/BurstShot.tscn")
 var reticle_texture = preload("res://UI/Reticle.png")
 
 # Signals
@@ -194,7 +195,7 @@ func show_knife_aiming_instruction() -> void:
 	course.get_node("UILayer").add_child(instruction_label)
 
 func create_weapon_instance() -> void:
-	"""Create the weapon instance (pistol or knife) in front of the player"""
+	"""Create the weapon instance (pistol, knife, or burst shot) in front of the player"""
 	if weapon_instance:
 		weapon_instance.queue_free()
 	
@@ -202,6 +203,8 @@ func create_weapon_instance() -> void:
 	var weapon_scene = pistol_scene  # Default to pistol
 	if selected_card and selected_card.name == "Throwing Knife":
 		weapon_scene = throwing_knife_scene
+	elif selected_card and selected_card.name == "BurstShot":
+		weapon_scene = burst_shot_scene
 	
 	weapon_instance = weapon_scene.instantiate()
 	player_node.add_child(weapon_instance)
@@ -245,7 +248,7 @@ func update_weapon_rotation() -> void:
 					weapon_sprite.flip_h = true
 					weapon_sprite.flip_v = false
 				else:
-					# Pistol behavior
+					# Pistol and BurstShot behavior
 					weapon_sprite.flip_h = false
 					weapon_sprite.flip_v = true
 		else:
@@ -255,7 +258,7 @@ func update_weapon_rotation() -> void:
 					weapon_sprite.flip_h = false
 					weapon_sprite.flip_v = false
 				else:
-					# Pistol behavior
+					# Pistol and BurstShot behavior
 					weapon_sprite.flip_h = false
 					weapon_sprite.flip_v = false
 		weapon_instance.position = weapon_offset
@@ -269,6 +272,11 @@ func fire_weapon() -> void:
 	if selected_card and selected_card.name == "Throwing Knife" and launch_manager:
 		# Use LaunchManager for knife throwing
 		launch_throwing_knife()
+		return
+	
+	# Check if this is a BurstShot weapon
+	if selected_card and selected_card.name == "BurstShot":
+		fire_burst_shot()
 		return
 	
 	# Otherwise use the original raytrace system for pistols
@@ -313,6 +321,178 @@ func fire_weapon() -> void:
 	
 	# Exit weapon mode after firing
 	exit_weapon_mode()
+
+func fire_burst_shot() -> void:
+	"""Fire 5 bullets in quick succession with updated muzzle mechanics"""
+	if not weapon_instance or not player_node:
+		return
+	
+	# Play burst sound
+	var burst_sound = player_node.get_node_or_null("BurstShot")
+	if burst_sound:
+		burst_sound.play()
+	
+	# Burst shot settings - 5 shots over 1 second total duration
+	var burst_count = 5
+	var total_duration = 1.0  # 1 second total
+	var burst_delay = total_duration / burst_count  # 200ms between shots
+	
+	# Start the burst sequence
+	start_burst_sequence(burst_count, burst_delay)
+
+func start_burst_sequence(burst_count: int, burst_delay: float) -> void:
+	"""Start the burst firing sequence with updated mechanics"""
+	# Fire the first shot immediately
+	fire_single_burst_shot(false)
+	
+	# Time the remaining shots
+	for i in range(1, burst_count):
+		# Create a timer for this shot
+		var shot_timer = Timer.new()
+		shot_timer.wait_time = i * burst_delay
+		shot_timer.one_shot = true
+		shot_timer.timeout.connect(func(): fire_single_burst_shot(i == burst_count - 1))
+		add_child(shot_timer)
+		shot_timer.start()
+
+func fire_single_burst_shot(is_last_shot: bool) -> void:
+	"""Fire a single shot in the burst sequence with updated mechanics"""
+	if not weapon_instance or not player_node or not camera:
+		return
+	
+	# Get current mouse position and weapon position for this shot
+	var mouse_pos = camera.get_global_mouse_position()
+	var weapon_pos = weapon_instance.global_position
+	var direction = (mouse_pos - weapon_pos).normalized()
+	
+	# Create visual tracer line
+	create_tracer_line(weapon_pos, mouse_pos)
+	
+	# Perform raytrace from weapon to mouse position
+	var hit_target = perform_raytrace_with_direction(weapon_pos, direction)
+	
+	if hit_target:
+		# Deal damage to all targets (including oil drums)
+		if hit_target.has_method("take_damage"):
+			# Check what type of target this is and call take_damage with appropriate parameters
+			var weapon_pos_global = weapon_instance.global_position if weapon_instance else Vector2.ZERO
+			
+			if hit_target.get_script() and hit_target.get_script().resource_path.ends_with("oil_drum.gd"):
+				# Oil drum only takes damage amount
+				hit_target.take_damage(weapon_damage)
+			elif hit_target.get_script() and hit_target.get_script().resource_path.ends_with("GangMember.gd"):
+				# GangMember takes damage, is_headshot, and weapon_position
+				hit_target.take_damage(weapon_damage, false, weapon_pos_global)
+			elif hit_target.get_script() and hit_target.get_script().resource_path.ends_with("Player.gd"):
+				# Player takes damage and is_headshot
+				hit_target.take_damage(weapon_damage, false)
+			else:
+				# Default: just pass damage amount
+				hit_target.take_damage(weapon_damage)
+			
+			emit_signal("npc_shot", hit_target, weapon_damage)
+	
+	# Exit weapon mode after the last shot
+	if is_last_shot:
+		exit_weapon_mode()
+
+func create_tracer_line(start_pos: Vector2, end_pos: Vector2) -> void:
+	"""Create a grey thin tracer line that flashes briefly"""
+	# Create a Line2D node for the tracer
+	var tracer_line = Line2D.new()
+	tracer_line.width = 1.0  # Thin line
+	tracer_line.default_color = Color(0.5, 0.5, 0.5, 0.8)  # Grey with some transparency
+	tracer_line.points = [start_pos, end_pos]
+	tracer_line.z_index = 1000  # Ensure it's visible above other elements
+	
+	# Add to the scene
+	var course = card_effect_handler.course if card_effect_handler else get_tree().current_scene
+	course.add_child(tracer_line)
+	
+	# Create a timer to remove the tracer after a short duration
+	var remove_timer = Timer.new()
+	remove_timer.wait_time = 0.1  # Flash for 100ms
+	remove_timer.one_shot = true
+	remove_timer.timeout.connect(func(): 
+		tracer_line.queue_free()
+		remove_timer.queue_free()
+	)
+	course.add_child(remove_timer)
+	remove_timer.start()
+
+func perform_raytrace_with_direction(weapon_pos: Vector2, direction: Vector2) -> Node:
+	"""Perform raytrace from weapon position in the specified direction"""
+	if not card_effect_handler or not card_effect_handler.course:
+		return null
+	
+	var course = card_effect_handler.course
+	
+	# Cast ray from weapon position in the specified direction
+	var ray_end = weapon_pos + direction * weapon_range
+	
+	# Check for obstacles along the bullet path
+	var space_state = course.get_world_2d().direct_space_state
+	var query = PhysicsRayQueryParameters2D.create(weapon_pos, ray_end)
+	query.collision_mask = 2  # Collide with layer 2 (HitBoxes for weapons)
+	query.collide_with_bodies = false  # We're using Area2D HitBoxes
+	query.collide_with_areas = true
+	
+	var result = space_state.intersect_ray(query)
+	
+	if result:
+		# Bullet hit something
+		var hit_object = result.collider
+		
+		# Check if it's a HitBox Area2D
+		if hit_object.name == "HitBox":
+			var parent = hit_object.get_parent()
+			
+			# Check if it's a tree's HitBox
+			if parent and (parent.name == "Tree" or "Tree" in str(parent.get_script()) or parent.has_method("_handle_trunk_collision")):
+				return null  # Tree blocks the shot
+			
+			# Check if it's a GangMember's HitBox
+			if parent and parent.has_method("take_damage"):
+				return parent  # Return the parent GangMember, not the HitBox
+			
+			# Check if it's an OilDrum's HitBox
+			if parent and (parent.name == "OilDrum" or "oil_drum.gd" in str(parent.get_script())):
+				return parent  # Return the parent OilDrum, not the HitBox
+	else:
+		# No obstacles hit, check if any NPCs are in the direct path
+		var entities = course.get_node_or_null("Entities")
+		if entities:
+			var npcs = entities.get_npcs()
+			var closest_npc = null
+			var closest_distance = weapon_range
+			
+			for npc in npcs:
+				if is_instance_valid(npc) and npc.has_method("take_damage"):
+					var npc_pos = npc.global_position
+					var to_npc = npc_pos - weapon_pos
+					var distance = to_npc.length()
+					
+					# Check if NPC is in the direct line of fire
+					if distance <= weapon_range:
+						var dot_product = to_npc.normalized().dot(direction)
+						if dot_product > 0.99:  # Very precise aim required
+							# Double-check no obstacles in the way
+							var final_query = PhysicsRayQueryParameters2D.create(weapon_pos, npc_pos)
+							final_query.collision_mask = 2  # Check for HitBoxes on layer 2
+							final_query.collide_with_bodies = true
+							final_query.collide_with_areas = true
+							
+							var final_result = space_state.intersect_ray(final_query)
+							
+							if final_result and final_result.collider == npc:
+								if distance < closest_distance:
+									closest_distance = distance
+									closest_npc = npc
+			
+			if closest_npc:
+				return closest_npc
+	
+	return null
 
 func launch_throwing_knife() -> void:
 	"""Launch a throwing knife using the LaunchManager system"""
