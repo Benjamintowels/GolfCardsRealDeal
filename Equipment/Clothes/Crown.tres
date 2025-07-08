@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="EquipmentData" load_steps=3 format=3 uid="uid://crown_equipment_data"]
+
+[ext_resource type="Texture2D" uid="uid://crown_texture" path="res://Equipment/Clothes/Crown.png" id="1_crown_texture"]
+[ext_resource type="Script" uid="uid://cf85ta7k8ivt1" path="res://Equipment/EquipmentData.gd" id="1_equipment_script"]
+
+[resource]
+script = ExtResource("1_equipment_script")
+name = "Crown"
+image = ExtResource("1_crown_texture")
+description = "A majestic crown that increases your power."
+buff_type = "strength"
+buff_value = 2
+price = 300
+is_clothing = true
+clothing_slot = "head"
+clothing_scene_path = "res://Equipment/Clothes/Crown.tscn"
+display_image = ExtResource("1_crown_texture") 

@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="EquipmentData" load_steps=3 format=3 uid="uid://halo_equipment_data"]
+
+[ext_resource type="Texture2D" uid="uid://halo_texture" path="res://Equipment/Clothes/Halo.png" id="1_halo_texture"]
+[ext_resource type="Script" uid="uid://cf85ta7k8ivt1" path="res://Equipment/EquipmentData.gd" id="1_equipment_script"]
+
+[resource]
+script = ExtResource("1_equipment_script")
+name = "Halo"
+image = ExtResource("1_halo_texture")
+description = "A divine halo that increases your card draw."
+buff_type = "card_draw"
+buff_value = 2
+price = 350
+is_clothing = true
+clothing_slot = "head"
+clothing_scene_path = "res://Equipment/Clothes/Halo.tscn"
+display_image = ExtResource("1_halo_texture") 

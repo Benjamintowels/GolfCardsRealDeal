@@ -4,6 +4,7 @@
 
 [node name="Cape" type="Node2D"]
 z_index = -1
+position = Vector2(0, -1)
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 texture = ExtResource("1_7fs5q")

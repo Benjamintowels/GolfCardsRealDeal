@@ -95,6 +95,7 @@ var ice_ball_active := false  # Track if IceBall effect is active
 var explosive_shot_active := false  # Track if Explosive effect is active
 var next_shot_modifier := ""  # Track what modifier to apply to next shot
 var next_card_doubled := false  # Track if the next card should have its effect doubled
+var extra_turns_remaining := 0  # Track extra turns from CoffeeCard
 
 # Multi-hole game loop variables
 var round_scores := []  # Array to store scores for each hole
@@ -1441,8 +1442,27 @@ func _on_end_turn_pressed() -> void:
 			if discard_empty_sound and discard_empty_sound.stream:
 				discard_empty_sound.play()
 
-	# Start NPC turn sequence
-	start_npc_turn_sequence()
+	# Check if player has extra turns
+	if extra_turns_remaining > 0:
+		extra_turns_remaining -= 1
+		print("Using extra turn! Extra turns remaining:", extra_turns_remaining)
+		
+		# Show "Extra Turn" message
+		show_turn_message("Extra Turn!", 2.0)
+		
+		# Continue with normal turn flow without World Turn
+		if waiting_for_player_to_reach_ball and player_grid_pos == ball_landing_tile:
+			if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball) and launch_manager.golf_ball.has_method("remove_landing_highlight"):
+				launch_manager.golf_ball.remove_landing_highlight()
+			
+			enter_draw_cards_phase()  # Start with club selection phase
+		else:
+			draw_cards_for_shot(3)
+			create_movement_buttons()
+			draw_cards_button.visible = false
+	else:
+		# Start NPC turn sequence
+		start_npc_turn_sequence()
 
 func start_npc_turn_sequence() -> void:
 	"""Handle the NPC turn sequence with camera transitions and UI"""
@@ -1737,6 +1757,20 @@ func get_player_reference() -> Node:
 func get_attack_handler() -> Node:
 	"""Get the attack handler reference for NPCs to use"""
 	return attack_handler
+
+func give_extra_turn() -> void:
+	"""Give the player an extra turn (skip World Turn)"""
+	extra_turns_remaining += 1
+	print("Player given extra turn! Extra turns remaining:", extra_turns_remaining)
+	
+	# Play coffee sound effect
+	if player_node:
+		var coffee_sound = player_node.get_node_or_null("Coffee")
+		if coffee_sound and coffee_sound.stream:
+			coffee_sound.play()
+			print("Playing coffee sound effect")
+		else:
+			print("Warning: Coffee sound not found on player")
 
 func advance_fire_tiles() -> void:
 	"""Advance all fire tiles to the next turn"""

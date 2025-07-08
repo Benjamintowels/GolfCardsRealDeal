@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=3 uid="uid://uu62he6w7oc3"]
+
+[ext_resource type="Texture2D" uid="uid://tjvsh4padfv0" path="res://Equipment/Clothes/Halo.png" id="1_s7qif"]
+
+[node name="Halo" type="Node2D"]
+
+[node name="HaloSprite" type="Sprite2D" parent="."]
+texture = ExtResource("1_s7qif")

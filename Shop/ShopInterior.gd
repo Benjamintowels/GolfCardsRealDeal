@@ -87,7 +87,9 @@ func load_shop_items():
 		preload("res://Equipment/GolfShoes.tres"),
 		preload("res://Equipment/Wand.tres"),
 		preload("res://Equipment/Clothes/Cape.tres"),
-		preload("res://Equipment/Clothes/TopHat.tres")
+		preload("res://Equipment/Clothes/TopHat.tres"),
+		preload("res://Equipment/Clothes/Crown.tres"),
+		preload("res://Equipment/Clothes/Halo.tres")
 	]
 	
 	# Load cards from Cards folder - expanded pool
@@ -108,6 +110,8 @@ func load_shop_items():
 		preload("res://Cards/ExtraBall.tres"),
 		preload("res://Cards/FloridaScramble.tres"),
 		preload("res://Cards/Dub.tres"),
+		preload("res://Cards/Draw2.tres"),
+		preload("res://Cards/CoffeeCard.tres"),
 		
 		# Movement cards
 		preload("res://Cards/Move1.tres"),

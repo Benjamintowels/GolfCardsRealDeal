@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3 uid="uid://clxh2b81uxvtv"]
+[gd_scene load_steps=10 format=3 uid="uid://clxh2b81uxvtv"]
 
 [ext_resource type="Script" uid="uid://bkqfjhiqcwabx" path="res://Characters/Player.gd" id="1_yweqe"]
 [ext_resource type="AudioStream" uid="uid://w3sc1j80onsl" path="res://Sounds/PistolShot.mp3" id="2_5tbhv"]
@@ -8,6 +8,7 @@
 [ext_resource type="AudioStream" uid="uid://b53pp4868q8ld" path="res://Sounds/ShotgunCock.mp3" id="6_1mcii"]
 [ext_resource type="AudioStream" uid="uid://dts0nayo363qh" path="res://Sounds/SniperShot.mp3" id="7_n41l7"]
 [ext_resource type="AudioStream" uid="uid://cmeegjlrw4w1s" path="res://Sounds/BoltAction.mp3" id="8_4miur"]
+[ext_resource type="AudioStream" uid="uid://blpqyty8dxb0f" path="res://Sounds/CoffeeSip.mp3" id="9_4miur"]
 
 [node name="Player1" type="CharacterBody2D"]
 script = ExtResource("1_yweqe")
@@ -32,3 +33,6 @@ stream = ExtResource("7_n41l7")
 
 [node name="SniperCock" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("8_4miur")
+
+[node name="Coffee" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("9_4miur")

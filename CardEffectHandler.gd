@@ -37,6 +37,12 @@ func handle_card_effect(card: CardData) -> bool:
 	elif card.effect_type == "Teleport":
 		handle_teleport_effect(card)
 		return true
+	elif card.effect_type == "Draw":
+		handle_draw_effect(card)
+		return true
+	elif card.effect_type == "ExtraTurn":
+		handle_extra_turn_effect(card)
+		return true
 	
 	return false
 
@@ -269,6 +275,56 @@ func handle_teleport_effect(card: CardData):
 	
 	# Remove only the specific card button, not the entire hand
 	remove_specific_card_button(card)
+
+func handle_draw_effect(card: CardData):
+	"""Handle Draw effect cards - draw additional cards from action deck"""
+	print("CardEffectHandler: Handling Draw card:", card.name)
+	
+	# Get the number of cards to draw from effect_strength
+	var cards_to_draw = card.effect_strength
+	print("Drawing", cards_to_draw, "cards from action deck")
+	
+	# Draw cards from action deck and add to hand
+	course.deck_manager.draw_action_cards_to_hand(cards_to_draw)
+	
+	# Handle card discard - could be from hand or bag pile
+	if course.deck_manager.hand.has(card):
+		course.deck_manager.discard(card)
+		course.card_stack_display.animate_card_discard(card.name)
+		course.update_deck_display()
+	else:
+		# Card is from bag pile during club selection - just animate discard
+		course.card_stack_display.animate_card_discard(card.name)
+		print("Draw card used from bag pile")
+	
+	# Remove only the specific card button, not the entire hand
+	remove_specific_card_button(card)
+	
+	# Update the movement buttons to show the new cards in hand
+	if course.has_method("create_movement_buttons"):
+		course.create_movement_buttons()
+	
+	print("Draw effect completed - drew", cards_to_draw, "cards")
+
+func handle_extra_turn_effect(card: CardData):
+	"""Handle ExtraTurn effect - give the player an extra turn"""
+	print("CardEffectHandler: Handling ExtraTurn card:", card.name)
+	
+	# Discard the card
+	if course.deck_manager.hand.has(card):
+		course.deck_manager.discard(card)
+		course.card_stack_display.animate_card_discard(card.name)
+		course.update_deck_display()
+	else:
+		# Card is from bag pile during club selection - just animate discard
+		course.card_stack_display.animate_card_discard(card.name)
+	
+	# Remove only the specific card button, not the entire hand
+	remove_specific_card_button(card)
+	
+	# Give the player an extra turn
+	course.give_extra_turn()
+	print("Player received an extra turn due to ExtraTurn card.")
 
 func get_ball_position() -> Vector2:
 	"""Get the current ball's position in world coordinates"""

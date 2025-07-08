@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=3 uid="uid://by6xq6jjqn7cu"]
+
+[ext_resource type="Texture2D" uid="uid://3323axwhyatl" path="res://Equipment/Clothes/Crown.png" id="1_bpc05"]
+
+[node name="Crown" type="Node2D"]
+
+[node name="Crownsprite" type="Sprite2D" parent="."]
+texture = ExtResource("1_bpc05")

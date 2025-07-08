@@ -33,6 +33,8 @@ var available_cards: Array[CardData] = [
 	preload("res://Cards/GrenadeCard.tres"),
 	preload("res://Cards/ThrowingKnife.tres"),
 	preload("res://Cards/TeleportCard.tres"),
+	preload("res://Cards/Draw2.tres"),
+	preload("res://Cards/CoffeeCard.tres"),
 	preload("res://Cards/Putter.tres"),
 	preload("res://Cards/Wooden.tres"),
 	preload("res://Cards/Iron.tres"),
@@ -48,7 +50,9 @@ var available_equipment: Array[EquipmentData] = [
 	preload("res://Equipment/GolfShoes.tres"),
 	preload("res://Equipment/Wand.tres"),
 	preload("res://Equipment/Clothes/Cape.tres"),
-	preload("res://Equipment/Clothes/TopHat.tres")
+	preload("res://Equipment/Clothes/TopHat.tres"),
+	preload("res://Equipment/Clothes/Crown.tres"),
+	preload("res://Equipment/Clothes/Halo.tres")
 ]
 
 # Available bag upgrades for rewards (will be populated dynamically)

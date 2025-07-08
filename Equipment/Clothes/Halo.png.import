@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://do4bpmii6xqi1"
-path="res://.godot/imported/Draw2.png-ae5e87f456ef550fa1b02530027fac7e.ctex"
+uid="uid://tjvsh4padfv0"
+path="res://.godot/imported/Halo.png-e97c492399f7fe1539419eef24ddb97d.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Cards/Draw2.png"
-dest_files=["res://.godot/imported/Draw2.png-ae5e87f456ef550fa1b02530027fac7e.ctex"]
+source_file="res://Equipment/Clothes/Halo.png"
+dest_files=["res://.godot/imported/Halo.png-e97c492399f7fe1539419eef24ddb97d.ctex"]
 
 [params]
 
