@@ -17,6 +17,7 @@ func _ready():
 	var suitcase_sound = AudioStreamPlayer.new()
 	suitcase_sound.name = "SuitcaseSound"
 	suitcase_sound.stream = preload("res://Sounds/Suitcase.mp3")
+	suitcase_sound.volume_db = -8.0  # Lower volume by -8 dB
 	add_child(suitcase_sound)
 
 func _on_gui_input(event: InputEvent):
