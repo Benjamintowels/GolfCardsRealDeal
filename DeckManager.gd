@@ -129,33 +129,54 @@ func draw_from_club_deck(count: int = 1) -> Array[CardData]:
 
 func draw_from_action_deck(count: int = 3) -> Array[CardData]:
 	"""Draw cards from the action deck"""
+	print("=== DRAW_FROM_ACTION_DECK CALLED ===")
+	print("Requested count:", count)
+	print("Action draw pile size before draw:", action_draw_pile.size())
+	print("Action discard pile size before draw:", action_discard_pile.size())
+	
 	# Check if we need to reshuffle to get enough cards
 	var total_available_cards = action_draw_pile.size() + action_discard_pile.size()
 	if action_draw_pile.size() < count and total_available_cards >= count:
+		print("Reshuffling action discard pile before draw")
 		reshuffle_action_discard()
 	
 	var drawn_cards: Array[CardData] = []
 	for i in range(count):
 		# If draw pile is empty, try to reshuffle discard pile
 		if action_draw_pile.is_empty():
+			print("Action draw pile empty during draw, reshuffling")
 			reshuffle_action_discard()
 			# If still empty after reshuffle, we can't draw more cards
 			if action_draw_pile.is_empty():
+				print("Action draw pile still empty after reshuffle, breaking")
 				break
 		
 		var index := randi() % action_draw_pile.size()
 		var card := action_draw_pile[index]
 		action_draw_pile.remove_at(index)
 		drawn_cards.append(card)
+		print("Drew card:", card.name, "from action deck")
+	
+	print("Total cards drawn from action deck:", drawn_cards.size())
+	print("Action draw pile size after draw:", action_draw_pile.size())
+	print("=== END DRAW_FROM_ACTION_DECK ===")
 	
 	emit_signal("deck_updated")
 	return drawn_cards
 
 func draw_action_cards_to_hand(count: int = 3) -> void:
 	"""Draw action cards and add them directly to the hand"""
+	print("=== DRAW_ACTION_CARDS_TO_HAND CALLED ===")
+	print("Requested count:", count)
+	print("Hand size before drawing:", hand.size())
+	
 	var drawn_cards = draw_from_action_deck(count)
 	for card in drawn_cards:
 		hand.append(card)
+		print("Added card to hand:", card.name)
+	
+	print("Hand size after drawing:", hand.size())
+	print("=== END DRAW_ACTION_CARDS_TO_HAND ===")
 	emit_signal("deck_updated")
 
 func draw_club_cards_to_hand(count: int = 1) -> void:
@@ -171,7 +192,8 @@ func reshuffle_club_discard() -> void:
 	if count == 0:
 		return
 	
-	club_draw_pile = club_discard_pile.duplicate()
+	# Add discard pile to draw pile instead of replacing it
+	club_draw_pile.append_array(club_discard_pile)
 	club_draw_pile.shuffle()
 	club_discard_pile.clear()
 	emit_signal("deck_updated")
@@ -183,7 +205,8 @@ func reshuffle_action_discard() -> void:
 	if count == 0:
 		return
 	
-	action_draw_pile = action_discard_pile.duplicate()
+	# Add discard pile to draw pile instead of replacing it
+	action_draw_pile.append_array(action_discard_pile)
 	action_draw_pile.shuffle()
 	action_discard_pile.clear()
 	emit_signal("deck_updated")

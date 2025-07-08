@@ -1904,9 +1904,11 @@ func draw_cards_for_shot(card_count: int = 3) -> void:
 	var final_card_count = card_count + card_draw_modifier
 	final_card_count = max(1, final_card_count)
 	print("Final card count (with modifier):", final_card_count)
-	
+	print("Player stats card_draw modifier:", card_draw_modifier)
+	print("Calling deck_manager.draw_action_cards_to_hand with count:", final_card_count)
 	
 	deck_manager.draw_action_cards_to_hand(final_card_count)
+	print("=== END DRAWING CARDS FOR SHOT ===")
 	
 
 func start_shot_sequence() -> void:
@@ -2353,6 +2355,17 @@ func draw_club_cards() -> void:
 	for child in movement_buttons_container.get_children():
 		child.queue_free()
 	movement_buttons.clear()
+	
+	# Clear existing action cards from hand before drawing club cards
+	print("Clearing existing action cards from hand before club selection")
+	var cards_to_remove: Array[CardData] = []
+	for card in deck_manager.hand:
+		if not deck_manager.is_club_card(card):
+			cards_to_remove.append(card)
+	
+	for card in cards_to_remove:
+		deck_manager.discard(card)
+		print("Discarded action card:", card.name, "before club selection")
 	
 	# Calculate how many club cards we need to draw
 	var base_club_count = 2  # Default number of clubs to show
