@@ -201,7 +201,7 @@ texture_filter = 1
 scale = Vector2(1.19, 1.19)
 sprite_frames = SubResource("SpriteFrames_swing")
 animation = &"Punch"
-frame_progress = 0.490215
+frame_progress = 0.236695
 offset = Vector2(0, -36.01)
 
 [node name="AnimationPlayer" type="AnimationPlayer" parent="AnimatedSprite2D"]

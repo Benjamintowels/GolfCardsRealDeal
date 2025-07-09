@@ -348,6 +348,10 @@ func _get_tee_area_center() -> Vector2:
 func _process(delta):
 	if smart_optimizer:
 		smart_optimizer.smart_process(delta, self)
+	
+	# Update block sprite flip every frame when block is active
+	if block_active and Global.selected_character == 2:
+		update_block_sprite_flip()
 
 func update_ball_for_optimizer():
 	"""Update ball state for the smart optimizer"""
@@ -984,30 +988,48 @@ func activate_block(amount: int) -> void:
 
 func switch_to_block_sprite() -> void:
 	"""Switch Benny character to block sprite"""
+	print("=== SWITCH TO BLOCK SPRITE CALLED ===")
 	if not player_node:
+		print("✗ No player node found")
 		return
 	
 	# Find the normal character sprite and block sprite in the player node
 	var normal_sprite = null
 	var block_sprite = null
 	
+	print("Searching for sprites in player node children...")
 	for child in player_node.get_children():
+		print("  Child:", child.name, "Type:", child.get_class())
 		if child is Node2D:
 			for grandchild in child.get_children():
+				print("    Grandchild:", grandchild.name, "Type:", grandchild.get_class())
 				if grandchild is Sprite2D and grandchild.name == "Sprite2D":
 					normal_sprite = grandchild
+					print("    ✓ Found normal sprite:", grandchild.name)
 				elif grandchild is Sprite2D and grandchild.name == "BennyBlock":
 					block_sprite = grandchild
+					print("    ✓ Found block sprite:", grandchild.name)
 			if normal_sprite and block_sprite:
 				break
 	
+	print("Normal sprite found:", normal_sprite != null)
+	print("Block sprite found:", block_sprite != null)
+	
 	if normal_sprite and block_sprite:
+		print("Normal sprite flip_h before copy:", normal_sprite.flip_h)
+		print("Block sprite flip_h before copy:", block_sprite.flip_h)
+		
+		# Copy the flip_h state from normal sprite to block sprite
+		block_sprite.flip_h = normal_sprite.flip_h
+		
 		# Hide normal sprite and show block sprite
 		normal_sprite.visible = false
 		block_sprite.visible = true
-		print("Switched to block sprite")
+		print("✓ Switched to block sprite with flip_h:", block_sprite.flip_h)
 	else:
-		print("Warning: Could not find normal sprite or block sprite")
+		print("✗ Warning: Could not find normal sprite or block sprite")
+	
+	print("=== END SWITCH TO BLOCK SPRITE ===")
 
 func switch_to_normal_sprite() -> void:
 	"""Switch Benny character back to normal sprite"""
@@ -1035,6 +1057,29 @@ func switch_to_normal_sprite() -> void:
 		print("Switched back to normal sprite")
 	else:
 		print("Warning: Could not find normal sprite or block sprite")
+
+func update_block_sprite_flip() -> void:
+	"""Update the block sprite's flip_h state to match the normal sprite"""
+	if not player_node or Global.selected_character != 2 or not block_active:  # Only for Benny when blocking
+		return
+	
+	# Find the normal character sprite and block sprite in the player node
+	var normal_sprite = null
+	var block_sprite = null
+	
+	for child in player_node.get_children():
+		if child is Node2D:
+			for grandchild in child.get_children():
+				if grandchild is Sprite2D and grandchild.name == "Sprite2D":
+					normal_sprite = grandchild
+				elif grandchild is Sprite2D and grandchild.name == "BennyBlock":
+					block_sprite = grandchild
+			if normal_sprite and block_sprite:
+				break
+	
+	if normal_sprite and block_sprite and block_sprite.visible:
+		# Update block sprite flip_h to match normal sprite
+		block_sprite.flip_h = normal_sprite.flip_h
 
 func clear_block() -> void:
 	"""Clear all block points and switch back to normal sprite"""
@@ -1550,8 +1595,8 @@ func _on_end_turn_pressed() -> void:
 	# Advance ice tiles to next turn
 	advance_ice_tiles()
 	
-	# Clear block at end of turn
-	clear_block()
+	# Block persists during world turn - will be cleared when player's next turn begins
+	# clear_block()  # REMOVED: Block should persist during world turn
 	
 	update_deck_display()
 	
@@ -2198,6 +2243,10 @@ func hide_aiming_instruction() -> void:
 func draw_cards_for_shot(card_count: int = 3) -> void:
 	print("=== DRAWING CARDS FOR SHOT ===")
 	print("Requested card count:", card_count)
+	
+	# Clear block when starting a new player turn (after world turn ends or is skipped)
+	clear_block()
+	
 	var card_draw_modifier = player_stats.get("card_draw", 0)
 	var final_card_count = card_count + card_draw_modifier
 	final_card_count = max(1, final_card_count)
@@ -2739,6 +2788,9 @@ func enter_draw_cards_phase() -> void:
 	game_phase = "draw_cards"
 	_update_player_mouse_facing_state()
 	print("Entered draw cards phase - selecting club for shot")
+	
+	# Clear block at the start of player's turn (after world turn)
+	clear_block()
 	
 	draw_cards_button.visible = true
 	draw_cards_button.text = "Draw Club Cards"
@@ -3827,6 +3879,9 @@ func _update_player_mouse_facing_state() -> void:
 	# Set camera reference if not already set
 	if player_node.has_method("set_camera_reference") and camera:
 		player_node.set_camera_reference(camera)
+	
+	# Update block sprite flip to match normal sprite
+	update_block_sprite_flip()
 
 
 
