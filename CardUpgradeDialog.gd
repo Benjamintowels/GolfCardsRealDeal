@@ -8,6 +8,7 @@ signal dialog_closed
 @onready var card_container: GridContainer = $DialogBox/CardContainer
 @onready var close_button: Button = $DialogBox/CloseButton
 @onready var upgrade_sound: AudioStreamPlayer2D = $UpgradeSound
+@onready var bag_sound: AudioStreamPlayer2D = $BagSound
 
 var current_deck_manager: CurrentDeckManager
 var selected_card: CardData = null
@@ -31,12 +32,20 @@ func show_dialog():
 	visible = true
 	load_player_deck()
 	title_label.text = "Select a Card to Upgrade"
+	
+	# Play sound when showing upgrade dialog
+	if bag_sound and bag_sound.stream:
+		bag_sound.play()
 
 func hide_dialog():
 	"""Hide the card upgrade dialog"""
 	visible = false
 	clear_card_buttons()
 	emit_signal("dialog_closed")
+	
+	# Play sound when closing upgrade dialog
+	if bag_sound and bag_sound.stream:
+		bag_sound.play()
 
 func load_player_deck():
 	"""Load and display the player's current deck"""
@@ -174,6 +183,10 @@ func _on_card_button_pressed(card: CardData):
 
 func show_upgrade_confirmation(card: CardData):
 	"""Show confirmation dialog for upgrading a card"""
+	# Play sound when showing upgrade confirmation dialog
+	if bag_sound and bag_sound.stream:
+		bag_sound.play()
+	
 	# Create confirmation dialog
 	var confirmation_dialog = Control.new()
 	confirmation_dialog.name = "UpgradeConfirmation"
@@ -253,7 +266,12 @@ func show_upgrade_confirmation(card: CardData):
 	var no_button = Button.new()
 	no_button.text = "Cancel"
 	no_button.size = Vector2(80, 40)
-	no_button.pressed.connect(func(): confirmation_dialog.queue_free())
+	no_button.pressed.connect(func(): 
+		# Play sound when canceling upgrade confirmation
+		if bag_sound and bag_sound.stream:
+			bag_sound.play()
+		confirmation_dialog.queue_free()
+	)
 	button_container.add_child(no_button)
 	
 	add_child(confirmation_dialog)

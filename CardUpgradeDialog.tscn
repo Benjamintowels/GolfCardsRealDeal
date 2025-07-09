@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3 uid="uid://bi4pr824nw3sv"]
+[gd_scene load_steps=3 format=3 uid="uid://bi4pr824nw3sv"]
 
 [ext_resource type="Script" uid="uid://15kl7kydco1x" path="res://CardUpgradeDialog.gd" id="1_upgrade_script"]
+[ext_resource type="AudioStream" uid="uid://bgwp7dbnyhl1v" path="res://Sounds/BagSound.mp3" id="2_bag_sound"]
 
 [node name="CardUpgradeDialog" type="Control"]
 layout_mode = 3
@@ -80,3 +81,6 @@ grow_vertical = 0
 text = "Close"
 
 [node name="UpgradeSound" type="AudioStreamPlayer2D" parent="."]
+
+[node name="BagSound" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("2_bag_sound")

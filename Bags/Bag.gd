@@ -5,6 +5,7 @@ signal bag_clicked
 signal replacement_completed(reward_data: Resource, reward_type: String)
 
 @onready var texture_rect: TextureRect = $TextureRect
+@onready var bag_sound: AudioStreamPlayer2D = $BagSound
 
 var bag_level: int = 1
 var character_name: String = "Benny"  # Default character
@@ -92,6 +93,9 @@ func set_bag_level(level: int):
 	bag_level = level
 	if character_bag_textures.has(character_name) and character_bag_textures[character_name].has(level):
 		texture_rect.texture = character_bag_textures[character_name][level]
+		# Play sound when bag is upgraded
+		if bag_sound and bag_sound.stream:
+			bag_sound.play()
 
 func _on_bag_input_event(event: InputEvent):
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
@@ -132,6 +136,10 @@ func close_inventory():
 		replacement_confirmation_dialog.queue_free()
 		replacement_confirmation_dialog = null
 	
+	# Play sound when closing inventory
+	if bag_sound and bag_sound.stream:
+		bag_sound.play()
+	
 
 
 func show_inventory():
@@ -144,6 +152,10 @@ func show_inventory():
 	
 	show_deck_dialog()
 	is_inventory_open = true
+	
+	# Play sound when opening inventory
+	if bag_sound and bag_sound.stream:
+		bag_sound.play()
 
 func show_inventory_replacement_mode(reward_data: Resource, reward_type: String):
 	if is_inventory_open:
@@ -155,6 +167,10 @@ func show_inventory_replacement_mode(reward_data: Resource, reward_type: String)
 	
 	show_deck_dialog()
 	is_inventory_open = true
+	
+	# Play sound when opening inventory in replacement mode
+	if bag_sound and bag_sound.stream:
+		bag_sound.play()
 
 func show_deck_dialog():
 	"""Show a dialog displaying all cards and equipment"""
@@ -601,6 +617,10 @@ func show_replacement_confirmation(card_to_replace: CardData):
 	if replacement_confirmation_dialog and is_instance_valid(replacement_confirmation_dialog):
 		replacement_confirmation_dialog.queue_free()
 	
+	# Play sound when showing replacement confirmation dialog
+	if bag_sound and bag_sound.stream:
+		bag_sound.play()
+	
 	replacement_confirmation_dialog = Control.new()
 	replacement_confirmation_dialog.name = "ReplacementConfirmationDialog"
 	replacement_confirmation_dialog.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -838,6 +858,10 @@ func close_replacement_confirmation():
 				shop_replacement.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		replacement_confirmation_dialog.queue_free()
 		replacement_confirmation_dialog = null
+	
+	# Play sound when closing replacement confirmation dialog
+	if bag_sound and bag_sound.stream:
+		bag_sound.play()
 
 func get_deck_size() -> int:
 	"""Get the current deck size from CurrentDeckManager"""
@@ -1130,6 +1154,10 @@ func show_equipment_replacement_confirmation(equipment_to_replace: EquipmentData
 	# Close any existing confirmation dialog first
 	if replacement_confirmation_dialog and is_instance_valid(replacement_confirmation_dialog):
 		replacement_confirmation_dialog.queue_free()
+	
+	# Play sound when showing equipment replacement confirmation dialog
+	if bag_sound and bag_sound.stream:
+		bag_sound.play()
 	
 	replacement_confirmation_dialog = Control.new()
 	replacement_confirmation_dialog.name = "EquipmentReplacementConfirmationDialog"

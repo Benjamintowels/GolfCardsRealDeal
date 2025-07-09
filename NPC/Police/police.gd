@@ -20,6 +20,10 @@ var vision_range: int = 10
 var attack_range: int = 10  # Same as vision range for immediate attack
 var current_action: String = "idle"
 
+# Sprite state management
+enum SpriteState {NORMAL, AIMING, DEAD}
+var current_sprite_state: SpriteState = SpriteState.NORMAL
+
 # Movement animation properties
 var is_moving: bool = false
 var movement_tween: Tween
@@ -40,6 +44,11 @@ var is_attacking: bool = false
 var attack_damage: int = 50
 var attack_cooldown: float = 2.0
 var last_attack_time: float = -10.0  # Start with negative value so first attack is allowed
+
+# Turn safety properties
+var turn_start_time: float = 0.0
+var max_turn_duration: float = 5.0  # Maximum time a turn can take before forcing completion
+var is_my_turn: bool = false  # Track if this Police is currently taking its turn
 
 # Collision and height properties
 var base_collision_area: Area2D
@@ -306,6 +315,12 @@ func take_turn() -> void:
 	"""Take the Police's turn"""
 	print("=== POLICE TURN STARTED ===")
 	
+	# Mark that this is our turn
+	is_my_turn = true
+	
+	# Record turn start time for safety timeout
+	turn_start_time = Time.get_ticks_msec() / 1000.0
+	
 	if is_dead:
 		print("Police is dead, skipping turn")
 		_complete_turn()
@@ -317,7 +332,40 @@ func take_turn() -> void:
 	# Update state machine
 	state_machine.update()
 	
-	print("=== POLICE TURN ENDED ===")
+	# Start safety timer to prevent turn from getting stuck
+	_start_turn_safety_timer()
+	
+	print("=== POLICE TURN PROCESSING ===")
+
+func _start_turn_safety_timer() -> void:
+	"""Start a safety timer to prevent turns from getting stuck"""
+	# Create a timer that will force turn completion if it takes too long
+	var safety_timer = get_tree().create_timer(max_turn_duration)
+	safety_timer.timeout.connect(_on_turn_safety_timeout)
+
+func _on_turn_safety_timeout() -> void:
+	"""Called when the turn safety timer expires - force turn completion"""
+	# Only act if this is actually our turn
+	if not is_my_turn:
+		print("Safety timeout triggered but not our turn - ignoring")
+		return
+	
+	var current_time = Time.get_ticks_msec() / 1000.0
+	var turn_duration = current_time - turn_start_time
+	
+	print("⚠️ TURN SAFETY TIMEOUT - Turn has been running for ", turn_duration, " seconds")
+	print("⚠️ Forcing turn completion to prevent game lock")
+	
+	# Force completion of any ongoing actions
+	is_attacking = false
+	is_moving = false
+	
+	# Ensure normal sprite is visible
+	if not is_dead:
+		ensure_normal_sprite_visible()
+	
+	# Force turn completion
+	_complete_turn()
 
 func _check_player_vision() -> void:
 	"""Check if player is within vision range and switch to appropriate state"""
@@ -380,11 +428,31 @@ func _on_turn_ended(npc: Node) -> void:
 
 func _complete_turn() -> void:
 	"""Complete the current turn"""
+	print("=== POLICE COMPLETING TURN ===")
+	
+	# Mark that our turn is over
+	is_my_turn = false
+	
+	# Ensure we're not in an attacking state when completing turn
+	if is_attacking:
+		print("⚠️ WARNING: Police is still attacking when completing turn - forcing completion")
+		is_attacking = false
+		_switch_to_normal_sprite()
+	
+	# Ensure normal sprite is visible
+	if not is_dead:
+		ensure_normal_sprite_visible()
+	
 	turn_completed.emit()
 	
 	# Notify Entities manager that turn is complete
 	if entities_manager:
+		print("Notifying Entities manager of turn completion")
 		entities_manager._on_npc_turn_completed()
+	else:
+		print("⚠️ WARNING: No entities_manager reference for turn completion")
+	
+	print("=== POLICE TURN COMPLETED ===")
 
 func get_grid_position() -> Vector2i:
 	"""Get the current grid position"""
@@ -478,8 +546,9 @@ func _on_movement_completed() -> void:
 	is_moving = false
 	print("Police movement animation completed")
 	
-	# Ensure normal sprite is visible after movement
-	ensure_normal_sprite_visible()
+	# Only ensure normal sprite if not currently attacking
+	if not is_attacking:
+		ensure_normal_sprite_visible()
 	
 	# Update Y-sorting one final time
 	update_z_index_for_ysort()
@@ -489,6 +558,20 @@ func _on_movement_completed() -> void:
 
 func _check_turn_completion() -> void:
 	"""Check if the turn can be completed (waits for movement animation to finish)"""
+	# Only check turn completion if this is actually our turn
+	if not is_my_turn:
+		print("Turn completion check called but not our turn - ignoring")
+		return
+	
+	# Check for turn timeout
+	var current_time = Time.get_ticks_msec() / 1000.0
+	var turn_duration = current_time - turn_start_time
+	
+	if turn_duration > max_turn_duration:
+		print("⚠️ TURN TIMEOUT DETECTED - Forcing completion after ", turn_duration, " seconds")
+		_complete_turn()
+		return
+	
 	if is_moving:
 		print("Police is still moving, waiting for animation to complete...")
 		return
@@ -497,11 +580,35 @@ func _check_turn_completion() -> void:
 		print("Police is still attacking, waiting for animation to complete...")
 		return
 	
-	# Ensure normal sprite is visible before completing turn
-	ensure_normal_sprite_visible()
+	# Ensure normal sprite is visible before completing turn (unless dead)
+	if not is_dead:
+		ensure_normal_sprite_visible()
+	
+	# Final sprite state verification
+	_verify_sprite_state()
 	
 	print("Police movement finished, completing turn")
 	_complete_turn()
+
+func _verify_sprite_state() -> void:
+	"""Verify that sprite visibility matches the current sprite state"""
+	if is_dead:
+		if current_sprite_state != SpriteState.DEAD:
+			print("⚠️ WARNING: Police is dead but sprite state is not DEAD!")
+			current_sprite_state = SpriteState.DEAD
+		return
+	
+	if is_attacking:
+		if current_sprite_state != SpriteState.AIMING:
+			print("⚠️ WARNING: Police is attacking but sprite state is not AIMING!")
+			current_sprite_state = SpriteState.AIMING
+		return
+	
+	# Should be in normal state
+	if current_sprite_state != SpriteState.NORMAL:
+		print("⚠️ WARNING: Police should be in normal state but sprite state is: ", current_sprite_state)
+		current_sprite_state = SpriteState.NORMAL
+		ensure_normal_sprite_visible()
 
 func _face_player() -> void:
 	"""Face the player"""
@@ -651,8 +758,11 @@ func die() -> void:
 	if health_bar_container:
 		health_bar_container.visible = false
 	
-	# Switch to dead sprite and collision system
+	# Switch to dead collision system
 	_switch_to_dead_collision()
+	
+	# Update sprite state to dead
+	current_sprite_state = SpriteState.DEAD
 	
 	# Hide normal sprites
 	if police_sprite:
@@ -681,6 +791,8 @@ func attack_player() -> void:
 	
 	if time_since_last_attack < attack_cooldown:
 		print("Attack on cooldown, time remaining:", attack_cooldown - time_since_last_attack)
+		# Ensure normal sprite is visible when attack is on cooldown
+		ensure_normal_sprite_visible()
 		_check_turn_completion()
 		return
 	
@@ -708,11 +820,22 @@ func attack_player() -> void:
 		print("No target hit, attack missed")
 	
 	# Switch back to normal sprite after a delay
-	await get_tree().create_timer(0.5).timeout
+	# Use a timer that won't block the turn completion
+	var attack_timer = get_tree().create_timer(0.5)
+	attack_timer.timeout.connect(_on_attack_timer_completed)
+
+func _on_attack_timer_completed() -> void:
+	"""Called when the attack timer completes"""
+	print("=== POLICE ATTACK TIMER COMPLETED ===")
 	_switch_to_normal_sprite()
 	
 	is_attacking = false
-	_check_turn_completion()
+	
+	# Only check turn completion if this is our turn
+	if is_my_turn:
+		_check_turn_completion()
+	else:
+		print("Attack timer completed but not our turn - not checking turn completion")
 
 func _switch_to_aim_sprite() -> void:
 	"""Switch to the aiming sprite"""
@@ -720,10 +843,12 @@ func _switch_to_aim_sprite() -> void:
 		# If dead, don't switch sprites - keep dead sprite visible
 		return
 	
+	current_sprite_state = SpriteState.AIMING
 	if police_sprite:
 		police_sprite.visible = false
 	if police_aim_sprite:
 		police_aim_sprite.visible = true
+	print("✓ Police switched to aim sprite")
 
 func _switch_to_normal_sprite() -> void:
 	"""Switch back to the normal sprite"""
@@ -731,6 +856,7 @@ func _switch_to_normal_sprite() -> void:
 		# If dead, don't switch sprites - keep dead sprite visible
 		return
 	
+	current_sprite_state = SpriteState.NORMAL
 	if police_sprite:
 		police_sprite.visible = true
 	if police_aim_sprite:
@@ -741,6 +867,7 @@ func ensure_normal_sprite_visible() -> void:
 	"""Safety function to ensure the normal sprite is visible when not attacking"""
 	if is_dead:
 		# If dead, ensure dead sprite is visible and normal sprites are hidden
+		current_sprite_state = SpriteState.DEAD
 		var dead_sprite = get_node_or_null("Dead")
 		if dead_sprite:
 			dead_sprite.visible = true
@@ -751,7 +878,9 @@ func ensure_normal_sprite_visible() -> void:
 		print("✓ Police dead sprite visibility ensured")
 		return
 	
+	# Only switch to normal if not currently attacking
 	if not is_attacking:
+		current_sprite_state = SpriteState.NORMAL
 		if police_sprite:
 			police_sprite.visible = true
 		if police_aim_sprite:
@@ -901,6 +1030,9 @@ class PatrolState extends BaseState:
 		# Ensure normal sprite is visible when entering patrol state
 		police.ensure_normal_sprite_visible()
 	
+	func exit() -> void:
+		print("Police exiting patrol state")
+	
 	func update() -> void:
 		print("PatrolState update called")
 		# Random movement up to 2 spaces away
@@ -949,6 +1081,11 @@ class ChaseState extends BaseState:
 	func enter() -> void:
 		print("Police entering chase state")
 		# Ensure normal sprite is visible when entering chase state
+		police.ensure_normal_sprite_visible()
+	
+	func exit() -> void:
+		print("Police exiting chase state")
+		# Ensure normal sprite is visible when leaving chase state
 		police.ensure_normal_sprite_visible()
 	
 	func update() -> void:
@@ -1040,6 +1177,11 @@ class AttackState extends BaseState:
 		# Attack the player
 		police.attack_player()
 		print("=== END ATTACK STATE UPDATE ===")
+	
+	func exit() -> void:
+		print("Police exiting attack state")
+		# Ensure normal sprite is visible when leaving attack state
+		police.ensure_normal_sprite_visible()
 
 # Dead State
 class DeadState extends BaseState:

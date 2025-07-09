@@ -22,6 +22,7 @@ var starter_deck: Array[CardData] = [
 	preload("res://Cards/ShotgunCard.tres"),   # Add ShotgunCard for testing
 	preload("res://Cards/GrenadeCard.tres"),   # Add GrenadeCard for testing
 	preload("res://Cards/Draw2.tres"),         # Add Draw2 for testing
+	preload("res://Cards/BlockB.tres"),        # Add BlockB for testing
 	preload("res://Cards/Putter.tres"),        # Only putter
 	preload("res://Cards/IceClub.tres"),       # Ice Club for testing freeze effects
 	preload("res://Cards/Explosive.tres")      # Add Explosive card
