@@ -38,6 +38,7 @@ var base_cards: Array[CardData] = [
 	preload("res://Cards/Draw2.tres"),
 	preload("res://Cards/CoffeeCard.tres"),
 	preload("res://Cards/BlockB.tres"),
+	preload("res://Cards/CaddyCard.tres"),
 	preload("res://Cards/Putter.tres"),
 	preload("res://Cards/Wooden.tres"),
 	preload("res://Cards/Iron.tres"),

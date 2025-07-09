@@ -2040,13 +2040,15 @@ func update_deck_display() -> void:
 	var hud := get_node("UILayer/HUD")
 	hud.get_node("TurnLabel").text = "Turn: %d (Global: %d)" % [turn_count, Global.global_turn_count]
 	
-	# Show separate counts for club and action cards
+	# Show separate counts for club and action cards using the new ordered deck system
 	var club_draw_count = deck_manager.club_draw_pile.size()
 	var club_discard_count = deck_manager.club_discard_pile.size()
-	var action_draw_count = deck_manager.action_draw_pile.size()
-	var action_discard_count = deck_manager.action_discard_pile.size()
 	
-	hud.get_node("DrawLabel").text = "Club Draw: %d | Action Draw: %d" % [club_draw_count, action_draw_count]
+	# Use the new ordered deck system for action cards
+	var action_draw_remaining = deck_manager.get_action_deck_remaining_cards().size()
+	var action_discard_count = deck_manager.get_action_discard_pile().size()
+	
+	hud.get_node("DrawLabel").text = "Club Draw: %d | Action Draw: %d" % [club_draw_count, action_draw_remaining]
 	hud.get_node("DiscardLabel").text = "Club Discard: %d | Action Discard: %d" % [club_discard_count, action_discard_count]
 	hud.get_node("ShotLabel").text = "Shots: %d" % hole_score
 	
@@ -2060,7 +2062,7 @@ func update_deck_display() -> void:
 	hud.get_node("ShotLabel").text += " | Reward Tier: %d" % Global.get_current_reward_tier()
 	
 	# Update card stack display with total counts (for backward compatibility)
-	var total_draw_cards = action_draw_count + club_draw_count
+	var total_draw_cards = action_draw_remaining + club_draw_count
 	var total_discard_cards = action_discard_count + club_discard_count
 	card_stack_display.update_draw_stack(total_draw_cards)
 	card_stack_display.update_discard_stack(total_discard_cards)

@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="CardData" load_steps=3 format=3 uid="uid://bv1wpv4rvkxgi"]
+
+[ext_resource type="Texture2D" uid="uid://bou1l7gp3fscg" path="res://Cards/CaddyCard.png" id="1_des87"]
+[ext_resource type="Script" uid="uid://b1c024jgv23kk" path="res://Cards/CardData.gd" id="1_xv5vr"]
+
+[resource]
+script = ExtResource("1_xv5vr")
+name = "CaddyCard"
+effect_type = "Arrange"
+effect_strength = 1
+image = ExtResource("1_des87")
+level = 1
+max_level = 3
+upgrade_cost = 100
+default_tier = 2
+movement_bonus = 0
+attack_bonus = 0
+weapon_shots_bonus = 0
+effect_bonus = 1
+metadata/_custom_type_script = "uid://b1c024jgv23kk"

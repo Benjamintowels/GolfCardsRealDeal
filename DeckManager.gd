@@ -11,6 +11,12 @@ var action_draw_pile: Array[CardData] = []
 var action_discard_pile: Array[CardData] = []
 var hand: Array[CardData] = []
 
+# NEW: Ordered deck system for proper card tracking
+var action_deck_order: Array[CardData] = []  # The actual order of cards in the action deck
+var action_deck_index: int = 0  # Current position in the deck
+var club_deck_order: Array[CardData] = []    # The actual order of cards in the club deck
+var club_deck_index: int = 0    # Current position in the club deck
+
 # Legacy support - keep the old system for now
 var draw_pile: Array[CardData] = []
 var discard_pile: Array[CardData] = []
@@ -67,9 +73,18 @@ func sync_with_current_deck():
 		else:
 			action_draw_pile.append(card)
 	
-	# Shuffle the piles
-	club_draw_pile.shuffle()
-	action_draw_pile.shuffle()
+	# Initialize the ordered deck system
+	action_deck_order = action_draw_pile.duplicate()
+	action_deck_order.shuffle()
+	action_deck_index = 0
+	
+	club_deck_order = club_draw_pile.duplicate()
+	club_deck_order.shuffle()
+	club_deck_index = 0
+	
+	print("DeckManager: Initialized ordered deck system")
+	print("Action deck order:", action_deck_order.size(), "cards")
+	print("Club deck order:", club_deck_order.size(), "cards")
 	
 	emit_signal("deck_updated")
 
@@ -128,37 +143,42 @@ func draw_from_club_deck(count: int = 1) -> Array[CardData]:
 	return drawn_cards
 
 func draw_from_action_deck(count: int = 3) -> Array[CardData]:
-	"""Draw cards from the action deck"""
+	"""Draw cards from the action deck using ordered deck system"""
 	print("=== DRAW_FROM_ACTION_DECK CALLED ===")
 	print("Requested count:", count)
-	print("Action draw pile size before draw:", action_draw_pile.size())
+	print("Action deck index before draw:", action_deck_index)
+	print("Action deck order size:", action_deck_order.size())
 	print("Action discard pile size before draw:", action_discard_pile.size())
 	
-	# Check if we need to reshuffle to get enough cards
-	var total_available_cards = action_draw_pile.size() + action_discard_pile.size()
-	if action_draw_pile.size() < count and total_available_cards >= count:
-		print("Reshuffling action discard pile before draw")
-		reshuffle_action_discard()
+	# Show remaining cards in deck
+	var remaining = get_action_deck_remaining_cards()
+	print("Remaining cards in deck:", remaining.size())
+	for i in range(min(3, remaining.size())):
+		print("  ", i, ":", remaining[i].name)
 	
 	var drawn_cards: Array[CardData] = []
 	for i in range(count):
-		# If draw pile is empty, try to reshuffle discard pile
-		if action_draw_pile.is_empty():
-			print("Action draw pile empty during draw, reshuffling")
+		# Check if we need to reshuffle
+		if action_deck_index >= action_deck_order.size():
+			print("Action deck exhausted, reshuffling discard pile")
 			reshuffle_action_discard()
-			# If still empty after reshuffle, we can't draw more cards
-			if action_draw_pile.is_empty():
-				print("Action draw pile still empty after reshuffle, breaking")
+			# If still no cards after reshuffle, we can't draw more
+			if action_deck_order.size() == 0:
+				print("Action deck still empty after reshuffle, breaking")
 				break
 		
-		var index := randi() % action_draw_pile.size()
-		var card := action_draw_pile[index]
-		action_draw_pile.remove_at(index)
+		# Draw the next card in order
+		var card := action_deck_order[action_deck_index]
+		action_deck_index += 1
 		drawn_cards.append(card)
-		print("Drew card:", card.name, "from action deck")
+		print("Drew card:", card.name, "from action deck (index:", action_deck_index - 1, ")")
 	
 	print("Total cards drawn from action deck:", drawn_cards.size())
-	print("Action draw pile size after draw:", action_draw_pile.size())
+	print("Action deck index after draw:", action_deck_index)
+	
+	# Validate deck state after drawing
+	validate_deck_state()
+	
 	print("=== END DRAW_FROM_ACTION_DECK ===")
 	
 	emit_signal("deck_updated")
@@ -200,17 +220,128 @@ func reshuffle_club_discard() -> void:
 	emit_signal("discard_recycled", count)
 
 func reshuffle_action_discard() -> void:
-	"""Reshuffle action discard pile into draw pile"""
+	"""Reshuffle action discard pile into deck order"""
 	var count := action_discard_pile.size()
 	if count == 0:
 		return
 	
-	# Add discard pile to draw pile instead of replacing it
-	action_draw_pile.append_array(action_discard_pile)
-	action_draw_pile.shuffle()
+	print("DeckManager: Reshuffling action discard pile")
+	print("Discard pile size:", action_discard_pile.size())
+	print("Deck order size before reshuffle:", action_deck_order.size())
+	print("Deck index before reshuffle:", action_deck_index)
+	
+	# Validate state before reshuffle
+	validate_deck_state()
+	
+	# Show what cards are in the discard pile
+	print("Cards in discard pile:")
+	for i in range(min(5, action_discard_pile.size())):
+		print("  ", i, ":", action_discard_pile[i].name)
+	
+	# Get the remaining cards that haven't been drawn yet
+	var remaining_cards = get_action_deck_remaining_cards()
+	print("Remaining undrawn cards:", remaining_cards.size())
+	
+	# Create a new deck order with remaining cards + discard pile
+	var new_deck_order: Array[CardData] = []
+	
+	# Add remaining undrawn cards
+	new_deck_order.append_array(remaining_cards)
+	
+	# Add all cards from discard pile (no duplicates since we're starting fresh)
+	new_deck_order.append_array(action_discard_pile)
+	
+	# Shuffle the new deck order
+	new_deck_order.shuffle()
+	
+	# Store the discard pile size before clearing it
+	var discard_pile_size = action_discard_pile.size()
+	
+	# Replace the old deck order with the new one
+	action_deck_order = new_deck_order
+	action_deck_index = 0  # Reset to beginning of deck
 	action_discard_pile.clear()
+	
+	print("DeckManager: Reshuffled action discard pile into deck order")
+	print("New deck order size:", action_deck_order.size())
+	print("Added", discard_pile_size, "cards from discard pile")
+	
+	# Show first few cards in new deck order
+	print("First 5 cards in new deck order:")
+	for i in range(min(5, action_deck_order.size())):
+		print("  ", i, ":", action_deck_order[i].name)
+	
+	# Validate state after reshuffle
+	validate_deck_state()
+	
 	emit_signal("deck_updated")
 	emit_signal("discard_recycled", count)
+
+func insert_card_at_top_of_action_deck(card: CardData) -> void:
+	"""Insert a card at the top of the action deck (next to be drawn)"""
+	action_deck_order.insert(action_deck_index, card)
+	print("DeckManager: Inserted", card.name, "at top of action deck (index:", action_deck_index, ")")
+	emit_signal("deck_updated")
+
+func get_action_deck_order() -> Array[CardData]:
+	"""Get the current action deck order"""
+	return action_deck_order.duplicate()
+
+func get_action_deck_index() -> int:
+	"""Get the current action deck index"""
+	return action_deck_index
+
+func get_action_deck_remaining_cards() -> Array[CardData]:
+	"""Get the remaining cards in the action deck (from current index to end)"""
+	if action_deck_index >= action_deck_order.size():
+		return []
+	return action_deck_order.slice(action_deck_index)
+
+func get_action_deck_available_cards() -> Array[CardData]:
+	"""Get the cards that are actually available to draw (excluding already drawn cards)"""
+	var available_cards: Array[CardData] = []
+	for i in range(action_deck_index, action_deck_order.size()):
+		available_cards.append(action_deck_order[i])
+	return available_cards
+
+func get_action_discard_pile() -> Array[CardData]:
+	"""Get the action discard pile"""
+	return action_discard_pile.duplicate()
+
+func validate_deck_state() -> void:
+	"""Validate that the deck state is consistent"""
+	var action_cards_in_hand = 0
+	for card in hand:
+		if not is_club_card(card):
+			action_cards_in_hand += 1
+	
+	var available_cards = get_action_deck_remaining_cards()
+	var total_action_cards_in_system = available_cards.size() + action_discard_pile.size() + action_cards_in_hand
+	
+	print("=== DECK STATE VALIDATION ===")
+	print("Action deck order size:", action_deck_order.size())
+	print("Action deck index:", action_deck_index)
+	print("Available cards to draw:", available_cards.size())
+	print("Action discard pile size:", action_discard_pile.size())
+	print("Action cards in hand:", action_cards_in_hand)
+	print("Total action cards in system:", total_action_cards_in_system)
+	
+	# Check for duplicates in deck order
+	var seen_cards = {}
+	for card in action_deck_order:
+		if seen_cards.has(card.name):
+			seen_cards[card.name] += 1
+		else:
+			seen_cards[card.name] = 1
+	
+	print("Card counts in deck order:")
+	for card_name in seen_cards:
+		if seen_cards[card_name] > 1:
+			print("  WARNING:", card_name, "appears", seen_cards[card_name], "times in deck order!")
+		else:
+			print("  ", card_name, ":", seen_cards[card_name])
+	
+	print("=== END VALIDATION ===")
 
 func draw_cards(count: int = 3) -> void:
 	for i in range(count):
@@ -237,9 +368,14 @@ func discard(card: CardData) -> void:
 		club_discard_pile.append(card)
 	else:
 		action_discard_pile.append(card)
+		print("DeckManager: Discarded", card.name, "to action discard pile (size:", action_discard_pile.size(), ")")
 	
 	# Also maintain legacy discard pile for compatibility
 	discard_pile.append(card)
+	
+	# Validate deck state after discarding
+	validate_deck_state()
+	
 	emit_signal("deck_updated")
 
 func reshuffle_discard_into_draw() -> void:

@@ -123,6 +123,7 @@ func load_shop_items():
 		preload("res://Cards/Draw2.tres"),
 		preload("res://Cards/CoffeeCard.tres"),
 		preload("res://Cards/BlockB.tres"),
+		preload("res://Cards/CaddyCard.tres"),
 		
 		# Movement cards
 		preload("res://Cards/Move1.tres"),

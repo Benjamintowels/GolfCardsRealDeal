@@ -46,6 +46,9 @@ func handle_card_effect(card: CardData) -> bool:
 	elif card.effect_type == "Block":
 		handle_block_effect(card)
 		return true
+	elif card.effect_type == "Arrange":
+		handle_arrange_effect(card)
+		return true
 	
 	return false
 
@@ -765,3 +768,60 @@ func handle_block_effect(card: CardData):
 	remove_specific_card_button(card)
 	
 	print("Block effect activated -", block_amount, "block points added")
+
+func handle_arrange_effect(card: CardData):
+	"""Handle Arrange effect - show dialog to choose between two cards"""
+	print("CardEffectHandler: Handling Arrange card:", card.name)
+	
+	# Create and show the arrange dialog
+	var arrange_dialog_scene = preload("res://ArrangeDialog.tscn")
+	var arrange_dialog = arrange_dialog_scene.instantiate()
+	
+	# Add to UI layer
+	var ui_layer = course.get_node_or_null("UILayer")
+	if ui_layer:
+		ui_layer.add_child(arrange_dialog)
+	else:
+		course.add_child(arrange_dialog)
+	
+	# Connect signals
+	arrange_dialog.card_selected.connect(_on_arrange_card_selected)
+	arrange_dialog.dialog_closed.connect(_on_arrange_dialog_closed)
+	
+	# Show the dialog
+	arrange_dialog.show_arrange_dialog()
+	
+	# Handle card discard - could be from hand or bag pile
+	if course.deck_manager.hand.has(card):
+		course.deck_manager.discard(card)
+		course.card_stack_display.animate_card_discard(card.name)
+		course.update_deck_display()
+	else:
+		# Card is from bag pile during club selection - just animate discard
+		course.card_stack_display.animate_card_discard(card.name)
+		print("Arrange card used from bag pile")
+	
+	# Remove only the specific card button, not the entire hand
+	remove_specific_card_button(card)
+	
+	print("Arrange effect activated - dialog shown")
+
+func _on_arrange_card_selected(selected_card: CardData):
+	"""Handle when a card is selected from the arrange dialog"""
+	print("CardEffectHandler: Player selected card from arrange dialog:", selected_card.name)
+	
+	# The card has already been added to the deck by the dialog
+	# Update the deck display to show the new card
+	if course.has_method("update_deck_display"):
+		course.update_deck_display()
+	
+	# Update the movement buttons to show the new cards in hand
+	if course.has_method("create_movement_buttons"):
+		course.create_movement_buttons()
+	
+	print("Arrange effect completed - card added to hand")
+
+func _on_arrange_dialog_closed():
+	"""Handle when the arrange dialog is closed"""
+	print("CardEffectHandler: Arrange dialog closed")
+	# No additional cleanup needed - the dialog handles its own cleanup
