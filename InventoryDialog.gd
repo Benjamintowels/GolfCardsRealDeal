@@ -73,14 +73,15 @@ func display_club_cards():
 
 func create_card_display(card_data: CardData):
 	var card_instance = card_scene.instantiate()
+	card_instance.size = Vector2(80, 100)  # Set explicit size
 	card_row.add_child(card_instance)
 	
 	# Set the card data
 	if card_instance.has_method("set_card_data"):
 		card_instance.set_card_data(card_data)
 	
-	# Scale down the card for inventory display
-	card_instance.scale = Vector2(0.5, 0.5)
+	# Scale to specified dimensions for inventory display
+	card_instance.scale = Vector2(1.336, 1.213)
 	
 	# Make it non-interactive in inventory
 	card_instance.mouse_filter = Control.MOUSE_FILTER_IGNORE

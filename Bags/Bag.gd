@@ -587,8 +587,8 @@ func create_card_display(card_data: CardData, count: int, clickable: bool = fals
 		card_instance.size = Vector2(80, 100)  # Set explicit size
 		card_instance.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		card_instance.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		# Scale to fit the 80x100 container (original is 80x120)
-		card_instance.scale = Vector2(1.0, 100.0/120.0)  # Scale height to fit
+		# Scale to specified dimensions
+		card_instance.scale = Vector2(1.236, 1.113)
 		
 		# Set the card data to show upgrade indicators
 		if card_instance.has_method("set_card_data") and card_data:

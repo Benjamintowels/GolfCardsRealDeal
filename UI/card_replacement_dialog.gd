@@ -100,7 +100,7 @@ func _create_item_display(item: Resource, item_type: String) -> Control:
 			var card_instance = card_scene.instantiate()
 			card_instance.size = Vector2(80, 100)
 			card_instance.position = Vector2(0, 0)
-			card_instance.scale = Vector2(0.075, 0.075)
+			card_instance.scale = Vector2(1.336, 1.213)
 			card_instance.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			
 			# Set the card data to show upgrade indicators

@@ -519,8 +519,8 @@ func setup_reward_button(button: Button, reward_data: Resource, reward_type: Str
 		card_instance.size = Vector2(80, 100)  # Set explicit size
 		card_instance.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		card_instance.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		# Scale to fit the 80x100 container (original is 80x120) - same as bag
-		card_instance.scale = Vector2(1.0, 100.0/120.0)  # Scale height to fit
+		# Scale to specified dimensions
+		card_instance.scale = Vector2(1.336, 1.213)
 		card_instance.position = Vector2(35, 0)  # Center in button
 		card_instance.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		
