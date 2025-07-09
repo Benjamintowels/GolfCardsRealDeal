@@ -36,6 +36,7 @@ var available_cards: Array[CardData] = [
 	preload("res://Cards/TeleportCard.tres"),
 	preload("res://Cards/Draw2.tres"),
 	preload("res://Cards/CoffeeCard.tres"),
+	preload("res://Cards/BlockB.tres"),
 	preload("res://Cards/Putter.tres"),
 	preload("res://Cards/Wooden.tres"),
 	preload("res://Cards/Iron.tres"),

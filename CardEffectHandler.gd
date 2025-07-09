@@ -43,6 +43,9 @@ func handle_card_effect(card: CardData) -> bool:
 	elif card.effect_type == "ExtraTurn":
 		handle_extra_turn_effect(card)
 		return true
+	elif card.effect_type == "Block":
+		handle_block_effect(card)
+		return true
 	
 	return false
 
@@ -713,3 +716,32 @@ func handle_scramble_ball_hole_completion(ball_that_went_in: Node2D):
 		print("Error: Could not find the ball that went in the hole")
 		# Fallback: clear all balls anyway
 		clear_all_scramble_balls() 
+
+func handle_block_effect(card: CardData):
+	"""Handle Block effect - add block health bar and switch to block sprite"""
+	print("CardEffectHandler: Handling Block card:", card.name)
+	
+	# Get the block amount from effective strength (25 HP base)
+	var block_amount = 25 * card.get_effective_strength()
+	print("Adding", block_amount, "block points")
+	
+	# Activate block on the course
+	if course.has_method("activate_block"):
+		course.activate_block(block_amount)
+	else:
+		print("Warning: Course does not have activate_block method")
+	
+	# Handle card discard - could be from hand or bag pile
+	if course.deck_manager.hand.has(card):
+		course.deck_manager.discard(card)
+		course.card_stack_display.animate_card_discard(card.name)
+		course.update_deck_display()
+	else:
+		# Card is from bag pile during club selection - just animate discard
+		course.card_stack_display.animate_card_discard(card.name)
+		print("Block card used from bag pile")
+	
+	# Remove only the specific card button, not the entire hand
+	remove_specific_card_button(card)
+	
+	print("Block effect activated -", block_amount, "block points added")

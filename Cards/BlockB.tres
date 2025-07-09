@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="CardData" load_steps=3 format=3 uid="uid://dpf70o7qhq7g2"]
+
+[ext_resource type="Texture2D" uid="uid://vutxneenfwug" path="res://Cards/BlockB.png" id="1_4f8fx"]
+[ext_resource type="Script" uid="uid://b1c024jgv23kk" path="res://Cards/CardData.gd" id="1_mao6e"]
+
+[resource]
+script = ExtResource("1_mao6e")
+name = "Block"
+effect_type = "Block"
+effect_strength = 1
+image = ExtResource("1_4f8fx")
+level = 1
+max_level = 2
+upgrade_cost = 100
+movement_bonus = 1
+attack_bonus = 1
+weapon_shots_bonus = 1
+effect_bonus = 1
+metadata/_custom_type_script = "uid://b1c024jgv23kk"

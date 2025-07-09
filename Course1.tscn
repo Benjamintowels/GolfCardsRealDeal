@@ -1,4 +1,4 @@
-[gd_scene load_steps=22 format=3 uid="uid://dlq5ygh2wv33m"]
+[gd_scene load_steps=23 format=3 uid="uid://dlq5ygh2wv33m"]
 
 [ext_resource type="Script" uid="uid://d4hrfk75nrm45" path="res://course_1.gd" id="1_pe8tc"]
 [ext_resource type="Texture2D" uid="uid://cpe67sk2vh8me" path="res://EDGE.png" id="2_eymfu"]
@@ -21,6 +21,7 @@
 [ext_resource type="AudioStream" uid="uid://ccvh643uqte1h" path="res://Sounds/Birds.mp3" id="19_00plg"]
 [ext_resource type="Script" uid="uid://cnne1a0u85wtc" path="res://current_deck_manager.gd" id="20_current_deck_manager"]
 [ext_resource type="AudioStream" uid="uid://c6807wk0mjel5" path="res://Sounds/HoleComplete.mp3" id="21_6tjaq"]
+[ext_resource type="PackedScene" path="res://BlockHealthBar.tscn" id="22_block_health_bar"]
 
 [node name="Course1" type="Control"]
 layout_mode = 3
@@ -194,6 +195,13 @@ offset_left = 53.0
 offset_top = 90.0
 offset_right = 113.0
 offset_bottom = 150.0
+
+[node name="BlockHealthBar" parent="UILayer" instance=ExtResource("22_block_health_bar")]
+z_index = 10
+offset_left = 11.615
+offset_top = 375.53
+offset_right = 211.615
+offset_bottom = 415.53
 
 [node name="HealthBar" parent="UILayer" instance=ExtResource("17_health_bar")]
 z_index = 10

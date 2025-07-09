@@ -1,0 +1,30 @@
+[gd_scene load_steps=3 format=3 uid="uid://test_block_system"]
+
+[ext_resource type="Script" path="res://test_block_system.gd" id="1_test"]
+[ext_resource type="PackedScene" uid="uid://course_1" path="res://Course1.tscn" id="2_course"]
+
+[node name="TestBlockSystem" type="Node2D"]
+script = ExtResource("1_test")
+
+[node name="Course1" parent="." instance=ExtResource("2_course")]
+
+[node name="TestButton" type="Button" parent="."]
+offset_left = 300.0
+offset_top = 50.0
+offset_right = 400.0
+offset_bottom = 80.0
+text = "Test Block (25 pts)"
+
+[node name="DamageButton" type="Button" parent="."]
+offset_left = 300.0
+offset_top = 90.0
+offset_right = 400.0
+offset_bottom = 120.0
+text = "Take 15 Damage"
+
+[node name="ClearBlockButton" type="Button" parent="."]
+offset_left = 300.0
+offset_top = 130.0
+offset_right = 400.0
+offset_bottom = 160.0
+text = "Clear Block" 

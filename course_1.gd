@@ -22,6 +22,7 @@ extends Control
 @onready var bag: Control = $UILayer/Bag
 @onready var launch_manager = $LaunchManager
 @onready var health_bar: HealthBar = $UILayer/HealthBar
+@onready var block_health_bar: BlockHealthBar = $UILayer/BlockHealthBar
 @onready var damage_button: Button = $UILayer/HealthTestButtons/DamageButton
 @onready var heal_button: Button = $UILayer/HealthTestButtons/HealButton
 @onready var kill_gangmember_button: Button = $UILayer/KillGangMemberButton
@@ -37,6 +38,7 @@ const WeaponHandler := preload("res://WeaponHandler.gd")
 var attack_handler: AttackHandler
 const GolfCourseLayout := preload("res://Maps/GolfCourseLayout.gd")
 const HealthBar := preload("res://HealthBar.gd")
+const BlockHealthBar := preload("res://BlockHealthBar.gd")
 const EquipmentManager := preload("res://EquipmentManager.gd")
 
 var is_placing_player := true
@@ -96,6 +98,10 @@ var explosive_shot_active := false  # Track if Explosive effect is active
 var next_shot_modifier := ""  # Track what modifier to apply to next shot
 var next_card_doubled := false  # Track if the next card should have its effect doubled
 var extra_turns_remaining := 0  # Track extra turns from CoffeeCard
+
+# Block system variables
+var block_active := false  # Track if block is currently active
+var block_amount := 0  # Current block points
 
 # Multi-hole game loop variables
 var round_scores := []  # Array to store scores for each hole
@@ -915,11 +921,25 @@ func update_player_stats_from_equipment() -> void:
 
 func take_damage(amount: int) -> void:
 	"""Player takes damage and updates health bar"""
-	if health_bar:
-		health_bar.take_damage(amount)
+	var damage_to_health = amount
+	
+	# Check if block is active and apply damage to block first
+	if block_active and block_health_bar and block_health_bar.has_block():
+		damage_to_health = block_health_bar.take_block_damage(amount)
+		block_amount = block_health_bar.get_block_amount()
+		
+		# If block is depleted, clear it
+		if not block_health_bar.has_block():
+			clear_block()
+		
+		print("Block absorbed damage. Remaining damage to health:", damage_to_health)
+	
+	# Apply remaining damage to health
+	if health_bar and damage_to_health > 0:
+		health_bar.take_damage(damage_to_health)
 		# Update Global stats
 		Global.CHARACTER_STATS[Global.selected_character]["current_hp"] = health_bar.current_hp
-		print("Player took %d damage. Current HP: %d" % [amount, health_bar.current_hp])
+		print("Player took %d damage to health. Current HP: %d" % [damage_to_health, health_bar.current_hp])
 		
 		# Check if player is defeated
 		if not health_bar.is_alive():
@@ -944,6 +964,101 @@ func get_player_health() -> Dictionary:
 			"is_alive": health_bar.is_alive()
 		}
 	return {"current_hp": 0, "max_hp": 0, "is_alive": false}
+
+# Block system methods
+func activate_block(amount: int) -> void:
+	"""Activate block system with specified amount"""
+	print("Activating block with", amount, "points")
+	block_active = true
+	block_amount = amount
+	
+	# Update block health bar
+	if block_health_bar:
+		block_health_bar.set_block(amount, amount)
+	
+	# Switch to block sprite for Benny character
+	if Global.selected_character == 2:  # Benny
+		switch_to_block_sprite()
+	
+	print("Block activated -", amount, "block points available")
+
+func switch_to_block_sprite() -> void:
+	"""Switch Benny character to block sprite"""
+	if not player_node:
+		return
+	
+	# Find the normal character sprite and block sprite in the player node
+	var normal_sprite = null
+	var block_sprite = null
+	
+	for child in player_node.get_children():
+		if child is Node2D:
+			for grandchild in child.get_children():
+				if grandchild is Sprite2D and grandchild.name == "Sprite2D":
+					normal_sprite = grandchild
+				elif grandchild is Sprite2D and grandchild.name == "BennyBlock":
+					block_sprite = grandchild
+			if normal_sprite and block_sprite:
+				break
+	
+	if normal_sprite and block_sprite:
+		# Hide normal sprite and show block sprite
+		normal_sprite.visible = false
+		block_sprite.visible = true
+		print("Switched to block sprite")
+	else:
+		print("Warning: Could not find normal sprite or block sprite")
+
+func switch_to_normal_sprite() -> void:
+	"""Switch Benny character back to normal sprite"""
+	if not player_node or Global.selected_character != 2:  # Only for Benny
+		return
+	
+	# Find the normal character sprite and block sprite in the player node
+	var normal_sprite = null
+	var block_sprite = null
+	
+	for child in player_node.get_children():
+		if child is Node2D:
+			for grandchild in child.get_children():
+				if grandchild is Sprite2D and grandchild.name == "Sprite2D":
+					normal_sprite = grandchild
+				elif grandchild is Sprite2D and grandchild.name == "BennyBlock":
+					block_sprite = grandchild
+			if normal_sprite and block_sprite:
+				break
+	
+	if normal_sprite and block_sprite:
+		# Show normal sprite and hide block sprite
+		normal_sprite.visible = true
+		block_sprite.visible = false
+		print("Switched back to normal sprite")
+	else:
+		print("Warning: Could not find normal sprite or block sprite")
+
+func clear_block() -> void:
+	"""Clear all block points and switch back to normal sprite"""
+	print("Clearing block")
+	block_active = false
+	block_amount = 0
+	
+	# Update block health bar
+	if block_health_bar:
+		block_health_bar.clear_block()
+	
+	# Switch back to normal sprite for Benny character
+	if Global.selected_character == 2:  # Benny
+		switch_to_normal_sprite()
+	
+	print("Block cleared")
+
+func has_block() -> bool:
+	"""Check if player has active block"""
+	return block_active and block_amount > 0
+
+func get_block_amount() -> int:
+	"""Get current block amount"""
+	return block_amount
 
 func _on_damage_button_pressed() -> void:
 	"""Handle damage button press"""
@@ -1434,6 +1549,9 @@ func _on_end_turn_pressed() -> void:
 	advance_fire_tiles()
 	# Advance ice tiles to next turn
 	advance_ice_tiles()
+	
+	# Clear block at end of turn
+	clear_block()
 	
 	update_deck_display()
 	

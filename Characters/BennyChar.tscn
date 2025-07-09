@@ -1,10 +1,11 @@
-[gd_scene load_steps=29 format=3 uid="uid://bc8s6t7wka23s"]
+[gd_scene load_steps=30 format=3 uid="uid://bc8s6t7wka23s"]
 
 [ext_resource type="Texture2D" uid="uid://bu6bwgk8aipl2" path="res://Characters/BennyChar.png" id="1_oukfo"]
 [ext_resource type="Script" uid="uid://d2iiaqe57mea" path="res://Characters/SwingAnimation.gd" id="2_swing"]
 [ext_resource type="Texture2D" uid="uid://bpphl4eyv0s1r" path="res://Characters/BennyPunch.png" id="2_uyafs"]
 [ext_resource type="Texture2D" uid="uid://cbtrxx8kk5abt" path="res://Characters/Swingserererer2.png" id="3_spritesheet"]
 [ext_resource type="Texture2D" uid="uid://v4jenktcxsee" path="res://Characters/BennyKick.png" id="4_woj5g"]
+[ext_resource type="Texture2D" uid="uid://bxy6rtxgb2fco" path="res://Characters/Block.png" id="6_3tp8o"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_oukfo"]
 radius = 7.64385
@@ -247,3 +248,9 @@ visible = false
 [node name="HitBoxShape" type="CollisionShape2D" parent="HitBox"]
 position = Vector2(2, -42)
 shape = SubResource("CapsuleShape2D_woj5g")
+
+[node name="BennyBlock" type="Sprite2D" parent="."]
+visible = false
+texture_filter = 1
+position = Vector2(5, -44)
+texture = ExtResource("6_3tp8o")
