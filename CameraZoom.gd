@@ -12,6 +12,12 @@ var zoom_tween: Tween = null
 func _ready():
 	# Initialize zoom
 	zoom = Vector2(target_zoom, target_zoom)
+	
+	# Set camera limits to prevent excessive panning (ignoring far-out parallax layers)
+	limit_left = -2000.0  # Prevent panning too far left
+	limit_right = 2000.0  # Prevent panning too far right
+	limit_top = -2000.0   # Prevent panning too far up
+	limit_bottom = 2000.0 # Prevent panning too far down
 
 func _input(event):
 	if event is InputEventMouseButton:
@@ -21,11 +27,6 @@ func _input(event):
 		elif event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:
 			# Zoom out (inverted from original)
 			set_zoom_level(target_zoom + zoom_speed)
-
-# OPTIMIZED: No more _process function - using Tween instead
-# This eliminates the need to run zoom interpolation every frame
-func _process(delta):
-	pass
 
 # Public methods for external control
 func set_zoom_level(zoom_level: float):
@@ -38,6 +39,13 @@ func reset_zoom():
 
 func get_current_zoom() -> float:
 	return target_zoom
+
+func set_camera_limits(left: float, right: float, top: float, bottom: float):
+	"""Set camera limits dynamically"""
+	limit_left = left
+	limit_right = right
+	limit_top = top
+	limit_bottom = bottom
 
 func _start_zoom_tween():
 	"""Start a smooth zoom tween to the target zoom level"""
