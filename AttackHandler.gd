@@ -23,6 +23,7 @@ var player_stats: Dictionary
 var card_click_sound: AudioStreamPlayer2D
 var card_play_sound: AudioStreamPlayer2D
 var kick_sound: AudioStreamPlayer2D  # Reference to KickSound from player scene
+var punchb_sound: AudioStreamPlayer2D  # Reference to PunchB sound from player scene
 
 # UI references
 var card_stack_display: Control
@@ -42,6 +43,7 @@ signal card_selected(card: CardData)
 signal card_discarded(card: CardData)
 signal npc_attacked(npc: Node, damage: int)
 signal kick_attack_performed
+signal punchb_attack_performed
 
 func _init():
 	pass
@@ -60,7 +62,8 @@ func setup(
 	card_stack_display_ref: Control,
 	deck_manager_ref: DeckManager,
 	card_effect_handler_ref: Node,
-	kick_sound_ref: AudioStreamPlayer2D = null
+	kick_sound_ref: AudioStreamPlayer2D = null,
+	punchb_sound_ref: AudioStreamPlayer2D = null
 ):
 	player_node = player_node_ref
 	grid_tiles = grid_tiles_ref
@@ -76,6 +79,7 @@ func setup(
 	deck_manager = deck_manager_ref
 	card_effect_handler = card_effect_handler_ref
 	kick_sound = kick_sound_ref
+	punchb_sound = punchb_sound_ref
 
 # Reference to movement controller for button cleanup
 var movement_controller: Node = null
@@ -115,6 +119,59 @@ func _on_attack_card_pressed(card: CardData, button: TextureButton) -> void:
 func calculate_valid_attack_tiles() -> void:
 	valid_attack_tiles.clear()
 	print("Calculating valid attack tiles - Player at:", player_grid_pos, "Attack range:", attack_range)
+
+	# Special case for Kick card - show all adjacent tiles regardless of content
+	if selected_card and selected_card.name == "Kick":
+		print("Kick card detected - showing all adjacent tiles")
+		for y in grid_size.y:
+			for x in grid_size.x:
+				var pos := Vector2i(x, y)
+				if calculate_grid_distance(player_grid_pos, pos) <= attack_range and pos != player_grid_pos:
+					valid_attack_tiles.append(pos)
+					print("Added adjacent tile for Kick card at:", pos)
+		print("Total adjacent tiles for Kick card:", valid_attack_tiles.size())
+		return
+
+	# Special case for PunchB card - show cross-shaped attack pattern (2 tiles in each direction, no corners)
+	if selected_card and selected_card.name == "PunchB":
+		print("PunchB card detected - showing cross-shaped attack pattern")
+		var cross_positions = []
+		
+		# Add positions in cross pattern: up, down, left, right (2 tiles each, no corners)
+		for distance in range(1, attack_range + 1):
+			# Up
+			var up_pos = Vector2i(player_grid_pos.x, player_grid_pos.y - distance)
+			if up_pos.y >= 0:
+				cross_positions.append(up_pos)
+			
+			# Down
+			var down_pos = Vector2i(player_grid_pos.x, player_grid_pos.y + distance)
+			if down_pos.y < grid_size.y:
+				cross_positions.append(down_pos)
+			
+			# Left
+			var left_pos = Vector2i(player_grid_pos.x - distance, player_grid_pos.y)
+			if left_pos.x >= 0:
+				cross_positions.append(left_pos)
+			
+			# Right
+			var right_pos = Vector2i(player_grid_pos.x + distance, player_grid_pos.y)
+			if right_pos.x < grid_size.x:
+				cross_positions.append(right_pos)
+		
+		# Check each cross position for valid targets
+		for pos in cross_positions:
+			# Check if there's an NPC at this position
+			if has_npc_at_position(pos):
+				valid_attack_tiles.append(pos)
+				print("Found valid PunchB attack tile at:", pos)
+			# Check if there's an oil drum at this position
+			elif has_oil_drum_at_position(pos):
+				valid_attack_tiles.append(pos)
+				print("Found oil drum at PunchB attack tile:", pos)
+		
+		print("Total valid PunchB attack tiles found:", valid_attack_tiles.size())
+		return
 
 	# DEBUG: Print all oil drum grid positions
 	var interactables = get_tree().get_nodes_in_group("interactables")
@@ -182,6 +239,7 @@ func get_npc_at_position(pos: Vector2i) -> Node:
 
 func show_attack_highlights() -> void:
 	hide_all_attack_highlights()
+	print("Showing attack highlights for", valid_attack_tiles.size(), "tiles")
 	for pos in valid_attack_tiles:
 		# Create orange attack highlight
 		var tile = grid_tiles[pos.y][pos.x]
@@ -190,11 +248,13 @@ func show_attack_highlights() -> void:
 			attack_highlight = ColorRect.new()
 			attack_highlight.name = "AttackHighlight"
 			attack_highlight.size = tile.size
-			attack_highlight.color = Color(1, 0.5, 0, 0.4)  # Orange with transparency
+			attack_highlight.color = Color(1, 0.5, 0, 0.6)  # Orange with more opacity
 			attack_highlight.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			attack_highlight.z_index = 101  # Higher than movement highlights
+			attack_highlight.z_index = 200  # Much higher than movement highlights
 			tile.add_child(attack_highlight)
+			print("Created new attack highlight for tile at", pos)
 		attack_highlight.visible = true
+		print("Made attack highlight visible for tile at", pos)
 
 func hide_all_attack_highlights() -> void:
 	for y in grid_size.y:
@@ -263,6 +323,26 @@ func handle_tile_click(x: int, y: int) -> bool:
 				return true
 			else:
 				print("✗ No oil drum found at position:", clicked)
+		
+		# Check if this is a PunchB card attack
+		if selected_card and selected_card.name == "PunchB":
+			print("PunchB card detected - checking for target at:", clicked)
+			var npc = get_npc_at_position(clicked)
+			var oil_drum = get_oil_drum_at_position(clicked)
+			
+			if npc:
+				print("✓ NPC found - performing PunchB attack!")
+				perform_punchb_attack_on_npc(npc, clicked)
+				card_play_sound.play()
+				return true
+			elif oil_drum:
+				print("✓ Oil drum found - performing PunchB attack!")
+				perform_punchb_attack_on_oil_drum(oil_drum, clicked)
+				card_play_sound.play()
+				return true
+			else:
+				print("✗ No valid target found at position:", clicked)
+				return false
 		
 		# Check for normal NPC attack
 		var npc = get_npc_at_position(clicked)
@@ -505,3 +585,255 @@ func perform_kickb_attack_on_oil_drum(oil_drum: Node, target_pos: Vector2i) -> v
 	exit_attack_mode()
 	
 	print("=== END KICKB ATTACK ON OIL DRUM ===") 
+
+func perform_punchb_attack_on_npc(npc: Node, target_pos: Vector2i) -> void:
+	"""Perform PunchB attack on NPC with movement animation"""
+	print("=== PERFORMING PUNCHB ATTACK ON NPC ===")
+	print("NPC:", npc.name)
+	print("Target position:", target_pos)
+	print("Player position:", player_grid_pos)
+	
+	# Calculate distance to target
+	var distance = calculate_grid_distance(player_grid_pos, target_pos)
+	print("Distance to target:", distance)
+	
+	# Store original player position
+	var original_player_pos = player_grid_pos
+	
+	# If target is adjacent (distance = 1), attack immediately
+	if distance == 1:
+		print("Target is adjacent - attacking immediately")
+		perform_punchb_attack_immediate(npc, target_pos)
+	else:
+		# Target is 2 tiles away - animate player movement
+		print("Target is 2 tiles away - animating player movement")
+		perform_punchb_attack_with_movement(npc, target_pos, original_player_pos)
+
+func perform_punchb_attack_on_oil_drum(oil_drum: Node, target_pos: Vector2i) -> void:
+	"""Perform PunchB attack on oil drum with movement animation"""
+	print("=== PERFORMING PUNCHB ATTACK ON OIL DRUM ===")
+	print("Oil drum:", oil_drum.name)
+	print("Target position:", target_pos)
+	print("Player position:", player_grid_pos)
+	
+	# Calculate distance to target
+	var distance = calculate_grid_distance(player_grid_pos, target_pos)
+	print("Distance to target:", distance)
+	
+	# Store original player position
+	var original_player_pos = player_grid_pos
+	
+	# If target is adjacent (distance = 1), attack immediately
+	if distance == 1:
+		print("Target is adjacent - attacking immediately")
+		perform_punchb_attack_immediate_oil_drum(oil_drum, target_pos)
+	else:
+		# Target is 2 tiles away - animate player movement
+		print("Target is 2 tiles away - animating player movement")
+		perform_punchb_attack_with_movement_oil_drum(oil_drum, target_pos, original_player_pos)
+
+func perform_punchb_attack_immediate(npc: Node, target_pos: Vector2i) -> void:
+	"""Perform PunchB attack immediately (target is adjacent)"""
+	# Play PunchB sound
+	if punchb_sound:
+		punchb_sound.play()
+	
+	# Emit punchb attack signal for animation
+	emit_signal("punchb_attack_performed")
+	
+	# Deal 30 damage
+	var punchb_damage = 30
+	
+	# Check if NPC is dead
+	var is_dead = false
+	if npc.has_method("get_is_dead"):
+		is_dead = npc.get_is_dead()
+	elif npc.has_method("is_dead"):
+		is_dead = npc.is_dead()
+	elif "is_dead" in npc:
+		is_dead = npc.is_dead
+	
+	if is_dead:
+		print("Attacking dead NPC - pushing corpse")
+		punchb_damage = 0
+	else:
+		# Deal damage to the NPC
+		if npc.has_method("take_damage"):
+			npc.take_damage(punchb_damage)
+		else:
+			print("NPC does not have take_damage method")
+	
+	# Apply knockback (works for both living and dead NPCs)
+	apply_knockback(npc, target_pos)
+	
+	# Emit signal
+	emit_signal("npc_attacked", npc, punchb_damage)
+	
+	# Exit attack mode
+	exit_attack_mode()
+
+func perform_punchb_attack_immediate_oil_drum(oil_drum: Node, target_pos: Vector2i) -> void:
+	"""Perform PunchB attack immediately on oil drum (target is adjacent)"""
+	# Play PunchB sound
+	if punchb_sound:
+		punchb_sound.play()
+	
+	# Emit punchb attack signal for animation
+	emit_signal("punchb_attack_performed")
+	
+	# Check if oil drum is already tipped over
+	var is_tipped = false
+	if oil_drum.has_method("get_is_tipped_over"):
+		is_tipped = oil_drum.get_is_tipped_over()
+	elif "is_tipped_over" in oil_drum:
+		is_tipped = oil_drum.is_tipped_over
+	
+	if is_tipped:
+		print("Oil drum is already tipped over - no effect")
+	else:
+		print("Tipping over oil drum with PunchB attack!")
+		# Force the oil drum to tip over by setting its health to 0
+		if oil_drum.has_method("take_damage"):
+			oil_drum.take_damage(50)
+		else:
+			print("Oil drum doesn't have take_damage method!")
+	
+	# Emit signal for attack completion
+	emit_signal("npc_attacked", oil_drum, 50)
+	
+	# Exit attack mode
+	exit_attack_mode()
+
+func perform_punchb_attack_immediate_no_animation(npc: Node, target_pos: Vector2i) -> void:
+	"""Perform PunchB attack immediately without triggering animation (animation already playing)"""
+	# Play PunchB sound
+	if punchb_sound:
+		punchb_sound.play()
+	
+	# Deal 30 damage
+	var punchb_damage = 30
+	
+	# Check if NPC is dead
+	var is_dead = false
+	if npc.has_method("get_is_dead"):
+		is_dead = npc.get_is_dead()
+	elif npc.has_method("is_dead"):
+		is_dead = npc.is_dead()
+	elif "is_dead" in npc:
+		is_dead = npc.is_dead
+	
+	if is_dead:
+		print("Attacking dead NPC - pushing corpse")
+		punchb_damage = 0
+	else:
+		# Deal damage to the NPC
+		if npc.has_method("take_damage"):
+			npc.take_damage(punchb_damage)
+		else:
+			print("NPC does not have take_damage method")
+	
+	# Apply knockback (works for both living and dead NPCs)
+	apply_knockback(npc, target_pos)
+	
+	# Emit signal
+	emit_signal("npc_attacked", npc, punchb_damage)
+	
+	# Exit attack mode
+	exit_attack_mode()
+
+func perform_punchb_attack_immediate_oil_drum_no_animation(oil_drum: Node, target_pos: Vector2i) -> void:
+	"""Perform PunchB attack immediately on oil drum without triggering animation (animation already playing)"""
+	# Play PunchB sound
+	if punchb_sound:
+		punchb_sound.play()
+	
+	# Check if oil drum is already tipped over
+	var is_tipped = false
+	if oil_drum.has_method("get_is_tipped_over"):
+		is_tipped = oil_drum.get_is_tipped_over()
+	elif "is_tipped_over" in oil_drum:
+		is_tipped = oil_drum.is_tipped_over
+	
+	if is_tipped:
+		print("Oil drum is already tipped over - no effect")
+	else:
+		print("Tipping over oil drum with PunchB attack!")
+		# Force the oil drum to tip over by setting its health to 0
+		if oil_drum.has_method("take_damage"):
+			oil_drum.take_damage(50)
+		else:
+			print("Oil drum doesn't have take_damage method!")
+	
+	# Emit signal for attack completion
+	emit_signal("npc_attacked", oil_drum, 50)
+	
+	# Exit attack mode
+	exit_attack_mode()
+
+func perform_punchb_attack_with_movement(npc: Node, target_pos: Vector2i, original_player_pos: Vector2i) -> void:
+	"""Perform PunchB attack with player movement animation (target is 2 tiles away)"""
+	# Calculate the intermediate position (1 tile closer to target)
+	var direction = target_pos - original_player_pos
+	var intermediate_pos = original_player_pos + Vector2i(sign(direction.x), sign(direction.y))
+	
+	print("Moving player from", original_player_pos, "to", intermediate_pos, "then to", target_pos)
+	
+	# Start punch animation immediately when movement begins
+	emit_signal("punchb_attack_performed")
+	
+	# Animate player movement to target
+	if player_node and player_node.has_method("animate_to_position"):
+		# First move to intermediate position
+		player_node.animate_to_position(intermediate_pos, func():
+			# Then move to target position
+			player_node.animate_to_position(target_pos, func():
+				# Perform the attack (without animation since it's already playing)
+				perform_punchb_attack_immediate_no_animation(npc, target_pos)
+				# Move back to original position
+				player_node.animate_to_position(original_player_pos, func():
+					# Update player grid position
+					player_grid_pos = original_player_pos
+					# Update the course's player position reference
+					if card_effect_handler and card_effect_handler.course:
+						card_effect_handler.course.player_grid_pos = original_player_pos
+				)
+			)
+		)
+	else:
+		# Fallback if animation is not available
+		print("Player animation not available - performing immediate attack")
+		perform_punchb_attack_immediate(npc, target_pos)
+
+func perform_punchb_attack_with_movement_oil_drum(oil_drum: Node, target_pos: Vector2i, original_player_pos: Vector2i) -> void:
+	"""Perform PunchB attack on oil drum with player movement animation (target is 2 tiles away)"""
+	# Calculate the intermediate position (1 tile closer to target)
+	var direction = target_pos - original_player_pos
+	var intermediate_pos = original_player_pos + Vector2i(sign(direction.x), sign(direction.y))
+	
+	print("Moving player from", original_player_pos, "to", intermediate_pos, "then to", target_pos)
+	
+	# Start punch animation immediately when movement begins
+	emit_signal("punchb_attack_performed")
+	
+	# Animate player movement to target
+	if player_node and player_node.has_method("animate_to_position"):
+		# First move to intermediate position
+		player_node.animate_to_position(intermediate_pos, func():
+			# Then move to target position
+			player_node.animate_to_position(target_pos, func():
+				# Perform the attack (without animation since it's already playing)
+				perform_punchb_attack_immediate_oil_drum_no_animation(oil_drum, target_pos)
+				# Move back to original position
+				player_node.animate_to_position(original_player_pos, func():
+					# Update player grid position
+					player_grid_pos = original_player_pos
+					# Update the course's player position reference
+					if card_effect_handler and card_effect_handler.course:
+						card_effect_handler.course.player_grid_pos = original_player_pos
+				)
+			)
+		)
+	else:
+		# Fallback if animation is not available
+		print("Player animation not available - performing immediate attack")
+		perform_punchb_attack_immediate_oil_drum(oil_drum, target_pos) 

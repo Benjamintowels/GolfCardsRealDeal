@@ -7,6 +7,8 @@
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 texture_filter = 1
+position = Vector2(0, -9)
+scale = Vector2(1.465, 1.465)
 texture = ExtResource("1_8702j")
 
 [node name="Teleport" type="AudioStreamPlayer2D" parent="."]

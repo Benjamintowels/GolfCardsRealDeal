@@ -1,0 +1,13 @@
+[gd_scene load_steps=3 format=3 uid="uid://test_animation_facing"]
+
+[ext_resource type="Script" path="res://test_animation_facing.gd" id="1_test"]
+[ext_resource type="PackedScene" uid="uid://bc8s6t7wka23s" path="res://Characters/BennyChar.tscn" id="2_benny"]
+
+[node name="TestAnimationFacing" type="Node2D"]
+script = ExtResource("1_test")
+
+[node name="Player" parent="." instance=ExtResource("2_benny")]
+position = Vector2(400, 300)
+
+[node name="Camera2D" type="Camera2D" parent="."]
+position = Vector2(400, 300) 

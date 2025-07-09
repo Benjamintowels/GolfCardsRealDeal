@@ -306,6 +306,11 @@ func take_turn() -> void:
 	"""Take the Police's turn"""
 	print("=== POLICE TURN STARTED ===")
 	
+	if is_dead:
+		print("Police is dead, skipping turn")
+		_complete_turn()
+		return
+	
 	# Check player vision and update state
 	_check_player_vision()
 	
@@ -316,8 +321,11 @@ func take_turn() -> void:
 
 func _check_player_vision() -> void:
 	"""Check if player is within vision range and switch to appropriate state"""
-	if not player:
-		print("No player reference found for vision check")
+	if not player or is_dead:
+		if is_dead:
+			print("Police is dead, skipping vision check")
+		else:
+			print("No player reference found for vision check")
 		return
 	
 	print("=== POLICE VISION CHECK ===")
@@ -410,6 +418,11 @@ func _is_position_valid(pos: Vector2i) -> bool:
 
 func _move_to_position(target_pos: Vector2i) -> void:
 	"""Move the Police to a new position with smooth animation"""
+	if is_dead:
+		print("Police is dead, cannot move")
+		_check_turn_completion()
+		return
+	
 	var old_pos = grid_position
 	grid_position = target_pos
 	
@@ -432,6 +445,11 @@ func _move_to_position(target_pos: Vector2i) -> void:
 
 func _animate_movement_to_position(target_world_pos: Vector2) -> void:
 	"""Animate the Police's movement to the target position using a tween"""
+	if is_dead:
+		print("Police is dead, cannot animate movement")
+		_check_turn_completion()
+		return
+	
 	# Set moving state
 	is_moving = true
 	
@@ -487,7 +505,7 @@ func _check_turn_completion() -> void:
 
 func _face_player() -> void:
 	"""Face the player"""
-	if not player:
+	if not player or is_dead:
 		return
 	
 	var player_pos = player.grid_pos
@@ -505,7 +523,7 @@ func _face_player() -> void:
 
 func _update_sprite_facing() -> void:
 	"""Update the sprite facing direction based on facing_direction"""
-	if not police_sprite:
+	if not police_sprite or is_dead:
 		return
 	
 	# Flip sprite horizontally based on facing direction
@@ -652,7 +670,10 @@ func die() -> void:
 
 func attack_player() -> void:
 	"""Attack the player with a pistol shot"""
-	if is_attacking or not player:
+	if is_attacking or not player or is_dead:
+		if is_dead:
+			print("Police is dead, cannot attack")
+		_check_turn_completion()
 		return
 	
 	var current_time = Time.get_ticks_msec() / 1000.0  # Convert to seconds
@@ -695,6 +716,10 @@ func attack_player() -> void:
 
 func _switch_to_aim_sprite() -> void:
 	"""Switch to the aiming sprite"""
+	if is_dead:
+		# If dead, don't switch sprites - keep dead sprite visible
+		return
+	
 	if police_sprite:
 		police_sprite.visible = false
 	if police_aim_sprite:
@@ -702,6 +727,10 @@ func _switch_to_aim_sprite() -> void:
 
 func _switch_to_normal_sprite() -> void:
 	"""Switch back to the normal sprite"""
+	if is_dead:
+		# If dead, don't switch sprites - keep dead sprite visible
+		return
+	
 	if police_sprite:
 		police_sprite.visible = true
 	if police_aim_sprite:
@@ -710,6 +739,18 @@ func _switch_to_normal_sprite() -> void:
 
 func ensure_normal_sprite_visible() -> void:
 	"""Safety function to ensure the normal sprite is visible when not attacking"""
+	if is_dead:
+		# If dead, ensure dead sprite is visible and normal sprites are hidden
+		var dead_sprite = get_node_or_null("Dead")
+		if dead_sprite:
+			dead_sprite.visible = true
+		if police_sprite:
+			police_sprite.visible = false
+		if police_aim_sprite:
+			police_aim_sprite.visible = false
+		print("✓ Police dead sprite visibility ensured")
+		return
+	
 	if not is_attacking:
 		if police_sprite:
 			police_sprite.visible = true

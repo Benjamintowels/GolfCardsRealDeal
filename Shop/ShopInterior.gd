@@ -99,6 +99,7 @@ func load_shop_items():
 		preload("res://Cards/Bouncey.tres"),
 		preload("res://Cards/TeleportCard.tres"),
 		preload("res://Cards/KickB.tres"),
+		preload("res://Cards/PunchB.tres"),
 		preload("res://Cards/ThrowingKnife.tres"),
 		preload("res://Cards/PistolCard.tres"),
 		preload("res://Cards/BurstShot.tres"),

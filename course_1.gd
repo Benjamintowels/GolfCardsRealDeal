@@ -488,7 +488,8 @@ func _ready() -> void:
 		card_stack_display,
 		deck_manager,
 		card_effect_handler,
-		player_node.get_node_or_null("KickSound")  # Add KickSound reference
+		player_node.get_node_or_null("KickSound"),  # Add KickSound reference
+		player_node.get_node_or_null("PunchB")  # Add PunchB sound reference
 	)
 	
 	# Setup weapon handler after deck_manager is created
@@ -516,6 +517,7 @@ func _ready() -> void:
 	# Connect attack handler signals
 	attack_handler.npc_attacked.connect(_on_npc_attacked)
 	attack_handler.kick_attack_performed.connect(_on_kick_attack_performed)
+	attack_handler.punchb_attack_performed.connect(_on_punchb_attack_performed)
 	
 	# Connect weapon handler signals
 	weapon_handler.npc_shot.connect(_on_npc_shot)
@@ -3612,6 +3614,11 @@ func _on_kick_attack_performed() -> void:
 	"""Handle when a kick attack is performed - trigger kick animation"""
 	if player_node and player_node.has_method("start_kick_animation"):
 		player_node.start_kick_animation()
+
+func _on_punchb_attack_performed() -> void:
+	"""Handle when a PunchB attack is performed - trigger punch animation"""
+	if player_node and player_node.has_method("start_punchb_animation"):
+		player_node.start_punchb_animation()
 
 func _on_npc_shot(npc: Node, damage: int) -> void:
 	"""Handle when an NPC is shot with a weapon"""

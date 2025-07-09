@@ -40,6 +40,9 @@ var is_charging_height: bool = false  # Will be updated by parent
 var camera: Camera2D = null  # Will be set by parent
 var is_in_launch_mode: bool = false  # Track if we're in launch mode (ball flying)
 
+# Player facing direction tracking
+var current_facing_direction: Vector2i = Vector2i(1, 0)  # Start facing right (1, 0) = right, (-1, 0) = left
+
 # Swing animation system
 var swing_animation: Node2D = null
 var previous_charging_height: bool = false  # Track previous state to detect changes
@@ -50,6 +53,12 @@ var kick_sprite: Sprite2D = null
 var is_kicking: bool = false
 var kick_duration: float = 0.5  # Duration of the kick animation
 var kick_tween: Tween
+
+# PunchB animation system
+var punchb_animation: AnimatedSprite2D = null
+var is_punching: bool = false
+var punchb_duration: float = 0.5  # Duration of the punch animation
+var punchb_tween: Tween
 
 # Ragdoll animation properties
 var is_ragdolling: bool = false
@@ -62,6 +71,7 @@ var ragdoll_landing_position: Vector2i  # Where the player will land after ragdo
 
 func _ready():
 	print("=== PLAYER _READY STARTED ===")
+	print("🚨 PLAYER _READY FUNCTION CALLED! 🚨")
 	# Add to groups for smart optimization and roof bounce system
 	add_to_group("collision_objects")
 	add_to_group("rectangular_obstacles")  # For rolling ball collisions
@@ -91,6 +101,11 @@ func _ready():
 	
 	# Setup kick animation system
 	_setup_kick_animation()
+	
+	# Setup PunchB animation system
+	print("🚨 ABOUT TO CALL _setup_punchb_animation() 🚨")
+	_setup_punchb_animation()
+	print("🚨 FINISHED CALLING _setup_punchb_animation() 🚨")
 	
 	print("[Player.gd] Player ready with health:", current_health, "/", max_health)
 	
@@ -827,6 +842,11 @@ func _process(delta):
 	# Try to setup kick animation if not already done (in case character scene is added later)
 	if not kick_sprite and get_child_count() > 0:
 		_setup_kick_animation()
+	
+	# Try to setup punch animation if not already done (in case character scene is added later)
+	if not punchb_animation and get_child_count() > 0:
+		print("🚨 FALLBACK: Setting up punch animation in _process() 🚨")
+		_setup_punchb_animation()
 
 func _update_mouse_facing() -> void:
 	"""Update player sprite to face the mouse direction when appropriate"""
@@ -862,6 +882,9 @@ func _update_mouse_facing() -> void:
 	# Determine if mouse is to the left or right of player
 	var mouse_is_left = direction.x < 0
 	
+	# Update current facing direction
+	current_facing_direction = Vector2i(-1, 0) if mouse_is_left else Vector2i(1, 0)
+	
 	# Flip the sprite horizontally based on mouse position
 	# Assuming the default sprite faces right, so we flip when mouse is on the left
 	sprite.flip_h = mouse_is_left
@@ -870,6 +893,31 @@ func _update_mouse_facing() -> void:
 	var equipment_manager = get_tree().current_scene.get_node_or_null("EquipmentManager")
 	if equipment_manager and equipment_manager.has_method("update_all_clothing_flip"):
 		equipment_manager.update_all_clothing_flip()
+
+func get_current_facing_direction() -> Vector2i:
+	"""Get the current facing direction of the player"""
+	return current_facing_direction
+
+func is_facing_left() -> bool:
+	"""Check if the player is currently facing left"""
+	return current_facing_direction.x < 0
+
+func is_facing_right() -> bool:
+	"""Check if the player is currently facing right"""
+	return current_facing_direction.x > 0
+
+func update_animation_facing(animation_sprite: Node) -> void:
+	"""Update the facing direction of an animation sprite to match the player's facing direction"""
+	if not animation_sprite:
+		return
+	
+	# Apply the same flip as the main character sprite
+	if animation_sprite is Sprite2D:
+		animation_sprite.flip_h = is_facing_left()
+	elif animation_sprite is AnimatedSprite2D:
+		animation_sprite.flip_h = is_facing_left()
+	
+	print("Updated animation facing - Direction: ", current_facing_direction, ", Flip H: ", animation_sprite.flip_h)
 
 # Ball collision methods - using advanced collision system
 
@@ -1218,7 +1266,7 @@ func _update_swing_animation() -> void:
 	if is_charging_height != previous_charging_height:
 		if is_charging_height:
 			# Height charge started - start swing animation
-			swing_animation.start_swing_animation()
+			start_swing_animation()  # Use our updated method that handles facing
 		else:
 			# Height charge stopped - stop swing animation
 			swing_animation.stop_swing_animation()
@@ -1229,6 +1277,10 @@ func _update_swing_animation() -> void:
 func start_swing_animation() -> void:
 	"""Manually start the swing animation"""
 	if swing_animation:
+		# Update the swing animation facing before starting
+		var swing_sprite = swing_animation.get_node_or_null("SwingSprite")
+		if swing_sprite:
+			update_animation_facing(swing_sprite)
 		swing_animation.start_swing_animation()
 
 func stop_swing_animation() -> void:
@@ -1272,6 +1324,9 @@ func start_kick_animation() -> void:
 	if not normal_sprite or not kick_sprite:
 		return
 	
+	# Update the kick sprite facing before showing it
+	update_animation_facing(kick_sprite)
+	
 	# Hide the normal sprite and show the kick sprite
 	normal_sprite.visible = false
 	kick_sprite.visible = true
@@ -1313,3 +1368,182 @@ func stop_kick_animation() -> void:
 func is_currently_kicking() -> bool:
 	"""Check if currently performing a kick animation"""
 	return is_kicking
+
+# PunchB animation methods
+func _setup_punchb_animation() -> void:
+	"""Setup the PunchB animation system"""
+	print("=== SETTING UP PUNCHB ANIMATION ===")
+	print("DEBUG: _setup_punchb_animation() called!")
+	print("DEBUG: Player children at setup time:", get_children())
+	
+	# Find the BennyPunch sprite using a recursive search
+	punchb_animation = _find_punch_sprite_recursive(self)
+	
+	# Fallback: try to find any AnimatedSprite2D with "Punch" animation
+	if not punchb_animation:
+		print("⚠ BennyPunch sprite not found, trying fallback search...")
+		punchb_animation = _find_punch_animation_fallback(self)
+	
+	if punchb_animation:
+		print("✓ PunchB animation system setup complete (using punch sprite)")
+		print("✓ Found punch sprite:", punchb_animation)
+		print("✓ Punch sprite visible:", punchb_animation.visible)
+		print("✓ Punch sprite animation:", punchb_animation.animation)
+	else:
+		print("⚠ No punch animation sprite found for punch animation")
+		print("⚠ Available children:", get_children())
+	
+	print("=== PUNCHB ANIMATION SETUP COMPLETE ===")
+
+func _find_punch_sprite_recursive(node: Node) -> AnimatedSprite2D:
+	"""Recursively search for the BennyPunch sprite in the node tree"""
+	print("Searching for BennyPunch in node:", node.name, "Type:", node.get_class())
+	
+	for child in node.get_children():
+		print("  Checking child:", child.name, "Type:", child.get_class())
+		if child.name == "BennyPunch" and child is AnimatedSprite2D:
+			print("  ✓ Found BennyPunch AnimatedSprite2D!")
+			return child
+		elif child is Node2D:
+			print("  Recursively searching in Node2D:", child.name)
+			# Recursively search in Node2D children
+			var result = _find_punch_sprite_recursive(child)
+			if result:
+				return result
+	
+	print("  ✗ No BennyPunch found in:", node.name)
+	return null
+
+func _find_punch_animation_fallback(node: Node) -> AnimatedSprite2D:
+	"""Fallback: find any AnimatedSprite2D that has a "Punch" animation"""
+	print("Fallback search for AnimatedSprite2D with Punch animation in:", node.name)
+	
+	for child in node.get_children():
+		if child is AnimatedSprite2D:
+			print("  Found AnimatedSprite2D:", child.name)
+			if child.sprite_frames and child.sprite_frames.has_animation("Punch"):
+				print("  ✓ Found AnimatedSprite2D with Punch animation:", child.name)
+				return child
+		elif child is Node2D:
+			# Recursively search in Node2D children
+			var result = _find_punch_animation_fallback(child)
+			if result:
+				return result
+	
+	print("  ✗ No AnimatedSprite2D with Punch animation found in:", node.name)
+	return null
+
+func start_punchb_animation() -> void:
+	"""Start the PunchB animation - play the punch animation"""
+	print("=== STARTING PUNCHB ANIMATION ===")
+	print("DEBUG: start_punchb_animation() called!")
+	
+	if is_punching:
+		print("⚠ Already punching, returning")
+		return
+	
+	is_punching = true
+	
+	# Get the normal character sprite
+	var normal_sprite = get_character_sprite()
+	if not normal_sprite:
+		print("⚠ Normal sprite not found")
+		return
+	if not punchb_animation:
+		print("⚠ Punch animation sprite not found")
+		return
+	
+	print("✓ Found normal sprite:", normal_sprite)
+	print("✓ Found punch animation sprite:", punchb_animation)
+	
+	# Update the punch animation facing before showing it
+	update_animation_facing(punchb_animation)
+	
+	# Hide the normal sprite and show the animated sprite
+	normal_sprite.visible = false
+	punchb_animation.visible = true
+	
+	print("✓ Switched sprites - normal hidden, punch visible")
+	
+	# Play the punch animation
+	punchb_animation.play("Punch")
+	print("✓ Started punch animation")
+	
+	# Start the punch animation timer
+	if punchb_tween and punchb_tween.is_valid():
+		punchb_tween.kill()
+	
+	punchb_tween = create_tween()
+	punchb_tween.tween_callback(_on_punchb_animation_complete).set_delay(punchb_duration)
+	
+	print("✓ Punch animation timer started (duration:", punchb_duration, "s)")
+	print("=== PUNCHB ANIMATION STARTED ===")
+
+func _on_punchb_animation_complete() -> void:
+	"""Called when the PunchB animation completes"""
+	print("=== PUNCHB ANIMATION COMPLETE ===")
+	
+	# Get the normal character sprite
+	var normal_sprite = get_character_sprite()
+	if normal_sprite and punchb_animation:
+		# Stop the animation and hide the animated sprite
+		punchb_animation.stop()
+		punchb_animation.visible = false
+		# Show the normal sprite
+		normal_sprite.visible = true
+		print("✓ Switched back to normal sprite")
+	else:
+		print("⚠ Could not switch back to normal sprite")
+	
+	is_punching = false
+	print("=== PUNCHB ANIMATION FINISHED ===")
+
+func stop_punchb_animation() -> void:
+	"""Stop the PunchB animation if it's currently running"""
+	if is_punching:
+		# Get the normal character sprite
+		var normal_sprite = get_character_sprite()
+		if normal_sprite and punchb_animation:
+			# Stop the animation and hide the animated sprite
+			punchb_animation.stop()
+			punchb_animation.visible = false
+			# Show the normal sprite
+			normal_sprite.visible = true
+		
+		# Stop the tween
+		if punchb_tween and punchb_tween.is_valid():
+			punchb_tween.kill()
+		
+		is_punching = false
+
+func is_currently_punching() -> bool:
+	"""Check if currently performing a PunchB animation"""
+	return is_punching
+
+# Player movement animation for PunchB attacks
+func animate_to_position(target_grid_pos: Vector2i, callback: Callable = Callable()) -> void:
+	"""Animate player movement to a target grid position"""
+	print("=== ANIMATING PLAYER TO POSITION ===")
+	print("Current position:", grid_pos)
+	print("Target position:", target_grid_pos)
+	
+	# Calculate world position from grid position (same as set_grid_position)
+	var target_world_pos = Vector2(target_grid_pos.x, target_grid_pos.y) * cell_size + Vector2(cell_size / 2, cell_size / 2)
+	
+	# Use faster animation for PunchB attacks (3x faster)
+	var animation_duration = movement_duration / 3.0
+	
+	# Create movement tween
+	var movement_tween = create_tween()
+	movement_tween.tween_property(self, "position", target_world_pos, animation_duration)
+	movement_tween.set_trans(Tween.TRANS_SINE)
+	movement_tween.set_ease(Tween.EASE_OUT)
+	
+	# Update grid position immediately for collision detection
+	grid_pos = target_grid_pos
+	
+	# Call callback when animation completes
+	if callback.is_valid():
+		movement_tween.tween_callback(callback)
+	
+	print("✓ Player movement animation started (duration:", animation_duration, "s)")

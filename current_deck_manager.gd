@@ -16,10 +16,10 @@ var starter_deck: Array[CardData] = [
 	preload("res://Cards/Move3.tres"),
 	preload("res://Cards/KickB.tres"),
 	preload("res://Cards/KickB.tres"),
+	preload("res://Cards/PunchB.tres"),
+	preload("res://Cards/PunchB.tres"),
 	preload("res://Cards/TeleportCard.tres"),  # TeleportCard for testing
-	preload("res://Cards/BurstShot.tres"),     # Add BurstShot for testing
 	preload("res://Cards/ShotgunCard.tres"),   # Add ShotgunCard for testing
-	preload("res://Cards/SniperCard.tres"),    # Add SniperCard for testing
 	preload("res://Cards/GrenadeCard.tres"),   # Add GrenadeCard for testing
 	preload("res://Cards/Draw2.tres"),         # Add Draw2 for testing
 	preload("res://Cards/Putter.tres"),        # Only putter
