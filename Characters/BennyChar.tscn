@@ -1,4 +1,4 @@
-[gd_scene load_steps=30 format=3 uid="uid://bc8s6t7wka23s"]
+[gd_scene load_steps=32 format=3 uid="uid://bc8s6t7wka23s"]
 
 [ext_resource type="Texture2D" uid="uid://bu6bwgk8aipl2" path="res://Characters/BennyChar.png" id="1_oukfo"]
 [ext_resource type="Script" uid="uid://d2iiaqe57mea" path="res://Characters/SwingAnimation.gd" id="2_swing"]
@@ -171,11 +171,16 @@ _data = {
 radius = 12.0
 height = 88.0
 
+[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_3tp8o"]
+
+[sub_resource type="CompressedTexture2D" id="CompressedTexture2D_3tp8o"]
+load_path = "res://.godot/imported/GolfBall.png-0516230eae0ffabe6c6d009b86188c92.ctex"
+
 [node name="BennyChar" type="Node2D"]
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 texture_filter = 1
-position = Vector2(0, -43.72)
+position = Vector2(0, -44)
 texture = ExtResource("1_oukfo")
 
 [node name="YSortPoint" type="Node2D" parent="Sprite2D"]
@@ -201,7 +206,7 @@ texture_filter = 1
 scale = Vector2(1.19, 1.19)
 sprite_frames = SubResource("SpriteFrames_swing")
 animation = &"Punch"
-frame_progress = 0.603777
+frame_progress = 0.176735
 offset = Vector2(0, -36.01)
 
 [node name="AnimationPlayer" type="AnimationPlayer" parent="AnimatedSprite2D"]
@@ -255,3 +260,11 @@ visible = false
 texture_filter = 1
 position = Vector2(5, -44)
 texture = ExtResource("6_3tp8o")
+
+[node name="Shadow" type="Sprite2D" parent="."]
+modulate = Color(0, 0, 0, 0.3)
+texture_filter = 1
+material = SubResource("CanvasItemMaterial_3tp8o")
+position = Vector2(2, -4)
+scale = Vector2(1.815, 0.756)
+texture = SubResource("CompressedTexture2D_3tp8o")

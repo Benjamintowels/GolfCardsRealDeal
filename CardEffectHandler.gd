@@ -230,6 +230,24 @@ func handle_modify_next_card_card(card: CardData):
 		
 		# Remove only the specific card button, not the entire hand
 		remove_specific_card_button(card)
+	
+	elif card.name == "RooBoost":
+		course.rooboost_active = true
+		course.next_movement_card_rooboost = true
+		print("RooBoost effect applied to next movement card")
+		
+		# Handle card discard - could be from hand or bag pile
+		if course.deck_manager.hand.has(card):
+			course.deck_manager.discard(card)
+			course.card_stack_display.animate_card_discard(card.name)
+			course.update_deck_display()
+		else:
+			# Card is from bag pile during club selection - just animate discard
+			course.card_stack_display.animate_card_discard(card.name)
+			print("RooBoost card used from bag pile")
+		
+		# Remove only the specific card button, not the entire hand
+		remove_specific_card_button(card)
 
 func remove_specific_card_button(card: CardData):
 	"""Remove only the specific card button from the UI without affecting other cards"""

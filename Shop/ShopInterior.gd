@@ -119,6 +119,7 @@ func load_shop_items():
 		preload("res://Cards/ExtraBall.tres"),
 		preload("res://Cards/FloridaScramble.tres"),
 		preload("res://Cards/Dub.tres"),
+		preload("res://Cards/RooBoostCard.tres"),
 		preload("res://Cards/Draw2.tres"),
 		preload("res://Cards/CoffeeCard.tres"),
 		preload("res://Cards/BlockB.tres"),
@@ -454,7 +455,7 @@ func create_card_display(card_data: CardData, count: int) -> Control:
 	var card_instance = card_scene.instantiate()
 	card_instance.size = Vector2(80, 100)
 	card_instance.position = Vector2(0, 0)
-	card_instance.scale = Vector2(1.336, 1.213)
+	card_instance.scale = Vector2(1.236, 1.113)
 	card_instance.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	
 	# Set the card data to show upgrade indicators

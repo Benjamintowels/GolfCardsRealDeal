@@ -97,6 +97,8 @@ var ice_ball_active := false  # Track if IceBall effect is active
 var explosive_shot_active := false  # Track if Explosive effect is active
 var next_shot_modifier := ""  # Track what modifier to apply to next shot
 var next_card_doubled := false  # Track if the next card should have its effect doubled
+var rooboost_active := false  # Track if RooBoost effect is active
+var next_movement_card_rooboost := false  # Track if next movement card should have RooBoost effect
 var extra_turns_remaining := 0  # Track extra turns from CoffeeCard
 
 # Block system variables
@@ -3557,6 +3559,10 @@ func get_movement_cards_for_inventory() -> Array[CardData]:
 
 func get_club_cards_for_inventory() -> Array[CardData]:
 	return deck_manager.club_draw_pile.duplicate()
+
+func get_movement_controller() -> Node:
+	"""Get the movement controller for external access"""
+	return movement_controller
 
 
 	

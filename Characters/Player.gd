@@ -76,6 +76,16 @@ var footstep_sound_enabled: bool = true
 var last_footstep_time: float = 0.0
 var footstep_interval: float = 0.3  # Time between footstep sounds during movement
 
+# Jump animation system (for RooBoost card)
+var is_jumping: bool = false
+var jump_height: float = 400.0  # Height of the jump in pixels
+var jump_duration: float = 0.6  # Duration of the jump animation
+var jump_tween: Tween
+var shadow_sprite: Sprite2D = null
+var ballhop_sound: AudioStreamPlayer2D = null
+
+const SPRITE_GROUND_Y = -43.72
+
 func _ready():
 	print("=== PLAYER _READY STARTED ===")
 	print("🚨 PLAYER _READY FUNCTION CALLED! 🚨")
@@ -116,6 +126,9 @@ func _ready():
 	
 	# Setup footstep sound system
 	_setup_footstep_sounds()
+	
+	# Setup jump animation system
+	_setup_jump_animation()
 	
 	print("[Player.gd] Player ready with health:", current_health, "/", max_health)
 	
@@ -732,27 +745,255 @@ func _animate_movement_to_position(target_world_pos: Vector2, ysort_objects: Arr
 	if movement_tween and movement_tween.is_valid():
 		movement_tween.kill()
 	
-	# Play footstep sound right before movement starts
-	_play_footstep_sound_before_movement()
+	# Check if this should be a jump animation (RooBoost effect)
+	var should_jump = false
+	var course = get_tree().current_scene
+	if course and course.has_method("get_movement_controller"):
+		var movement_controller = course.get_movement_controller()
+		if movement_controller and movement_controller.has_method("get_selected_card"):
+			var selected_card = movement_controller.get_selected_card()
+			# Check if the course has RooBoost active for the next movement card
+			if course.next_movement_card_rooboost:
+				should_jump = true
+				print("✓ RooBoost effect detected - using jump animation")
 	
-	# Create new tween for movement
-	movement_tween = create_tween()
-	movement_tween.set_trans(Tween.TRANS_QUAD)
-	movement_tween.set_ease(Tween.EASE_OUT)
+	if should_jump:
+		_animate_jump_to_position(target_world_pos, ysort_objects, shop_grid_pos)
+	else:
+		# Normal movement animation
+		# Play footstep sound right before movement starts
+		_play_footstep_sound_before_movement()
+		
+		# Create new tween for movement
+		movement_tween = create_tween()
+		movement_tween.set_trans(Tween.TRANS_QUAD)
+		movement_tween.set_ease(Tween.EASE_OUT)
+		
+		# Start the movement animation
+		movement_tween.tween_property(self, "position", target_world_pos, movement_duration)
+		
+		# Update Y-sorting during movement
+		movement_tween.tween_callback(update_z_index_for_ysort.bind(ysort_objects, shop_grid_pos))
+		
+		# Update camera position during movement (every frame)
+		movement_tween.tween_method(_update_camera_during_movement, 0.0, 1.0, movement_duration)
+		
+		# When movement completes
+		movement_tween.tween_callback(_on_movement_completed)
+		
+		print("Started player movement animation to position: ", target_world_pos)
+
+func _animate_jump_to_position(target_world_pos: Vector2, ysort_objects: Array = [], shop_grid_pos: Vector2i = Vector2i.ZERO) -> void:
+	"""Animate the player's jump to the target position using a tween"""
+	print("=== STARTING PLAYER JUMP ANIMATION ===")
 	
-	# Start the movement animation
-	movement_tween.tween_property(self, "position", target_world_pos, movement_duration)
+	# Set jumping state
+	is_jumping = true
 	
-	# Update Y-sorting during movement
-	movement_tween.tween_callback(update_z_index_for_ysort.bind(ysort_objects, shop_grid_pos))
+	# Stop any existing jump tween
+	if jump_tween and jump_tween.is_valid():
+		jump_tween.kill()
 	
-	# Update camera position during movement (every frame)
-	movement_tween.tween_method(_update_camera_during_movement, 0.0, 1.0, movement_duration)
+	# Play BallHop sound right before jump starts
+	if ballhop_sound and ballhop_sound.stream:
+		ballhop_sound.play()
+		print("✓ Playing BallHop sound for jump animation")
 	
-	# When movement completes
-	movement_tween.tween_callback(_on_movement_completed)
+	# Get the character sprite for height animation
+	var char_sprite = get_character_sprite()
+	if not char_sprite:
+		print("⚠ Character sprite not found for jump animation")
+		return
 	
-	print("Started player movement animation to position: ", target_world_pos)
+	# Store original sprite position
+	var original_sprite_pos = char_sprite.position
+	
+	# Create new tween for jump
+	jump_tween = create_tween()
+	jump_tween.set_trans(Tween.TRANS_QUAD)
+	jump_tween.set_ease(Tween.EASE_OUT)
+	
+	# Animate horizontal movement (this moves both the player and shadow)
+	jump_tween.parallel().tween_property(self, "position", target_world_pos, jump_duration)
+	
+	# Animate vertical jump (only the sprite moves up and down, shadow stays on ground)
+	var jump_curve = jump_tween.parallel().tween_method(_update_jump_height, 0.0, 1.0, jump_duration)
+	jump_curve.set_trans(Tween.TRANS_QUAD)
+	jump_curve.set_ease(Tween.EASE_OUT)
+	
+	# Update Y-sorting during jump
+	jump_tween.tween_callback(update_z_index_for_ysort.bind(ysort_objects, shop_grid_pos))
+	
+	# Update camera position during jump (every frame)
+	jump_tween.tween_method(_update_camera_during_movement, 0.0, 1.0, jump_duration)
+	
+	# When jump completes
+	jump_tween.tween_callback(_on_jump_completed)
+	
+	print("✓ Started player jump animation to position:", target_world_pos)
+	print("✓ Jump height:", jump_height, "pixels")
+	print("✓ Jump duration:", jump_duration, "seconds")
+	print("✓ Shadow will stay on ground while sprite jumps")
+
+func _update_jump_height(progress: float) -> void:
+	"""Update the player's height during jump animation"""
+	var char_sprite = get_character_sprite()
+	if not char_sprite:
+		return
+	
+	# Calculate jump height using a parabolic curve (up then down)
+	var height_progress = 0.0
+	if progress <= 0.5:
+		# Going up (0.0 to 0.5)
+		height_progress = progress * 2.0  # 0.0 to 1.0
+	else:
+		# Coming down (0.5 to 1.0)
+		height_progress = (1.0 - progress) * 2.0  # 1.0 to 0.0
+	
+	# Apply height to sprite position only (shadow stays on ground)
+	var jump_offset = jump_height * height_progress
+	char_sprite.position.y = SPRITE_GROUND_Y - jump_offset  # Start and end at -43.72
+	
+	# Update shadow scale and opacity based on height (shadow stays on ground but changes appearance)
+	if shadow_sprite:
+		var min_shadow_scale = 0.5  # Smallest shadow at max height
+		var max_shadow_scale = 1.0  # Full size on ground
+		var min_shadow_alpha = 0.1  # Most transparent at max height
+		var max_shadow_alpha = 0.4  # Most opaque on ground
+		
+		var shadow_scale = lerp(max_shadow_scale, min_shadow_scale, height_progress)
+		var shadow_alpha = lerp(max_shadow_alpha, min_shadow_alpha, height_progress)
+		
+		# Keep shadow on ground but change its scale and opacity
+		shadow_sprite.scale = Vector2(1.815, 0.756) * shadow_scale  # Use original shadow scale
+		shadow_sprite.modulate = Color(0, 0, 0, shadow_alpha)  # Keep black color, change alpha
+		shadow_sprite.position.y = -4  # Keep shadow at ground level (original position)
+	
+	# Check for collisions during jump (only when coming down)
+	if progress > 0.5:
+		check_jump_collisions()
+
+func _on_jump_completed() -> void:
+	"""Called when player jump animation completes"""
+	print("=== PLAYER JUMP ANIMATION COMPLETED ===")
+	
+	is_jumping = false
+	
+	# Reset sprite position
+	var char_sprite = get_character_sprite()
+	if char_sprite:
+		char_sprite.position.y = SPRITE_GROUND_Y  # Reset to grounded offset
+	
+	# Reset shadow to original state
+	if shadow_sprite:
+		shadow_sprite.scale = Vector2(1.815, 0.756)  # Reset to original shadow scale
+		shadow_sprite.modulate = Color(0, 0, 0, 0.3)  # Reset to original black color and opacity
+		shadow_sprite.position.y = -4  # Reset to original ground position
+	
+	# Update Y-sorting one final time
+	update_z_index_for_ysort([], Vector2i.ZERO)
+	
+	# Smoothly tween camera to final position
+	var course = get_tree().current_scene
+	if course and course.has_method("smooth_camera_to_player"):
+		course.smooth_camera_to_player()
+	
+	print("✓ Player jump animation completed")
+	print("✓ Shadow reset to ground level")
+
+func check_jump_collisions() -> void:
+	"""Check for wall collisions and NPC landings during jump"""
+	if not is_jumping:
+		return
+	
+	var course = get_tree().current_scene
+	if not course:
+		return
+	
+	# Check for wall collisions using Area2D
+	var area2d = _find_character_area2d()
+	if area2d:
+		var overlapping_areas = area2d.get_overlapping_areas()
+		for area in overlapping_areas:
+			var object = area.get_parent()
+			if not object:
+				continue
+			
+			# Check for wall collisions
+			if object.has_method("_handle_wall_area_collision"):
+				print("Jump collision with wall detected")
+				_handle_jump_wall_collision(object)
+				return
+			
+			# Check for NPC collisions
+			if object.has_method("_handle_ball_collision") and object.name.contains("GangMember"):
+				print("Jump landing on NPC detected")
+				_handle_jump_npc_landing(object)
+				return
+
+func _handle_jump_wall_collision(wall: Node2D) -> void:
+	"""Handle wall collision during jump - player bounces off wall"""
+	print("=== HANDLING JUMP WALL COLLISION ===")
+	
+	# Calculate bounce direction (away from wall)
+	var wall_center = wall.global_position
+	var player_pos = global_position
+	var bounce_direction = (player_pos - wall_center).normalized()
+	
+	# Calculate bounce distance (2 tiles away from wall)
+	var bounce_distance = 96.0  # 2 tiles * 48 pixels
+	var bounce_target = wall_center + (bounce_direction * bounce_distance)
+	
+	# Convert to grid position
+	var grid_x = floor((bounce_target.x - cell_size / 2) / cell_size)
+	var grid_y = floor((bounce_target.y - cell_size / 2) / cell_size)
+	var bounce_grid_pos = Vector2i(grid_x, grid_y)
+	
+	# Update player position and continue jump to bounce target
+	grid_pos = bounce_grid_pos
+	var bounce_world_pos = Vector2(bounce_grid_pos.x, bounce_grid_pos.y) * cell_size + Vector2(cell_size / 2, cell_size / 2)
+	
+	# Continue jump to bounce target
+	if jump_tween and jump_tween.is_valid():
+		jump_tween.kill()
+	
+	jump_tween = create_tween()
+	jump_tween.tween_property(self, "position", bounce_world_pos, jump_duration * 0.5)  # Faster bounce
+	jump_tween.tween_callback(_on_jump_completed)
+	
+	print("✓ Player bounced off wall to position:", bounce_grid_pos)
+
+func _handle_jump_npc_landing(npc: Node2D) -> void:
+	"""Handle landing on NPC during jump - player roof bounces off NPC"""
+	print("=== HANDLING JUMP NPC LANDING ===")
+	
+	# Calculate roof bounce direction (away from NPC)
+	var npc_center = npc.global_position
+	var player_pos = global_position
+	var bounce_direction = (player_pos - npc_center).normalized()
+	
+	# Calculate roof bounce distance (up to 2 tiles away from NPC)
+	var bounce_distance = 96.0  # 2 tiles * 48 pixels
+	var bounce_target = npc_center + (bounce_direction * bounce_distance)
+	
+	# Convert to grid position
+	var grid_x = floor((bounce_target.x - cell_size / 2) / cell_size)
+	var grid_y = floor((bounce_target.y - cell_size / 2) / cell_size)
+	var bounce_grid_pos = Vector2i(grid_x, grid_y)
+	
+	# Update player position and continue jump to bounce target
+	grid_pos = bounce_grid_pos
+	var bounce_world_pos = Vector2(bounce_grid_pos.x, bounce_grid_pos.y) * cell_size + Vector2(cell_size / 2, cell_size / 2)
+	
+	# Continue jump to bounce target
+	if jump_tween and jump_tween.is_valid():
+		jump_tween.kill()
+	
+	jump_tween = create_tween()
+	jump_tween.tween_property(self, "position", bounce_world_pos, jump_duration * 0.5)  # Faster bounce
+	jump_tween.tween_callback(_on_jump_completed)
+	
+	print("✓ Player roof bounced off NPC to position:", bounce_grid_pos)
 
 func _update_camera_during_movement(progress: float) -> void:
 	"""Update camera position during movement animation"""
@@ -1563,6 +1804,45 @@ func animate_to_position(target_grid_pos: Vector2i, callback: Callable = Callabl
 		movement_tween.tween_callback(callback)
 	
 	print("✓ Player movement animation started (duration:", animation_duration, "s)")
+
+func _setup_jump_animation() -> void:
+	"""Setup the jump animation system"""
+	print("=== SETTING UP JUMP ANIMATION ===")
+	
+	# Find the shadow sprite in the character scene
+	shadow_sprite = _find_shadow_sprite_recursive(self)
+	
+	# Find the BallHop sound
+	ballhop_sound = get_node_or_null("BallHop")
+	
+	if shadow_sprite:
+		print("✓ Found shadow sprite for jump animation")
+		# Ensure shadow is black (in case it was modified elsewhere)
+		shadow_sprite.modulate = Color(0, 0, 0, 0.3)  # Semi-transparent black
+		print("✓ Shadow color set to black for jump animation")
+	else:
+		print("⚠ Shadow sprite not found for jump animation")
+	
+	if ballhop_sound:
+		print("✓ Found BallHop sound for jump animation")
+	else:
+		print("⚠ BallHop sound not found for jump animation")
+	
+	print("=== JUMP ANIMATION SETUP COMPLETE ===")
+
+func _find_shadow_sprite_recursive(node: Node) -> Sprite2D:
+	"""Recursively search for the Shadow sprite in the node tree"""
+	for child in node.get_children():
+		if child.name == "Shadow" and child is Sprite2D:
+			return child
+		elif child is Node2D:
+			# Recursively search in Node2D children
+			var result = _find_shadow_sprite_recursive(child)
+			if result:
+				return result
+	return null
+
+
 
 func _setup_footstep_sounds() -> void:
 	"""Setup the footstep sound system"""

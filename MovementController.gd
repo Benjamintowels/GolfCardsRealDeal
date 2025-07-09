@@ -204,7 +204,14 @@ func _on_movement_card_pressed(card: CardData, button: TextureButton) -> void:
 		movement_range *= 2
 		print("Card effect doubled! New range:", movement_range)
 
-	print("Card selected:", card.name, "Range:", movement_range)
+	# Check if RooBoost effect should be applied to this movement card
+	var rooboost_applied = false
+	if card_effect_handler and card_effect_handler.course and card_effect_handler.course.next_movement_card_rooboost:
+		movement_range += 2  # Add +2 range for RooBoost
+		rooboost_applied = true
+		print("RooBoost effect applied! +2 range added. New range:", movement_range)
+
+	print("Card selected:", card.name, "Range:", movement_range, "RooBoost:", rooboost_applied)
 
 	player_node.start_movement_mode(card, movement_range)
 	
@@ -265,6 +272,10 @@ func exit_movement_mode() -> void:
 				# Reset the course's next_card_doubled variable when the card is used
 				if card_effect_handler and card_effect_handler.course and card_effect_handler.course.next_card_doubled:
 					card_effect_handler.course.next_card_doubled = false
+				
+				# Reset the course's next_movement_card_rooboost variable when the card is used
+				if card_effect_handler and card_effect_handler.course and card_effect_handler.course.next_movement_card_rooboost:
+					card_effect_handler.course.next_movement_card_rooboost = false
 			elif deck_manager.is_club_card(selected_card):
 				pass
 			else:

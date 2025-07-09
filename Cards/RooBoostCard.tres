@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="CardData" load_steps=3 format=3 uid="uid://dujaeyfqn84rb"]
+
+[ext_resource type="Script" uid="uid://b1c024jgv23kk" path="res://Cards/CardData.gd" id="1_bdau4"]
+[ext_resource type="Texture2D" uid="uid://b3v5xia8gibq5" path="res://Cards/RooBoostCard.png" id="1_ev0o2"]
+
+[resource]
+script = ExtResource("1_bdau4")
+name = "RooBoost"
+effect_type = "ModifyNextCard"
+effect_strength = 1
+image = ExtResource("1_ev0o2")
+level = 1
+max_level = 2
+upgrade_cost = 100
+default_tier = 1
+movement_bonus = 1
+attack_bonus = 1
+weapon_shots_bonus = 1
+effect_bonus = 1
+metadata/_custom_type_script = "uid://b1c024jgv23kk"
