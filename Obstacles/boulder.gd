@@ -16,8 +16,9 @@ func _ready():
 		# Set collision mask to 1 so it can detect golf balls on layer 1
 		area2d.collision_mask = 1
 		
-		# Connect to area entered signal for collision detection
+		# Connect to area entered and exited signals for collision detection
 		area2d.connect("area_entered", _on_area_entered)
+		area2d.connect("area_exited", _on_area_exited)
 
 func _process(delta):
 	# Update Y-sort for proper layering
@@ -51,6 +52,18 @@ func _on_area_entered(area: Area2D):
 		# For balls, let them handle their own collision through their collision system
 		# The ball will call _handle_roof_bounce_collision on the boulder
 		pass
+
+func _on_area_exited(area: Area2D):
+	"""Handle when projectile exits the boulder area - reset ground level"""
+	var projectile = area.get_parent()
+	if projectile and projectile.has_method("get_height"):
+		# Reset the projectile's ground level to normal (0.0)
+		if projectile.has_method("_reset_ground_level"):
+			projectile._reset_ground_level()
+		else:
+			# Fallback: directly reset ground level if method doesn't exist
+			if "current_ground_level" in projectile:
+				projectile.current_ground_level = 0.0
 
 func _handle_area_collision(projectile: Node2D) -> void:
 	"""
