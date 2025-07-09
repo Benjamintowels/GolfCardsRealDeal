@@ -1345,7 +1345,6 @@ func _process(delta):
 	
 	# Try to setup punch animation if not already done (in case character scene is added later)
 	if not punchb_animation and get_child_count() > 0:
-		print("🚨 FALLBACK: Setting up punch animation in _process() 🚨")
 		_setup_punchb_animation()
 
 func _update_mouse_facing() -> void:
@@ -1721,40 +1720,24 @@ func is_currently_ragdolling() -> bool:
 # Swing animation methods
 func _setup_swing_animation() -> void:
 	"""Setup the swing animation system"""
-	print("=== SETTING UP SWING ANIMATION IN PLAYER ===")
-	print("Player children:", get_children())
 	
 	# Find the swing animation node in the character scene
 	for child in get_children():
-		print("Checking child:", child.name, "Type:", child.get_class())
 		if child.has_method("start_swing_animation"):
 			swing_animation = child
-			print("✓ Found swing animation system:", swing_animation)
 			break
 		elif child is Node2D:
 			# Check Node2D children (this is where the character scene nodes are)
-			print("Checking Node2D children of:", child.name)
 			for grandchild in child.get_children():
-				print("  Grandchild:", grandchild.name, "Type:", grandchild.get_class())
 				if grandchild.has_method("start_swing_animation"):
 					swing_animation = grandchild
-					print("✓ Found swing animation system:", swing_animation)
 					break
 				elif grandchild is Node2D:
 					# Check even deeper for nested character scenes
-					print("    Checking deeper children of:", grandchild.name)
 					for great_grandchild in grandchild.get_children():
-						print("      Great-grandchild:", great_grandchild.name, "Type:", great_grandchild.get_class())
 						if great_grandchild.has_method("start_swing_animation"):
 							swing_animation = great_grandchild
-							print("✓ Found swing animation system:", swing_animation)
 							break
-	
-	# If still not found, try a more aggressive search
-	if not swing_animation:
-		print("⚠ No swing animation system found in character scene")
-	else:
-		print("✓ Swing animation system setup complete")
 
 func _update_swing_animation() -> void:
 	# Check if we're in weapon mode (knife or grenade) - don't play swing animation for weapons
@@ -1875,57 +1858,34 @@ func is_currently_kicking() -> bool:
 # PunchB animation methods
 func _setup_punchb_animation() -> void:
 	"""Setup the PunchB animation system"""
-	print("=== SETTING UP PUNCHB ANIMATION ===")
-	print("DEBUG: _setup_punchb_animation() called!")
-	print("DEBUG: Player children at setup time:", get_children())
 	
 	# Find the BennyPunch sprite using a recursive search
 	punchb_animation = _find_punch_sprite_recursive(self)
 	
 	# Fallback: try to find any AnimatedSprite2D with "Punch" animation
 	if not punchb_animation:
-		print("⚠ BennyPunch sprite not found, trying fallback search...")
 		punchb_animation = _find_punch_animation_fallback(self)
-	
-	if punchb_animation:
-		print("✓ PunchB animation system setup complete (using punch sprite)")
-		print("✓ Found punch sprite:", punchb_animation)
-		print("✓ Punch sprite visible:", punchb_animation.visible)
-		print("✓ Punch sprite animation:", punchb_animation.animation)
-	else:
-		print("⚠ No punch animation sprite found for punch animation")
-		print("⚠ Available children:", get_children())
-	
-	print("=== PUNCHB ANIMATION SETUP COMPLETE ===")
 
 func _find_punch_sprite_recursive(node: Node) -> AnimatedSprite2D:
 	"""Recursively search for the BennyPunch sprite in the node tree"""
-	print("Searching for BennyPunch in node:", node.name, "Type:", node.get_class())
 	
 	for child in node.get_children():
-		print("  Checking child:", child.name, "Type:", child.get_class())
 		if child.name == "BennyPunch" and child is AnimatedSprite2D:
-			print("  ✓ Found BennyPunch AnimatedSprite2D!")
 			return child
 		elif child is Node2D:
-			print("  Recursively searching in Node2D:", child.name)
 			# Recursively search in Node2D children
 			var result = _find_punch_sprite_recursive(child)
 			if result:
 				return result
 	
-	print("  ✗ No BennyPunch found in:", node.name)
 	return null
 
 func _find_punch_animation_fallback(node: Node) -> AnimatedSprite2D:
 	"""Fallback: find any AnimatedSprite2D that has a "Punch" animation"""
-	print("Fallback search for AnimatedSprite2D with Punch animation in:", node.name)
 	
 	for child in node.get_children():
 		if child is AnimatedSprite2D:
-			print("  Found AnimatedSprite2D:", child.name)
 			if child.sprite_frames and child.sprite_frames.has_animation("Punch"):
-				print("  ✓ Found AnimatedSprite2D with Punch animation:", child.name)
 				return child
 		elif child is Node2D:
 			# Recursively search in Node2D children
@@ -1933,16 +1893,12 @@ func _find_punch_animation_fallback(node: Node) -> AnimatedSprite2D:
 			if result:
 				return result
 	
-	print("  ✗ No AnimatedSprite2D with Punch animation found in:", node.name)
 	return null
 
 func start_punchb_animation() -> void:
 	"""Start the PunchB animation - play the punch animation"""
-	print("=== STARTING PUNCHB ANIMATION ===")
-	print("DEBUG: start_punchb_animation() called!")
 	
 	if is_punching:
-		print("⚠ Already punching, returning")
 		return
 	
 	is_punching = true
@@ -1950,14 +1906,9 @@ func start_punchb_animation() -> void:
 	# Get the normal character sprite
 	var normal_sprite = get_character_sprite()
 	if not normal_sprite:
-		print("⚠ Normal sprite not found")
 		return
 	if not punchb_animation:
-		print("⚠ Punch animation sprite not found")
 		return
-	
-	print("✓ Found normal sprite:", normal_sprite)
-	print("✓ Found punch animation sprite:", punchb_animation)
 	
 	# Update the punch animation facing before showing it
 	update_animation_facing(punchb_animation)
@@ -1966,11 +1917,8 @@ func start_punchb_animation() -> void:
 	normal_sprite.visible = false
 	punchb_animation.visible = true
 	
-	print("✓ Switched sprites - normal hidden, punch visible")
-	
 	# Play the punch animation
 	punchb_animation.play("Punch")
-	print("✓ Started punch animation")
 	
 	# Start the punch animation timer
 	if punchb_tween and punchb_tween.is_valid():
@@ -1978,13 +1926,9 @@ func start_punchb_animation() -> void:
 	
 	punchb_tween = create_tween()
 	punchb_tween.tween_callback(_on_punchb_animation_complete).set_delay(punchb_duration)
-	
-	print("✓ Punch animation timer started (duration:", punchb_duration, "s)")
-	print("=== PUNCHB ANIMATION STARTED ===")
 
 func _on_punchb_animation_complete() -> void:
 	"""Called when the PunchB animation completes"""
-	print("=== PUNCHB ANIMATION COMPLETE ===")
 	
 	# Get the normal character sprite
 	var normal_sprite = get_character_sprite()
@@ -1994,12 +1938,8 @@ func _on_punchb_animation_complete() -> void:
 		punchb_animation.visible = false
 		# Show the normal sprite
 		normal_sprite.visible = true
-		print("✓ Switched back to normal sprite")
-	else:
-		print("⚠ Could not switch back to normal sprite")
 	
 	is_punching = false
-	print("=== PUNCHB ANIMATION FINISHED ===")
 
 func stop_punchb_animation() -> void:
 	"""Stop the PunchB animation if it's currently running"""
@@ -2026,9 +1966,6 @@ func is_currently_punching() -> bool:
 # Player movement animation for PunchB attacks
 func animate_to_position(target_grid_pos: Vector2i, callback: Callable = Callable()) -> void:
 	"""Animate player movement to a target grid position"""
-	print("=== ANIMATING PLAYER TO POSITION ===")
-	print("Current position:", grid_pos)
-	print("Target position:", target_grid_pos)
 	
 	# Calculate world position from grid position (same as set_grid_position)
 	var target_world_pos = Vector2(target_grid_pos.x, target_grid_pos.y) * cell_size + Vector2(cell_size / 2, cell_size / 2)
@@ -2048,12 +1985,9 @@ func animate_to_position(target_grid_pos: Vector2i, callback: Callable = Callabl
 	# Call callback when animation completes
 	if callback.is_valid():
 		movement_tween.tween_callback(callback)
-	
-	print("✓ Player movement animation started (duration:", animation_duration, "s)")
 
 func _setup_jump_animation() -> void:
 	"""Setup the jump animation system"""
-	print("=== SETTING UP JUMP ANIMATION ===")
 	
 	# Find the shadow sprite in the character scene
 	shadow_sprite = _find_shadow_sprite_recursive(self)
@@ -2062,19 +1996,8 @@ func _setup_jump_animation() -> void:
 	ballhop_sound = get_node_or_null("BallHop")
 	
 	if shadow_sprite:
-		print("✓ Found shadow sprite for jump animation")
 		# Ensure shadow is black (in case it was modified elsewhere)
 		shadow_sprite.modulate = Color(0, 0, 0, 0.3)  # Semi-transparent black
-		print("✓ Shadow color set to black for jump animation")
-	else:
-		print("⚠ Shadow sprite not found for jump animation")
-	
-	if ballhop_sound:
-		print("✓ Found BallHop sound for jump animation")
-	else:
-		print("⚠ BallHop sound not found for jump animation")
-	
-	print("=== JUMP ANIMATION SETUP COMPLETE ===")
 
 func _find_shadow_sprite_recursive(node: Node) -> Sprite2D:
 	"""Recursively search for the Shadow sprite in the node tree"""
@@ -2092,23 +2015,10 @@ func _find_shadow_sprite_recursive(node: Node) -> Sprite2D:
 
 func _setup_footstep_sounds() -> void:
 	"""Setup the footstep sound system"""
-	print("=== SETTING UP FOOTSTEP SOUNDS ===")
 	
 	# Find the footstep sound nodes
 	footsteps_grass_sound = get_node_or_null("FootstepsGrass")
 	footsteps_snow_sound = get_node_or_null("FootstepsSnow")
-	
-	if footsteps_grass_sound:
-		print("✓ Found FootstepsGrass sound node")
-	else:
-		print("⚠ FootstepsGrass sound node not found")
-	
-	if footsteps_snow_sound:
-		print("✓ Found FootstepsSnow sound node")
-	else:
-		print("⚠ FootstepsSnow sound node not found")
-	
-	print("=== FOOTSTEP SOUNDS SETUP COMPLETE ===")
 
 func _play_footstep_sound_before_movement() -> void:
 	"""Play footstep sound right before movement starts"""

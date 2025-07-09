@@ -1364,9 +1364,6 @@ func _on_shotgun_shot_finished() -> void:
 	var shotgun_cock_sound = player_node.get_node_or_null("ShotgunCock")
 	if shotgun_cock_sound and shotgun_cock_sound is AudioStreamPlayer2D:
 		shotgun_cock_sound.play()
-		print("Playing ShotgunCock sound after ShotgunShot")
-	else:
-		print("Warning: ShotgunCock audio player not found")
 
 func _on_sniper_shot_finished() -> void:
 	"""Called when the SniperShot sound finishes playing"""
@@ -1374,9 +1371,6 @@ func _on_sniper_shot_finished() -> void:
 	var sniper_cock_sound = player_node.get_node_or_null("SniperCock")
 	if sniper_cock_sound and sniper_cock_sound is AudioStreamPlayer2D:
 		sniper_cock_sound.play()
-		print("Playing SniperCock sound after SniperShot")
-	else:
-		print("Warning: SniperCock audio player not found")
 
 func perform_piercing_raytrace(weapon_pos: Vector2, direction: Vector2, max_range: float) -> Array:
 	"""Perform raytrace that pierces through the first object and stops on the second"""

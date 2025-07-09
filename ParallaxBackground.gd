@@ -200,7 +200,6 @@ func calculate_reversed_parallax_factor(layer: BackgroundLayer) -> float:
 	if layer.parallax_factor > 0.0 and layer.parallax_factor != 0.0:
 		# Use the custom parallax factor, but scale it to the max_parallax_factor range
 		var custom_factor = layer.parallax_factor * max_parallax_factor / 10.0  # Scale from 0-10 range to 0-max_parallax_factor
-		print("✓ Using custom parallax factor for ", layer.sprite.name, ": ", layer.parallax_factor, " -> ", custom_factor)
 		return custom_factor
 	
 	# Otherwise use the reversed calculation

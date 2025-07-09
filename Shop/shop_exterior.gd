@@ -52,22 +52,15 @@ func _on_area_exited(area: Area2D):
 
 func _handle_area_collision(projectile: Node2D):
 	"""Handle shop area collisions using proper Area2D detection"""
-	print("=== HANDLING SHOP AREA COLLISION ===")
-	print("Projectile name:", projectile.name)
-	print("Projectile type:", projectile.get_class())
 	
 	# Check if projectile has height information
 	if not projectile.has_method("get_height"):
-		print("✗ Projectile doesn't have height method - using fallback reflection")
 		_reflect_projectile(projectile)
 		return
 	
 	# Get projectile and shop heights
 	var projectile_height = projectile.get_height()
 	var shop_height = Global.get_object_height_from_marker(self)
-	
-	print("Projectile height:", projectile_height)
-	print("Shop height:", shop_height)
 	
 	# Check if this is a throwing knife (special handling)
 	if projectile.has_method("is_throwing_knife") and projectile.is_throwing_knife():
@@ -78,26 +71,20 @@ func _handle_area_collision(projectile: Node2D):
 	# If projectile height > shop height: allow entry and set ground level
 	# If projectile height < shop height: reflect
 	if projectile_height > shop_height:
-		print("✓ Projectile is above shop - allowing entry and setting ground level")
 		_allow_projectile_entry(projectile, shop_height)
 	else:
-		print("✗ Projectile is below shop height - reflecting")
 		_reflect_projectile(projectile)
 
 func _handle_knife_area_collision(knife: Node2D, knife_height: float, shop_height: float):
 	"""Handle knife collision with shop area"""
-	print("Handling knife shop area collision")
 	
 	if knife_height > shop_height:
-		print("✓ Knife is above shop - allowing entry and setting ground level")
 		_allow_projectile_entry(knife, shop_height)
 	else:
-		print("✗ Knife is below shop height - reflecting")
 		_reflect_projectile(knife)
 
 func _allow_projectile_entry(projectile: Node2D, shop_height: float):
 	"""Allow projectile to enter shop area and set ground level"""
-	print("=== ALLOWING PROJECTILE ENTRY ===")
 	
 	# Set the projectile's ground level to the shop height
 	if projectile.has_method("_set_ground_level"):
@@ -106,14 +93,12 @@ func _allow_projectile_entry(projectile: Node2D, shop_height: float):
 		# Fallback: directly set ground level if method doesn't exist
 		if "current_ground_level" in projectile:
 			projectile.current_ground_level = shop_height
-			print("✓ Set projectile ground level to shop height:", shop_height)
 	
 	# The projectile will now land on the shop roof instead of passing through
 	# When it exits the area, _on_area_exited will reset the ground level
 
 func _reflect_projectile(projectile: Node2D):
 	"""Reflect projectile off the shop using proper rectangular collision detection"""
-	print("=== REFLECTING PROJECTILE ===")
 	
 	# Play trunk thunk sound for shop collision
 	var thunk = get_node_or_null("TrunkThunk")
@@ -129,8 +114,6 @@ func _reflect_projectile(projectile: Node2D):
 	elif "velocity" in projectile:
 		projectile_velocity = projectile.velocity
 	
-	print("Reflecting projectile with velocity:", projectile_velocity)
-	
 	var projectile_pos = projectile.global_position
 	var shop_pos = global_position
 	
@@ -139,7 +122,6 @@ func _reflect_projectile(projectile: Node2D):
 	var collision_shape = base_area.get_node_or_null("ShopBase") if base_area else null
 	
 	if not collision_shape:
-		print("✗ ERROR: Shop collision shape not found - using fallback reflection")
 		_fallback_reflect_projectile(projectile, projectile_velocity)
 		return
 	
@@ -157,10 +139,6 @@ func _reflect_projectile(projectile: Node2D):
 	var shop_top = shop_pos.y + shop_offset.y - actual_height / 2
 	var shop_bottom = shop_pos.y + shop_offset.y + actual_height / 2
 	
-	print("Shop bounds: left=", shop_left, " right=", shop_right, " top=", shop_top, " bottom=", shop_bottom)
-	print("Projectile position:", projectile_pos)
-	
-	# Determine which side of the rectangle the projectile hit
 	var reflected_velocity = projectile_velocity
 	
 	# Calculate distances to each edge
@@ -175,11 +153,9 @@ func _reflect_projectile(projectile: Node2D):
 	if min_dist == dist_to_left or min_dist == dist_to_right:
 		# Hit left or right edge - reflect horizontally
 		reflected_velocity.x = -projectile_velocity.x
-		print("Hit left/right edge - reflecting horizontally")
 	elif min_dist == dist_to_top or min_dist == dist_to_bottom:
 		# Hit top or bottom edge - reflect vertically
 		reflected_velocity.y = -projectile_velocity.y
-		print("Hit top/bottom edge - reflecting vertically")
 	
 	# Reduce speed slightly to prevent infinite bouncing
 	reflected_velocity *= 0.8
@@ -187,9 +163,6 @@ func _reflect_projectile(projectile: Node2D):
 	# Add a small amount of randomness to prevent infinite loops
 	var random_angle = randf_range(-0.1, 0.1)
 	reflected_velocity = reflected_velocity.rotated(random_angle)
-	
-	print("Original velocity:", projectile_velocity)
-	print("Reflected velocity:", reflected_velocity)
 	
 	# Apply the reflected velocity to the projectile
 	if projectile.has_method("set_velocity"):
@@ -199,7 +172,6 @@ func _reflect_projectile(projectile: Node2D):
 
 func _fallback_reflect_projectile(projectile: Node2D, projectile_velocity: Vector2):
 	"""Fallback reflection method if collision shape is not available"""
-	print("Using fallback reflection method")
 	
 	# Simple velocity reversal with some randomness
 	var reflected_velocity = -projectile_velocity
@@ -211,8 +183,6 @@ func _fallback_reflect_projectile(projectile: Node2D, projectile_velocity: Vecto
 	var random_angle = randf_range(-0.1, 0.1)
 	reflected_velocity = reflected_velocity.rotated(random_angle)
 	
-	print("Fallback reflected velocity:", reflected_velocity)
-	
 	# Apply the reflected velocity to the projectile
 	if projectile.has_method("set_velocity"):
 		projectile.set_velocity(reflected_velocity)
@@ -223,17 +193,10 @@ func _verify_collision_setup():
 	"""Verify that collision layers are properly set up"""
 	var base_area = get_node_or_null("BaseArea")
 	if base_area:
-		print("Shop collision layer:", base_area.collision_layer)
-		print("Shop collision mask:", base_area.collision_mask)
-		
 		# Check collision shape
 		var collision_shape = base_area.get_node_or_null("ShopBase")
 		if collision_shape:
-			print("Shop collision shape size:", collision_shape.shape.size)
-			print("Shop collision shape scale:", collision_shape.scale)
-			print("Shop collision shape position:", collision_shape.position)
 			var actual_size = collision_shape.shape.size * collision_shape.scale
-			print("Shop actual collision area size:", actual_size)
 		else:
 			print("ERROR: ShopBase collision shape not found!")
 	else:
@@ -246,7 +209,6 @@ func _update_ysort():
 	
 	# Only print debug info once
 	if not has_meta("ysort_update_printed"):
-		print("Shop Ysort updated - z_index:", z_index, " global_position:", global_position)
 		set_meta("ysort_update_printed", true)
 
 func get_collision_radius() -> float:

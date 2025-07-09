@@ -104,10 +104,6 @@ func initialize_available_cards():
 			var level_3_card = create_upgraded_card(base_card, 3)
 			available_cards.append(level_3_card)
 	
-	print("=== AVAILABLE CARDS INITIALIZED ===")
-	print("Base cards: ", base_cards.size())
-	print("Total available cards (including upgrades): ", available_cards.size())
-	
 	# Show some examples
 	var tier_1_count = 0
 	var tier_2_count = 0
@@ -119,6 +115,10 @@ func initialize_available_cards():
 			2: tier_2_count += 1
 			3: tier_3_count += 1
 	
+	# Debug output
+	print("=== AVAILABLE CARDS INITIALIZED ===")
+	print("Base cards: ", base_cards.size())
+	print("Total available cards (including upgrades): ", available_cards.size())
 	print("Tier 1 cards: ", tier_1_count)
 	print("Tier 2 cards: ", tier_2_count)
 	print("Tier 3 cards: ", tier_3_count)
@@ -193,23 +193,6 @@ func get_tiered_cards() -> Array[CardData]:
 			3:
 				tier_3_cards.append(card)
 	
-	# Debug output
-	print("=== TIERED CARD DEBUG ===")
-	print("Current reward tier: ", Global.get_current_reward_tier())
-	print("Probabilities: ", probabilities)
-	print("Total available cards: ", available_cards.size())
-	print("Tier 1 cards: ", tier_1_cards.size())
-	print("Tier 2 cards: ", tier_2_cards.size())
-	print("Tier 3 cards: ", tier_3_cards.size())
-	
-	# Show some example cards from each tier
-	if tier_1_cards.size() > 0:
-		print("Tier 1 examples: ", tier_1_cards[0].name, " (level: ", tier_1_cards[0].level, ")")
-	if tier_2_cards.size() > 0:
-		print("Tier 2 examples: ", tier_2_cards[0].name, " (level: ", tier_2_cards[0].level, ")")
-	if tier_3_cards.size() > 0:
-		print("Tier 3 examples: ", tier_3_cards[0].name, " (level: ", tier_3_cards[0].level, ")")
-	
 	# Use weighted random selection based on probabilities
 	var selected_cards: Array[CardData] = []
 	
@@ -260,12 +243,6 @@ func get_tiered_cards() -> Array[CardData]:
 		# Remove selected card from pool
 		all_cards.remove_at(selected_index)
 		weights.remove_at(selected_index)
-	
-	# Debug output for selected cards
-	print("Selected cards: ", selected_cards.size())
-	for i in range(min(5, selected_cards.size())):
-		var card = selected_cards[i]
-		print("  Selected: ", card.name, " (Tier: ", card.get_reward_tier(), ", Level: ", card.level, ")")
 	
 	return selected_cards
 

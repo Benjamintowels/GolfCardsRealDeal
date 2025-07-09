@@ -39,7 +39,6 @@ var character_bag_textures = {
 }
 
 func _ready():
-	print("Bag: _ready() called")
 	process_mode = Node.PROCESS_MODE_INHERIT  # Change to inherit to ensure it processes input
 	# Set up the bag texture based on character and level
 	set_bag_level(bag_level)
@@ -47,19 +46,14 @@ func _ready():
 	# Make the bag clickable
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	gui_input.connect(_on_bag_input_event)
-	print("Bag: Setup complete - mouse_filter:", mouse_filter, "z_index:", z_index, "process_mode:", process_mode)
 	
 	# Check TextureRect settings
 	if texture_rect:
-		print("Bag: TextureRect mouse_filter:", texture_rect.mouse_filter, "z_index:", texture_rect.z_index)
-		# Ensure TextureRect doesn't block input
 		texture_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		print("Bag: TextureRect mouse_filter set to IGNORE")
 	
 	# Also connect input to the TextureRect to see if events are reaching it
 	if texture_rect:
 		texture_rect.gui_input.connect(_on_texture_rect_input_event)
-		print("Bag: Connected TextureRect input handler")
 	
 
 	
@@ -190,8 +184,6 @@ func show_deck_dialog():
 	background.z_index = 999
 	background.gui_input.connect(func(event):
 		if event is InputEventMouseButton and event.pressed:
-			print("Bag: Inventory dialog background received mouse input at", event.position, "event type:", event.get_class())
-			print("Bag: Inventory dialog background z_index:", background.z_index)
 			close_inventory()
 	)
 	dialog.add_child(background)
@@ -537,19 +529,14 @@ func create_card_display(card_data: CardData, count: int, clickable: bool = fals
 		hover_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		button.add_child(hover_overlay)
 		button.mouse_entered.connect(func(): 
-			print("Bag: Mouse entered TextureButton for", card_data.name)
 			hover_overlay.visible = true
 		)
 		button.mouse_exited.connect(func(): 
-			print("Bag: Mouse exited TextureButton for", card_data.name)
 			hover_overlay.visible = false
 		)
 		# Add debug output to see if the button is being clicked
 		button.gui_input.connect(func(event):
-			print("Bag: Button gui_input event for", card_data.name, "event type:", event.get_class())
 			if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-				print("Bag: Button gui_input received for", card_data.name, "at position", event.position)
-				print("Bag: Button pressed - calling _on_card_button_pressed")
 				_on_card_button_pressed(card_data)
 		)
 		
@@ -558,7 +545,6 @@ func create_card_display(card_data: CardData, count: int, clickable: bool = fals
 		
 		# Also connect the pressed signal as a fallback
 		button.pressed.connect(func():
-			print("Bag: Button pressed signal triggered for", card_data.name)
 			_on_card_button_pressed(card_data)
 		)
 		print("Bag: Button created successfully for", card_data.name)
@@ -731,7 +717,6 @@ func show_replacement_confirmation(card_to_replace: CardData):
 	# Add fallback input handling
 	yes_button.gui_input.connect(func(event):
 		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-			print("Bag: Yes button gui_input received")
 			_on_confirm_replacement(card_to_replace)
 	)
 	button_container.add_child(yes_button)
@@ -746,7 +731,6 @@ func show_replacement_confirmation(card_to_replace: CardData):
 	# Add fallback input handling
 	no_button.gui_input.connect(func(event):
 		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-			print("Bag: No button gui_input received")
 			_on_cancel_replacement_confirmation()
 	)
 	button_container.add_child(no_button)
@@ -872,12 +856,9 @@ func get_deck_size() -> int:
 
 func get_current_deck() -> Array[CardData]:
 	"""Get the current deck from CurrentDeckManager"""
-	print("Bag: Looking for CurrentDeckManager in scene:", get_tree().current_scene.name)
 	var current_deck_manager = get_tree().current_scene.get_node_or_null("CurrentDeckManager")
 	if current_deck_manager:
-		print("Bag: CurrentDeckManager found!")
 		var deck = current_deck_manager.get_current_deck()
-		print("Bag: CurrentDeckManager found, deck size:", deck.size())
 		return deck
 	else:
 		print("Bag: CurrentDeckManager not found! Available nodes:")
@@ -918,10 +899,8 @@ func create_equipment_display(equipment_data: EquipmentData, clickable: bool = f
 	var image_rect = TextureRect.new()
 	if equipment_data.is_clothing and equipment_data.display_image != null:
 		image_rect.texture = equipment_data.display_image
-		print("Bag: Using display_image for", equipment_data.name)
 	else:
 		image_rect.texture = equipment_data.image
-		print("Bag: Using regular image for", equipment_data.name, "is_clothing:", equipment_data.is_clothing, "display_image null:", equipment_data.display_image == null)
 	# Adjust size and position based on equipment type - clothing items need different sizing
 	if equipment_data.is_clothing:
 		image_rect.size = Vector2(50, 50)  # Larger size for clothing items
@@ -1042,12 +1021,9 @@ func get_movement_cards() -> Array[CardData]:
 	"""Get all non-club cards from the current deck"""
 	var current_deck = get_current_deck()
 	var movement_cards: Array[CardData] = []
-	print("Bag: Total deck size:", current_deck.size())
 	for card in current_deck:
 		if not is_club_card(card):
 			movement_cards.append(card)
-			print("Bag: Added movement card:", card.name)
-	print("Bag: Movement cards found:", movement_cards.size())
 	return movement_cards
 
 func get_club_cards() -> Array[CardData]:
@@ -1058,9 +1034,7 @@ func get_club_cards() -> Array[CardData]:
 	for card in current_deck:
 		if is_club_card(card):
 			club_cards.append(card)
-			print("Bag: Added club card:", card.name)
 	
-	print("Bag: Club cards found:", club_cards.size())
 	return club_cards
 
 func _exit_tree():
@@ -1271,7 +1245,6 @@ func show_equipment_replacement_confirmation(equipment_to_replace: EquipmentData
 	# Add fallback input handling
 	yes_button.gui_input.connect(func(event):
 		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-			print("Bag: Yes button gui_input received")
 			_on_confirm_equipment_replacement(equipment_to_replace)
 	)
 	button_container.add_child(yes_button)
@@ -1286,7 +1259,6 @@ func show_equipment_replacement_confirmation(equipment_to_replace: EquipmentData
 	# Add fallback input handling
 	no_button.gui_input.connect(func(event):
 		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-			print("Bag: No button gui_input received")
 			_on_cancel_replacement_confirmation()
 	)
 	button_container.add_child(no_button)

@@ -272,7 +272,6 @@ func _ready():
 	parallax_system = parallax_scene.instantiate()
 	background_container.add_child(parallax_system)
 	
-	print("✓ BackgroundManager initialized")
 
 func set_theme(theme_name: String) -> void:
 	"""
@@ -281,13 +280,6 @@ func set_theme(theme_name: String) -> void:
 	Parameters:
 	- theme_name: Name of the theme to use (e.g., "golf_course", "forest", "desert", "ocean")
 	"""
-	if not background_themes.has(theme_name):
-		print("⚠ BackgroundManager: Theme '", theme_name, "' not found!")
-		return
-	
-	if current_theme == theme_name:
-		print("✓ BackgroundManager: Theme '", theme_name, "' is already active")
-		return
 	
 	# Clear existing background layers
 	clear_current_theme()
@@ -298,15 +290,10 @@ func set_theme(theme_name: String) -> void:
 	
 	# Create background layers
 	create_theme_layers(theme_data)
-	
-	print("✓ BackgroundManager: Switched to theme '", theme_name, "'")
 	theme_changed.emit(theme_name)
 
 func create_theme_layers(theme_data: Dictionary) -> void:
 	"""Create all layers for a theme"""
-	if not theme_data.has("layers"):
-		print("⚠ BackgroundManager: Theme data missing 'layers' key")
-		return
 	
 	for layer_data in theme_data.layers:
 		create_background_layer(layer_data)
@@ -315,15 +302,10 @@ func create_background_layer(layer_data: Dictionary) -> void:
 	"""Create a single background layer"""
 	# Load texture
 	var texture_path = layer_data.get("texture_path", "")
-	if texture_path.is_empty():
-		print("⚠ BackgroundManager: Layer missing texture_path")
-		return
 	
 	# Try to load the texture
 	var texture = load(texture_path)
 	if not texture:
-		print("⚠ BackgroundManager: Could not load texture: ", texture_path)
-		# Create a fallback colored rectangle
 		texture = create_fallback_texture(layer_data.get("name", "Unknown"))
 	
 	# Create sprite
@@ -350,9 +332,6 @@ func create_background_layer(layer_data: Dictionary) -> void:
 	var custom_base_position = Vector2.ZERO
 	if layer_data.has("custom_y_position"):
 		custom_base_position = Vector2(0, layer_data.get("custom_y_position"))
-		print("✓ Using custom Y position for ", sprite.name, ": ", custom_base_position.y)
-	else:
-		print("⚠ No custom Y position for ", sprite.name, " - using default")
 	
 	parallax_system.add_background_layer(
 		sprite,
@@ -362,10 +341,6 @@ func create_background_layer(layer_data: Dictionary) -> void:
 		custom_base_position
 	)
 	
-	print("✓ Created background layer: ", sprite.name, " at position: ", sprite.position, " with z_index: ", sprite.z_index)
-	print("  - Texture size: ", texture.get_size() if texture else "None")
-	print("  - Scale: ", sprite.scale)
-	print("  - Screen size: ", screen_size)
 
 func create_fallback_texture(layer_name: String) -> Texture2D:
 	"""Create a fallback texture when the real texture can't be loaded"""
@@ -448,37 +423,12 @@ func get_background_info() -> Dictionary:
 
 func debug_background_layers() -> void:
 	"""Debug function to print information about all background layers"""
-	print("=== BACKGROUND LAYERS DEBUG ===")
-	if not parallax_system:
-		print("No parallax system found!")
-		return
 	
 	var layers = parallax_system.get_layer_info()
-	print("Total layers: ", layers.size())
 	
-	for layer_info in layers:
-		print("Layer: ", layer_info.name)
-		print("  - Position: ", layer_info.position)
-		print("  - Original parallax factor: ", layer_info.original_parallax_factor)
-		print("  - Effective parallax factor: ", layer_info.effective_parallax_factor)
-		print("  - Texture size: ", layer_info.texture_size)
-		print("  - Layer index: ", layer_info.index)
-		print("  - Is TreeLine: ", layer_info.is_tree_line)
-		print("---")
 	
-	# Also show actual sprites found
-	print("=== ACTUAL SPRITES FOUND ===")
-	var sprites = find_all_sprites(parallax_system)
-	print("Found ", sprites.size(), " sprites:")
-	for sprite in sprites:
-		print("  - ", sprite.name, " at position: ", sprite.position, " scale: ", sprite.scale, " visible: ", sprite.visible)
-	print("=== END DEBUG ===")
-
 func adjust_layer_position(layer_name: String, new_position: Vector2) -> void:
 	"""Manually adjust the position of a specific layer"""
-	if not parallax_system:
-		print("No parallax system found!")
-		return
 	
 	# Find the sprite by searching through children recursively
 	var sprite = find_sprite_by_name(parallax_system, layer_name)
@@ -490,10 +440,6 @@ func adjust_layer_position(layer_name: String, new_position: Vector2) -> void:
 		if parallax_system.has_method("update_layer_base_position"):
 			parallax_system.update_layer_base_position(layer_name, new_position)
 		
-		print("✓ Adjusted ", layer_name, " to position: ", new_position)
-	else:
-		print("⚠ Layer not found: ", layer_name)
-
 func find_sprite_by_name(node: Node, name: String) -> Sprite2D:
 	"""Recursively find a sprite by name"""
 	for child in node.get_children():
@@ -507,15 +453,10 @@ func find_sprite_by_name(node: Node, name: String) -> Sprite2D:
 
 func adjust_all_layers_position(offset: Vector2) -> void:
 	"""Adjust all layers by a specific offset"""
-	if not parallax_system:
-		print("No parallax system found!")
-		return
-	
 	# Find all sprites recursively and adjust their positions
 	var sprites = find_all_sprites(parallax_system)
 	for sprite in sprites:
 		sprite.position += offset
-		print("✓ Adjusted ", sprite.name, " by offset: ", offset, " (new pos: ", sprite.position, ")")
 
 func find_all_sprites(node: Node) -> Array:
 	"""Recursively find all sprites"""
@@ -529,29 +470,18 @@ func find_all_sprites(node: Node) -> Array:
 
 func set_layer_scale(layer_name: String, new_scale: Vector2) -> void:
 	"""Manually adjust the scale of a specific layer"""
-	if not parallax_system:
-		print("No parallax system found!")
-		return
 	
 	# Find the sprite by searching through children recursively
 	var sprite = find_sprite_by_name(parallax_system, layer_name)
 	if sprite:
 		sprite.scale = new_scale
-		print("✓ Set ", layer_name, " scale to: ", new_scale)
-	else:
-		print("⚠ Layer not found: ", layer_name)
-
+		
 func reset_layer_offsets() -> void:
 	"""Reset all layer offsets (useful when camera is repositioned)"""
 	if parallax_system and parallax_system.has_method("reset_layer_offsets"):
 		parallax_system.reset_layer_offsets()
-		print("✓ Reset all layer offsets via BackgroundManager")
-	else:
-		print("⚠ Cannot reset layer offsets - parallax system not available")
 
 func reset_layer_offset(layer_name: String) -> void:
 	"""Reset the offset for a specific layer"""
 	if parallax_system and parallax_system.has_method("reset_layer_offset"):
 		parallax_system.reset_layer_offset(layer_name)
-	else:
-		print("⚠ Cannot reset layer offset - parallax system not available") 

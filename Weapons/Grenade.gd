@@ -84,7 +84,6 @@ func _ready():
 
 # Call this to launch the grenade
 func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, spin_strength_category: int = 0):
-	print("Grenade: launch called with power:", power, " height:", height, " direction:", direction)
 	# Reset state for new throw
 	has_hit_target = false
 	target_hit = false
@@ -407,10 +406,6 @@ func _find_course_script() -> Node:
 func _process(delta):
 	if landed_flag or exploded_flag:
 		return
-	
-	# Debug: Print velocity and height every 60 frames (once per second at 60 FPS)
-	if Engine.get_process_frames() % 60 == 0:
-		print("Grenade: velocity:", velocity, " z:", z, " vz:", vz, " landed_flag:", landed_flag)
 	
 	# Apply progressive height resistance during flight
 	if is_applying_height_resistance and z > 0.0:
