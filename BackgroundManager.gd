@@ -167,11 +167,11 @@ var background_themes = {
 				"name": "Horizon",
 				"texture_path": "res://Backgrounds/horizon.png",
 				"parallax_factor": 6.5,  # Same as mountains
-				"z_index": -245,
-				"scale": Vector2(2.0, 1.0),
+				"z_index": -266,
+				"scale": Vector2(100.0, 100.0),
 				"repeat_horizontal": true,
 				"repeat_vertical": false,
-				"custom_y_position": -1500  # Same Y position as mountains
+				"custom_y_position": 2535  # Same Y position as mountains
 			},
 			{
 				"name": "DistantHill",
@@ -210,7 +210,7 @@ var background_themes = {
 				"scale": Vector2(1.3, 1.0),
 				"repeat_horizontal": true,
 				"repeat_vertical": false,
-				"custom_y_position": -1600  # Override Y position
+				"custom_y_position": -1700  # Override Y position
 			},
 			{
 				"name": "TreeLine3",
