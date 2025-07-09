@@ -69,6 +69,13 @@ var ragdoll_landing_position: Vector2i  # Where the player will land after ragdo
 # Performance optimization - Y-sort only when moving
 # No camera tracking needed since camera panning doesn't affect Y-sort in 2.5D
 
+# Footstep sound system
+var footsteps_grass_sound: AudioStreamPlayer2D = null
+var footsteps_snow_sound: AudioStreamPlayer2D = null
+var footstep_sound_enabled: bool = true
+var last_footstep_time: float = 0.0
+var footstep_interval: float = 0.3  # Time between footstep sounds during movement
+
 func _ready():
 	print("=== PLAYER _READY STARTED ===")
 	print("🚨 PLAYER _READY FUNCTION CALLED! 🚨")
@@ -106,6 +113,9 @@ func _ready():
 	print("🚨 ABOUT TO CALL _setup_punchb_animation() 🚨")
 	_setup_punchb_animation()
 	print("🚨 FINISHED CALLING _setup_punchb_animation() 🚨")
+	
+	# Setup footstep sound system
+	_setup_footstep_sounds()
 	
 	print("[Player.gd] Player ready with health:", current_health, "/", max_health)
 	
@@ -722,6 +732,9 @@ func _animate_movement_to_position(target_world_pos: Vector2, ysort_objects: Arr
 	if movement_tween and movement_tween.is_valid():
 		movement_tween.kill()
 	
+	# Play footstep sound right before movement starts
+	_play_footstep_sound_before_movement()
+	
 	# Create new tween for movement
 	movement_tween = create_tween()
 	movement_tween.set_trans(Tween.TRANS_QUAD)
@@ -1032,6 +1045,9 @@ func _animate_pushback_to_position(target_world_pos: Vector2, ysort_objects: Arr
 	# Stop any existing movement tween
 	if movement_tween and movement_tween.is_valid():
 		movement_tween.kill()
+	
+	# Play footstep sound right before pushback starts
+	_play_footstep_sound_before_movement()
 	
 	# Create new tween for pushback (slightly faster than normal movement)
 	var pushback_duration = movement_duration * 0.7  # 70% of normal movement duration
@@ -1547,3 +1563,115 @@ func animate_to_position(target_grid_pos: Vector2i, callback: Callable = Callabl
 		movement_tween.tween_callback(callback)
 	
 	print("✓ Player movement animation started (duration:", animation_duration, "s)")
+
+func _setup_footstep_sounds() -> void:
+	"""Setup the footstep sound system"""
+	print("=== SETTING UP FOOTSTEP SOUNDS ===")
+	
+	# Find the footstep sound nodes
+	footsteps_grass_sound = get_node_or_null("FootstepsGrass")
+	footsteps_snow_sound = get_node_or_null("FootstepsSnow")
+	
+	if footsteps_grass_sound:
+		print("✓ Found FootstepsGrass sound node")
+	else:
+		print("⚠ FootstepsGrass sound node not found")
+	
+	if footsteps_snow_sound:
+		print("✓ Found FootstepsSnow sound node")
+	else:
+		print("⚠ FootstepsSnow sound node not found")
+	
+	print("=== FOOTSTEP SOUNDS SETUP COMPLETE ===")
+
+func _play_footstep_sound_before_movement() -> void:
+	"""Play footstep sound right before movement starts"""
+	if not footstep_sound_enabled:
+		return
+	
+	# Get the current tile type at the player's position
+	var tile_type = _get_current_tile_type()
+	
+	# Play appropriate footstep sound based on terrain
+	if _is_grass_tile(tile_type):
+		_play_grass_footstep()
+	elif _is_ice_or_sand_tile(tile_type):
+		_play_snow_footstep()
+	
+	# Update the last footstep time to prevent rapid successive sounds
+	last_footstep_time = Time.get_ticks_msec() / 1000.0
+
+func _play_footstep_sounds_during_movement(progress: float) -> void:
+	"""Play footstep sounds during movement animation"""
+	if not footstep_sound_enabled:
+		return
+	
+	var current_time = Time.get_ticks_msec() / 1000.0  # Convert to seconds
+	if current_time - last_footstep_time < footstep_interval:
+		return
+	
+	# Get the current tile type at the player's position
+	var tile_type = _get_current_tile_type()
+	
+	# Play appropriate footstep sound based on terrain
+	if _is_grass_tile(tile_type):
+		_play_grass_footstep()
+	elif _is_ice_or_sand_tile(tile_type):
+		_play_snow_footstep()
+	
+	last_footstep_time = current_time
+
+func _get_current_tile_type() -> String:
+	"""Get the tile type at the player's current position"""
+	var course = get_tree().current_scene
+	if not course or not course.has_node("MapManager"):
+		return "Base"  # Default to base grass
+	
+	var map_manager = course.get_node("MapManager")
+	if not map_manager or not map_manager.has_method("get_tile_type"):
+		return "Base"  # Default to base grass
+	
+	# Convert player position to grid coordinates
+	var tile_x = int(floor(global_position.x / cell_size))
+	var tile_y = int(floor(global_position.y / cell_size))
+	
+	# Check bounds
+	if tile_x < 0 or tile_y < 0 or tile_x >= map_manager.grid_width or tile_y >= map_manager.grid_height:
+		return "Base"  # Default to base grass for out of bounds
+	
+	return map_manager.get_tile_type(tile_x, tile_y)
+
+func _is_grass_tile(tile_type: String) -> bool:
+	"""Check if a tile type is considered grass (Green, Rough, Fairway, Base)"""
+	return tile_type in ["G", "R", "F", "Base"]
+
+func _is_ice_or_sand_tile(tile_type: String) -> bool:
+	"""Check if a tile type is ice or sand"""
+	return tile_type in ["Ice", "S"]
+
+func _play_grass_footstep() -> void:
+	"""Play grass footstep sound"""
+	if footsteps_grass_sound and footsteps_grass_sound.stream:
+		footsteps_grass_sound.play()
+		print("✓ Played grass footstep sound")
+
+func _play_snow_footstep() -> void:
+	"""Play snow footstep sound (for ice and sand)"""
+	if footsteps_snow_sound and footsteps_snow_sound.stream:
+		footsteps_snow_sound.play()
+		print("✓ Played snow footstep sound")
+
+func enable_footstep_sounds() -> void:
+	"""Enable footstep sound effects"""
+	footstep_sound_enabled = true
+	print("✓ Footstep sounds enabled")
+
+func disable_footstep_sounds() -> void:
+	"""Disable footstep sound effects"""
+	footstep_sound_enabled = false
+	print("✓ Footstep sounds disabled")
+
+func set_footstep_interval(interval: float) -> void:
+	"""Set the interval between footstep sounds during movement"""
+	footstep_interval = max(0.1, interval)  # Minimum 0.1 seconds
+	print("✓ Footstep interval set to:", footstep_interval, "seconds")

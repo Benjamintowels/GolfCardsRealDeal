@@ -80,8 +80,13 @@ func _on_start_back_9_pressed():
 	call_deferred("_change_to_mid_game_shop")
 
 func _change_scene():
-	# Use FadeManager for smooth transition
+	# Start fade to black first
 	FadeManager.fade_to_black(func(): get_tree().change_scene_to_file("res://Course1.tscn"), 0.5)
+	
+	# Play door sounds during the fade
+	$DoorOpen.play()
+	await $DoorOpen.finished
+	$DoorClose.play()
 
 func _change_to_mid_game_shop():
 	# Use FadeManager for smooth transition to MidGameShop

@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3 uid="uid://clxh2b81uxvtv"]
+[gd_scene load_steps=14 format=3 uid="uid://clxh2b81uxvtv"]
 
 [ext_resource type="Script" uid="uid://bkqfjhiqcwabx" path="res://Characters/Player.gd" id="1_yweqe"]
 [ext_resource type="AudioStream" uid="uid://w3sc1j80onsl" path="res://Sounds/PistolShot.mp3" id="2_5tbhv"]
@@ -11,6 +11,8 @@
 [ext_resource type="AudioStream" uid="uid://blpqyty8dxb0f" path="res://Sounds/CoffeeSip.mp3" id="9_4miur"]
 [ext_resource type="AudioStream" uid="uid://bqapw1q4hlopt" path="res://Sounds/Push.mp3" id="10_k0sgy"]
 [ext_resource type="AudioStream" uid="uid://d2envc3n4tppf" path="res://Sounds/PunchB.mp3" id="11_ceibh"]
+[ext_resource type="AudioStream" uid="uid://c32w6bjkh8ww2" path="res://Sounds/FootstepsGrass.mp3" id="12_0xqnh"]
+[ext_resource type="AudioStream" uid="uid://dl2ynh3s1er12" path="res://Sounds/FootstepsSnow.mp3" id="13_xma0y"]
 
 [node name="Player1" type="CharacterBody2D"]
 script = ExtResource("1_yweqe")
@@ -45,3 +47,9 @@ stream = ExtResource("10_k0sgy")
 [node name="PunchB" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("11_ceibh")
 volume_db = -1.465
+
+[node name="FootstepsGrass" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("12_0xqnh")
+
+[node name="FootstepsSnow" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("13_xma0y")

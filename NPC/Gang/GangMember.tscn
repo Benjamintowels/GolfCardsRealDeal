@@ -1,10 +1,12 @@
-[gd_scene load_steps=8 format=3 uid="uid://bmlicmv1hmd4j"]
+[gd_scene load_steps=10 format=3 uid="uid://bmlicmv1hmd4j"]
 
 [ext_resource type="Script" uid="uid://b3mk6wcdiwoxy" path="res://NPC/Gang/GangMember.gd" id="1_0x0x0"]
 [ext_resource type="Texture2D" uid="uid://bjwbqmbev7wya" path="res://NPC/Gang/GangMember1.png" id="2_qejoy"]
 [ext_resource type="Texture2D" uid="uid://bfkt78qwsphyl" path="res://NPC/Gang/GangMember1Dead.png" id="3_sr211"]
 [ext_resource type="AudioStream" uid="uid://clorehgdvljmk" path="res://Sounds/DeathGroan.mp3" id="4_lgk6o"]
 [ext_resource type="Texture2D" uid="uid://bf74eognikhrs" path="res://NPC/Gang/GangMember1Ice.png" id="5_hf27q"]
+[ext_resource type="AudioStream" uid="uid://c32w6bjkh8ww2" path="res://Sounds/FootstepsGrass.mp3" id="6_cmk3g"]
+[ext_resource type="AudioStream" uid="uid://dl2ynh3s1er12" path="res://Sounds/FootstepsSnow.mp3" id="7_ic6iu"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_qejoy"]
 radius = 1.30545
@@ -81,3 +83,9 @@ position = Vector2(0, -52)
 
 [node name="YSortPoint" type="Node2D" parent="GangMemberIce"]
 position = Vector2(0, 38.85)
+
+[node name="FootstepsGrass" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("6_cmk3g")
+
+[node name="FootstepsSnow" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("7_ic6iu")

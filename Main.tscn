@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3 uid="uid://wyu3udwngros"]
+[gd_scene load_steps=11 format=3 uid="uid://wyu3udwngros"]
 
 [ext_resource type="Script" uid="uid://ct4bebh7dhisi" path="res://Main.gd" id="1_r0du0"]
 [ext_resource type="Texture2D" uid="uid://dyd3f17eqkoaw" path="res://Titlescreen.png" id="2_lgr22"]
@@ -8,6 +8,8 @@
 [ext_resource type="Texture2D" uid="uid://cwdlr21pb6ap" path="res://Title.png" id="7_lgr22"]
 [ext_resource type="Script" uid="uid://cnne1a0u85wtc" path="res://current_deck_manager.gd" id="8_current_deck_manager"]
 [ext_resource type="AudioStream" uid="uid://uif6unejkcej" path="res://Sounds/Select.mp3" id="8_trn2v"]
+[ext_resource type="AudioStream" uid="uid://c4kj0vmsj7lux" path="res://Sounds/OpenDoor.mp3" id="9_wkp8b"]
+[ext_resource type="AudioStream" uid="uid://d3arwob15mnkt" path="res://Sounds/CloseDoor.mp3" id="10_20pc6"]
 
 [node name="Main" type="Control"]
 layout_mode = 3
@@ -123,6 +125,12 @@ texture = ExtResource("7_lgr22")
 
 [node name="Select" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("8_trn2v")
+
+[node name="DoorOpen" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("9_wkp8b")
+
+[node name="DoorClose" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("10_20pc6")
 
 [connection signal="pressed" from="UI/StartRoundButton" to="." method="_on_start_round_button_pressed"]
 [connection signal="pressed" from="UI/StartPuttPutt" to="." method="_on_start_putt_putt_button_pressed"]
