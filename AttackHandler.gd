@@ -132,12 +132,12 @@ func calculate_valid_attack_tiles() -> void:
 		print("Total adjacent tiles for Kick card:", valid_attack_tiles.size())
 		return
 
-	# Special case for PunchB card - show cross-shaped attack pattern (2 tiles in each direction, no corners)
-	if selected_card and selected_card.name == "PunchB":
-		print("PunchB card detected - showing cross-shaped attack pattern")
+	# Special case for Punch card - show all tiles in cross pattern regardless of content
+	if selected_card and selected_card.name == "Punch":
+		print("Punch card detected - showing all tiles in cross pattern")
 		var cross_positions = []
 		
-		# Add positions in cross pattern: up, down, left, right (2 tiles each, no corners)
+		# Add positions in cross pattern: up, down, left, right (no diagonals)
 		for distance in range(1, attack_range + 1):
 			# Up
 			var up_pos = Vector2i(player_grid_pos.x, player_grid_pos.y - distance)
@@ -159,18 +159,47 @@ func calculate_valid_attack_tiles() -> void:
 			if right_pos.x < grid_size.x:
 				cross_positions.append(right_pos)
 		
-		# Check each cross position for valid targets
+		# Add all cross positions to valid attack tiles (regardless of content)
 		for pos in cross_positions:
-			# Check if there's an NPC at this position
-			if has_npc_at_position(pos):
-				valid_attack_tiles.append(pos)
-				print("Found valid PunchB attack tile at:", pos)
-			# Check if there's an oil drum at this position
-			elif has_oil_drum_at_position(pos):
-				valid_attack_tiles.append(pos)
-				print("Found oil drum at PunchB attack tile:", pos)
+			valid_attack_tiles.append(pos)
+			print("Added cross pattern tile for Punch card at:", pos)
 		
-		print("Total valid PunchB attack tiles found:", valid_attack_tiles.size())
+		print("Total cross pattern tiles for Punch card:", valid_attack_tiles.size())
+		return
+
+	# Special case for PunchB card - show all tiles in cross pattern regardless of content
+	if selected_card and selected_card.name == "PunchB":
+		print("PunchB card detected - showing all tiles in cross pattern")
+		var cross_positions = []
+		
+		# Add positions in cross pattern: up, down, left, right (no diagonals)
+		for distance in range(1, attack_range + 1):
+			# Up
+			var up_pos = Vector2i(player_grid_pos.x, player_grid_pos.y - distance)
+			if up_pos.y >= 0:
+				cross_positions.append(up_pos)
+			
+			# Down
+			var down_pos = Vector2i(player_grid_pos.x, player_grid_pos.y + distance)
+			if down_pos.y < grid_size.y:
+				cross_positions.append(down_pos)
+			
+			# Left
+			var left_pos = Vector2i(player_grid_pos.x - distance, player_grid_pos.y)
+			if left_pos.x >= 0:
+				cross_positions.append(left_pos)
+			
+			# Right
+			var right_pos = Vector2i(player_grid_pos.x + distance, player_grid_pos.y)
+			if right_pos.x < grid_size.x:
+				cross_positions.append(right_pos)
+		
+		# Add all cross positions to valid attack tiles (regardless of content)
+		for pos in cross_positions:
+			valid_attack_tiles.append(pos)
+			print("Added cross pattern tile for PunchB card at:", pos)
+		
+		print("Total cross pattern tiles for PunchB card:", valid_attack_tiles.size())
 		return
 
 	# DEBUG: Print all oil drum grid positions
