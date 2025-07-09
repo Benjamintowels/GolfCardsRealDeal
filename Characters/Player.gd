@@ -752,10 +752,10 @@ func _animate_movement_to_position(target_world_pos: Vector2, ysort_objects: Arr
 		var movement_controller = course.get_movement_controller()
 		if movement_controller and movement_controller.has_method("get_selected_card"):
 			var selected_card = movement_controller.get_selected_card()
-			# Check if the course has RooBoost active for the next movement card
-			if course.next_movement_card_rooboost:
+			# Only apply RooBoost effect if we're in movement mode (i.e., a movement card is selected)
+			if selected_card and course.next_movement_card_rooboost:
 				should_jump = true
-				print("✓ RooBoost effect detected - using jump animation")
+				print("✓ RooBoost effect detected - using jump animation for movement card:", selected_card.name)
 	
 	if should_jump:
 		_animate_jump_to_position(target_world_pos, ysort_objects, shop_grid_pos)
@@ -926,7 +926,7 @@ func check_jump_collisions() -> void:
 				return
 			
 			# Check for NPC collisions
-			if object.has_method("_handle_ball_collision") and object.name.contains("GangMember"):
+			if object.has_method("_handle_ball_collision") and (object.name.contains("GangMember") or object.name.contains("Police")):
 				print("Jump landing on NPC detected")
 				_handle_jump_npc_landing(object)
 				return
@@ -949,6 +949,19 @@ func _handle_jump_wall_collision(wall: Node2D) -> void:
 	var grid_y = floor((bounce_target.y - cell_size / 2) / cell_size)
 	var bounce_grid_pos = Vector2i(grid_x, grid_y)
 	
+	# Validate grid position bounds (0 to grid_size-1 for both x and y)
+	var course = get_tree().current_scene
+	if course and "grid_size" in course:
+		var grid_size = course.grid_size
+		bounce_grid_pos.x = clamp(bounce_grid_pos.x, 0, grid_size.x - 1)
+		bounce_grid_pos.y = clamp(bounce_grid_pos.y, 0, grid_size.y - 1)
+		print("✓ Grid position clamped to valid bounds:", bounce_grid_pos)
+	else:
+		# Fallback bounds checking if course reference not available
+		bounce_grid_pos.x = clamp(bounce_grid_pos.x, 0, 49)  # Default 50x50 grid
+		bounce_grid_pos.y = clamp(bounce_grid_pos.y, 0, 49)
+		print("✓ Grid position clamped to fallback bounds:", bounce_grid_pos)
+	
 	# Update player position and continue jump to bounce target
 	grid_pos = bounce_grid_pos
 	var bounce_world_pos = Vector2(bounce_grid_pos.x, bounce_grid_pos.y) * cell_size + Vector2(cell_size / 2, cell_size / 2)
@@ -967,33 +980,266 @@ func _handle_jump_npc_landing(npc: Node2D) -> void:
 	"""Handle landing on NPC during jump - player roof bounces off NPC"""
 	print("=== HANDLING JUMP NPC LANDING ===")
 	
-	# Calculate roof bounce direction (away from NPC)
-	var npc_center = npc.global_position
-	var player_pos = global_position
-	var bounce_direction = (player_pos - npc_center).normalized()
+	# Get the direction the player was jumping (from current position to target)
+	var course = get_tree().current_scene
+	if not course:
+		print("⚠ No course reference found for NPC landing")
+		return
 	
-	# Calculate roof bounce distance (up to 2 tiles away from NPC)
-	var bounce_distance = 96.0  # 2 tiles * 48 pixels
-	var bounce_target = npc_center + (bounce_direction * bounce_distance)
+	# Calculate the jump direction based on the player's movement
+	var jump_direction = Vector2i.ZERO
+	if jump_tween and jump_tween.is_valid():
+		# Get the target position from the current jump
+		var target_pos = position + (velocity if "velocity" in self else Vector2.ZERO)
+		var direction = (target_pos - global_position).normalized()
+		jump_direction = Vector2i(sign(direction.x), sign(direction.y))
+	else:
+		# Fallback: calculate direction from player to NPC center
+		var npc_center = npc.global_position
+		var player_pos = global_position
+		var direction = (player_pos - npc_center).normalized()
+		jump_direction = Vector2i(sign(direction.x), sign(direction.y))
 	
-	# Convert to grid position
-	var grid_x = floor((bounce_target.x - cell_size / 2) / cell_size)
-	var grid_y = floor((bounce_target.y - cell_size / 2) / cell_size)
-	var bounce_grid_pos = Vector2i(grid_x, grid_y)
+	print("Jump direction:", jump_direction)
 	
-	# Update player position and continue jump to bounce target
-	grid_pos = bounce_grid_pos
-	var bounce_world_pos = Vector2(bounce_grid_pos.x, bounce_grid_pos.y) * cell_size + Vector2(cell_size / 2, cell_size / 2)
+	# Get NPC's grid position
+	var npc_grid_pos = Vector2i.ZERO
+	if npc.has_method("get_grid_position"):
+		npc_grid_pos = npc.get_grid_position()
+	else:
+		# Fallback: calculate NPC grid position from world position
+		var npc_center = npc.global_position
+		npc_grid_pos = Vector2i(floor((npc_center.x - cell_size / 2) / cell_size), floor((npc_center.y - cell_size / 2) / cell_size))
 	
-	# Continue jump to bounce target
+	print("NPC grid position:", npc_grid_pos)
+	
+	# Calculate ideal landing position (2 tiles behind NPC in jump direction)
+	var ideal_landing_pos = npc_grid_pos + (jump_direction * 2)
+	print("Ideal landing position:", ideal_landing_pos)
+	
+	# Try to find a valid landing position
+	var final_landing_pos = _find_valid_landing_position(ideal_landing_pos, course)
+	
+	# Update player position and continue jump to landing target
+	grid_pos = final_landing_pos
+	var landing_world_pos = Vector2(final_landing_pos.x, final_landing_pos.y) * cell_size + Vector2(cell_size / 2, cell_size / 2)
+	
+	# Create a special roof bounce animation that aligns Feet with NPC TopHeight
+	_animate_roof_bounce_to_position(landing_world_pos, npc)
+	
+	print("✓ Player roof bounced off NPC to position:", final_landing_pos)
+
+func _animate_roof_bounce_to_position(target_world_pos: Vector2, npc: Node2D) -> void:
+	"""Animate the player's roof bounce with Feet marker alignment"""
+	print("=== STARTING ROOF BOUNCE ANIMATION ===")
+	
+	# Stop any existing jump tween
 	if jump_tween and jump_tween.is_valid():
 		jump_tween.kill()
 	
+	# Get the Feet marker
+	var feet_marker = get_node_or_null("Feet")
+	if not feet_marker:
+		print("⚠ Feet marker not found, using normal bounce animation")
+		# Fallback to normal bounce animation
+		jump_tween = create_tween()
+		jump_tween.tween_property(self, "position", target_world_pos, jump_duration * 0.5)
+		jump_tween.tween_callback(_on_jump_completed)
+		return
+	
+	# Get the NPC's TopHeight marker
+	var npc_top_height = npc.get_node_or_null("TopHeight")
+	if not npc_top_height:
+		print("⚠ NPC TopHeight marker not found, using normal bounce animation")
+		# Fallback to normal bounce animation
+		jump_tween = create_tween()
+		jump_tween.tween_property(self, "position", target_world_pos, jump_duration * 0.5)
+		jump_tween.tween_callback(_on_jump_completed)
+		return
+	
+	print("✓ Found Feet marker and NPC TopHeight marker")
+	
+	# Calculate the height difference to align Feet with TopHeight
+	var feet_world_pos = feet_marker.global_position
+	var npc_top_world_pos = npc_top_height.global_position
+	var height_difference = npc_top_world_pos.y - feet_world_pos.y
+	
+	print("Feet world position:", feet_world_pos)
+	print("NPC TopHeight world position:", npc_top_world_pos)
+	print("Height difference to align:", height_difference)
+	
+	# Play BallHop sound for roof bounce
+	if ballhop_sound and ballhop_sound.stream:
+		ballhop_sound.play()
+		print("✓ Playing BallHop sound for roof bounce")
+	
+	# Create roof bounce animation with vertical boost
 	jump_tween = create_tween()
-	jump_tween.tween_property(self, "position", bounce_world_pos, jump_duration * 0.5)  # Faster bounce
+	jump_tween.set_trans(Tween.TRANS_QUAD)
+	jump_tween.set_ease(Tween.EASE_OUT)
+	
+	# Phase 1: Move to NPC position and align Feet with TopHeight
+	var npc_center = npc.global_position
+	var bounce_duration = jump_duration * 0.5  # Faster bounce
+	
+	# Calculate the position where Feet will align with TopHeight
+	var alignment_pos = npc_center
+	alignment_pos.y += height_difference  # Adjust for height alignment
+	
+	print("Alignment position (Feet meets TopHeight):", alignment_pos)
+	
+	# Move to alignment position
+	jump_tween.tween_property(self, "position", alignment_pos, bounce_duration * 0.4)
+	
+	# Phase 2: Add vertical boost (smaller than original jump)
+	var boost_height = jump_height * 0.4  # 40% of original jump height
+	var boost_duration = bounce_duration * 0.3
+	
+	# Calculate boost position (slightly above alignment position)
+	var boost_pos = alignment_pos
+	boost_pos.y -= boost_height
+	
+	print("Boost position (vertical boost):", boost_pos)
+	print("Boost height:", boost_height, "pixels")
+	
+	# Animate vertical boost
+	jump_tween.tween_property(self, "position", boost_pos, boost_duration)
+	
+	# Phase 3: Continue to final landing position
+	jump_tween.tween_property(self, "position", target_world_pos, bounce_duration * 0.3).set_delay(bounce_duration * 0.7)
+	
+	# Animate character sprite during roof bounce
+	var char_sprite = get_character_sprite()
+	if char_sprite:
+		# Animate sprite height during boost
+		jump_tween.parallel().tween_method(_update_roof_bounce_height, 0.0, 1.0, bounce_duration)
+	
+	# Update Y-sorting during bounce
+	jump_tween.tween_callback(update_z_index_for_ysort.bind([], Vector2i.ZERO))
+	
+	# Update camera position during bounce
+	jump_tween.tween_method(_update_camera_during_movement, 0.0, 1.0, bounce_duration)
+	
+	# When bounce completes
 	jump_tween.tween_callback(_on_jump_completed)
 	
-	print("✓ Player roof bounced off NPC to position:", bounce_grid_pos)
+	print("✓ Roof bounce animation started - Feet will align with NPC TopHeight + vertical boost")
+
+func _update_roof_bounce_height(progress: float) -> void:
+	"""Update the player's height during roof bounce animation"""
+	var char_sprite = get_character_sprite()
+	if not char_sprite:
+		return
+	
+	# Calculate boost height using a parabolic curve
+	var height_progress = 0.0
+	if progress <= 0.4:
+		# Going up to alignment (0.0 to 0.4)
+		height_progress = 0.0  # Stay at ground level
+	elif progress <= 0.7:
+		# Going up for boost (0.4 to 0.7)
+		var boost_progress = (progress - 0.4) / 0.3  # 0.0 to 1.0
+		height_progress = boost_progress
+	else:
+		# Coming down (0.7 to 1.0)
+		var fall_progress = (progress - 0.7) / 0.3  # 0.0 to 1.0
+		height_progress = 1.0 - fall_progress
+	
+	# Apply height to sprite position only (shadow stays on ground)
+	var boost_offset = jump_height * 0.4 * height_progress  # 40% of original jump height
+	char_sprite.position.y = SPRITE_GROUND_Y - boost_offset  # Start and end at -43.72
+	
+	# Update shadow scale and opacity based on height
+	if shadow_sprite:
+		var min_shadow_scale = 0.7  # Not as small as full jump
+		var max_shadow_scale = 1.0  # Full size on ground
+		var min_shadow_alpha = 0.2  # Not as transparent as full jump
+		var max_shadow_alpha = 0.4  # Most opaque on ground
+		
+		var shadow_scale = lerp(max_shadow_scale, min_shadow_scale, height_progress)
+		var shadow_alpha = lerp(max_shadow_alpha, min_shadow_alpha, height_progress)
+		
+		# Keep shadow on ground but change its scale and opacity
+		shadow_sprite.scale = Vector2(1.815, 0.756) * shadow_scale
+		shadow_sprite.modulate = Color(0, 0, 0, shadow_alpha)
+		shadow_sprite.position.y = -4  # Keep shadow at ground level
+
+func _find_valid_landing_position(ideal_pos: Vector2i, course: Node) -> Vector2i:
+	"""Find a valid landing position, starting with ideal position and falling back to adjacent tiles"""
+	var grid_size = course.grid_size if "grid_size" in course else Vector2i(50, 50)
+	var obstacle_map = course.obstacle_map if "obstacle_map" in course else {}
+	
+	# First, try the ideal position
+	if _is_position_valid_for_landing(ideal_pos, grid_size, obstacle_map):
+		print("✓ Ideal landing position is valid:", ideal_pos)
+		return ideal_pos
+	
+	print("⚠ Ideal landing position not valid, trying adjacent positions")
+	
+	# Try adjacent positions in order of preference (prioritizing the jump direction)
+	var adjacent_positions = []
+	
+	# Add positions in the jump direction first (if we can determine it)
+	var jump_direction = ideal_pos - Vector2i(floor(global_position.x / cell_size), floor(global_position.y / cell_size))
+	if jump_direction != Vector2i.ZERO:
+		# Normalize jump direction
+		jump_direction.x = sign(jump_direction.x)
+		jump_direction.y = sign(jump_direction.y)
+		
+		# Add positions in jump direction first
+		for i in range(1, 4):  # Try 1-3 tiles in jump direction
+			var pos = ideal_pos + (jump_direction * i)
+			if _is_position_valid_for_landing(pos, grid_size, obstacle_map):
+				adjacent_positions.append(pos)
+	
+	# Add all adjacent positions (up, right, down, left, diagonals)
+	var directions = [
+		Vector2i(0, -1), Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, 0),  # Cardinal directions
+		Vector2i(1, -1), Vector2i(1, 1), Vector2i(-1, -1), Vector2i(-1, 1)  # Diagonal directions
+	]
+	
+	for direction in directions:
+		var pos = ideal_pos + direction
+		if _is_position_valid_for_landing(pos, grid_size, obstacle_map) and pos not in adjacent_positions:
+			adjacent_positions.append(pos)
+	
+	# Return the first valid adjacent position, or the ideal position if none found
+	if adjacent_positions.size() > 0:
+		print("✓ Found valid adjacent landing position:", adjacent_positions[0])
+		return adjacent_positions[0]
+	else:
+		print("⚠ No valid adjacent positions found, using ideal position with bounds clamping")
+		# Clamp to bounds as last resort
+		var clamped_pos = Vector2i(
+			clamp(ideal_pos.x, 0, grid_size.x - 1),
+			clamp(ideal_pos.y, 0, grid_size.y - 1)
+		)
+		return clamped_pos
+
+func _is_position_valid_for_landing(pos: Vector2i, grid_size: Vector2i, obstacle_map: Dictionary) -> bool:
+	"""Check if a position is valid for landing (within bounds and not blocked)"""
+	# Check bounds
+	if pos.x < 0 or pos.y < 0 or pos.x >= grid_size.x or pos.y >= grid_size.y:
+		return false
+	
+	# Check if position is blocked by obstacle
+	if obstacle_map.has(pos):
+		var obstacle = obstacle_map[pos]
+		if obstacle and obstacle.has_method("blocks") and obstacle.blocks():
+			return false
+	
+	# Check if position is occupied by NPC
+	var course = get_tree().current_scene
+	if course and course.has_node("Entities"):
+		var entities = course.get_node("Entities")
+		if entities and entities.has_method("get_npcs"):
+			var npcs = entities.get_npcs()
+			for npc in npcs:
+				if is_instance_valid(npc) and npc.has_method("get_grid_position"):
+					if npc.get_grid_position() == pos:
+						return false
+	
+	return true
 
 func _update_camera_during_movement(progress: float) -> void:
 	"""Update camera position during movement animation"""

@@ -110,7 +110,7 @@ animations = [{
 }],
 "loop": true,
 "name": &"Punch",
-"speed": 30.0
+"speed": 20.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -188,6 +188,8 @@ position = Vector2(0, 38.72)
 
 [node name="TopHeight" type="Marker2D" parent="."]
 position = Vector2(0, -87)
+
+[node name="Feet" type="Marker2D" parent="."]
 
 [node name="Area2D" type="Area2D" parent="."]
 position = Vector2(0, -43.72)

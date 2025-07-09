@@ -296,6 +296,8 @@ func handle_teleport_effect(card: CardData):
 	
 	# Remove only the specific card button, not the entire hand
 	remove_specific_card_button(card)
+	
+	print("Teleport complete - player can continue their turn")
 
 func handle_draw_effect(card: CardData):
 	"""Handle Draw effect cards - draw additional cards from action deck"""

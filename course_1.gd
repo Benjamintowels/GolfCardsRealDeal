@@ -1561,6 +1561,11 @@ func exit_movement_mode() -> void:
 	update_deck_display()
 
 func _on_end_turn_pressed() -> void:
+	"""Called when the end turn button is pressed"""
+	_end_turn_logic()
+
+func _end_turn_logic() -> void:
+	"""Core logic for ending a turn - can be called programmatically"""
 	if movement_controller.is_in_movement_mode():
 		exit_movement_mode()
 	if attack_handler.is_in_attack_mode():

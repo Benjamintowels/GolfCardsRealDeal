@@ -296,6 +296,13 @@ func _reflect_projectile(projectile: Node2D):
 	elif "velocity" in projectile:
 		projectile.velocity = reflected_velocity
 
+func _handle_ball_collision(ball: Node2D) -> void:
+	"""Handle collision with a ball - called by collision system"""
+	# This method is required for the player's jump roof bounce system
+	# The actual collision logic is handled in _handle_area_collision
+	# This method just ensures the Police can be detected by the jump system
+	_handle_area_collision(ball)
+
 func _find_player_reference() -> void:
 	"""Find the player reference in the scene"""
 	# First try to find the player by name
