@@ -1,10 +1,12 @@
-[gd_scene load_steps=10 format=3 uid="uid://dtn34r0e0vp1n"]
+[gd_scene load_steps=12 format=3 uid="uid://dtn34r0e0vp1n"]
 
 [ext_resource type="Texture2D" uid="uid://loxybh6wjyek" path="res://NPC/Police/Police.png" id="1_66atq"]
 [ext_resource type="Script" uid="uid://b2vh361gg66dc" path="res://NPC/Police/police.gd" id="1_a7p3e"]
 [ext_resource type="Texture2D" uid="uid://bqc1y7rc0dcof" path="res://NPC/Police/PoliceAim.png" id="2_2oo07"]
+[ext_resource type="Texture2D" uid="uid://dd3ksqk8qssje" path="res://NPC/Police/PoliceAimUp.png" id="4_4gq8i"]
 [ext_resource type="AudioStream" uid="uid://w3sc1j80onsl" path="res://Sounds/PistolShot.mp3" id="4_7xmow"]
 [ext_resource type="AudioStream" uid="uid://clorehgdvljmk" path="res://Sounds/DeathGroan.mp3" id="5_6xobc"]
+[ext_resource type="Texture2D" uid="uid://5rwoofm57rvl" path="res://NPC/Police/PoliceAimDown.png" id="5_y4jqk"]
 [ext_resource type="Texture2D" uid="uid://y7aaku2h7xgf" path="res://NPC/Police/PoliceDead.png" id="6_fvdg8"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_2oo07"]
@@ -28,11 +30,23 @@ texture = ExtResource("1_66atq")
 [node name="YSortPoint" type="Node2D" parent="Police"]
 position = Vector2(0, 43)
 
-[node name="PoliceAim" type="Sprite2D" parent="."]
+[node name="PoliceAimLeftRight" type="Sprite2D" parent="."]
 visible = false
 texture_filter = 1
 position = Vector2(15, -49)
 texture = ExtResource("2_2oo07")
+
+[node name="PoliceAimUp" type="Sprite2D" parent="."]
+visible = false
+texture_filter = 1
+position = Vector2(3, -48)
+texture = ExtResource("4_4gq8i")
+
+[node name="PoliceAimDown" type="Sprite2D" parent="."]
+visible = false
+texture_filter = 1
+position = Vector2(1, -49)
+texture = ExtResource("5_y4jqk")
 
 [node name="BaseCollisionArea" type="Area2D" parent="."]
 position = Vector2(3, 0)
@@ -74,3 +88,6 @@ shape = SubResource("CircleShape2D_fvdg8")
 
 [node name="DeadTopHeight" type="Marker2D" parent="Dead"]
 position = Vector2(0, -5)
+
+[node name="BulletOrigin" type="Marker2D" parent="."]
+position = Vector2(2, -50)

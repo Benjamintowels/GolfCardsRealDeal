@@ -6,7 +6,9 @@ extends CharacterBody2D
 signal turn_completed
 
 @onready var police_sprite: Sprite2D = $Police
-@onready var police_aim_sprite: Sprite2D = $PoliceAim
+@onready var police_aim_leftright_sprite: Sprite2D = $PoliceAimLeftRight
+@onready var police_aim_up_sprite: Sprite2D = $PoliceAimUp
+@onready var police_aim_down_sprite: Sprite2D = $PoliceAimDown
 @onready var pistol_shot_sound: AudioStreamPlayer2D = $PistolShot
 @onready var death_groan_sound: AudioStreamPlayer2D = $DeathGroan
 
@@ -23,6 +25,10 @@ var current_action: String = "idle"
 # Sprite state management
 enum SpriteState {NORMAL, AIMING, DEAD}
 var current_sprite_state: SpriteState = SpriteState.NORMAL
+
+# Aiming direction management
+enum AimDirection {LEFT_RIGHT, UP, DOWN}
+var current_aim_direction: AimDirection = AimDirection.LEFT_RIGHT
 
 # Movement animation properties
 var is_moving: bool = false
@@ -439,7 +445,7 @@ func _complete_turn() -> void:
 		is_attacking = false
 		_switch_to_normal_sprite()
 	
-	# Ensure normal sprite is visible
+	# Ensure normal sprite is visible (unless dead)
 	if not is_dead:
 		ensure_normal_sprite_visible()
 	
@@ -546,8 +552,8 @@ func _on_movement_completed() -> void:
 	is_moving = false
 	print("Police movement animation completed")
 	
-	# Only ensure normal sprite if not currently attacking
-	if not is_attacking:
+	# Only ensure normal sprite if not currently attacking and not dead
+	if not is_attacking and not is_dead:
 		ensure_normal_sprite_visible()
 	
 	# Update Y-sorting one final time
@@ -580,8 +586,8 @@ func _check_turn_completion() -> void:
 		print("Police is still attacking, waiting for animation to complete...")
 		return
 	
-	# Ensure normal sprite is visible before completing turn (unless dead)
-	if not is_dead:
+	# Ensure normal sprite is visible before completing turn (unless dead or attacking)
+	if not is_dead and not is_attacking:
 		ensure_normal_sprite_visible()
 	
 	# Final sprite state verification
@@ -637,32 +643,98 @@ func _update_sprite_facing() -> void:
 	# If facing left (negative x), flip the sprite
 	if facing_direction.x < 0:
 		police_sprite.flip_h = true
-		if police_aim_sprite:
-			police_aim_sprite.flip_h = true
+		if police_aim_leftright_sprite:
+			police_aim_leftright_sprite.flip_h = true
 	elif facing_direction.x > 0:
 		police_sprite.flip_h = false
-		if police_aim_sprite:
-			police_aim_sprite.flip_h = false
+		if police_aim_leftright_sprite:
+			police_aim_leftright_sprite.flip_h = false
 	
 	print("Updated sprite facing - Direction: ", facing_direction, ", Flip H: ", police_sprite.flip_h)
 
+func _determine_aim_direction() -> AimDirection:
+	"""Determine which direction to aim based on player position"""
+	if not player:
+		return AimDirection.LEFT_RIGHT
+	
+	var player_pos = player.grid_pos
+	var direction = player_pos - grid_position
+	
+	# Calculate the absolute differences
+	var abs_x = abs(direction.x)
+	var abs_y = abs(direction.y)
+	
+	# Determine which direction has the greater difference
+	if abs_y > abs_x:
+		# Vertical difference is greater
+		if direction.y > 0:
+			return AimDirection.DOWN  # Player is below
+		else:
+			return AimDirection.UP    # Player is above
+	else:
+		# Horizontal difference is greater or equal
+		return AimDirection.LEFT_RIGHT  # Player is to the left or right
+
+func _switch_to_directional_aim_sprite() -> void:
+	"""Switch to the appropriate aim sprite based on player direction"""
+	if is_dead:
+		return
+	
+	current_sprite_state = SpriteState.AIMING
+	
+	# Determine which direction to aim
+	current_aim_direction = _determine_aim_direction()
+	
+	# Hide all aim sprites first
+	if police_aim_leftright_sprite:
+		police_aim_leftright_sprite.visible = false
+	if police_aim_up_sprite:
+		police_aim_up_sprite.visible = false
+	if police_aim_down_sprite:
+		police_aim_down_sprite.visible = false
+	
+	# Show the appropriate aim sprite
+	match current_aim_direction:
+		AimDirection.LEFT_RIGHT:
+			if police_aim_leftright_sprite:
+				police_aim_leftright_sprite.visible = true
+				print("✓ Police switched to LEFT_RIGHT aim sprite")
+		AimDirection.UP:
+			if police_aim_up_sprite:
+				police_aim_up_sprite.visible = true
+				print("✓ Police switched to UP aim sprite")
+		AimDirection.DOWN:
+			if police_aim_down_sprite:
+				police_aim_down_sprite.visible = true
+				print("✓ Police switched to DOWN aim sprite")
+	
+	# Hide the normal sprite
+	if police_sprite:
+		police_sprite.visible = false
+
 func update_z_index_for_ysort() -> void:
 	"""Update z_index for Y-sorting"""
-	var y_sort_point = get_y_sort_point()
-	var z_index = int(y_sort_point)
-	z_index = z_index
+	# The global Y-sorting system handles z_index for the Police
+	# We only need to ensure sprite visibility is maintained
+	# The global system will call Global.update_object_y_sort() which handles z_index
 	
-	# Set z_index for appropriate sprites based on state
+	# Ensure all sprites have the same z_index for proper layering
+	var base_z_index = z_index
+	
 	if is_dead:
 		var dead_sprite = get_node_or_null("Dead")
 		if dead_sprite:
-			dead_sprite.z_index = z_index
+			dead_sprite.z_index = base_z_index
 	else:
 		# Set z_index for normal sprites
 		if police_sprite:
-			police_sprite.z_index = z_index
-		if police_aim_sprite:
-			police_aim_sprite.z_index = z_index
+			police_sprite.z_index = base_z_index
+		if police_aim_leftright_sprite:
+			police_aim_leftright_sprite.z_index = base_z_index
+		if police_aim_up_sprite:
+			police_aim_up_sprite.z_index = base_z_index
+		if police_aim_down_sprite:
+			police_aim_down_sprite.z_index = base_z_index
 
 func get_y_sort_point() -> float:
 	# Use dead sprite's Y-sort point if Police is dead
@@ -767,8 +839,12 @@ func die() -> void:
 	# Hide normal sprites
 	if police_sprite:
 		police_sprite.visible = false
-	if police_aim_sprite:
-		police_aim_sprite.visible = false
+	if police_aim_leftright_sprite:
+		police_aim_leftright_sprite.visible = false
+	if police_aim_up_sprite:
+		police_aim_up_sprite.visible = false
+	if police_aim_down_sprite:
+		police_aim_down_sprite.visible = false
 	
 	# Show dead sprite
 	var dead_sprite = get_node_or_null("Dead")
@@ -843,12 +919,8 @@ func _switch_to_aim_sprite() -> void:
 		# If dead, don't switch sprites - keep dead sprite visible
 		return
 	
-	current_sprite_state = SpriteState.AIMING
-	if police_sprite:
-		police_sprite.visible = false
-	if police_aim_sprite:
-		police_aim_sprite.visible = true
-	print("✓ Police switched to aim sprite")
+	# Use the new directional aiming system
+	_switch_to_directional_aim_sprite()
 
 func _switch_to_normal_sprite() -> void:
 	"""Switch back to the normal sprite"""
@@ -859,8 +931,12 @@ func _switch_to_normal_sprite() -> void:
 	current_sprite_state = SpriteState.NORMAL
 	if police_sprite:
 		police_sprite.visible = true
-	if police_aim_sprite:
-		police_aim_sprite.visible = false
+	if police_aim_leftright_sprite:
+		police_aim_leftright_sprite.visible = false
+	if police_aim_up_sprite:
+		police_aim_up_sprite.visible = false
+	if police_aim_down_sprite:
+		police_aim_down_sprite.visible = false
 	print("✓ Police switched to normal sprite")
 
 func ensure_normal_sprite_visible() -> void:
@@ -873,8 +949,12 @@ func ensure_normal_sprite_visible() -> void:
 			dead_sprite.visible = true
 		if police_sprite:
 			police_sprite.visible = false
-		if police_aim_sprite:
-			police_aim_sprite.visible = false
+		if police_aim_leftright_sprite:
+			police_aim_leftright_sprite.visible = false
+		if police_aim_up_sprite:
+			police_aim_up_sprite.visible = false
+		if police_aim_down_sprite:
+			police_aim_down_sprite.visible = false
 		print("✓ Police dead sprite visibility ensured")
 		return
 	
@@ -883,8 +963,12 @@ func ensure_normal_sprite_visible() -> void:
 		current_sprite_state = SpriteState.NORMAL
 		if police_sprite:
 			police_sprite.visible = true
-		if police_aim_sprite:
-			police_aim_sprite.visible = false
+		if police_aim_leftright_sprite:
+			police_aim_leftright_sprite.visible = false
+		if police_aim_up_sprite:
+			police_aim_up_sprite.visible = false
+		if police_aim_down_sprite:
+			police_aim_down_sprite.visible = false
 		print("✓ Police normal sprite visibility ensured")
 
 func _switch_to_dead_collision() -> void:
@@ -929,16 +1013,24 @@ func _perform_attack_raycast() -> Node:
 		return null
 	
 	print("=== POLICE RAYCAST DEBUG ===")
-	print("Police position:", global_position)
+	
+	# Get the bullet origin position
+	var bullet_origin = get_node_or_null("BulletOrigin")
+	if not bullet_origin:
+		print("✗ ERROR: BulletOrigin marker not found!")
+		return null
+	
+	var bullet_start_pos = bullet_origin.global_position
+	print("Bullet origin position:", bullet_start_pos)
 	print("Player position:", player.global_position)
 	
 	var space_state = get_world_2d().direct_space_state
-	var query = PhysicsRayQueryParameters2D.create(global_position, player.global_position)
+	var query = PhysicsRayQueryParameters2D.create(bullet_start_pos, player.global_position)
 	query.collision_mask = 2  # Layer 2 for HitBoxes (weapons layer)
 	query.collide_with_bodies = false
 	query.collide_with_areas = true
 	
-	print("Raycast from", global_position, "to", player.global_position, "on layer 2")
+	print("Raycast from", bullet_start_pos, "to", player.global_position, "on layer 2")
 	
 	var result = space_state.intersect_ray(query)
 	
@@ -951,6 +1043,12 @@ func _perform_attack_raycast() -> Node:
 		if hit_object.name == "HitBox":
 			var parent = hit_object.get_parent()
 			print("HitBox parent:", parent.name if parent else "None")
+			
+			# Check if this is our own HitBox - if so, ignore it
+			if parent == self:
+				print("✗ Hit our own HitBox - ignoring")
+				return null
+			
 			if parent and parent.has_method("take_damage"):
 				print("✓ HitBox parent has take_damage method - returning parent")
 				return parent  # Return the parent object (player, NPC, etc.)
@@ -963,13 +1061,13 @@ func _perform_attack_raycast() -> Node:
 	else:
 		print("✗ Raycast missed - no HitBoxes hit")
 		# No HitBoxes hit, check if player is directly in the path
-		var distance = global_position.distance_to(player.global_position)
+		var distance = bullet_start_pos.distance_to(player.global_position)
 		print("Distance to player:", distance, "pixels, attack range:", attack_range * 48, "pixels")
 		
 		if distance <= attack_range * 48:  # Convert tiles to pixels
 			# Check if player is in the direct line of fire
-			var direction = (player.global_position - global_position).normalized()
-			var to_player = player.global_position - global_position
+			var direction = (player.global_position - bullet_start_pos).normalized()
+			var to_player = player.global_position - bullet_start_pos
 			var dot_product = to_player.normalized().dot(direction)
 			
 			print("Dot product for direct line check:", dot_product)

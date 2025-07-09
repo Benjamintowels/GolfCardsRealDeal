@@ -220,7 +220,7 @@ func update_all_objects_y_sort(ysort_objects: Array):
 			object_type = "objects"
 		elif node.name == "Shop":
 			object_type = "objects"
-		elif "Player" in node.name or "GangMember" in node.name:
+		elif "Player" in node.name or "GangMember" in node.name or "Police" in node.name:
 			object_type = "characters"
 		
 		update_object_y_sort(node, object_type)
