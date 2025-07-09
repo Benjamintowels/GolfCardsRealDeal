@@ -8,6 +8,7 @@ class_name CardData
 @export var level: int = 1  # Card level (1 = base, 2 = upgraded)
 @export var max_level: int = 2  # Maximum upgrade level
 @export var upgrade_cost: int = 100  # Cost to upgrade the card
+@export var default_tier: int = 1  # Default tier for reward system (1-3)
 
 # Upgrade effects for different card types
 @export var movement_bonus: int = 1  # Additional movement range for movement cards
@@ -57,3 +58,14 @@ func get_upgrade_description() -> String:
 			return "Increases effect strength by " + str(effect_bonus)
 		_:
 			return "Enhances card effectiveness"
+
+func get_reward_tier() -> int:
+	"""Get the current reward tier based on level and default tier"""
+	# Base tier is the default tier
+	var base_tier = default_tier
+	
+	# If card is upgraded, increase tier by 1 (capped at 3)
+	if level > 1:
+		return min(base_tier + 1, 3)
+	
+	return base_tier

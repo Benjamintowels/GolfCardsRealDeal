@@ -1933,6 +1933,9 @@ func update_deck_display() -> void:
 	if turns_until_milestone > 0:
 		hud.get_node("ShotLabel").text += " | Next spawn increase: %d turns" % turns_until_milestone
 	
+	# Show current reward tier
+	hud.get_node("ShotLabel").text += " | Reward Tier: %d" % Global.get_current_reward_tier()
+	
 	# Update card stack display with total counts (for backward compatibility)
 	var total_draw_cards = action_draw_count + club_draw_count
 	var total_discard_cards = action_discard_count + club_discard_count
@@ -3131,6 +3134,8 @@ func restore_game_state():
 		hole_score = Global.saved_shot_score
 		# Restore global turn count for turn-based spawning
 		Global.global_turn_count = Global.saved_global_turn_count
+		# Update reward tier based on restored turn count
+		Global.update_reward_tier()
 		deck_manager.restore_deck_state(Global.saved_deck_manager_state)
 		deck_manager.restore_discard_state(Global.saved_discard_pile_state)
 		deck_manager.restore_hand_state(Global.saved_hand_state)

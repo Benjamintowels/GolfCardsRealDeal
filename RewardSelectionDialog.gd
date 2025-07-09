@@ -14,8 +14,8 @@ var right_reward_data: Resource
 var left_reward_type: String
 var right_reward_type: String
 
-# Available cards for rewards
-var available_cards: Array[CardData] = [
+# Base cards for rewards (level 1)
+var base_cards: Array[CardData] = [
 	preload("res://Cards/Move1.tres"),
 	preload("res://Cards/Move2.tres"),
 	preload("res://Cards/Move3.tres"),
@@ -47,6 +47,9 @@ var available_cards: Array[CardData] = [
 	preload("res://Cards/IceClub.tres")
 ]
 
+# Available cards for rewards (includes all levels)
+var available_cards: Array[CardData] = []
+
 # Available equipment for rewards
 var available_equipment: Array[EquipmentData] = [
 	preload("res://Equipment/GolfShoes.tres"),
@@ -68,6 +71,9 @@ func _ready():
 	left_reward_button.pressed.connect(_on_left_reward_selected)
 	right_reward_button.pressed.connect(_on_right_reward_selected)
 	
+	# Initialize available cards with all levels
+	initialize_available_cards()
+	
 	# Initialize bag upgrades
 	initialize_bag_upgrades()
 	
@@ -76,6 +82,69 @@ func _ready():
 	reward_sound.name = "RewardSound"
 	reward_sound.stream = preload("res://Sounds/Reward.mp3")
 	add_child(reward_sound)
+
+func initialize_available_cards():
+	"""Initialize available cards with base cards and theoretical upgraded versions"""
+	available_cards.clear()
+	
+	# Add base cards (level 1)
+	for base_card in base_cards:
+		available_cards.append(base_card)
+	
+	# Generate theoretical upgraded versions for each base card
+	for base_card in base_cards:
+		# Create level 2 version if the card can be upgraded
+		if base_card.max_level >= 2:
+			var level_2_card = create_upgraded_card(base_card, 2)
+			available_cards.append(level_2_card)
+		
+		# Create level 3 version if the card can be upgraded to level 3
+		if base_card.max_level >= 3:
+			var level_3_card = create_upgraded_card(base_card, 3)
+			available_cards.append(level_3_card)
+	
+	print("=== AVAILABLE CARDS INITIALIZED ===")
+	print("Base cards: ", base_cards.size())
+	print("Total available cards (including upgrades): ", available_cards.size())
+	
+	# Show some examples
+	var tier_1_count = 0
+	var tier_2_count = 0
+	var tier_3_count = 0
+	for card in available_cards:
+		var tier = card.get_reward_tier()
+		match tier:
+			1: tier_1_count += 1
+			2: tier_2_count += 1
+			3: tier_3_count += 1
+	
+	print("Tier 1 cards: ", tier_1_count)
+	print("Tier 2 cards: ", tier_2_count)
+	print("Tier 3 cards: ", tier_3_count)
+
+func create_upgraded_card(base_card: CardData, level: int) -> CardData:
+	"""Create an upgraded version of a base card"""
+	var upgraded_card = CardData.new()
+	
+	# Copy base properties
+	upgraded_card.name = base_card.name
+	upgraded_card.effect_type = base_card.effect_type
+	upgraded_card.effect_strength = base_card.effect_strength
+	upgraded_card.image = base_card.image
+	upgraded_card.max_level = base_card.max_level
+	upgraded_card.upgrade_cost = base_card.upgrade_cost
+	upgraded_card.default_tier = base_card.default_tier
+	
+	# Copy upgrade bonuses
+	upgraded_card.movement_bonus = base_card.movement_bonus
+	upgraded_card.attack_bonus = base_card.attack_bonus
+	upgraded_card.weapon_shots_bonus = base_card.weapon_shots_bonus
+	upgraded_card.effect_bonus = base_card.effect_bonus
+	
+	# Set the level
+	upgraded_card.level = level
+	
+	return upgraded_card
 
 func initialize_bag_upgrades():
 	"""Initialize available bag upgrades based on current character and bag level"""
@@ -104,6 +173,149 @@ func initialize_bag_upgrades():
 			pass
 		
 		available_bag_upgrades.append(bag_upgrade)
+
+func get_tiered_cards() -> Array[CardData]:
+	"""Get cards filtered by current tier probabilities"""
+	var probabilities = Global.get_tier_probabilities()
+	var tier_1_cards: Array[CardData] = []
+	var tier_2_cards: Array[CardData] = []
+	var tier_3_cards: Array[CardData] = []
+	
+	# Categorize cards by their reward tier
+	for card in available_cards:
+		var tier = card.get_reward_tier()
+		match tier:
+			1:
+				tier_1_cards.append(card)
+			2:
+				tier_2_cards.append(card)
+			3:
+				tier_3_cards.append(card)
+	
+	# Debug output
+	print("=== TIERED CARD DEBUG ===")
+	print("Current reward tier: ", Global.get_current_reward_tier())
+	print("Probabilities: ", probabilities)
+	print("Total available cards: ", available_cards.size())
+	print("Tier 1 cards: ", tier_1_cards.size())
+	print("Tier 2 cards: ", tier_2_cards.size())
+	print("Tier 3 cards: ", tier_3_cards.size())
+	
+	# Show some example cards from each tier
+	if tier_1_cards.size() > 0:
+		print("Tier 1 examples: ", tier_1_cards[0].name, " (level: ", tier_1_cards[0].level, ")")
+	if tier_2_cards.size() > 0:
+		print("Tier 2 examples: ", tier_2_cards[0].name, " (level: ", tier_2_cards[0].level, ")")
+	if tier_3_cards.size() > 0:
+		print("Tier 3 examples: ", tier_3_cards[0].name, " (level: ", tier_3_cards[0].level, ")")
+	
+	# Use weighted random selection based on probabilities
+	var selected_cards: Array[CardData] = []
+	
+	# Create a weighted pool of all cards
+	var all_cards: Array[CardData] = []
+	var weights: Array[float] = []
+	
+	# Add tier 1 cards with tier 1 weight
+	for card in tier_1_cards:
+		all_cards.append(card)
+		weights.append(probabilities["tier_1"])
+	
+	# Add tier 2 cards with tier 2 weight
+	for card in tier_2_cards:
+		all_cards.append(card)
+		weights.append(probabilities["tier_2"])
+	
+	# Add tier 3 cards with tier 3 weight
+	for card in tier_3_cards:
+		all_cards.append(card)
+		weights.append(probabilities["tier_3"])
+	
+	# Select cards using weighted random selection
+	var num_to_select = min(available_cards.size(), all_cards.size())
+	for i in range(num_to_select):
+		if all_cards.size() == 0:
+			break
+		
+		# Calculate total weight
+		var total_weight = 0.0
+		for weight in weights:
+			total_weight += weight
+		
+		# Select random card based on weights
+		var random_value = randf() * total_weight
+		var current_weight = 0.0
+		var selected_index = 0
+		
+		for j in range(weights.size()):
+			current_weight += weights[j]
+			if random_value <= current_weight:
+				selected_index = j
+				break
+		
+		# Add selected card
+		selected_cards.append(all_cards[selected_index])
+		
+		# Remove selected card from pool
+		all_cards.remove_at(selected_index)
+		weights.remove_at(selected_index)
+	
+	# Debug output for selected cards
+	print("Selected cards: ", selected_cards.size())
+	for i in range(min(5, selected_cards.size())):
+		var card = selected_cards[i]
+		print("  Selected: ", card.name, " (Tier: ", card.get_reward_tier(), ", Level: ", card.level, ")")
+	
+	return selected_cards
+
+func get_tiered_equipment() -> Array[EquipmentData]:
+	"""Get equipment filtered by current tier probabilities"""
+	var probabilities = Global.get_tier_probabilities()
+	var tier_1_equipment: Array[EquipmentData] = []
+	var tier_2_equipment: Array[EquipmentData] = []
+	var tier_3_equipment: Array[EquipmentData] = []
+	
+	# Categorize equipment by their reward tier
+	for equipment in available_equipment:
+		var tier = equipment.get_reward_tier()
+		match tier:
+			1:
+				tier_1_equipment.append(equipment)
+			2:
+				tier_2_equipment.append(equipment)
+			3:
+				tier_3_equipment.append(equipment)
+	
+	# Select equipment based on probabilities
+	var selected_equipment: Array[EquipmentData] = []
+	
+	# Add Tier 1 equipment
+	var tier_1_count = int(probabilities["tier_1"] * available_equipment.size())
+	for i in range(min(tier_1_count, tier_1_equipment.size())):
+		selected_equipment.append(tier_1_equipment[randi() % tier_1_equipment.size()])
+	
+	# Add Tier 2 equipment
+	var tier_2_count = int(probabilities["tier_2"] * available_equipment.size())
+	for i in range(min(tier_2_count, tier_2_equipment.size())):
+		selected_equipment.append(tier_2_equipment[randi() % tier_2_equipment.size()])
+	
+	# Add Tier 3 equipment
+	var tier_3_count = int(probabilities["tier_3"] * available_equipment.size())
+	for i in range(min(tier_3_count, tier_3_equipment.size())):
+		selected_equipment.append(tier_3_equipment[randi() % tier_3_equipment.size()])
+	
+	# If we don't have enough equipment from higher tiers, fill with lower tiers
+	while selected_equipment.size() < available_equipment.size():
+		if tier_1_equipment.size() > 0:
+			selected_equipment.append(tier_1_equipment[randi() % tier_1_equipment.size()])
+		elif tier_2_equipment.size() > 0:
+			selected_equipment.append(tier_2_equipment[randi() % tier_2_equipment.size()])
+		elif tier_3_equipment.size() > 0:
+			selected_equipment.append(tier_3_equipment[randi() % tier_3_equipment.size()])
+		else:
+			break
+	
+	return selected_equipment
 
 func show_reward_selection():
 	# Initialize bag upgrades before generating rewards
@@ -217,6 +429,10 @@ func generate_random_rewards() -> Array:
 	# Check if bag upgrades are available
 	var has_bag_upgrades = available_bag_upgrades.size() > 0
 	
+	# Get tiered rewards
+	var tiered_cards = get_tiered_cards()
+	var tiered_equipment = get_tiered_equipment()
+	
 	# Randomly decide reward types (now including bag upgrades)
 	var reward_options = []
 	reward_options.append("cards")  # 2 cards
@@ -231,35 +447,35 @@ func generate_random_rewards() -> Array:
 	
 	match reward_type:
 		"cards":
-			# Two cards
-			var card1 = available_cards[randi() % available_cards.size()]
-			var card2 = available_cards[randi() % available_cards.size()]
+			# Two cards from tiered selection
+			var card1 = tiered_cards[randi() % tiered_cards.size()]
+			var card2 = tiered_cards[randi() % tiered_cards.size()]
 			rewards = [card1, "card", card2, "card"]
 		"equipment":
-			# Two equipment (if we have enough)
-			if available_equipment.size() >= 2:
-				var equip1 = available_equipment[randi() % available_equipment.size()]
-				var equip2 = available_equipment[randi() % available_equipment.size()]
+			# Two equipment from tiered selection (if we have enough)
+			if tiered_equipment.size() >= 2:
+				var equip1 = tiered_equipment[randi() % tiered_equipment.size()]
+				var equip2 = tiered_equipment[randi() % tiered_equipment.size()]
 				rewards = [equip1, "equipment", equip2, "equipment"]
 			else:
 				# Fallback to cards if not enough equipment
-				var card1 = available_cards[randi() % available_cards.size()]
-				var card2 = available_cards[randi() % available_cards.size()]
+				var card1 = tiered_cards[randi() % tiered_cards.size()]
+				var card2 = tiered_cards[randi() % tiered_cards.size()]
 				rewards = [card1, "card", card2, "card"]
 		"mixed":
-			# One card, one equipment
-			var card = available_cards[randi() % available_cards.size()]
-			var equipment = available_equipment[randi() % available_equipment.size()]
+			# One card, one equipment from tiered selection
+			var card = tiered_cards[randi() % tiered_cards.size()]
+			var equipment = tiered_equipment[randi() % tiered_equipment.size()]
 			rewards = [card, "card", equipment, "equipment"]
 		"bag_upgrade":
-			# One bag upgrade, one card
+			# One bag upgrade, one card from tiered selection
 			var bag_upgrade = available_bag_upgrades[randi() % available_bag_upgrades.size()]
-			var card = available_cards[randi() % available_cards.size()]
+			var card = tiered_cards[randi() % tiered_cards.size()]
 			rewards = [bag_upgrade, "bag_upgrade", card, "card"]
 		"mixed_bag":
-			# One bag upgrade, one equipment
+			# One bag upgrade, one equipment from tiered selection
 			var bag_upgrade = available_bag_upgrades[randi() % available_bag_upgrades.size()]
-			var equipment = available_equipment[randi() % available_equipment.size()]
+			var equipment = tiered_equipment[randi() % tiered_equipment.size()]
 			rewards = [bag_upgrade, "bag_upgrade", equipment, "equipment"]
 	
 	return rewards
@@ -296,12 +512,16 @@ func setup_reward_button(button: Button, reward_data: Resource, reward_type: Str
 		var card_data = reward_data as CardData
 		button.text = ""  # Clear button text since we're using custom display
 		
-		# Use CardVisual for consistent upgrade display
+		# Use CardVisual for consistent upgrade display (same as bag)
 		var card_scene = preload("res://CardVisual.tscn")
 		var card_instance = card_scene.instantiate()
-		card_instance.size = Vector2(80, 120)  # Card aspect ratio
-		card_instance.position = Vector2(10, 10)
-		card_instance.scale = Vector2(0.12, 0.12)
+		card_instance.custom_minimum_size = Vector2(80, 100)
+		card_instance.size = Vector2(80, 100)  # Set explicit size
+		card_instance.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		card_instance.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		# Scale to fit the 80x100 container (original is 80x120) - same as bag
+		card_instance.scale = Vector2(1.0, 100.0/120.0)  # Scale height to fit
+		card_instance.position = Vector2(35, 0)  # Center in button
 		card_instance.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		
 		# Set the card data to show upgrade indicators
@@ -309,6 +529,19 @@ func setup_reward_button(button: Button, reward_data: Resource, reward_type: Str
 			card_instance.set_card_data(card_data)
 		
 		container.add_child(card_instance)
+		
+		# Card name
+		var name_label = Label.new()
+		name_label.text = card_data.get_upgraded_name()
+		name_label.add_theme_font_size_override("font_size", 12)
+		name_label.add_theme_color_override("font_color", Color.WHITE)
+		name_label.add_theme_constant_override("outline_size", 1)
+		name_label.add_theme_color_override("font_outline_color", Color.BLACK)
+		name_label.position = Vector2(5, 95)
+		name_label.size = Vector2(140, 20)
+		name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		container.add_child(name_label)
 		
 	elif reward_type == "equipment":
 		var equip_data = reward_data as EquipmentData

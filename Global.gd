@@ -10,6 +10,9 @@ var front_9_score = 0  # Score from front 9 holes
 # Turn-based spawning system
 var global_turn_count: int = 1  # Global turn counter across all holes
 
+# Tiered reward system
+var current_reward_tier: int = 1  # Current reward tier (1-3)
+
 var CHARACTER_STATS = {
 	1: { "name": "Layla", "base_mobility": 3, "strength": -1, "card_draw": -1, "max_hp": 125, "current_hp": 125 },
 	2: { "name": "Benny", "base_mobility": 2, "strength": 0, "card_draw": 0, "max_hp": 150, "current_hp": 150 },
@@ -478,10 +481,58 @@ func get_turn_based_oil_drum_count() -> int:
 func increment_global_turn() -> void:
 	"""Increment the global turn counter"""
 	global_turn_count += 1
+	
+	# Update reward tier every 5 turns
+	update_reward_tier()
 
 func reset_global_turn() -> void:
 	"""Reset the global turn counter (for new games)"""
 	global_turn_count = 1
+	current_reward_tier = 1
+
+func update_reward_tier() -> void:
+	"""Update the current reward tier based on turn count"""
+	# Every 5 turns, increase tier (capped at 3)
+	var new_tier = min((global_turn_count - 1) / 5 + 1, 3)
+	if new_tier != current_reward_tier:
+		current_reward_tier = new_tier
+		print("Reward tier increased to: ", current_reward_tier)
+
+func get_current_reward_tier() -> int:
+	"""Get the current reward tier"""
+	return current_reward_tier
+
+func get_tier_probabilities() -> Dictionary:
+	"""Get the probability distribution for the current tier"""
+	match current_reward_tier:
+		1:
+			return {
+				"tier_1": 0.90,  # 90% Tier 1
+				"tier_2": 0.10,  # 10% Tier 2
+				"tier_3": 0.00   # 0% Tier 3
+			}
+		2:
+			return {
+				"tier_1": 0.80,  # 80% Tier 1
+				"tier_2": 0.15,  # 15% Tier 2
+				"tier_3": 0.05   # 5% Tier 3
+			}
+		3:
+			return {
+				"tier_1": 0.70,  # 70% Tier 1
+				"tier_2": 0.20,  # 20% Tier 2
+				"tier_3": 0.10   # 10% Tier 3
+			}
+		_:
+			# For tier 4 and beyond, gradually shift to higher tiers
+			var tier_1_prob = max(0.0, 0.70 - (current_reward_tier - 3) * 0.10)
+			var tier_2_prob = min(0.30, 0.20 + (current_reward_tier - 3) * 0.05)
+			var tier_3_prob = 1.0 - tier_1_prob - tier_2_prob
+			return {
+				"tier_1": tier_1_prob,
+				"tier_2": tier_2_prob,
+				"tier_3": tier_3_prob
+			}
 
 func clear_shop_state():
 	"""Clear global state to prevent dictionary conflicts when returning from shop"""
