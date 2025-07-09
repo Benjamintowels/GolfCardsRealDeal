@@ -448,7 +448,7 @@ func _is_tile_on_fire_or_scorched(tile_pos: Vector2i) -> bool:
 
 func _is_grass_tile(tile_type: String) -> bool:
 	"""Check if a tile type is considered grass (can catch fire)"""
-	return tile_type in ["F", "R", "Base"]  # Fairway, Rough, Base grass (excludes Scorched)
+	return tile_type in ["F", "R", "Base", "G"]  # Fairway, Rough, Base grass, Green (excludes Scorched)
 
 func _get_tile_type(tile_pos: Vector2i) -> String:
 	"""Get the tile type at the given position"""

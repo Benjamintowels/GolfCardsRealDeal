@@ -23,7 +23,7 @@ func _ready():
 	add_to_group("ice_tiles")
 	
 	# Get audio reference
-	ice_on_sound = get_node_or_null("IceOn")
+	ice_on_sound = get_node_or_null("Snow")
 	
 	# Play the ice sound when created
 	if ice_on_sound and ice_on_sound.stream:

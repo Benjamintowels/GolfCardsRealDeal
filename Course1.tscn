@@ -1,4 +1,4 @@
-[gd_scene load_steps=23 format=3 uid="uid://dlq5ygh2wv33m"]
+[gd_scene load_steps=25 format=3 uid="uid://dlq5ygh2wv33m"]
 
 [ext_resource type="Script" uid="uid://d4hrfk75nrm45" path="res://course_1.gd" id="1_pe8tc"]
 [ext_resource type="Texture2D" uid="uid://cpe67sk2vh8me" path="res://EDGE.png" id="2_eymfu"]
@@ -22,6 +22,8 @@
 [ext_resource type="Script" uid="uid://cnne1a0u85wtc" path="res://current_deck_manager.gd" id="20_current_deck_manager"]
 [ext_resource type="AudioStream" uid="uid://c6807wk0mjel5" path="res://Sounds/HoleComplete.mp3" id="21_6tjaq"]
 [ext_resource type="PackedScene" path="res://BlockHealthBar.tscn" id="22_block_health_bar"]
+[ext_resource type="AudioStream" uid="uid://tu47pjuwugnn" path="res://Sounds/Snow.mp3" id="23_6ixtt"]
+[ext_resource type="Script" uid="uid://d3eloiw6y4k1g" path="res://BackgroundManager.gd" id="25_bg_manager"]
 
 [node name="Course1" type="Control"]
 layout_mode = 3
@@ -68,6 +70,9 @@ script = ExtResource("15_launch_manager")
 
 [node name="Entities" type="Node" parent="."]
 script = ExtResource("16_entities")
+
+[node name="BackgroundManager" type="Node" parent="."]
+script = ExtResource("25_bg_manager")
 
 [node name="UILayer" type="CanvasLayer" parent="."]
 
@@ -263,5 +268,8 @@ volume_db = -0.732
 [node name="HoleComplete" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("21_6tjaq")
 volume_db = -5.859
+
+[node name="Snow" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("23_6ixtt")
 
 [connection signal="pressed" from="UILayer/SwingTestButton" to="." method="_on_swing_test_button_pressed"]

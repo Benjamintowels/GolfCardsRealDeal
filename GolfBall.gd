@@ -1698,7 +1698,7 @@ func _is_tile_on_fire_or_scorched(tile_pos: Vector2i) -> bool:
 
 func _is_grass_tile(tile_type: String) -> bool:
 	"""Check if a tile type is considered grass (can catch fire)"""
-	return tile_type in ["F", "R", "Base"]  # Fairway, Rough, Base grass (excludes Scorched)
+	return tile_type in ["F", "R", "Base", "G"]  # Fairway, Rough, Base grass, Green (excludes Scorched)
 
 func _create_fire_tile(tile_pos: Vector2i) -> void:
 	"""Create a fire tile at the specified position"""
@@ -1776,7 +1776,7 @@ func _is_tile_iced_or_frozen(tile_pos: Vector2i) -> bool:
 
 func _is_iceable_tile(tile_type: String) -> bool:
 	"""Check if a tile type can be iced (water, sand, grass)"""
-	return tile_type in ["W", "S", "F", "R", "Base"]  # Water, Sand, Fairway, Rough, Base grass
+	return tile_type in ["W", "S", "F", "R", "Base", "G"]  # Water, Sand, Fairway, Rough, Base grass, Green
 
 func _create_ice_tile(tile_pos: Vector2i) -> void:
 	"""Create an ice tile at the specified position"""

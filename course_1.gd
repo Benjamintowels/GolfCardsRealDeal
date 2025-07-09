@@ -27,6 +27,7 @@ extends Control
 @onready var heal_button: Button = $UILayer/HealthTestButtons/HealButton
 @onready var kill_gangmember_button: Button = $UILayer/KillGangMemberButton
 @onready var bag_upgrade_test_button: Button = $UILayer/BagUpgradeTestButton
+@onready var background_manager: Node = $BackgroundManager
 
 # Movement controller
 const MovementController := preload("res://MovementController.gd")
@@ -534,8 +535,78 @@ func _ready() -> void:
 	# Connect weapon handler signals
 	weapon_handler.npc_shot.connect(_on_npc_shot)
 	
+	# Initialize background manager
+	if background_manager:
+		background_manager.set_camera_reference(camera)
+		background_manager.set_theme("course1")
+		print("✓ Background manager initialized with course1 theme")
+		
+		# Debug background layers
+		background_manager.debug_background_layers()
+		
+		# Try to adjust positioning if needed
+		call_deferred("adjust_background_positioning")
+	
 	# Setup global death sound
 	setup_global_death_sound()
+
+func adjust_background_positioning() -> void:
+	"""Adjust background layer positioning for better visibility"""
+	if not background_manager:
+		return
+	
+	print("=== ADJUSTING BACKGROUND POSITIONING ===")
+	
+	# Get screen size and grid info
+	var screen_size = get_viewport().get_visible_rect().size
+	var grid_height = grid_size.y * cell_size
+	var grid_top = (screen_size.y - grid_height) / 2
+	
+	print("Screen size: ", screen_size)
+	print("Grid top position: ", grid_top)
+	print("Grid height: ", grid_height)
+	
+	# First, let's see what sprites we can find
+	background_manager.debug_background_layers()
+	
+	# Set the world grid center for parallax calculations
+	# This should be at the top of your world grid, not the center
+	var world_grid_center = Vector2(1200, 0)  # X is center, Y is top of grid
+	background_manager.set_world_grid_center(world_grid_center)
+	
+	# Set the ParallaxBackground system position
+	var parallax_system = background_manager.get_parallax_system()
+	if parallax_system:
+		parallax_system.position = Vector2(564.625, -161.635)
+		print("✓ Set ParallaxBackground position to: ", parallax_system.position)
+	
+	# Position each layer in world coordinates (not screen-relative)
+	# Calculate world-relative positions based on the grid dimensions
+	var total_grid_height = grid_size.y * cell_size
+	
+	# Position layers at the top of the world grid with proper staggering
+	# Use world-relative coordinates so they don't reset to screen center
+	var base_y = -total_grid_height / 2 - 50  # Slightly above the world grid top
+	var vertical_spacing = 80  # Space between layers
+	
+	background_manager.adjust_layer_position("TreeLine", Vector2(0, -910.77))
+	background_manager.adjust_layer_position("TreeLine2", Vector2(0, -936.145))
+	background_manager.adjust_layer_position("TreeLine3", Vector2(0, -990.785))
+	background_manager.adjust_layer_position("City", Vector2(0, -1353.04))
+	background_manager.adjust_layer_position("Clouds", Vector2(0, -1362.43))
+	background_manager.adjust_layer_position("Mountains", Vector2(0, -1101.525))
+	background_manager.adjust_layer_position("Sky", Vector2(0, -990.785))
+	
+	# Scale up layers to make them more visible and ensure horizontal coverage
+	background_manager.set_layer_scale("Sky", Vector2(9.0, 5))
+	background_manager.set_layer_scale("Mountains", Vector2(4.5, 2.0))
+	background_manager.set_layer_scale("Clouds", Vector2(3.5, 2.0))
+	background_manager.set_layer_scale("City", Vector2(3.5, 2.0))
+	background_manager.set_layer_scale("TreeLine3", Vector2(3.0, 2.0))
+	background_manager.set_layer_scale("TreeLine2", Vector2(2.8, 2.0))
+	background_manager.set_layer_scale("TreeLine", Vector2(2.5, 2.0))
+	
+	print("=== BACKGROUND ADJUSTMENT COMPLETE ===")
 	
 
 
@@ -3376,6 +3447,11 @@ func position_camera_on_pin(start_transition: bool = true):
 	camera.position = pin_position
 	camera_snap_back_pos = pin_position
 	
+	# Reset parallax layer offsets when camera is repositioned
+	if background_manager:
+		background_manager.reset_layer_offsets()
+		print("✓ Reset parallax layer offsets after camera repositioning")
+	
 	# Only start the transition if requested
 	if start_transition:
 		start_pin_to_tee_transition()
@@ -3917,6 +3993,11 @@ func create_camera_tween(target_position: Vector2, duration: float = 0.5, transi
 	"""Create a camera tween with proper management to prevent conflicts"""
 	# Kill any existing camera tween first
 	kill_current_camera_tween()
+	
+	# Reset parallax layer offsets when camera is repositioned via tween
+	if background_manager:
+		background_manager.reset_layer_offsets()
+		print("✓ Reset parallax layer offsets before camera tween")
 	
 	# Create new tween
 	current_camera_tween = get_tree().create_tween()
