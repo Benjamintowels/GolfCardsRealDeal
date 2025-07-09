@@ -164,6 +164,16 @@ var background_themes = {
 				"custom_y_position": -1500  # Override Y position
 			},
 			{
+				"name": "Horizon",
+				"texture_path": "res://Backgrounds/horizon.png",
+				"parallax_factor": 6.5,  # Same as mountains
+				"z_index": -245,
+				"scale": Vector2(2.0, 1.0),
+				"repeat_horizontal": true,
+				"repeat_vertical": false,
+				"custom_y_position": -1500  # Same Y position as mountains
+			},
+			{
 				"name": "DistantHill",
 				"texture_path": "res://Backgrounds/distant_hill.png",
 				"parallax_factor": 5.5,  # In front of mountains
@@ -208,17 +218,29 @@ var background_themes = {
 				"parallax_factor": 2.5,  # EXTREME - medium-high hyperspeed parallax
 				"z_index": -120,
 				"scale": Vector2(1.1, 1.0),
-				"repeat_horizontal": true,
-				"repeat_vertical": false
+				"repeat_horizontal": false,
+				"repeat_vertical": false,
+				"custom_y_position": -1029  # Override Y position
 			},
 			{
 				"name": "TreeLine2",
 				"texture_path": "res://Backgrounds/tree_line_2.png",
 				"parallax_factor": 1.5,  # EXTREME - medium hyperspeed parallax
 				"z_index": -100,
-				"scale": Vector2(1.0, 1.0),
+				"scale": Vector2(0.9, 0.9),
 				"repeat_horizontal": true,
-				"repeat_vertical": false
+				"repeat_vertical": false,
+				"custom_y_position": -1010  # Override Y position
+			},
+			{
+				"name": "Foreground",
+				"texture_path": "res://Backgrounds/foreground.png",
+				"parallax_factor": 0.5,  # Between TreeLine2 and TreeLine1
+				"z_index": -85,
+				"scale": Vector2(1.8, 1.8),
+				"repeat_horizontal": true,
+				"repeat_vertical": false,
+				"custom_y_position": -720  # Override Y position
 			},
 			{
 				"name": "TreeLine",

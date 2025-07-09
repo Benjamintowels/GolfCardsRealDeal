@@ -388,7 +388,7 @@ func update_layer_base_position(layer_name: String, new_base_position: Vector2) 
 		if layer.sprite and layer.sprite.name == layer_name:
 			# Preserve custom Y positions for specific layers
 			var preserve_y = false
-			if layer_name in ["Clouds", "Mountains", "DistantHill", "City", "Hill"]:
+			if layer_name in ["Clouds", "Mountains", "DistantHill", "City", "Hill", "TreeLine2", "TreeLine3", "Foreground"]:
 				preserve_y = true
 				print("⚠ Preserving custom Y position for ", layer_name, " (not updating to: ", new_base_position, ")")
 			
