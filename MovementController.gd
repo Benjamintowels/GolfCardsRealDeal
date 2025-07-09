@@ -112,6 +112,31 @@ func create_movement_buttons() -> void:
 		btn.mouse_exited.connect(func(): overlay.visible = false)
 
 		btn.pressed.connect(func(): _on_movement_card_pressed(card, btn))
+		
+		# Add upgrade indicators if card is upgraded
+		if card and card.is_upgraded():
+			# Add orange border
+			var border_rect = ColorRect.new()
+			border_rect.color = Color(1.0, 0.5, 0.0, 0.8)  # Orange border
+			border_rect.size = Vector2(btn.size.x + 4, btn.size.y + 4)
+			border_rect.position = Vector2(-2, -2)
+			border_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			border_rect.z_index = -1
+			btn.add_child(border_rect)
+			
+			# Add green level label
+			var level_label = Label.new()
+			level_label.text = "Lvl " + str(card.level)
+			level_label.add_theme_font_size_override("font_size", 12)
+			level_label.add_theme_color_override("font_color", Color.GREEN)
+			level_label.add_theme_constant_override("outline_size", 2)
+			level_label.add_theme_color_override("font_outline_color", Color.BLACK)
+			level_label.position = Vector2(btn.size.x - 35, 5)
+			level_label.size = Vector2(30, 20)
+			level_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			level_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			level_label.z_index = 10
+			btn.add_child(level_label)
 
 		movement_buttons_container.add_child(btn)
 		movement_buttons.append(btn)
@@ -172,7 +197,7 @@ func _on_movement_card_pressed(card: CardData, button: TextureButton) -> void:
 	active_button = button
 	selected_card = card
 	selected_card_label = card.name
-	movement_range = card.effect_strength
+	movement_range = card.get_effective_strength()
 
 	# Check if the next card should be doubled by checking the course's next_card_doubled variable
 	if card_effect_handler and card_effect_handler.course and card_effect_handler.course.next_card_doubled:

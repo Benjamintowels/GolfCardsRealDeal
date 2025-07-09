@@ -579,7 +579,7 @@ func fire_weapon() -> void:
 	exit_weapon_mode()
 
 func fire_burst_shot() -> void:
-	"""Fire 5 bullets in quick succession with updated muzzle mechanics"""
+	"""Fire bullets in quick succession based on effective strength"""
 	if not weapon_instance or not player_node:
 		return
 	
@@ -588,10 +588,10 @@ func fire_burst_shot() -> void:
 	if burst_sound:
 		burst_sound.play()
 	
-	# Burst shot settings - 5 shots over 1 second total duration
-	var burst_count = 5
+	# Get burst count from effective strength
+	var burst_count = selected_card.get_effective_strength()
 	var total_duration = 1.0  # 1 second total
-	var burst_delay = total_duration / burst_count  # 200ms between shots
+	var burst_delay = total_duration / burst_count  # Time between shots
 	
 	# Start the burst sequence
 	start_burst_sequence(burst_count, burst_delay)
@@ -666,8 +666,8 @@ func fire_shotgun() -> void:
 		# Play ShotgunCock sound after ShotgunShot finishes
 		shotgun_sound.finished.connect(_on_shotgun_shot_finished, CONNECT_ONE_SHOT)
 	
-	# Shotgun settings - 5 shots in a spread pattern
-	var spread_count = 5
+	# Shotgun settings - shots based on effective strength
+	var spread_count = selected_card.get_effective_strength()
 	var spread_angle = 0.3  # ~17 degrees total spread (0.3 radians)
 	var base_direction = Vector2.ZERO
 	

@@ -1,11 +1,13 @@
-[gd_scene load_steps=7 format=3 uid="uid://c8kuewso70dyx"]
+[gd_scene load_steps=9 format=3 uid="uid://c8kuewso70dyx"]
 
 [ext_resource type="Texture2D" uid="uid://6gtabr7liuob" path="res://Shop/ShopInterior.png" id="1_eeho4"]
 [ext_resource type="Script" uid="uid://qri6qfxmvixl" path="res://Shop/ShopInterior.gd" id="2_shop_script"]
 [ext_resource type="AudioStream" uid="uid://cwn3uur4bgef2" path="res://Sounds/Trinkets.mp3" id="3_vsfgq"]
 [ext_resource type="Texture2D" uid="uid://b04t5rodckxfe" path="res://Shop/Tof.png" id="4_8pyis"]
 [ext_resource type="AudioStream" uid="uid://dtmkyo6yyyfqq" path="res://Sounds/CatHappy.mp3" id="4_ko7ju"]
+[ext_resource type="AudioStream" uid="uid://cu8k70hfx4w3g" path="res://Sounds/Golfsmith.mp3" id="5_dw7jg"]
 [ext_resource type="Texture2D" uid="uid://c38xossm3wigh" path="res://Shop/TofSign.png" id="5_ko7ju"]
+[ext_resource type="Texture2D" uid="uid://lsnkplt6tvcd" path="res://Shop/GolfsmithShopSprite.png" id="7_77fnv"]
 
 [node name="ShopInterior" type="Control"]
 layout_mode = 3
@@ -46,6 +48,9 @@ stream = ExtResource("3_vsfgq")
 
 [node name="CatHappy" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("4_ko7ju")
+
+[node name="UpgradeSound" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("5_dw7jg")
 
 [node name="TextureRect2" type="TextureRect" parent="."]
 layout_mode = 0
@@ -125,3 +130,17 @@ offset_top = 385.0
 offset_right = 573.0
 offset_bottom = 385.0
 mouse_filter = 1
+
+[node name="Golfsmith" type="TextureButton" parent="."]
+texture_filter = 1
+layout_mode = 0
+offset_left = 20.0
+offset_top = 322.0
+offset_right = 146.0
+offset_bottom = 462.0
+scale = Vector2(2.345, 2.345)
+texture_normal = ExtResource("7_77fnv")
+texture_pressed = ExtResource("7_77fnv")
+texture_hover = ExtResource("7_77fnv")
+texture_disabled = ExtResource("7_77fnv")
+texture_focused = ExtResource("7_77fnv")

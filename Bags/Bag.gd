@@ -374,12 +374,16 @@ func show_deck_dialog():
 		slot_container.add_child(placeholder)
 		# Add actual card on top if available
 		if i < movement_cards.size():
+			print("Bag: Creating movement card display for:", movement_cards[i].name)
 			var should_be_clickable = is_replacement_mode and pending_reward_type == "card" and pending_reward and not is_club_card(pending_reward)
 			var card_display = create_card_display(movement_cards[i], 1, should_be_clickable)
 			slot_container.add_child(card_display)
 			card_display.z_index = 10
 			# Move card display to front to ensure it's clickable
 			slot_container.move_child(card_display, slot_container.get_child_count() - 1)
+			print("Bag: Movement card display created and added to slot")
+		else:
+			print("Bag: No movement card for slot", i, "(cards available:", movement_cards.size(), ")")
 	# --- END DYNAMIC MOVEMENT GRID LAYOUT ---
 	# Club cards section (right side - single column, dynamic position)
 	var club_label = Label.new()
@@ -416,6 +420,7 @@ func show_deck_dialog():
 		
 		# Add actual card on top if available
 		if i < club_cards.size():
+			print("Bag: Creating club card display for:", club_cards[i].name)
 			var should_be_clickable = is_replacement_mode and pending_reward_type == "card" and pending_reward and is_club_card(pending_reward)
 			var card_display = create_card_display(club_cards[i], 1, should_be_clickable)
 			slot_container.add_child(card_display)
@@ -423,17 +428,9 @@ func show_deck_dialog():
 			card_display.z_index = 100
 			# Move card display to front to ensure it's clickable
 			slot_container.move_child(card_display, slot_container.get_child_count() - 1)
-			
-			# Debug check after adding to scene
-			if should_be_clickable:
-				card_display.process_mode = Node.PROCESS_MODE_INHERIT
-				# Ensure the button is properly connected to the scene tree
-				if not card_display.is_inside_tree():
-					# Try to force add to the scene tree
-					get_tree().current_scene.add_child(card_display)
-					# Then move it back to the correct parent
-					slot_container.add_child(card_display)
-				# Additional debugging for button position and size
+			print("Bag: Club card display created and added to slot")
+		else:
+			print("Bag: No club card for slot", i, "(cards available:", club_cards.size(), ")")
 	# Add dialog to UI layer (parent of the bag)
 	var ui_layer = get_parent()
 	var shop_deck_dialog = null
@@ -489,6 +486,31 @@ func create_card_display(card_data: CardData, count: int, clickable: bool = fals
 		button.texture_hover = card_data.image  # Same texture for hover
 		button.texture_pressed = card_data.image  # Same texture for pressed
 		button.texture_focused = card_data.image  # Same texture for focused
+		
+		# Add upgrade indicators if card is upgraded
+		if card_data and card_data.is_upgraded():
+			# Add orange border
+			var border_rect = ColorRect.new()
+			border_rect.color = Color(1.0, 0.5, 0.0, 0.8)  # Orange border
+			border_rect.size = Vector2(button.size.x + 4, button.size.y + 4)
+			border_rect.position = Vector2(-2, -2)
+			border_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			border_rect.z_index = -1
+			button.add_child(border_rect)
+			
+			# Add green level label
+			var level_label = Label.new()
+			level_label.text = "Lvl " + str(card_data.level)
+			level_label.add_theme_font_size_override("font_size", 10)
+			level_label.add_theme_color_override("font_color", Color.GREEN)
+			level_label.add_theme_constant_override("outline_size", 2)
+			level_label.add_theme_color_override("font_outline_color", Color.BLACK)
+			level_label.position = Vector2(button.size.x - 25, 2)
+			level_label.size = Vector2(25, 15)
+			level_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			level_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			level_label.z_index = 10
+			button.add_child(level_label)
 		# Don't scale the button - this makes the clickable area too small
 		# The texture will be automatically scaled to fit the button size
 		# Add hover effect as a separate overlay
@@ -542,20 +564,25 @@ func create_card_display(card_data: CardData, count: int, clickable: bool = fals
 		return button
 	else:
 		print("Bag: Creating regular Control for", card_data.name)
-		# Use regular Control for non-clickable cards
-		var container = Control.new()
-		container.custom_minimum_size = Vector2(80, 100)
-		container.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		container.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		# Card image
-		var image_rect = TextureRect.new()
-		image_rect.texture = card_data.image
-		image_rect.size = Vector2(80, 100)
-		image_rect.position = Vector2(0, 0)
-		image_rect.scale = Vector2(0.075, 0.075)
-		image_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		container.add_child(image_rect)
-		return container
+		# Use CardVisual for consistent upgrade display
+		var card_scene = preload("res://CardVisual.tscn")
+		var card_instance = card_scene.instantiate()
+		card_instance.custom_minimum_size = Vector2(80, 100)
+		card_instance.size = Vector2(80, 100)  # Set explicit size
+		card_instance.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		card_instance.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		# Scale to fit the 80x100 container (original is 80x120)
+		card_instance.scale = Vector2(1.0, 100.0/120.0)  # Scale height to fit
+		
+		# Set the card data to show upgrade indicators
+		if card_instance.has_method("set_card_data") and card_data:
+			card_instance.set_card_data(card_data)
+			print("Bag: CardVisual data set for", card_data.name)
+		else:
+			print("Bag: Failed to set card data for", card_data.name)
+		
+		print("Bag: CardVisual created - size:", card_instance.size, "scale:", card_instance.scale, "visible:", card_instance.visible)
+		return card_instance
 
 func _on_card_button_pressed(card_data: CardData):
 	print("Bag: Card button pressed for", card_data.name if card_data else "null")
@@ -821,9 +848,17 @@ func get_deck_size() -> int:
 
 func get_current_deck() -> Array[CardData]:
 	"""Get the current deck from CurrentDeckManager"""
+	print("Bag: Looking for CurrentDeckManager in scene:", get_tree().current_scene.name)
 	var current_deck_manager = get_tree().current_scene.get_node_or_null("CurrentDeckManager")
 	if current_deck_manager:
-		return current_deck_manager.get_current_deck()
+		print("Bag: CurrentDeckManager found!")
+		var deck = current_deck_manager.get_current_deck()
+		print("Bag: CurrentDeckManager found, deck size:", deck.size())
+		return deck
+	else:
+		print("Bag: CurrentDeckManager not found! Available nodes:")
+		for child in get_tree().current_scene.get_children():
+			print("  -", child.name)
 	return []
 
 func get_deck_summary() -> Dictionary:
@@ -983,9 +1018,12 @@ func get_movement_cards() -> Array[CardData]:
 	"""Get all non-club cards from the current deck"""
 	var current_deck = get_current_deck()
 	var movement_cards: Array[CardData] = []
+	print("Bag: Total deck size:", current_deck.size())
 	for card in current_deck:
 		if not is_club_card(card):
 			movement_cards.append(card)
+			print("Bag: Added movement card:", card.name)
+	print("Bag: Movement cards found:", movement_cards.size())
 	return movement_cards
 
 func get_club_cards() -> Array[CardData]:
@@ -996,7 +1034,9 @@ func get_club_cards() -> Array[CardData]:
 	for card in current_deck:
 		if is_club_card(card):
 			club_cards.append(card)
+			print("Bag: Added club card:", card.name)
 	
+	print("Bag: Club cards found:", club_cards.size())
 	return club_cards
 
 func _exit_tree():

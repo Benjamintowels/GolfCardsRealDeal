@@ -95,14 +95,19 @@ func _create_item_display(item: Resource, item_type: String) -> Control:
 	if item_type == "card":
 		var card_data = item as CardData
 		if card_data:
-			var image_rect = TextureRect.new()
-			image_rect.texture = card_data.image
-			image_rect.size = Vector2(80, 100)
-			image_rect.position = Vector2(0, 0)
-			image_rect.scale = Vector2(0.075, 0.075)
-			image_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-			image_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			container.add_child(image_rect)
+			# Use CardVisual for consistent upgrade display
+			var card_scene = preload("res://CardVisual.tscn")
+			var card_instance = card_scene.instantiate()
+			card_instance.size = Vector2(80, 100)
+			card_instance.position = Vector2(0, 0)
+			card_instance.scale = Vector2(0.075, 0.075)
+			card_instance.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			
+			# Set the card data to show upgrade indicators
+			if card_instance.has_method("set_card_data") and card_data:
+				card_instance.set_card_data(card_data)
+			
+			container.add_child(card_instance)
 	
 	elif item_type == "equipment":
 		var equipment_data = item as EquipmentData

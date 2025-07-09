@@ -107,7 +107,7 @@ func _on_attack_card_pressed(card: CardData, button: TextureButton) -> void:
 	is_attack_mode = true
 	active_button = button
 	selected_card = card
-	attack_range = card.effect_strength
+	attack_range = card.get_effective_strength()
 
 	calculate_valid_attack_tiles()
 	show_attack_highlights()

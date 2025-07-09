@@ -54,7 +54,7 @@ func handle_scramble_effect(card: CardData):
 	scramble_landing_positions.clear()
 	scramble_landing_tiles.clear()
 	scramble_ball_landed_count = 0
-	scramble_total_balls = card.effect_strength
+	scramble_total_balls = card.get_effective_strength()
 	
 	# Discard the card
 	if course.deck_manager and course.deck_manager.hand.has(card):
@@ -280,8 +280,8 @@ func handle_draw_effect(card: CardData):
 	"""Handle Draw effect cards - draw additional cards from action deck"""
 	print("CardEffectHandler: Handling Draw card:", card.name)
 	
-	# Get the number of cards to draw from effect_strength
-	var cards_to_draw = card.effect_strength
+	# Get the number of cards to draw from effective strength
+	var cards_to_draw = card.get_effective_strength()
 	print("Drawing", cards_to_draw, "cards from action deck")
 	
 	# Draw cards from action deck and add to hand
@@ -307,8 +307,12 @@ func handle_draw_effect(card: CardData):
 	print("Draw effect completed - drew", cards_to_draw, "cards")
 
 func handle_extra_turn_effect(card: CardData):
-	"""Handle ExtraTurn effect - give the player an extra turn"""
+	"""Handle ExtraTurn effect - give the player extra turns based on effective strength"""
 	print("CardEffectHandler: Handling ExtraTurn card:", card.name)
+	
+	# Get the number of extra turns from effective strength
+	var extra_turns = card.get_effective_strength()
+	print("Giving player", extra_turns, "extra turns")
 	
 	# Discard the card
 	if course.deck_manager.hand.has(card):
@@ -322,9 +326,11 @@ func handle_extra_turn_effect(card: CardData):
 	# Remove only the specific card button, not the entire hand
 	remove_specific_card_button(card)
 	
-	# Give the player an extra turn
-	course.give_extra_turn()
-	print("Player received an extra turn due to ExtraTurn card.")
+	# Give the player the extra turns
+	for i in range(extra_turns):
+		course.give_extra_turn()
+	
+	print("Player received", extra_turns, "extra turns due to ExtraTurn card.")
 
 func get_ball_position() -> Vector2:
 	"""Get the current ball's position in world coordinates"""

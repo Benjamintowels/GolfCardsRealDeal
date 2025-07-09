@@ -32,6 +32,14 @@ func _ready():
 	else:
 		print("ShopInterior: ERROR - Return button not found!")
 	
+	# Connect Golfsmith button
+	var golfsmith_button = $Golfsmith
+	if golfsmith_button:
+		golfsmith_button.pressed.connect(_on_golfsmith_button_pressed)
+		print("ShopInterior: Golfsmith button connected")
+	else:
+		print("ShopInterior: ERROR - Golfsmith button not found!")
+	
 	# Connect input events to the main container for debugging
 	gui_input.connect(_on_shop_input)
 	
@@ -440,15 +448,19 @@ func create_card_display(card_data: CardData, count: int) -> Control:
 	container.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	container.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Allow clicks to pass through
 	
-	# Card image
-	var image_rect = TextureRect.new()
-	image_rect.texture = card_data.image
-	image_rect.size = Vector2(80, 100)
-	image_rect.position = Vector2(0, 0)
-	image_rect.scale = Vector2(0.075, 0.075)
-	image_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	image_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Allow clicks to pass through
-	container.add_child(image_rect)
+	# Use CardVisual for consistent upgrade display
+	var card_scene = preload("res://CardVisual.tscn")
+	var card_instance = card_scene.instantiate()
+	card_instance.size = Vector2(80, 100)
+	card_instance.position = Vector2(0, 0)
+	card_instance.scale = Vector2(0.075, 0.075)
+	card_instance.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	
+	# Set the card data to show upgrade indicators
+	if card_instance.has_method("set_card_data") and card_data:
+		card_instance.set_card_data(card_data)
+	
+	container.add_child(card_instance)
 	
 	return container
 
@@ -606,6 +618,48 @@ func on_replacement_completed(reward_data: Resource, reward_type: String):
 	if reward_data in current_shop_items:
 		current_shop_items.erase(reward_data)
 		display_shop_items()
+	
+	# Re-enable shop input
+	shop_input_enabled = true
+	enable_shop_item_containers()
+
+func _on_golfsmith_button_pressed():
+	"""Handle Golfsmith button press - show card upgrade dialog"""
+	print("ShopInterior: Golfsmith button pressed - opening upgrade dialog")
+	
+	# Create and show the upgrade dialog
+	var upgrade_dialog_scene = preload("res://CardUpgradeDialog.tscn")
+	var upgrade_dialog = upgrade_dialog_scene.instantiate()
+	
+	# Add to the shop scene
+	add_child(upgrade_dialog)
+	
+	# Connect signals
+	upgrade_dialog.card_upgraded.connect(_on_card_upgraded)
+	upgrade_dialog.dialog_closed.connect(_on_upgrade_dialog_closed)
+	
+	# Show the dialog
+	upgrade_dialog.show_dialog()
+	
+	# Disable shop input while dialog is open
+	shop_input_enabled = false
+	disable_shop_item_containers()
+
+func _on_card_upgraded(card: CardData):
+	"""Handle card upgrade completion"""
+	print("ShopInterior: Card upgraded:", card.name, "to level", card.level)
+	
+	# Play upgrade sound
+	var upgrade_sound = get_node_or_null("UpgradeSound")
+	if upgrade_sound and upgrade_sound.stream:
+		upgrade_sound.play()
+	
+	# Show upgrade message
+	show_purchase_message(card.name + " upgraded to Level " + str(card.level) + "!")
+
+func _on_upgrade_dialog_closed():
+	"""Handle upgrade dialog closure"""
+	print("ShopInterior: Upgrade dialog closed")
 	
 	# Re-enable shop input
 	shop_input_enabled = true

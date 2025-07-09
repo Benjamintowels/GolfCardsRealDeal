@@ -295,15 +295,19 @@ func setup_reward_button(button: Button, reward_data: Resource, reward_type: Str
 		var card_data = reward_data as CardData
 		button.text = ""  # Clear button text since we're using custom display
 		
-		# Card image
-		var image_rect = TextureRect.new()
-		image_rect.texture = card_data.image
-		image_rect.size = Vector2(80, 120)  # Card aspect ratio
-		image_rect.position = Vector2(10, 10)
-		image_rect.scale = Vector2(0.12, 0.12)
-		image_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		image_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		container.add_child(image_rect)
+		# Use CardVisual for consistent upgrade display
+		var card_scene = preload("res://CardVisual.tscn")
+		var card_instance = card_scene.instantiate()
+		card_instance.size = Vector2(80, 120)  # Card aspect ratio
+		card_instance.position = Vector2(10, 10)
+		card_instance.scale = Vector2(0.12, 0.12)
+		card_instance.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		
+		# Set the card data to show upgrade indicators
+		if card_instance.has_method("set_card_data") and card_data:
+			card_instance.set_card_data(card_data)
+		
+		container.add_child(card_instance)
 		
 	elif reward_type == "equipment":
 		var equip_data = reward_data as EquipmentData
