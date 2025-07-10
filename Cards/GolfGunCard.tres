@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="CardData" load_steps=3 format=3 uid="uid://odprbyaxkc8u"]
+
+[ext_resource type="Script" uid="uid://b1c024jgv23kk" path="res://Cards/CardData.gd" id="1_l6hyy"]
+[ext_resource type="Texture2D" uid="uid://dru825hdjpwgg" path="res://Cards/GolfGun.png" id="1_xokm8"]
+
+[resource]
+script = ExtResource("1_l6hyy")
+name = "GolfGunCard"
+effect_type = "Club"
+effect_strength = 1
+image = ExtResource("1_xokm8")
+level = 1
+max_level = 2
+upgrade_cost = 100
+default_tier = 1
+movement_bonus = 1
+attack_bonus = 1
+weapon_shots_bonus = 1
+effect_bonus = 1
+metadata/_custom_type_script = "uid://b1c024jgv23kk"

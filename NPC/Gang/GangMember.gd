@@ -352,8 +352,8 @@ func _reflect_projectile(projectile: Node2D):
 	# Simple reflection: reflect the velocity across the GangMember center
 	var reflected_velocity = projectile_velocity - 2 * projectile_velocity.dot(to_projectile_direction) * to_projectile_direction
 	
-	# Reduce speed slightly to prevent infinite bouncing
-	reflected_velocity *= 0.8
+	# NPCs are softer than walls - reduce speed less for more realistic bounce
+	reflected_velocity *= 0.9
 	
 	# Add a small amount of randomness to prevent infinite loops
 	var random_angle = randf_range(-0.1, 0.1)
@@ -546,8 +546,8 @@ func _apply_knife_reflection(knife: Node2D) -> void:
 	# Simple reflection: reflect the velocity across the GangMember center
 	var reflected_velocity = knife_velocity - 2 * knife_velocity.dot(to_knife_direction) * to_knife_direction
 	
-	# Reduce speed slightly to prevent infinite bouncing
-	reflected_velocity *= 0.8
+	# NPCs are softer than walls - reduce speed less for more realistic bounce
+	reflected_velocity *= 0.9
 	
 	# Add a small amount of randomness to prevent infinite loops
 	var random_angle = randf_range(-0.1, 0.1)
@@ -590,8 +590,8 @@ func _apply_ball_collision_effect(ball: Node2D) -> void:
 		# Simple reflection: reflect the velocity across the GangMember center
 		var reflected_velocity = ball_velocity - 2 * ball_velocity.dot(to_ball_direction) * to_ball_direction
 		
-		# Reduce speed slightly to prevent infinite bouncing
-		reflected_velocity *= 0.8
+		# NPCs are softer than walls - reduce speed less for more realistic bounce
+		reflected_velocity *= 0.9
 		
 		# Add a small amount of randomness to prevent infinite loops
 		var random_angle = randf_range(-0.1, 0.1)
@@ -678,8 +678,8 @@ func _apply_ball_collision_effect(ball: Node2D) -> void:
 		# Simple reflection: reflect the velocity across the GangMember center
 		var reflected_velocity = ball_velocity - 2 * ball_velocity.dot(to_ball_direction) * to_ball_direction
 		
-		# Reduce speed slightly to prevent infinite bouncing
-		reflected_velocity *= 0.8
+		# NPCs are softer than walls - reduce speed less for more realistic bounce
+		reflected_velocity *= 0.9
 		
 		# Add a small amount of randomness to prevent infinite loops
 		var random_angle = randf_range(-0.1, 0.1)

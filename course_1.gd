@@ -11,6 +11,7 @@ extends Control
 @onready var movement_buttons_container: BoxContainer = $UILayer/CardHandAnchor/CardRow
 @onready var card_click_sound: AudioStreamPlayer2D = $CardClickSound
 @onready var card_play_sound: AudioStreamPlayer2D = $CardPlaySound
+@onready var door_close_sound: AudioStreamPlayer2D = $DoorCloseSound
 @onready var birds_tweeting_sound: AudioStreamPlayer2D = $BirdsTweeting
 @onready var obstacle_layer = $ObstacleLayer
 @onready var end_turn_button: Button = $UILayer/EndTurnButton
@@ -367,6 +368,13 @@ func update_ball_for_optimizer():
 func _ready() -> void:
 	add_to_group("course")
 	
+	# Start with black screen for round initialization
+	FadeManager.start_round_black_screen()
+	
+	# Play door close sound immediately when scene loads
+	if door_close_sound:
+		door_close_sound.play()
+	
 	# Clear any existing state to prevent dictionary conflicts
 	_clear_existing_state()
 	
@@ -434,11 +442,19 @@ func _ready() -> void:
 	launch_manager.camera = camera
 	launch_manager.card_effect_handler = card_effect_handler
 	
+	# Setup vertical parallax effect
+	launch_manager.setup_vertical_parallax(grid_container, obstacle_layer, background_manager)
+	
 	# Connect signals
 	launch_manager.ball_launched.connect(_on_ball_launched)
 	launch_manager.launch_phase_entered.connect(_on_launch_phase_entered)
 	launch_manager.launch_phase_exited.connect(_on_launch_phase_exited)
-	launch_manager.charging_state_changed.connect(_on_charging_state_changed)	
+	launch_manager.charging_state_changed.connect(_on_charging_state_changed)
+	
+	# Connect vertical parallax signals for round management
+	launch_manager.vertical_parallax_activated.connect(_on_vertical_parallax_activated)
+	launch_manager.vertical_parallax_deactivated.connect(_on_vertical_parallax_deactivated)
+	launch_manager.vertical_parallax_animation_complete.connect(_on_vertical_parallax_animation_complete)	
 	
 	if obstacle_layer.get_parent():
 		obstacle_layer.get_parent().remove_child(obstacle_layer)
@@ -544,6 +560,14 @@ func _ready() -> void:
 	
 	# Setup global death sound
 	setup_global_death_sound()
+	
+	# Activate vertical parallax effect for initial round setup (start with squished world)
+	if launch_manager and launch_manager.has_method("activate_vertical_parallax"):
+		launch_manager.activate_vertical_parallax()
+		print("✓ Vertical parallax activated for initial round setup")
+	
+	# Add a fallback timer to ensure fade-in happens even if vertical parallax doesn't trigger it
+	call_deferred("_setup_fade_fallback")
 
 func adjust_background_positioning() -> void:
 	"""Adjust background layer positioning for better visibility"""
@@ -1394,6 +1418,11 @@ func _on_tile_input(event: InputEvent, x: int, y: int) -> void:
 				
 				if sand_thunk_sound and sand_thunk_sound.stream:
 					sand_thunk_sound.play()
+				# Deactivate vertical parallax effect when player is placed on tee
+				if launch_manager and launch_manager.has_method("deactivate_vertical_parallax"):
+					launch_manager.deactivate_vertical_parallax()
+					print("✓ Vertical parallax deactivated - player placed on tee")
+				
 				start_round_after_tee_selection()
 			else:
 				pass # Please select a Tee Box to start your round.
@@ -1542,14 +1571,9 @@ func update_aiming_circle():
 		else:
 			circle.modulate = Color(1, 0, 0, 0.8)  # Red
 	
-	var target_camera_pos = clamped_position
-	# Add vertical offset of -300 pixels to show player near bottom of screen and better see arc apex
-	target_camera_pos.y -= 120
-	var current_camera_pos = camera.position
-	var camera_speed = 5.0  # Adjust for faster/slower camera movement
-	
-	var new_camera_pos = current_camera_pos.lerp(target_camera_pos, camera_speed * get_process_delta_time())
-	camera.position = new_camera_pos
+	# Camera positioning is now handled by the vertical parallax effect during launch phase
+	# Only update camera during aiming phase, not during launch phase
+	# REMOVED: No longer doing camera positioning during aiming to avoid parallax offset issues
 	
 	
 	var distance_label = aiming_circle.get_node_or_null("DistanceLabel")
@@ -1574,6 +1598,9 @@ func _on_golf_ball_landed(tile: Vector2i):
 	if launch_manager and launch_manager.has_method("set_ball_in_flight"):
 		launch_manager.set_ball_in_flight(false)
 		print("Ball in flight state reset to false")
+	
+	# REMOVED: No longer deactivating vertical parallax after ball lands
+	# Since we're not activating it during normal launches anymore
 	
 	# Update smart optimizer state
 	if smart_optimizer:
@@ -2266,6 +2293,9 @@ func enter_launch_phase() -> void:
 	remove_ghost_ball()
 	launch_manager.enter_launch_phase()
 	
+	# REMOVED: No longer activating vertical parallax during normal golf ball launches
+	# Vertical parallax should only be used for hole transitions, not normal shots
+	
 	# Update smart optimizer state
 	if smart_optimizer:
 		smart_optimizer.update_game_state("launch", true, false, true)
@@ -2286,10 +2316,7 @@ func enter_aiming_phase() -> void:
 	show_aiming_circle()
 	create_ghost_ball()
 	show_aiming_instruction()
-	var sprite = player_node.get_node_or_null("Sprite2D")
-	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
-	var player_center = player_node.global_position + player_size / 2
-	create_camera_tween(player_center, 1.0)
+	# REMOVED: No longer doing camera tween during aiming phase to avoid parallax offset issues
 
 func show_aiming_instruction() -> void:
 	var existing_instruction = $UILayer.get_node_or_null("AimingInstructionLabel")
@@ -2363,6 +2390,9 @@ func _on_golf_ball_sand_landing():
 func _on_grenade_landed(final_tile: Vector2i) -> void:
 	"""Handle when a grenade lands"""
 	print("Grenade landed at tile:", final_tile)
+	
+	# REMOVED: No longer deactivating vertical parallax after weapon landings
+	# Since we're not activating it during weapon launches anymore
 	
 	# Update smart optimizer state immediately when grenade lands
 	if smart_optimizer:
@@ -2474,6 +2504,11 @@ func show_hole_completion_dialog():
 	print("=== SHOW_HOLE_COMPLETION_DIALOG CALLED ===")
 	print("Current hole:", current_hole)
 	print("Hole score:", hole_score)
+	
+	# Activate vertical parallax effect when hole completion dialog is triggered
+	if launch_manager and launch_manager.has_method("activate_vertical_parallax"):
+		launch_manager.activate_vertical_parallax()
+		print("✓ Vertical parallax activated for hole completion")
 	
 	# Play hole complete sound
 	var hole_complete_sound = $HoleComplete
@@ -2609,10 +2644,22 @@ func _on_advance_to_next_hole():
 		print("Hole 9 completed, showing front nine completion dialog")
 		show_front_nine_complete_dialog()
 	else:
-		# Fade to next hole
-		FadeManager.fade_to_black(func(): reset_for_next_hole(), 0.5)
+		# Fade to black first, then unsquish and load next hole
+		FadeManager.fade_to_black(func(): 
+			# Unsquish vertical parallax after fade to black
+			if launch_manager and launch_manager.has_method("deactivate_vertical_parallax"):
+				launch_manager.deactivate_vertical_parallax()
+				print("✓ Vertical parallax deactivated after fade to black")
+			
+			# Load next hole
+			reset_for_next_hole()
+		, 0.5)
 
 func reset_for_next_hole():
+	# Start with black screen for next hole
+	FadeManager.stay_black()
+	print("✓ Next hole started with black screen")
+	
 	# Clean up any existing reward UI
 	var existing_suitcase = $UILayer.get_node_or_null("SuitCase")
 	if existing_suitcase:
@@ -2660,6 +2707,14 @@ func reset_for_next_hole():
 	
 	# Checkpoint: Map building completed
 	print("=== BuildMapCompleted Checkpoint ===")
+	
+	# Activate vertical parallax effect for round setup (squish the new hole)
+	if launch_manager and launch_manager.has_method("activate_vertical_parallax"):
+		launch_manager.activate_vertical_parallax()
+		print("✓ Vertical parallax activated for new hole setup")
+	
+	# Add fallback fade-in for next hole transition
+	call_deferred("_setup_next_hole_fade_fallback")
 	
 	position_camera_on_pin()  # Add camera positioning for next hole
 	hole_score = 0
@@ -3444,9 +3499,8 @@ func position_camera_on_pin(start_transition: bool = true):
 	camera_snap_back_pos = pin_position
 	
 	# Reset parallax layer offsets when camera is repositioned
-	if background_manager:
-		background_manager.reset_layer_offsets()
-		print("✓ Reset parallax layer offsets after camera repositioning")
+	# But don't reset during vertical parallax effect to avoid snapping
+	# REMOVED: No longer resetting parallax offsets during camera positioning to prevent issues with squished maps
 	
 	# Only start the transition if requested
 	if start_transition:
@@ -3913,6 +3967,9 @@ func _on_knife_landed(final_tile: Vector2i) -> void:
 	"""Handle when a throwing knife lands"""
 	print("Knife landed at tile:", final_tile)
 	
+	# REMOVED: No longer deactivating vertical parallax after weapon landings
+	# Since we're not activating it during weapon launches anymore
+	
 	# Update smart optimizer state immediately when knife lands
 	if smart_optimizer:
 		smart_optimizer.update_game_state("move", false, false, false)
@@ -3953,6 +4010,9 @@ func _on_knife_hit_target(target: Node2D) -> void:
 func _on_spear_landed(final_tile: Vector2i) -> void:
 	"""Handle when a spear lands"""
 	print("Spear landed at tile:", final_tile)
+	
+	# REMOVED: No longer deactivating vertical parallax after weapon landings
+	# Since we're not activating it during weapon launches anymore
 	
 	# Update smart optimizer state immediately when spear lands
 	if smart_optimizer:
@@ -4057,9 +4117,8 @@ func create_camera_tween(target_position: Vector2, duration: float = 0.5, transi
 	kill_current_camera_tween()
 	
 	# Reset parallax layer offsets when camera is repositioned via tween
-	if background_manager:
-		background_manager.reset_layer_offsets()
-		print("✓ Reset parallax layer offsets before camera tween")
+	# But don't reset during vertical parallax effect to avoid snapping
+	# REMOVED: No longer resetting parallax offsets during camera tweens to prevent issues with squished maps
 	
 	# Create new tween
 	current_camera_tween = get_tree().create_tween()
@@ -4229,3 +4288,51 @@ func _on_grenade_exploded(explosion_position: Vector2) -> void:
 		launch_manager.grenade_explosion_in_progress = false
 	
 	camera_following_ball = false
+
+# Vertical parallax round management callbacks
+func _on_vertical_parallax_activated() -> void:
+	"""Called when vertical parallax effect is activated"""
+	print("✓ Vertical parallax activated")
+
+func _on_vertical_parallax_deactivated() -> void:
+	"""Called when vertical parallax effect is deactivated"""
+	print("✓ Vertical parallax deactivated")
+
+func _setup_fade_fallback() -> void:
+	"""Fallback mechanism to ensure fade-in happens if vertical parallax doesn't trigger it"""
+	# Wait a bit for all initialization to complete
+	await get_tree().create_timer(2.0).timeout
+	
+	# If screen is still black and not fading, force the fade-in
+	if FadeManager.is_screen_black() and not FadeManager.is_currently_fading():
+		print("⚠ Using fallback fade-in mechanism")
+		FadeManager.fade_from_black_when_ready()
+		print("✓ Fallback fade-in triggered")
+
+func _setup_next_hole_fade_fallback() -> void:
+	"""Fallback mechanism specifically for next hole transitions"""
+	# Wait for vertical parallax animation to complete
+	await get_tree().create_timer(1.5).timeout
+	
+	# If screen is still black and not fading, force the fade-in
+	if FadeManager.is_screen_black() and not FadeManager.is_currently_fading():
+		print("⚠ Using next hole fallback fade-in mechanism")
+		FadeManager.fade_from_black_when_ready()
+		print("✓ Next hole fallback fade-in triggered")
+
+func _on_vertical_parallax_animation_complete() -> void:
+	"""Called when vertical parallax animation completes"""
+	print("✓ Vertical parallax animation complete")
+	
+	# Debug the fade conditions
+	print("FadeManager.is_screen_black():", FadeManager.is_screen_black())
+	print("FadeManager.is_currently_fading():", FadeManager.is_currently_fading())
+	
+	# Check if this is the initial round setup and we can fade from black
+	if FadeManager.is_screen_black() and not FadeManager.is_currently_fading():
+		# Map building and vertical parallax setup is complete
+		# Fade from black to reveal the round
+		FadeManager.fade_from_black_when_ready()
+		print("✓ Round setup complete - fading from black")
+	else:
+		print("⚠ Fade conditions not met - screen black:", FadeManager.is_screen_black(), "currently fading:", FadeManager.is_currently_fading())

@@ -43,7 +43,6 @@ var screen_size: Vector2 = Vector2.ZERO
 
 # Performance optimization
 var last_camera_position: Vector2 = Vector2.ZERO
-var update_threshold: float = 1.0  # Only update if camera moves more than this (reduced for testing)
 
 # Parallax configuration
 var max_parallax_factor: float = 0.3  # Dramatically reduced from 1.0
@@ -64,7 +63,6 @@ func _ready():
 				camera = camera_nodes[0]
 	
 	if not camera:
-		print("⚠ ParallaxBackground: No camera found! Background will not move.")
 		return
 	
 	# Get screen size
@@ -80,11 +78,8 @@ func _ready():
 	# Connect to camera movement (if signal exists)
 	if camera.has_signal("position_changed"):
 		camera.position_changed.connect(_on_camera_moved)
-	else:
 		# Use polling method instead
-		print("✓ ParallaxBackground: Using polling method for camera movement")
 	
-	print("✓ ParallaxBackground initialized with camera: ", camera.name, " and world grid center: ", world_grid_center)
 
 func _process(_delta):
 	# Update screen size if viewport changes
@@ -109,7 +104,6 @@ func add_background_layer(sprite: Sprite2D, parallax_factor: float, repeat_horiz
 	- custom_base_position: Custom base position (if Vector2.ZERO, uses sprite's current position)
 	"""
 	if not sprite or not sprite.texture:
-		print("⚠ ParallaxBackground: Cannot add layer - sprite or texture is null")
 		return
 	
 	# Add sprite as child if it's not already a child
@@ -123,14 +117,12 @@ func add_background_layer(sprite: Sprite2D, parallax_factor: float, repeat_horiz
 	# Override base position if custom position is provided
 	if custom_base_position != Vector2.ZERO:
 		layer.base_position = custom_base_position
-		print("✓ Using custom base position for ", sprite.name, ": ", custom_base_position)
 	
 	background_layers.append(layer)
 	
 	# Check if this is TreeLine1 to set the reference point
 	if sprite.name.contains("TreeLine1") or sprite.name.contains("tree_line_1"):
 		tree_line_index = layer_index
-		print("✓ Found TreeLine1 at index: ", tree_line_index)
 	
 	# Set initial position
 	update_layer_position(layer)
@@ -151,7 +143,6 @@ func remove_background_layer(sprite: Sprite2D) -> void:
 			# Update layer indices and tree_line_index
 			update_layer_indices()
 			
-			print("✓ Removed background layer: ", sprite.name)
 			return
 
 func update_layer_indices() -> void:
@@ -162,7 +153,6 @@ func update_layer_indices() -> void:
 		# Recalculate tree_line_index
 		if background_layers[i].sprite.name.contains("TreeLine1") or background_layers[i].sprite.name.contains("tree_line_1"):
 			tree_line_index = i
-			print("✓ Updated TreeLine1 index to: ", tree_line_index)
 
 func clear_all_layers() -> void:
 	"""Remove all background layers"""
@@ -174,7 +164,6 @@ func clear_all_layers() -> void:
 	
 	background_layers.clear()
 	tree_line_index = -1
-	print("✓ Cleared all background layers")
 
 func update_all_layers() -> void:
 	"""Update all background layer positions"""
@@ -321,11 +310,6 @@ func check_camera_movement() -> void:
 	if not camera:
 		return
 	
-	# Check if camera moved enough to warrant an update
-	var camera_movement = camera.global_position.distance_to(last_camera_position)
-	if camera_movement < update_threshold:
-		return
-	
 	# Store the previous camera position for calculating movement
 	var previous_camera_position = last_camera_position
 	
@@ -351,14 +335,10 @@ func set_camera_reference(new_camera: Camera2D) -> void:
 		reset_layer_offsets()
 		if camera.has_signal("position_changed"):
 			camera.position_changed.connect(_on_camera_moved)
-			print("✓ ParallaxBackground: Camera reference updated to: ", camera.name, " (using signals)")
-		else:
-			print("✓ ParallaxBackground: Camera reference updated to: ", camera.name, " (using polling)")
 
 func set_world_grid_center(new_center: Vector2) -> void:
 	"""Set the world grid center for parallax calculations"""
 	world_grid_center = new_center
-	print("✓ ParallaxBackground: World grid center set to: ", world_grid_center)
 
 func get_layer_count() -> int:
 	"""Get the number of background layers"""
@@ -389,18 +369,17 @@ func update_layer_base_position(layer_name: String, new_base_position: Vector2) 
 			var preserve_y = false
 			if layer_name in ["Clouds", "Mountains", "DistantHill", "City", "Hill", "TreeLine2", "TreeLine3", "Foreground"]:
 				preserve_y = true
-				print("⚠ Preserving custom Y position for ", layer_name, " (not updating to: ", new_base_position, ")")
 			
 			if preserve_y:
 				# Only update X position, preserve Y
 				layer.base_position.x = new_base_position.x
-				print("✓ Updated X base position for ", layer_name, " to: ", layer.base_position)
+				
 			else:
 				# Update both X and Y
 				layer.base_position = new_base_position
-				print("✓ Updated base position for ", layer_name, " to: ", new_base_position)
+				
 			return
-	print("⚠ Layer not found for base position update: ", layer_name)
+	
 
 func reset_layer_offsets() -> void:
 	"""Reset all layer offsets (useful when camera is repositioned)"""
@@ -412,6 +391,8 @@ func reset_layer_offsets() -> void:
 		layer.sprite.position.y = layer.base_position.y
 	print("✓ Reset all layer X offsets and restored Y positions to base")
 
+
+
 func reset_layer_offset(layer_name: String) -> void:
 	"""Reset the offset for a specific layer"""
 	for layer in background_layers:
@@ -421,14 +402,11 @@ func reset_layer_offset(layer_name: String) -> void:
 			layer.sprite.position.x = layer.base_position.x
 			# Ensure Y position matches the configured base position
 			layer.sprite.position.y = layer.base_position.y
-			print("✓ Reset X offset and restored Y position to base for ", layer_name)
 			return
-	print("⚠ Layer not found for offset reset: ", layer_name)
 
 func set_max_parallax_factor(new_factor: float) -> void:
 	"""Set the maximum parallax factor (dramatically reduced effect)"""
 	max_parallax_factor = clamp(new_factor, 0.0, 1.0)
-	print("✓ Set max parallax factor to: ", max_parallax_factor)
 
 func get_parallax_debug_info() -> Dictionary:
 	"""Get detailed debug information about the parallax system"""

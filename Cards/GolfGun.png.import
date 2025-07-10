@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bdawu0prikxhf"
-path="res://.godot/imported/StoneWall.png-d189dab33fb29dad35113cee8331efdd.ctex"
+uid="uid://dru825hdjpwgg"
+path="res://.godot/imported/GolfGun.png-13fbba5ca5a4c4a9f5f9505f86c1b7ac.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Obstacles/StoneWall.png"
-dest_files=["res://.godot/imported/StoneWall.png-d189dab33fb29dad35113cee8331efdd.ctex"]
+source_file="res://Cards/GolfGun.png"
+dest_files=["res://.godot/imported/GolfGun.png-13fbba5ca5a4c4a9f5f9505f86c1b7ac.ctex"]
 
 [params]
 

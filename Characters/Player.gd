@@ -84,6 +84,10 @@ var jump_tween: Tween
 var shadow_sprite: Sprite2D = null
 var ballhop_sound: AudioStreamPlayer2D = null
 
+# Meter system
+var power_meter: Node2D = null
+var height_meter: Node2D = null
+
 const SPRITE_GROUND_Y = -43.72
 
 func _ready():
@@ -127,6 +131,9 @@ func _ready():
 	
 	# Setup jump animation system
 	_setup_jump_animation()
+	
+	# Setup meter system
+	_setup_meters()
 	
 	print("[Player.gd] Player ready with health:", current_health, "/", max_health)
 	
@@ -1996,6 +2003,42 @@ func _setup_jump_animation() -> void:
 	if shadow_sprite:
 		# Ensure shadow is black (in case it was modified elsewhere)
 		shadow_sprite.modulate = Color(0, 0, 0, 0.3)  # Semi-transparent black
+
+func _setup_meters() -> void:
+	"""Setup the meter system"""
+	# Find the meter nodes
+	power_meter = get_node_or_null("PowerMeter")
+	height_meter = get_node_or_null("HeightMeter")
+	
+	if power_meter:
+		print("✓ PowerMeter found")
+	else:
+		print("⚠ PowerMeter not found")
+	
+	if height_meter:
+		print("✓ HeightMeter found")
+	else:
+		print("⚠ HeightMeter not found")
+
+func update_power_meter(power: float, max_power: float = 100.0) -> void:
+	"""Update the power meter display"""
+	if power_meter and power_meter.has_method("update_power"):
+		power_meter.update_power(power, max_power)
+
+func update_height_meter(height: float, max_height: float = 100.0) -> void:
+	"""Update the height meter display"""
+	if height_meter and height_meter.has_method("update_height"):
+		height_meter.update_height(height, max_height)
+
+func hide_power_meter() -> void:
+	"""Hide the power meter"""
+	if power_meter and power_meter.has_method("hide_meter"):
+		power_meter.hide_meter()
+
+func hide_height_meter() -> void:
+	"""Hide the height meter"""
+	if height_meter and height_meter.has_method("hide_meter"):
+		height_meter.hide_meter()
 
 func _find_shadow_sprite_recursive(node: Node) -> Sprite2D:
 	"""Recursively search for the Shadow sprite in the node tree"""

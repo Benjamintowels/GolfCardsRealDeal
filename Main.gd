@@ -11,6 +11,9 @@ extends Control
 var selected_character = 1  # Default to character 1
 
 func _ready():
+	# Start with black screen and fade in
+	FadeManager.start_round_black_screen()
+	
 	# Set up button group for exclusive selection
 	var button_group = ButtonGroup.new()
 	character1_button.button_group = button_group
@@ -30,6 +33,10 @@ func _ready():
 	
 	print("Buttons connected successfully")
 	print("Initial selected_character: ", selected_character)
+	
+	# Fade in from black after a short delay
+	await get_tree().create_timer(0.1).timeout
+	FadeManager.fade_from_black_when_ready()
 
 func _play_select_sound():
 	select_sound.play()
@@ -80,13 +87,15 @@ func _on_start_back_9_pressed():
 	call_deferred("_change_to_mid_game_shop")
 
 func _change_scene():
-	# Start fade to black first
-	FadeManager.fade_to_black(func(): get_tree().change_scene_to_file("res://Course1.tscn"), 0.5)
-	
-	# Play door sounds during the fade
-	$DoorOpen.play()
-	await $DoorOpen.finished
-	$DoorClose.play()
+	# Fade to black before changing scene
+	FadeManager.fade_to_black(func(): 
+		# Play door sounds during the fade
+		$DoorOpen.play()
+		await $DoorOpen.finished
+		$DoorClose.play()
+		# Change scene after sounds complete
+		get_tree().change_scene_to_file("res://Course1.tscn")
+	, 0.5)
 
 func _change_to_mid_game_shop():
 	# Use FadeManager for smooth transition to MidGameShop

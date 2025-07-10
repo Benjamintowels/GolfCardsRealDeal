@@ -1,4 +1,4 @@
-[gd_scene load_steps=25 format=3 uid="uid://dlq5ygh2wv33m"]
+[gd_scene load_steps=26 format=3 uid="uid://dlq5ygh2wv33m"]
 
 [ext_resource type="Script" uid="uid://d4hrfk75nrm45" path="res://course_1.gd" id="1_pe8tc"]
 [ext_resource type="Texture2D" uid="uid://cpe67sk2vh8me" path="res://EDGE.png" id="2_eymfu"]
@@ -24,6 +24,7 @@
 [ext_resource type="PackedScene" path="res://BlockHealthBar.tscn" id="22_block_health_bar"]
 [ext_resource type="AudioStream" uid="uid://tu47pjuwugnn" path="res://Sounds/Snow.mp3" id="23_6ixtt"]
 [ext_resource type="Script" uid="uid://d3eloiw6y4k1g" path="res://BackgroundManager.gd" id="25_bg_manager"]
+[ext_resource type="AudioStream" uid="uid://d3arwob15mnkt" path="res://Sounds/CloseDoor.mp3" id="26_close_door"]
 
 [node name="Course1" type="Control"]
 layout_mode = 3
@@ -55,6 +56,9 @@ volume_db = 5.507
 
 [node name="CardPlaySound" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("4_oep1l")
+
+[node name="DoorCloseSound" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("26_close_door")
 
 [node name="GameCamera" type="Camera2D" parent="."]
 script = ExtResource("11_zoom")

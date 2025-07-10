@@ -159,12 +159,7 @@ func enter_weapon_aiming_mode() -> void:
 		# Store original club to restore later
 		set_meta("original_club", original_club)
 		
-		# Position camera on player initially
-		var sprite = player_node.get_node_or_null("Sprite2D")
-		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
-		var player_center = player_node.global_position + player_size / 2
-		var tween := get_tree().create_tween()
-		tween.tween_property(course.camera, "position", player_center, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		# REMOVED: No longer positioning camera during weapon aiming to avoid parallax offset issues
 	
 	# For grenade mode, set up camera following like normal shot placement
 	elif selected_card and selected_card.name == "GrenadeCard" and card_effect_handler and card_effect_handler.course:
@@ -185,12 +180,7 @@ func enter_weapon_aiming_mode() -> void:
 		# Store original club to restore later
 		set_meta("original_club", original_club)
 		
-		# Position camera on player initially
-		var sprite = player_node.get_node_or_null("Sprite2D")
-		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
-		var player_center = player_node.global_position + player_size / 2
-		var tween := get_tree().create_tween()
-		tween.tween_property(course.camera, "position", player_center, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		# REMOVED: No longer positioning camera during weapon aiming to avoid parallax offset issues
 	
 	# For shotgun mode, set up camera following like normal shot placement
 	elif selected_card and selected_card.name == "ShotgunCard" and card_effect_handler and card_effect_handler.course:
@@ -211,12 +201,7 @@ func enter_weapon_aiming_mode() -> void:
 		# Store original club to restore later
 		set_meta("original_club", original_club)
 		
-		# Position camera on player initially
-		var sprite = player_node.get_node_or_null("Sprite2D")
-		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
-		var player_center = player_node.global_position + player_size / 2
-		var tween := get_tree().create_tween()
-		tween.tween_property(course.camera, "position", player_center, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		# REMOVED: No longer positioning camera during weapon aiming to avoid parallax offset issues
 	
 	# For sniper mode, set up camera following like normal shot placement
 	elif selected_card and selected_card.name == "SniperCard" and card_effect_handler and card_effect_handler.course:
@@ -237,12 +222,7 @@ func enter_weapon_aiming_mode() -> void:
 		# Store original club to restore later
 		set_meta("original_club", original_club)
 		
-		# Position camera on player initially
-		var sprite = player_node.get_node_or_null("Sprite2D")
-		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
-		var player_center = player_node.global_position + player_size / 2
-		var tween := get_tree().create_tween()
-		tween.tween_property(course.camera, "position", player_center, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		# REMOVED: No longer positioning camera during weapon aiming to avoid parallax offset issues
 	
 	# Input is handled by the course's _input function
 
@@ -772,14 +752,7 @@ func fire_sniper() -> void:
 			
 			emit_signal("npc_shot", hit_target, weapon_damage)
 	
-	# Tween camera back to player after firing
-	if card_effect_handler and card_effect_handler.course:
-		var course = card_effect_handler.course
-		var sprite = player_node.get_node_or_null("Sprite2D")
-		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
-		var player_center = player_node.global_position + player_size / 2
-		var tween := get_tree().create_tween()
-		tween.tween_property(course.camera, "position", player_center, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	# REMOVED: No longer tweening camera back to player after firing to avoid parallax offset issues
 	
 	# Exit weapon mode after firing
 	exit_weapon_mode()

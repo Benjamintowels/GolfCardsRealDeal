@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bdawu0prikxhf"
-path="res://.godot/imported/StoneWall.png-d189dab33fb29dad35113cee8331efdd.ctex"
+uid="uid://ctbed8xil50ud"
+path="res://.godot/imported/Grass2.png-1f78fb38c3f51bac6beb4ed5ebfcf4aa.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Obstacles/StoneWall.png"
-dest_files=["res://.godot/imported/StoneWall.png-d189dab33fb29dad35113cee8331efdd.ctex"]
+source_file="res://Obstacles/Grass2.png"
+dest_files=["res://.godot/imported/Grass2.png-1f78fb38c3f51bac6beb4ed5ebfcf4aa.ctex"]
 
 [params]
 

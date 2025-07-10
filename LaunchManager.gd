@@ -4,8 +4,7 @@ class_name LaunchManager
 # Launch variables
 var golf_ball: Node2D = null
 var throwing_knife: Node2D = null
-var power_meter: Control = null
-var height_meter: Control = null
+# Meter variables removed - now using player's meter system
 var launch_power := 0.0
 var launch_height := 0.0
 var launch_direction := Vector2.ZERO
@@ -14,6 +13,17 @@ var is_charging_height := false
 var is_knife_mode := false  # Track if we're launching a knife instead of a ball
 var is_grenade_mode := false  # Track if we're launching a grenade instead of a ball
 var is_spear_mode := false  # Track if we're launching a spear instead of a ball
+
+# Vertical parallax effect variables
+var vertical_parallax_active := false
+var world_grid_container: Control = null  # Reference to the grid container
+var obstacle_layer: Control = null  # Reference to the obstacle layer (contains tiles and objects)
+var background_manager: Node = null  # Reference to background manager
+var vertical_squish_factor := 1.0  # Current Y scaling (1.0 = normal, 0.7 = squished)
+var background_compression_factor := 1.0  # How much to compress background layers
+var sprite_compensation_factor := 1.0  # How much to scale sprites to compensate (1.0 = normal, 1.5 = compensated)
+var vertical_parallax_tween: Tween = null
+var original_camera_container_position: Vector2 = Vector2.ZERO  # Store original position to restore later
 
 # Launch constants
 const MAX_LAUNCH_POWER := 1200.0
@@ -24,6 +34,12 @@ const MIN_LAUNCH_HEIGHT := 0.0   # Allow for ground-level shots (was 144.0)
 const HEIGHT_CHARGE_RATE := 600.0  # Adjusted for pixel perfect system (was 1000.0)
 const HEIGHT_SWEET_SPOT_MIN := 0.3 # 30% of max height - lower sweet spot for better arc
 const HEIGHT_SWEET_SPOT_MAX := 0.5 # 50% of max height - narrower sweet spot
+
+# Vertical parallax constants
+const VERTICAL_SQUISH_MIN := 0.7  # Minimum Y scaling (30% squish)
+const BACKGROUND_COMPRESSION_MIN := 0.6  # How much to compress background layers
+const SPRITE_COMPENSATION_MAX := 1.5  # Maximum sprite compensation (50% scale up)
+const VERTICAL_PARALLAX_DURATION := 1.2  # Duration of transition in seconds (increased for smoother animation)
 
 # Charge time variables
 var charge_time := 0.0  # Time spent charging (in seconds)
@@ -59,6 +75,9 @@ signal ball_launched(ball: Node2D)
 signal launch_phase_entered
 signal launch_phase_exited
 signal charging_state_changed(charging: bool, charging_height: bool)
+signal vertical_parallax_activated
+signal vertical_parallax_deactivated
+signal vertical_parallax_animation_complete
 
 # Add this variable to track if this is a tee shot
 
@@ -75,45 +94,33 @@ func _process(delta: float):
 	if is_charging:
 		charge_time = min(charge_time + delta, max_charge_time)
 		
-		if power_meter:
-			var meter_fill = power_meter.get_node_or_null("MeterFill")
-			var value_label = power_meter.get_node_or_null("PowerValue")
+		# Update player's power meter
+		if player_node and player_node.has_method("update_power_meter"):
 			var time_percent = charge_time / max_charge_time
 			time_percent = clamp(time_percent, 0.0, 1.0)
 			
-			if meter_fill:
-				# Update the width of the meter fill instead of scaling
-				var max_width = 300.0  # Width of the meter background
-				meter_fill.size.x = time_percent * max_width
-			if value_label:
-				var scaled_min_power = power_meter.get_meta("scaled_min_power", MIN_LAUNCH_POWER)
-				var scaled_max_power = power_meter.get_meta("max_power_for_bar", MAX_LAUNCH_POWER)
-				var current_power = scaled_min_power + (time_percent * (scaled_max_power - scaled_min_power))
-				value_label.text = str(int(current_power))
+			# Calculate current power based on club data
+			var scaled_min_power = MIN_LAUNCH_POWER
+			var scaled_max_power = MAX_LAUNCH_POWER
+			if chosen_landing_spot != Vector2.ZERO and selected_club in club_data:
+				var club_max = club_data[selected_club]["max_distance"]
+				scaled_max_power = club_max
+			
+			var current_power = scaled_min_power + (time_percent * (scaled_max_power - scaled_min_power))
+			player_node.update_power_meter(current_power, scaled_max_power)
 	
 	if is_charging_height:
 		launch_height = min(launch_height + HEIGHT_CHARGE_RATE * delta, MAX_LAUNCH_HEIGHT)
-		if height_meter:
-			var meter_fill = height_meter.get_node_or_null("MeterFill")
-			var value_label = height_meter.get_node_or_null("HeightValue")
-			var height_percentage = launch_height / MAX_LAUNCH_HEIGHT  # Simplified calculation for 0.0 to MAX_LAUNCH_HEIGHT range
-			height_percentage = clamp(height_percentage, 0.0, 1.0)
-			
-			if meter_fill:
-				# Update the height of the meter fill instead of scaling
-				var max_height = 300.0  # Height of the meter background
-				meter_fill.size.y = height_percentage * max_height
-				# Keep the position at the bottom
-				meter_fill.position.y = 330 - meter_fill.size.y
-			if value_label:
-				value_label.text = str(int(launch_height))
+		
+		# Update player's height meter
+		if player_node and player_node.has_method("update_height_meter"):
+			player_node.update_height_meter(launch_height, MAX_LAUNCH_HEIGHT)
 
 func enter_launch_phase() -> void:
 	"""Enter the launch phase for taking a shot"""
 	emit_signal("launch_phase_entered")
 	charge_time = 0.0
 	original_aim_mouse_pos = camera.get_global_mouse_position()
-	show_power_meter()
 	
 	# Set max_charge_time based on club and distance
 	max_charge_time = 1.0  # Default charge time (reduced from 3.0)
@@ -130,13 +137,11 @@ func enter_launch_phase() -> void:
 	
 	var is_putting = club_data.get(selected_club, {}).get("is_putter", false)
 	if not is_putting:
-		show_height_meter()
 		launch_height = 0.0  # Start at ground level for low shots (was MIN_LAUNCH_HEIGHT)
 	else:
 		launch_height = 0.0
 	
-	var scaled_min_power = power_meter.get_meta("scaled_min_power", MIN_LAUNCH_POWER)
-	launch_power = scaled_min_power
+	launch_power = MIN_LAUNCH_POWER
 	
 	if chosen_landing_spot != Vector2.ZERO:
 		var sprite = player_node.get_node_or_null("Sprite2D")
@@ -144,11 +149,8 @@ func enter_launch_phase() -> void:
 		var player_center = player_node.global_position + player_size / 2
 		var distance_to_target = player_center.distance_to(chosen_landing_spot)
 	
-	var sprite = player_node.get_node_or_null("Sprite2D")
-	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
-	var player_center = player_node.global_position + player_size / 2
-	var tween := get_tree().create_tween()
-	tween.tween_property(camera, "position", player_center, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	# Camera positioning is now handled by the vertical parallax effect
+	# No additional camera tween to avoid conflicts
 	
 	# Spin indicator removed
 	pass
@@ -156,13 +158,21 @@ func enter_launch_phase() -> void:
 func exit_launch_phase() -> void:
 	"""Exit the launch phase"""
 	emit_signal("launch_phase_exited")
-	hide_power_meter()
-	hide_height_meter()
+	
+	# Hide player meters
+	if player_node and player_node.has_method("hide_power_meter"):
+		player_node.hide_power_meter()
+	if player_node and player_node.has_method("hide_height_meter"):
+		player_node.hide_height_meter()
+	
 	is_charging = false
 	is_charging_height = false
 	is_knife_mode = false  # Reset knife mode
 	is_grenade_mode = false  # Reset grenade mode
 	is_spear_mode = false  # Reset spear mode
+	
+	# REMOVED: No longer deactivating vertical parallax when exiting launch phase
+	# Since we're not activating it during normal launches anymore
 	
 	# Reset ball in flight state when exiting launch phase
 	set_ball_in_flight(false)
@@ -602,162 +612,7 @@ func launch_spear(launch_direction: Vector2, final_power: float, height: float, 
 	# Exit launch phase to transition to ball flying phase
 	exit_launch_phase()
 
-func show_power_meter():
-	if power_meter:
-		power_meter.queue_free()
-	
-	print("LaunchManager: show_power_meter - selected_club:", selected_club, " club_data:", club_data)
-	
-	power_for_target = MIN_LAUNCH_POWER  # Default if no target
-	max_power_for_bar = MAX_LAUNCH_POWER  # Default
-	
-	if chosen_landing_spot != Vector2.ZERO and selected_club in club_data:
-		var sprite = player_node.get_node_or_null("Sprite2D")
-		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
-		var player_center = player_node.global_position + player_size / 2
-		var distance_to_target = player_center.distance_to(chosen_landing_spot)
-		var club_max = club_data[selected_club]["max_distance"] if selected_club in club_data else MAX_LAUNCH_POWER
-		power_for_target = min(distance_to_target, club_max)
-		max_power_for_bar = club_max
-		print("LaunchManager: show_power_meter - calculated power_for_target:", power_for_target, " max_power_for_bar:", max_power_for_bar)
-	
-	power_meter = Control.new()
-	power_meter.name = "PowerMeter"
-	power_meter.size = Vector2(350, 80)
-	power_meter.position = Vector2(396.49, 558.7)  # Center of screen for testing
-	ui_layer.add_child(power_meter)
-	power_meter.z_index = 200
-	
-	var background := ColorRect.new()
-	background.color = Color(0, 0, 0, 0.7)
-	background.size = power_meter.size
-	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	power_meter.add_child(background)
-	
-	var title_label := Label.new()
-	title_label.text = "POWER"
-	title_label.add_theme_font_size_override("font_size", 16)
-	title_label.add_theme_color_override("font_color", Color.WHITE)
-	title_label.position = Vector2(10, 5)
-	title_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	power_meter.add_child(title_label)
-	
-	var meter_bg := ColorRect.new()
-	meter_bg.color = Color(0.3, 0.3, 0.3, 1.0)
-	meter_bg.size = Vector2(300, 30)
-	meter_bg.position = Vector2(10, 30)
-	meter_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	power_meter.add_child(meter_bg)
-	
-	var sweet_spot := ColorRect.new()
-	sweet_spot.color = Color(0, 1, 0, 0.5)
-	sweet_spot.size = Vector2(60, 30)
-	sweet_spot.position = Vector2(10 + 180, 30)  # 60% of 300
-	sweet_spot.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	power_meter.add_child(sweet_spot)
-	
-	var meter_fill := ColorRect.new()
-	meter_fill.color = Color(1, 0, 0, 1.0)
-	meter_fill.size = Vector2(0, 30)  # Start with zero width, will be updated in _process
-	meter_fill.position = Vector2(10, 30)
-	meter_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	meter_fill.name = "MeterFill"
-	power_meter.add_child(meter_fill)
-	
-	var value_label := Label.new()
-	value_label.text = "0"
-	value_label.add_theme_font_size_override("font_size", 14)
-	value_label.add_theme_color_override("font_color", Color.WHITE)
-	value_label.position = Vector2(320, 30)
-	value_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	value_label.name = "PowerValue"
-	power_meter.add_child(value_label)
-	
-	var min_label := Label.new()
-	min_label.text = "MIN"
-	min_label.add_theme_font_size_override("font_size", 12)
-	min_label.add_theme_color_override("font_color", Color.LIGHT_GRAY)
-	min_label.position = Vector2(10, 65)
-	min_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	power_meter.add_child(min_label)
-	
-	var max_label := Label.new()
-	max_label.text = "MAX"
-	max_label.add_theme_font_size_override("font_size", 12)
-	max_label.add_theme_color_override("font_color", Color.LIGHT_GRAY)
-	max_label.position = Vector2(280, 65)
-	max_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	power_meter.add_child(max_label)
-	
-	power_meter.set_meta("max_power_for_bar", max_power_for_bar)
-	power_meter.set_meta("power_for_target", power_for_target)
-	power_meter.set_meta("scaled_min_power", MIN_LAUNCH_POWER)
-
-func hide_power_meter():
-	if power_meter:
-		power_meter.queue_free()
-		power_meter = null
-
-func show_height_meter():
-	if height_meter:
-		height_meter.queue_free()
-	
-	height_meter = Control.new()
-	height_meter.name = "HeightMeter"
-	height_meter.size = Vector2(80, 350)
-	height_meter.position = Vector2(335.5, 206.5)  # Center of screen for testing
-	ui_layer.add_child(height_meter)
-	height_meter.z_index = 200
-	
-	var background := ColorRect.new()
-	background.color = Color(0, 0, 0, 0.7)
-	background.size = height_meter.size
-	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	height_meter.add_child(background)
-	
-	var title_label := Label.new()
-	title_label.text = "HEIGHT"
-	title_label.add_theme_font_size_override("font_size", 16)
-	title_label.add_theme_color_override("font_color", Color.WHITE)
-	title_label.position = Vector2(10, 5)
-	title_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	height_meter.add_child(title_label)
-	
-	var meter_bg := ColorRect.new()
-	meter_bg.color = Color(0.3, 0.3, 0.3, 1.0)
-	meter_bg.size = Vector2(30, 300)
-	meter_bg.position = Vector2(25, 30)
-	meter_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	height_meter.add_child(meter_bg)
-	
-	var sweet_spot := ColorRect.new()
-	sweet_spot.color = Color(0, 1, 0, 0.5)
-	sweet_spot.size = Vector2(30, 60)  # 60 pixels height
-	sweet_spot.position = Vector2(25, 30 + 90)  # 30% of 300 = 90 pixels from top
-	sweet_spot.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	height_meter.add_child(sweet_spot)
-	
-	var meter_fill := ColorRect.new()
-	meter_fill.color = Color(0, 0, 1, 1.0)
-	meter_fill.size = Vector2(30, 0)  # Start with zero height, will be updated in _process
-	meter_fill.position = Vector2(25, 330)  # Start from bottom
-	meter_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	meter_fill.name = "MeterFill"
-	height_meter.add_child(meter_fill)
-	
-	var value_label := Label.new()
-	value_label.text = "0"
-	value_label.add_theme_font_size_override("font_size", 14)
-	value_label.add_theme_color_override("font_color", Color.WHITE)
-	value_label.position = Vector2(10, 340)
-	value_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	value_label.name = "HeightValue"
-	height_meter.add_child(value_label)
-
-func hide_height_meter():
-	if height_meter:
-		height_meter.queue_free()
-		height_meter = null
+# Meter functions removed - now using player's meter system
 
 # Spin indicator functions removed
 
@@ -799,7 +654,9 @@ func handle_input(event: InputEvent) -> bool:
 							launch_spear(launch_direction, final_power, launch_height)
 						else:
 							launch_golf_ball(launch_direction, final_power, launch_height)
-						hide_power_meter()
+						# Hide player meters
+						if player_node and player_node.has_method("hide_power_meter"):
+							player_node.hide_power_meter()
 					emit_signal("charging_state_changed", is_charging, is_charging_height)
 					return true
 				elif is_charging_height:
@@ -821,16 +678,22 @@ func handle_input(event: InputEvent) -> bool:
 					else:
 						print("LaunchManager: Launching golf ball")
 						launch_golf_ball(launch_direction, final_power, launch_height)
-					hide_power_meter()
-					hide_height_meter()
+					# Hide player meters
+					if player_node and player_node.has_method("hide_power_meter"):
+						player_node.hide_power_meter()
+					if player_node and player_node.has_method("hide_height_meter"):
+						player_node.hide_height_meter()
 					emit_signal("charging_state_changed", is_charging, is_charging_height)
 					return true
 		elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
 			# Cancel launch phase
 			is_charging = false
 			is_charging_height = false
-			hide_power_meter()
-			hide_height_meter()
+			# Hide player meters
+			if player_node and player_node.has_method("hide_power_meter"):
+				player_node.hide_power_meter()
+			if player_node and player_node.has_method("hide_height_meter"):
+				player_node.hide_height_meter()
 			emit_signal("charging_state_changed", is_charging, is_charging_height)
 			return true
 	
@@ -1156,6 +1019,141 @@ func is_ball_available_for_launch() -> bool:
 func set_ball_in_flight(in_flight: bool) -> void:
 	"""Set the ball in flight state"""
 	ball_in_flight = in_flight
+	print("Ball in flight state set to: ", in_flight)
+
+# Vertical parallax effect methods
+func setup_vertical_parallax(grid_container: Control, obstacle_layer_node: Control, bg_manager: Node) -> void:
+	"""Setup references for vertical parallax effect"""
+	world_grid_container = grid_container
+	obstacle_layer = obstacle_layer_node
+	background_manager = bg_manager
+	# camera_container is already set by the course
+	print("✓ Vertical parallax setup complete")
+
+func activate_vertical_parallax() -> void:
+	"""Activate the vertical parallax effect during shot charging"""
+	if vertical_parallax_active:
+		return
+	
+	vertical_parallax_active = true
+	vertical_parallax_activated.emit()
+	
+	# Store original camera container position
+	if camera_container:
+		original_camera_container_position = camera_container.position
+	
+	# Start the transition to squished state (squish world, compensate sprites)
+	_animate_vertical_parallax(VERTICAL_SQUISH_MIN, BACKGROUND_COMPRESSION_MIN, SPRITE_COMPENSATION_MAX)
+
+func deactivate_vertical_parallax() -> void:
+	"""Deactivate the vertical parallax effect"""
+	if not vertical_parallax_active:
+		return
+	
+	vertical_parallax_active = false
+	vertical_parallax_deactivated.emit()
+	
+	# Return to normal state
+	_animate_vertical_parallax(1.0, 1.0, 1.0)
+
+func _animate_vertical_parallax(target_squish: float, target_compression: float, target_sprite_compensation: float) -> void:
+	"""Animate the vertical parallax transition"""
+	# Kill any existing tween
+	if vertical_parallax_tween:
+		vertical_parallax_tween.kill()
+	
+	vertical_parallax_tween = get_tree().create_tween()
+	vertical_parallax_tween.set_trans(Tween.TRANS_QUINT)
+	vertical_parallax_tween.set_ease(Tween.EASE_IN_OUT)
+	
+	# Animate the squish factor
+	vertical_parallax_tween.tween_method(
+		_update_vertical_parallax,
+		vertical_squish_factor,
+		target_squish,
+		VERTICAL_PARALLAX_DURATION
+	)
+	
+	# Animate the background compression
+	vertical_parallax_tween.parallel().tween_method(
+		_update_background_compression,
+		background_compression_factor,
+		target_compression,
+		VERTICAL_PARALLAX_DURATION
+	)
+	
+	# Animate the sprite compensation
+	vertical_parallax_tween.parallel().tween_method(
+		_update_sprite_compensation,
+		sprite_compensation_factor,
+		target_sprite_compensation,
+		VERTICAL_PARALLAX_DURATION
+	)
+	
+	# Connect to tween completion to emit signal
+	vertical_parallax_tween.finished.connect(_on_vertical_parallax_animation_complete)
+
+func _update_vertical_parallax(squish_factor: float) -> void:
+	"""Update the vertical squish effect on the world grid"""
+	vertical_squish_factor = squish_factor
+	
+	if obstacle_layer:
+		# Apply Y scaling to the obstacle layer (contains tiles and objects)
+		obstacle_layer.scale.y = squish_factor
+	
+	if world_grid_container:
+		# Apply Y scaling to the grid container (contains the player)
+		world_grid_container.scale.y = squish_factor
+
+func _update_background_compression(compression_factor: float) -> void:
+	"""Update the background layer compression"""
+	background_compression_factor = compression_factor
+	
+	if background_manager and background_manager.has_method("adjust_layer_position"):
+		# Move background layers closer to TreeLine1 during shot view
+		var compression_offset = (1.0 - compression_factor) * 500.0  # Move up to 500 pixels closer
+		
+		# Adjust all background layers except Sky with specific Y positions
+		background_manager.adjust_layer_position("TreeLine", Vector2(0, -910.77 + compression_offset))
+		background_manager.adjust_layer_position("TreeLine2", Vector2(0, -936.145 + compression_offset))
+		background_manager.adjust_layer_position("TreeLine3", Vector2(0, -990.785 + compression_offset))
+		background_manager.adjust_layer_position("Hill", Vector2(0, -826.915 + compression_offset))
+		background_manager.adjust_layer_position("DistantHill", Vector2(0, -1027.225 + compression_offset))
+		background_manager.adjust_layer_position("City", Vector2(0, -925.485 + compression_offset))
+		background_manager.adjust_layer_position("Clouds", Vector2(0, -1700.0 + compression_offset))
+		background_manager.adjust_layer_position("Mountains", Vector2(0, -987.625 + compression_offset))
+		background_manager.adjust_layer_position("Horizon", Vector2(0, 3122.71 + compression_offset))
+		background_manager.adjust_layer_position("Foreground", Vector2(0, -720 + compression_offset))
+		
+
+func _update_sprite_compensation(compensation_factor: float) -> void:
+	"""Update the sprite compensation scaling for objects and NPCs"""
+	sprite_compensation_factor = compensation_factor
+	
+	# Find and scale all relevant objects and NPCs
+	var objects_to_scale = []
+	
+	# Add objects from obstacle layer (trees, pins, gang members, police, boulders, oil drums, shops)
+	if obstacle_layer:
+		for child in obstacle_layer.get_children():
+			if is_instance_valid(child) and child is Node2D:
+				objects_to_scale.append(child)
+	
+	# Add player from grid container
+	if world_grid_container:
+		for child in world_grid_container.get_children():
+			if is_instance_valid(child) and child is Node2D and child.name == "Player":
+				objects_to_scale.append(child)
+	
+	# Apply compensation scaling to all objects
+	for obj in objects_to_scale:
+		if is_instance_valid(obj):
+			obj.scale.y = compensation_factor
+
+func _on_vertical_parallax_animation_complete() -> void:
+	"""Called when vertical parallax animation completes"""
+	vertical_parallax_animation_complete.emit()
+	print("✓ Vertical parallax animation complete")
 
 func cleanup():
 	"""Clean up launch manager resources"""
@@ -1163,5 +1161,8 @@ func cleanup():
 		golf_ball.queue_free()
 		golf_ball = null
 	
-	hide_power_meter()
-	hide_height_meter() 
+	# Hide player meters
+	if player_node and player_node.has_method("hide_power_meter"):
+		player_node.hide_power_meter()
+	if player_node and player_node.has_method("hide_height_meter"):
+		player_node.hide_height_meter() 

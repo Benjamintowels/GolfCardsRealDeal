@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=3 uid="uid://clxh2b81uxvtv"]
+[gd_scene load_steps=17 format=3 uid="uid://clxh2b81uxvtv"]
 
 [ext_resource type="Script" uid="uid://bkqfjhiqcwabx" path="res://Characters/Player.gd" id="1_yweqe"]
 [ext_resource type="AudioStream" uid="uid://w3sc1j80onsl" path="res://Sounds/PistolShot.mp3" id="2_5tbhv"]
@@ -14,6 +14,8 @@
 [ext_resource type="AudioStream" uid="uid://c32w6bjkh8ww2" path="res://Sounds/FootstepsGrass.mp3" id="12_0xqnh"]
 [ext_resource type="AudioStream" uid="uid://dl2ynh3s1er12" path="res://Sounds/FootstepsSnow.mp3" id="13_xma0y"]
 [ext_resource type="AudioStream" uid="uid://cqm2ebplq8wlo" path="res://Sounds/BallHop.mp3" id="14_xma0y"]
+[ext_resource type="Script" uid="uid://dershwylmpt10" path="res://PowerMeter.gd" id="15_powermeter"]
+[ext_resource type="Script" uid="uid://cf17kygduydrk" path="res://HeightMeter.gd" id="16_heightmeter"]
 
 [node name="Player1" type="CharacterBody2D"]
 script = ExtResource("1_yweqe")
@@ -58,3 +60,11 @@ stream = ExtResource("13_xma0y")
 [node name="BallHop" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("14_xma0y")
 volume_db = -10.254
+
+[node name="PowerMeter" type="Node2D" parent="."]
+position = Vector2(0, 14)
+script = ExtResource("15_powermeter")
+
+[node name="HeightMeter" type="Node2D" parent="."]
+position = Vector2(-31, -39)
+script = ExtResource("16_heightmeter")
