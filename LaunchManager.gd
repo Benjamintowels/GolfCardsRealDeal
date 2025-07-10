@@ -13,6 +13,7 @@ var is_charging := false
 var is_charging_height := false
 var is_knife_mode := false  # Track if we're launching a knife instead of a ball
 var is_grenade_mode := false  # Track if we're launching a grenade instead of a ball
+var is_spear_mode := false  # Track if we're launching a spear instead of a ball
 
 # Launch constants
 const MAX_LAUNCH_POWER := 1200.0
@@ -112,7 +113,6 @@ func enter_launch_phase() -> void:
 	emit_signal("launch_phase_entered")
 	charge_time = 0.0
 	original_aim_mouse_pos = camera.get_global_mouse_position()
-	print("LaunchManager: enter_launch_phase - selected_club:", selected_club, " is_grenade_mode:", is_grenade_mode, " club_data:", club_data)
 	show_power_meter()
 	
 	# Set max_charge_time based on club and distance
@@ -162,6 +162,7 @@ func exit_launch_phase() -> void:
 	is_charging_height = false
 	is_knife_mode = false  # Reset knife mode
 	is_grenade_mode = false  # Reset grenade mode
+	is_spear_mode = false  # Reset spear mode
 	
 	# Reset ball in flight state when exiting launch phase
 	set_ball_in_flight(false)
@@ -207,6 +208,54 @@ func exit_knife_mode() -> void:
 				golf_ball = ball
 				break
 	previous_golf_ball = null
+
+func enter_spear_mode() -> void:
+	"""Enter spear throwing mode"""
+	is_spear_mode = true
+	selected_club = "SpearCard"  # Use SpearCard club stats for spear throwing
+	
+	# Store the current golf ball reference before entering spear mode
+	previous_golf_ball = golf_ball
+	
+	# Create character-specific spear data based on strength
+	var character_strength = player_stats.get("strength", 0)
+	var base_max_distance = 350.0  # Base distance for strength 0 (Benny) - spears go further than knives
+	var strength_multiplier = 1.0 + (character_strength * 0.25)  # +25% per strength point
+	var max_distance = base_max_distance * strength_multiplier
+	
+	# Set up character-specific spear data
+	club_data = {
+		"SpearCard": {
+			"max_distance": max_distance,
+			"min_distance": 250.0,
+			"trailoff_forgiveness": 0.8,
+			"is_putter": false
+		}
+	}
+	
+	enter_launch_phase()
+
+func exit_spear_mode() -> void:
+	"""Exit spear throwing mode"""
+	is_spear_mode = false
+	
+	# Clear spear reference (reuses throwing_knife variable)
+	throwing_knife = null
+	
+	# Restore golf ball reference from stored reference or find one in scene
+	if previous_golf_ball and is_instance_valid(previous_golf_ball):
+		golf_ball = previous_golf_ball
+	else:
+		# Fallback: find any valid ball in the scene
+		var balls = get_tree().get_nodes_in_group("balls")
+		for ball in balls:
+			if is_instance_valid(ball):
+				golf_ball = ball
+				break
+	previous_golf_ball = null
+	
+	# Exit launch phase to return to normal game state
+	exit_launch_phase()
 
 func enter_grenade_mode() -> void:
 	"""Enter grenade throwing mode"""
@@ -473,6 +522,86 @@ func launch_grenade(launch_direction: Vector2, final_power: float, height: float
 	# Exit launch phase to transition to ball flying phase
 	exit_launch_phase()
 
+func launch_spear(launch_direction: Vector2, final_power: float, height: float, launch_spin: float = 0.0, spin_strength_category: int = 0):
+	"""Launch the spear with the specified parameters"""
+	golf_ball = null
+	var existing_spear = null
+	var spears = get_tree().get_nodes_in_group("spears")
+	
+	# Find an available spear in the scene (not landed)
+	for spear in spears:
+		if is_instance_valid(spear):
+			# Check if this spear is available (not landed)
+			var is_available = false
+			if spear.has_method("is_in_flight"):
+				is_available = spear.is_in_flight()
+			elif "landed_flag" in spear:
+				is_available = not spear.landed_flag
+			else:
+				# If we can't determine if it's landed, assume it's available
+				is_available = true
+			
+			if is_available:
+				existing_spear = spear
+				break
+
+	if not existing_spear:
+		# Create a new spear instance
+		var spear_scene = preload("res://Weapons/Spear.tscn")
+		existing_spear = spear_scene.instantiate()
+		
+		# Add spear to groups for smart optimization
+		existing_spear.add_to_group("spears")
+		existing_spear.add_to_group("collision_objects")
+		
+		# Add to the CameraContainer like golf balls
+		if card_effect_handler and card_effect_handler.course:
+			var camera_container = card_effect_handler.course.get_node_or_null("CameraContainer")
+			if camera_container:
+				camera_container.add_child(existing_spear)
+				existing_spear.global_position = player_node.global_position
+			else:
+				# Fallback to course if CameraContainer not found
+				card_effect_handler.course.add_child(existing_spear)
+				existing_spear.global_position = player_node.global_position
+		else:
+			return
+
+	# Use the existing spear
+	throwing_knife = existing_spear  # Reuse throwing_knife variable for spear
+
+	# Set spear properties using character-specific spear stats
+	var spear_club_info = club_data.get("SpearCard", {
+		"max_distance": 350.0,
+		"min_distance": 250.0,
+		"trailoff_forgiveness": 0.8
+	})
+	throwing_knife.chosen_landing_spot = chosen_landing_spot
+	throwing_knife.set_club_info(spear_club_info)
+
+	# Calculate time percentage for the spear
+	var time_percent = charge_time / max_charge_time
+	time_percent = clamp(time_percent, 0.0, 1.0)
+	throwing_knife.set_time_percentage(time_percent)
+
+	# Calculate correct launch direction from spear to target
+	var direction = (chosen_landing_spot - throwing_knife.global_position).normalized()
+	print("Spear launch - chosen_landing_spot: ", chosen_landing_spot, " spear_position: ", throwing_knife.global_position)
+	print("Spear launch - direction: ", direction, " power: ", final_power, " height: ", height)
+	
+	# Launch the spear
+	throwing_knife.launch(direction, final_power, height, launch_spin, spin_strength_category)
+
+	# Set ball in flight state (reusing the same system)
+	set_ball_in_flight(true)
+
+	# Store reference and emit signal
+	self.throwing_knife = throwing_knife
+	emit_signal("ball_launched", throwing_knife)  # Reuse ball_launched signal for compatibility
+	
+	# Exit launch phase to transition to ball flying phase
+	exit_launch_phase()
+
 func show_power_meter():
 	if power_meter:
 		power_meter.queue_free()
@@ -666,6 +795,8 @@ func handle_input(event: InputEvent) -> bool:
 							launch_throwing_knife(launch_direction, final_power, launch_height)
 						elif is_grenade_mode:
 							launch_grenade(launch_direction, final_power, launch_height)
+						elif is_spear_mode:
+							launch_spear(launch_direction, final_power, launch_height)
 						else:
 							launch_golf_ball(launch_direction, final_power, launch_height)
 						hide_power_meter()
@@ -684,6 +815,9 @@ func handle_input(event: InputEvent) -> bool:
 					elif is_grenade_mode:
 						print("LaunchManager: Launching grenade")
 						launch_grenade(launch_direction, final_power, launch_height)
+					elif is_spear_mode:
+						print("LaunchManager: Launching spear")
+						launch_spear(launch_direction, final_power, launch_height)
 					else:
 						print("LaunchManager: Launching golf ball")
 						launch_golf_ball(launch_direction, final_power, launch_height)
@@ -727,6 +861,13 @@ func calculate_launch_direction() -> Vector2:
 		for grenade in grenades:
 			if is_instance_valid(grenade):
 				projectile_position = grenade.global_position
+				break
+	elif is_spear_mode:
+		# For spears, check spear instances
+		var spears = get_tree().get_nodes_in_group("spears")
+		for spear in spears:
+			if is_instance_valid(spear):
+				projectile_position = spear.global_position
 				break
 	else:
 		# For balls, check ball instances

@@ -15,8 +15,7 @@ func _ready():
 	if not icon:
 		icon = $TextureRect
 	
-	# Debug output to check initialization
-	print("CardVisual _ready: label=", label, "icon=", icon)
+
 
 func setup(card_data: CardData) -> void:
 	if not card_data:
@@ -49,20 +48,14 @@ func set_card_data(card_data: CardData) -> void:
 	# Add null checks for UI elements
 	if not label:
 		label = $Label
-		print("CardVisual: Found label node:", label)
 	if not icon:
 		icon = $TextureRect
-		print("CardVisual: Found icon node:", icon)
 	
 	if label:
 		label.text = card_data.get_upgraded_name()
-		print("CardVisual: Set label text to:", card_data.get_upgraded_name())
 	if card_data.image and icon:
 		icon.texture = card_data.image
-		print("CardVisual: Set icon texture for:", card_data.name)
-	else:
-		print("CardVisual: No image or icon for:", card_data.name, "image:", card_data.image, "icon:", icon)
-	
+
 	# Add upgrade visual indicators
 	update_upgrade_visuals()
 

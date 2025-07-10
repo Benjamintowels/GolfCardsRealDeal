@@ -143,60 +143,43 @@ func draw_from_club_deck(count: int = 1) -> Array[CardData]:
 	return drawn_cards
 
 func draw_from_action_deck(count: int = 3) -> Array[CardData]:
-	"""Draw cards from the action deck using ordered deck system"""
-	print("=== DRAW_FROM_ACTION_DECK CALLED ===")
-	print("Requested count:", count)
-	print("Action deck index before draw:", action_deck_index)
-	print("Action deck order size:", action_deck_order.size())
-	print("Action discard pile size before draw:", action_discard_pile.size())
-	
 	# Show remaining cards in deck
 	var remaining = get_action_deck_remaining_cards()
-	print("Remaining cards in deck:", remaining.size())
-	for i in range(min(3, remaining.size())):
-		print("  ", i, ":", remaining[i].name)
+
 	
 	var drawn_cards: Array[CardData] = []
 	for i in range(count):
 		# Check if we need to reshuffle
 		if action_deck_index >= action_deck_order.size():
-			print("Action deck exhausted, reshuffling discard pile")
 			reshuffle_action_discard()
 			# If still no cards after reshuffle, we can't draw more
 			if action_deck_order.size() == 0:
-				print("Action deck still empty after reshuffle, breaking")
 				break
 		
 		# Draw the next card in order
 		var card := action_deck_order[action_deck_index]
 		action_deck_index += 1
 		drawn_cards.append(card)
-		print("Drew card:", card.name, "from action deck (index:", action_deck_index - 1, ")")
-	
-	print("Total cards drawn from action deck:", drawn_cards.size())
-	print("Action deck index after draw:", action_deck_index)
+
 	
 	# Validate deck state after drawing
 	validate_deck_state()
 	
-	print("=== END DRAW_FROM_ACTION_DECK ===")
+
 	
 	emit_signal("deck_updated")
 	return drawn_cards
 
 func draw_action_cards_to_hand(count: int = 3) -> void:
 	"""Draw action cards and add them directly to the hand"""
-	print("=== DRAW_ACTION_CARDS_TO_HAND CALLED ===")
-	print("Requested count:", count)
-	print("Hand size before drawing:", hand.size())
+
 	
 	var drawn_cards = draw_from_action_deck(count)
 	for card in drawn_cards:
 		hand.append(card)
-		print("Added card to hand:", card.name)
+
 	
-	print("Hand size after drawing:", hand.size())
-	print("=== END DRAW_ACTION_CARDS_TO_HAND ===")
+
 	emit_signal("deck_updated")
 
 func draw_club_cards_to_hand(count: int = 1) -> void:
@@ -317,14 +300,6 @@ func validate_deck_state() -> void:
 	
 	var available_cards = get_action_deck_remaining_cards()
 	var total_action_cards_in_system = available_cards.size() + action_discard_pile.size() + action_cards_in_hand
-	
-	print("=== DECK STATE VALIDATION ===")
-	print("Action deck order size:", action_deck_order.size())
-	print("Action deck index:", action_deck_index)
-	print("Available cards to draw:", available_cards.size())
-	print("Action discard pile size:", action_discard_pile.size())
-	print("Action cards in hand:", action_cards_in_hand)
-	print("Total action cards in system:", total_action_cards_in_system)
 	
 	# Check for duplicates in deck order
 	var seen_cards = {}

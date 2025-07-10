@@ -456,13 +456,8 @@ func _ready() -> void:
 	equipment_manager.name = "EquipmentManager"
 	add_child(equipment_manager)
 	
-	# Give player a Wand by default
-	var wand_equipment = preload("res://Equipment/Wand.tres")
-	if wand_equipment:
-		equipment_manager.add_equipment(wand_equipment)
-		print("Course: Gave player a Wand by default")
-	else:
-		print("Course: Failed to load Wand equipment resource")
+	# Player starts with level 1 backpack (handled by bag system)
+	print("Course: Player starts with level 1 backpack for their character")
 	
 	# Force sync with CurrentDeckManager immediately
 	deck_manager.sync_with_current_deck()
@@ -1534,6 +1529,8 @@ func update_aiming_circle():
 	aiming_circle.global_position = clamped_position - aiming_circle.size / 2
 	
 	chosen_landing_spot = clamped_position
+	print("Aiming circle placed at: ", clamped_position, " (world position)")
+	print("Aiming circle tile: ", map_manager.world_to_map(clamped_position) if map_manager else "no map_manager")
 	
 	update_ghost_ball()
 	
@@ -2884,13 +2881,11 @@ func enter_draw_cards_phase() -> void:
 	
 
 func draw_club_cards() -> void:
-	print("=== DRAWING CLUB CARDS ===")
 	for child in movement_buttons_container.get_children():
 		child.queue_free()
 	movement_buttons.clear()
 	
 	# Clear existing action cards from hand before drawing club cards
-	print("Clearing existing action cards from hand before club selection")
 	var cards_to_remove: Array[CardData] = []
 	for card in deck_manager.hand:
 		if not deck_manager.is_club_card(card):
@@ -2898,7 +2893,6 @@ func draw_club_cards() -> void:
 	
 	for card in cards_to_remove:
 		deck_manager.discard(card)
-		print("Discarded action card:", card.name, "before club selection")
 	
 	# Calculate how many club cards we need to draw
 	var base_club_count = 2  # Default number of clubs to show
@@ -3706,9 +3700,10 @@ func _on_ball_launched(ball: Node2D):
 	# Set up ball properties that require course_1.gd references
 	ball.map_manager = map_manager
 	
-	# Check if this is a throwing knife, grenade, or golf ball
+	# Check if this is a throwing knife, grenade, spear, or golf ball
 	var is_knife = ball.has_method("is_throwing_knife") and ball.is_throwing_knife()
 	var is_grenade = ball.has_method("is_grenade_weapon") and ball.is_grenade_weapon()
+	var is_spear = ball.has_method("is_spear_weapon") and ball.is_spear_weapon()
 	
 	if is_knife:
 		# Handle throwing knife
@@ -3750,6 +3745,26 @@ func _on_ball_launched(ball: Node2D):
 		# Set camera following
 		camera_following_ball = true
 		print("Camera following set to true for grenade")
+		
+	elif is_spear:
+		# Handle spear
+		print("=== HANDLING SPEAR LAUNCH ===")
+		
+		# Play spear whoosh sound when launched
+		var spear_whoosh = ball.get_node_or_null("SpearWhoosh")
+		if spear_whoosh:
+			spear_whoosh.play()
+			print("Playing spear whoosh sound")
+		else:
+			print("Warning: SpearWhoosh sound not found on spear")
+		
+		# Connect spear signals
+		ball.landed.connect(_on_spear_landed)
+		ball.spear_hit_target.connect(_on_spear_hit_target)
+		
+		# Set camera following
+		camera_following_ball = true
+		print("Camera following set to true for spear")
 		
 	else:
 		# Handle golf ball
@@ -3935,6 +3950,47 @@ func _on_knife_hit_target(target: Node2D) -> void:
 			knife_impact.play()
 			print("Playing knife impact sound")
 
+func _on_spear_landed(final_tile: Vector2i) -> void:
+	"""Handle when a spear lands"""
+	print("Spear landed at tile:", final_tile)
+	
+	# Update smart optimizer state immediately when spear lands
+	if smart_optimizer:
+		smart_optimizer.update_game_state("move", false, false, false)
+	
+	# Pause for 1 second to let player see where spear landed
+	var pause_timer = get_tree().create_timer(1.0)
+	pause_timer.timeout.connect(func():
+		# After pause, tween camera back to player
+		if player_node and camera:
+			create_camera_tween(player_node.global_position, 0.5, Tween.TRANS_LINEAR)
+			current_camera_tween.tween_callback(func():
+				# Exit spear mode and reset camera following after tween completes
+				if launch_manager:
+					launch_manager.exit_spear_mode()
+					print("Exited spear mode after camera tween completed")
+				camera_following_ball = false
+			)
+		else:
+			# Fallback if no player or camera
+			if launch_manager:
+				launch_manager.exit_spear_mode()
+				print("Exited spear mode (fallback)")
+			camera_following_ball = false
+	)
+
+func _on_spear_hit_target(target: Node2D) -> void:
+	"""Handle when a spear hits a target"""
+	print("Spear hit target:", target.name)
+	
+	# Play spear impact sound
+	var spear = target.get_parent() if target.get_parent() else target
+	if spear and spear.has_method("is_spear_weapon") and spear.is_spear_weapon():
+		var spear_impact = spear.get_node_or_null("KnifeImpact")
+		if spear_impact:
+			spear_impact.play()
+			print("Playing spear impact sound")
+
 func setup_global_death_sound() -> void:
 	"""Setup global death sound that can be heard from anywhere"""
 	global_death_sound = AudioStreamPlayer.new()
@@ -3990,6 +4046,10 @@ func kill_current_camera_tween() -> void:
 	if current_camera_tween and current_camera_tween.is_valid():
 		current_camera_tween.kill()
 		current_camera_tween = null
+
+func get_camera_container() -> Control:
+	"""Get the camera container for world-to-grid conversions"""
+	return camera_container
 
 func create_camera_tween(target_position: Vector2, duration: float = 0.5, transition: Tween.TransitionType = Tween.TRANS_SINE, ease: Tween.EaseType = Tween.EASE_OUT) -> void:
 	"""Create a camera tween with proper management to prevent conflicts"""

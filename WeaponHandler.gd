@@ -40,6 +40,7 @@ var burst_shot_scene = preload("res://Weapons/BurstShot.tscn")
 var shotgun_scene = preload("res://Weapons/Shotgun.tscn")
 var sniper_scene = preload("res://Weapons/Sniper.tscn")
 var grenade_scene = preload("res://Weapons/Grenade.tscn")
+var spear_scene = preload("res://Weapons/Spear.tscn")
 var reticle_texture = preload("res://UI/Reticle.png")
 
 # Signals
@@ -426,6 +427,8 @@ func create_weapon_instance() -> void:
 		weapon_scene = shotgun_scene
 	elif selected_card and selected_card.name == "SniperCard":
 		weapon_scene = sniper_scene
+	elif selected_card and selected_card.name == "SpearCard":
+		weapon_scene = spear_scene
 	
 	weapon_instance = weapon_scene.instantiate()
 	player_node.add_child(weapon_instance)
@@ -515,6 +518,12 @@ func fire_weapon() -> void:
 	if selected_card and selected_card.name == "GrenadeCard" and launch_manager:
 		# Use LaunchManager for grenade throwing
 		launch_grenade()
+		return
+	
+	# Check if this is a spear and we have LaunchManager
+	if selected_card and selected_card.name == "SpearCard" and launch_manager:
+		# Use LaunchManager for spear throwing
+		launch_spear()
 		return
 	
 	# Check if this is a BurstShot weapon
@@ -1002,6 +1011,61 @@ func launch_grenade() -> void:
 	
 	# Enter grenade mode in LaunchManager (it will handle grenade creation)
 	launch_manager.enter_grenade_mode()
+	
+	# Exit weapon mode (LaunchManager will handle the rest)
+	exit_weapon_mode()
+
+func launch_spear() -> void:
+	"""Launch a spear using the LaunchManager system"""
+	if not launch_manager or not weapon_instance or not camera:
+		return
+	
+	# Get the landing spot from the aiming circle if available, otherwise use mouse position
+	var landing_spot = camera.get_global_mouse_position()  # Default to mouse position
+	if card_effect_handler and card_effect_handler.course:
+		var course = card_effect_handler.course
+		if course.chosen_landing_spot != Vector2.ZERO:
+			landing_spot = course.chosen_landing_spot
+	
+	# Set up LaunchManager for spear mode
+	launch_manager.chosen_landing_spot = landing_spot
+	launch_manager.player_stats = player_stats
+	
+	# Create a spear instance if it doesn't exist
+	var spear_instance = null
+	var spears = get_tree().get_nodes_in_group("spears")
+	for spear in spears:
+		if is_instance_valid(spear):
+			spear_instance = spear
+			break
+	
+	if not spear_instance:
+		# Create a new spear instance
+		spear_instance = spear_scene.instantiate()
+		
+		# Add spear to groups for smart optimization
+		spear_instance.add_to_group("spears")
+		spear_instance.add_to_group("collision_objects")
+		
+		# Add to the CameraContainer like golf balls
+		if card_effect_handler and card_effect_handler.course:
+			var camera_container = card_effect_handler.course.get_node_or_null("CameraContainer")
+			if camera_container:
+				camera_container.add_child(spear_instance)
+				spear_instance.global_position = player_node.global_position
+			else:
+				# Fallback to course if CameraContainer not found
+				card_effect_handler.course.add_child(spear_instance)
+				spear_instance.global_position = player_node.global_position
+		else:
+			return
+	
+	# Set up the spear properties
+	spear_instance.cell_size = cell_size
+	spear_instance.map_manager = card_effect_handler.course.map_manager if card_effect_handler else null
+	
+	# Enter spear mode in LaunchManager
+	launch_manager.enter_spear_mode()
 	
 	# Exit weapon mode (LaunchManager will handle the rest)
 	exit_weapon_mode()

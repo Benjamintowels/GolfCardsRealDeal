@@ -87,8 +87,6 @@ var ballhop_sound: AudioStreamPlayer2D = null
 const SPRITE_GROUND_Y = -43.72
 
 func _ready():
-	print("=== PLAYER _READY STARTED ===")
-	print("🚨 PLAYER _READY FUNCTION CALLED! 🚨")
 	# Add to groups for smart optimization and roof bounce system
 	add_to_group("collision_objects")
 	add_to_group("rectangular_obstacles")  # For rolling ball collisions
@@ -1740,11 +1738,11 @@ func _setup_swing_animation() -> void:
 							break
 
 func _update_swing_animation() -> void:
-	# Check if we're in weapon mode (knife or grenade) - don't play swing animation for weapons
+	# Check if we're in weapon mode (knife, grenade, or spear) - don't play swing animation for weapons
 	var course = get_tree().current_scene
 	if course and course.has_method("get_launch_manager"):
 		var launch_manager = course.get_launch_manager()
-		if launch_manager and (launch_manager.is_knife_mode or launch_manager.is_grenade_mode):
+		if launch_manager and (launch_manager.is_knife_mode or launch_manager.is_grenade_mode or launch_manager.is_spear_mode):
 			# Don't play swing animation for weapons
 			return
 	

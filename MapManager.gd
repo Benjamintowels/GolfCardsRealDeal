@@ -67,3 +67,8 @@ func is_tile_iced(x: int, y: int) -> bool:
 func get_ice_tiles() -> Array[Vector2i]:
 	"""Get all ice tile positions"""
 	return ice_tiles
+
+# Converts a world position (Vector2) to a grid tile position (Vector2i)
+func world_to_map(world_pos: Vector2) -> Vector2i:
+	var cell_size = 48  # Adjust if your grid uses a different size
+	return Vector2i(int(floor(world_pos.x / cell_size)), int(floor(world_pos.y / cell_size)))

@@ -1343,36 +1343,3 @@ func _on_deck_updated():
 		# Refresh the inventory display
 		close_inventory()
 		show_inventory()
-
-
-
-func debug_bag_state():
-	"""Debug function to check bag's current state"""
-	print("=== BAG DEBUG STATE ===")
-	print("Bag mouse_filter:", mouse_filter)
-	print("Bag z_index:", z_index)
-	print("Bag visible:", visible)
-	print("Bag process_mode:", process_mode)
-	print("Bag is_inventory_open:", is_inventory_open)
-	print("Bag is_replacement_mode:", is_replacement_mode)
-	print("Bag gui_input connections:", gui_input.get_connections().size())
-	print("Bag position:", position)
-	print("Bag size:", size)
-	print("Bag global_position:", global_position)
-	print("Bag parent:", get_parent().name if get_parent() else "None")
-	
-	# Check TextureRect state
-	if texture_rect:
-		print("TextureRect mouse_filter:", texture_rect.mouse_filter)
-		print("TextureRect z_index:", texture_rect.z_index)
-		print("TextureRect visible:", texture_rect.visible)
-		print("TextureRect position:", texture_rect.position)
-		print("TextureRect size:", texture_rect.size)
-		print("TextureRect gui_input connections:", texture_rect.gui_input.get_connections().size())
-	
-	# Check if bag is in the correct position by getting mouse position
-	var mouse_pos = get_viewport().get_mouse_position()
-	print("Current mouse position:", mouse_pos)
-	print("Bag rect:", Rect2(global_position, size))
-	print("Mouse is over bag:", Rect2(global_position, size).has_point(mouse_pos))
-	print("=== END BAG DEBUG STATE ===")

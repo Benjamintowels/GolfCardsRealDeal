@@ -97,8 +97,8 @@ func smart_process(delta: float, course_instance):
 func update_essential_systems(course_instance):
 	"""Update systems that always need to run"""
 	# Update LaunchManager (essential for gameplay)
-	# Don't overwrite chosen_landing_spot, selected_club, or club_data if we're in knife mode or grenade mode
-	if not course_instance.launch_manager.is_knife_mode and not course_instance.launch_manager.is_grenade_mode:
+	# Don't overwrite chosen_landing_spot, selected_club, or club_data if we're in knife mode, grenade mode, or spear mode
+	if not course_instance.launch_manager.is_knife_mode and not course_instance.launch_manager.is_grenade_mode and not course_instance.launch_manager.is_spear_mode:
 		course_instance.launch_manager.chosen_landing_spot = course_instance.chosen_landing_spot
 		course_instance.launch_manager.selected_club = course_instance.selected_club
 		course_instance.launch_manager.club_data = course_instance.club_data
@@ -120,6 +120,11 @@ func update_essential_systems(course_instance):
 		var grenade_pos = course_instance.launch_manager.grenade.global_position
 		var grenade_velocity = course_instance.launch_manager.grenade.velocity if "velocity" in course_instance.launch_manager.grenade else Vector2.ZERO
 		update_ball_state(grenade_pos, grenade_velocity)
+	elif course_instance.launch_manager.throwing_knife and is_instance_valid(course_instance.launch_manager.throwing_knife) and course_instance.launch_manager.is_spear_mode:
+		# Update spear state for Y-sorting (reuses throwing_knife variable)
+		var spear_pos = course_instance.launch_manager.throwing_knife.global_position
+		var spear_velocity = course_instance.launch_manager.throwing_knife.velocity if "velocity" in course_instance.launch_manager.throwing_knife else Vector2.ZERO
+		update_ball_state(spear_pos, spear_velocity)
 	
 	# Camera following (when ball or knife is active)
 	if course_instance.camera_following_ball:
@@ -135,6 +140,11 @@ func update_essential_systems(course_instance):
 		elif course_instance.launch_manager.grenade and is_instance_valid(course_instance.launch_manager.grenade):
 			if course_instance.launch_manager.grenade.is_in_flight():
 				target_position = course_instance.launch_manager.grenade.global_position
+				has_target = true
+		# Check for spear if it exists and is in flight
+		elif course_instance.launch_manager.throwing_knife and is_instance_valid(course_instance.launch_manager.throwing_knife) and course_instance.launch_manager.is_spear_mode:
+			if course_instance.launch_manager.throwing_knife.is_in_flight():
+				target_position = course_instance.launch_manager.throwing_knife.global_position
 				has_target = true
 		# Otherwise, follow golf ball
 		elif course_instance.launch_manager.golf_ball and is_instance_valid(course_instance.launch_manager.golf_ball):
@@ -206,6 +216,8 @@ func update_nearby_collision_objects(course_instance):
 		check_position = course_instance.launch_manager.throwing_knife.global_position
 	elif course_instance.launch_manager.grenade and is_instance_valid(course_instance.launch_manager.grenade):
 		check_position = course_instance.launch_manager.grenade.global_position
+	elif course_instance.launch_manager.throwing_knife and is_instance_valid(course_instance.launch_manager.throwing_knife) and course_instance.launch_manager.is_spear_mode:
+		check_position = course_instance.launch_manager.throwing_knife.global_position
 	else:
 		check_position = course_instance.player_node.global_position if course_instance.player_node else Vector2.ZERO
 	
