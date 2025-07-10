@@ -47,6 +47,9 @@ func _ready():
 	# Setup HitBox for gun collision detection
 	_setup_hitbox()
 	
+	# Setup mouse detection area for hover transparency
+	_setup_mouse_detection()
+	
 	# Deferred call to double-check collision layers after the scene is fully set up
 	call_deferred("_verify_collision_setup")
 	
@@ -240,9 +243,20 @@ func _verify_collision_setup():
 # OPTIMIZED: Tree collision detection moved to ball for better performance
 # Trees no longer check for balls every frame - ball handles its own collision detection
 func _process(delta):
-	# DISABLED: Tree collision detection moved to ball
-	# This eliminates the performance cost of trees checking all balls every frame
-	pass
+	# Check if mouse is over the tree using the control node
+	var mouse_control = get_node_or_null("MouseControl")
+	if mouse_control:
+		var mouse_pos = mouse_control.get_local_mouse_position()
+		var tree_rect = Rect2(Vector2.ZERO, mouse_control.size)
+		
+		if tree_rect.has_point(mouse_pos):
+			if not is_mouse_over:
+				is_mouse_over = true
+				_on_mouse_entered()
+		else:
+			if is_mouse_over:
+				is_mouse_over = false
+				_on_mouse_exited()
 
 func _update_ysort():
 	"""Update the Tree's z_index for proper Y-sorting"""
@@ -255,3 +269,79 @@ func get_collision_radius() -> float:
 	Used by the roof bounce system to determine when ball has exited collision area.
 	"""
 	return 120.0  # Tree trunk radius
+
+func _setup_mouse_detection() -> void:
+	"""Setup MouseDetectionArea for hover transparency effect"""
+	var mouse_area = get_node_or_null("MouseDetectionArea")
+	var mouse_control = get_node_or_null("MouseControl")
+	
+	# Setup Area2D mouse detection
+	if mouse_area:
+		# Enable mouse input detection
+		mouse_area.input_pickable = true
+		mouse_area.monitoring = true
+		mouse_area.monitorable = true
+		
+		# Connect mouse enter/exit signals for transparency effect
+		mouse_area.mouse_entered.connect(_on_mouse_entered)
+		mouse_area.mouse_exited.connect(_on_mouse_exited)
+		
+		# Set collision layer to 0 (not used for physics)
+		mouse_area.collision_layer = 0
+		# Set collision mask to 0 (not used for physics)
+		mouse_area.collision_mask = 0
+		
+		print("✓ Tree MouseDetectionArea setup complete for hover transparency")
+		print("  - input_pickable:", mouse_area.input_pickable)
+		print("  - monitoring:", mouse_area.monitoring)
+		print("  - monitorable:", mouse_area.monitorable)
+	else:
+		print("✗ ERROR: MouseDetectionArea not found!")
+	
+	# Setup Control mouse detection as backup
+	if mouse_control:
+		# Connect gui_input for better mouse detection in camera container
+		mouse_control.gui_input.connect(_on_mouse_control_input)
+		
+		print("✓ Tree MouseControl setup complete for hover transparency")
+		print("  - mouse_filter:", mouse_control.mouse_filter)
+	else:
+		print("✗ ERROR: MouseControl not found!")
+
+func _on_mouse_control_input(event: InputEvent) -> void:
+	"""Handle mouse input events for the control node"""
+	var mouse_control = get_node_or_null("MouseControl")
+	if not mouse_control:
+		return
+		
+	if event is InputEventMouseMotion:
+		# Mouse is over the tree
+		if not is_mouse_over:
+			is_mouse_over = true
+			_on_mouse_entered()
+	elif event is InputEventMouseButton:
+		# Mouse button event - check if mouse is still over
+		var mouse_pos = mouse_control.get_local_mouse_position()
+		var tree_rect = Rect2(Vector2.ZERO, mouse_control.size)
+		if not tree_rect.has_point(mouse_pos):
+			if is_mouse_over:
+				is_mouse_over = false
+				_on_mouse_exited()
+
+var is_mouse_over: bool = false
+
+func _on_mouse_entered() -> void:
+	"""Handle mouse entering the tree area - make tree transparent"""
+	print("=== MOUSE ENTERED TREE ===")
+	print("Tree position:", global_position)
+	print("Making tree transparent")
+	set_transparent(true)
+	print("=== END MOUSE ENTERED ===")
+
+func _on_mouse_exited() -> void:
+	"""Handle mouse exiting the tree area - restore tree opacity"""
+	print("=== MOUSE EXITED TREE ===")
+	print("Tree position:", global_position)
+	print("Restoring tree opacity")
+	set_transparent(false)
+	print("=== END MOUSE EXITED ===")
