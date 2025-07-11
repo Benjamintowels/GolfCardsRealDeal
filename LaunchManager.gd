@@ -274,27 +274,58 @@ func exit_spear_mode() -> void:
 func enter_grenade_mode() -> void:
 	"""Enter grenade throwing mode"""
 	is_grenade_mode = true
-	selected_club = "GrenadeCard"  # Use GrenadeCard club stats for grenade throwing
-	print("LaunchManager: enter_grenade_mode - selected_club:", selected_club, " is_grenade_mode:", is_grenade_mode)
+	
+	# Check if we're using GrenadeLauncherWeaponCard (from weapon handler)
+	var is_grenade_launcher_weapon = false
+	if card_effect_handler and card_effect_handler.course:
+		var course = card_effect_handler.course
+		if course.selected_club == "GrenadeLauncherClubCard":
+			is_grenade_launcher_weapon = true
+	
+	if is_grenade_launcher_weapon:
+		selected_club = "GrenadeLauncherClubCard"  # Use GrenadeLauncherClubCard stats for grenade launcher
+	else:
+		selected_club = "GrenadeCard"  # Use GrenadeCard club stats for regular grenade throwing
+	
+	print("LaunchManager: enter_grenade_mode - selected_club:", selected_club, " is_grenade_mode:", is_grenade_mode, " is_grenade_launcher_weapon:", is_grenade_launcher_weapon)
 	
 	# Store the current golf ball reference before entering grenade mode
 	previous_golf_ball = golf_ball
 	
 	# Create character-specific grenade data based on strength
 	var character_strength = player_stats.get("strength", 0)
-	var base_max_distance = 400.0  # Base distance for strength 0 (Benny)
 	var strength_multiplier = 1.0 + (character_strength * 0.25)  # +25% per strength point
-	var max_distance = base_max_distance * strength_multiplier
 	
-	# Set up character-specific grenade data
-	club_data = {
-		"GrenadeCard": {
-			"max_distance": max_distance,
-			"min_distance": 200.0,
-			"trailoff_forgiveness": 0.8,
-			"is_putter": false
+	if is_grenade_launcher_weapon:
+		# Use GrenadeLauncherClubCard stats (much higher power)
+		var base_max_distance = 2000.0  # Base distance for GrenadeLauncherClubCard
+		var max_distance = base_max_distance * strength_multiplier
+		
+		# Set up character-specific grenade launcher data
+		club_data = {
+			"GrenadeLauncherClubCard": {
+				"max_distance": max_distance,
+				"min_distance": 500.0,
+				"trailoff_forgiveness": 1.0,  # No trailoff penalty - always launches as expected
+				"is_putter": true,  # Fixed height like putter
+				"fixed_height": 50.0  # Fixed height in pixels
+			}
 		}
-	}
+	else:
+		# Use regular GrenadeCard stats
+		var base_max_distance = 400.0  # Base distance for strength 0 (Benny)
+		var max_distance = base_max_distance * strength_multiplier
+		
+		# Set up character-specific grenade data
+		club_data = {
+			"GrenadeCard": {
+				"max_distance": max_distance,
+				"min_distance": 200.0,
+				"trailoff_forgiveness": 0.8,
+				"is_putter": false
+			}
+		}
+	
 	print("LaunchManager: enter_grenade_mode - club_data:", club_data)
 	
 	enter_launch_phase()
@@ -500,7 +531,7 @@ func launch_grenade(launch_direction: Vector2, final_power: float, height: float
 	self.grenade = existing_grenade
 
 	# Set grenade properties using character-specific grenade stats
-	var grenade_club_info = club_data.get("GrenadeCard", {
+	var grenade_club_info = club_data.get(selected_club, {
 		"max_distance": 400.0,
 		"min_distance": 200.0,
 		"trailoff_forgiveness": 0.8
@@ -911,41 +942,47 @@ func calculate_final_power() -> float:
 	time_percent = clamp(time_percent, 0.0, 1.0)
 	var actual_power = 0.0
 	
-	if chosen_landing_spot != Vector2.ZERO:
-		var sprite = player_node.get_node_or_null("Sprite2D")
-		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
-		var player_center = player_node.global_position + player_size / 2
-		var distance_to_target = player_center.distance_to(chosen_landing_spot)
-		var reference_distance = 1200.0  # Driver's max distance as reference
-		var distance_factor = distance_to_target / reference_distance
-		var ball_physics_factor = 0.8 + (distance_factor * 0.4)
-		var base_power_per_distance = 0.6 + (distance_factor * 0.2)
-		var base_power_for_target = distance_to_target * base_power_per_distance * ball_physics_factor
-		
-		var club_efficiency = 1.0
-		if selected_club in club_data:
-			var club_max = club_data[selected_club]["max_distance"]
-			var efficiency_factor = 1200.0 / club_max
-			club_efficiency = sqrt(efficiency_factor)
-			club_efficiency = clamp(club_efficiency, 0.7, 1.5)
-		
-		var power_for_target = base_power_for_target * club_efficiency
-		
-		var is_putting = club_data.get(selected_club, {}).get("is_putter", false)
-		if is_putting:
-			var base_putter_power = 300.0
-			actual_power = time_percent * base_putter_power
-		elif time_percent <= 0.75:
-			actual_power = (time_percent / 0.75) * power_for_target
-			var trailoff_forgiveness = club_data[selected_club].get("trailoff_forgiveness", 0.5) if selected_club in club_data else 0.5
-			var undercharge_factor = 1.0 - (time_percent / 0.75)
-			var trailoff_penalty = undercharge_factor * (1.0 - trailoff_forgiveness)
-			actual_power = actual_power * (1.0 - trailoff_penalty)
-		else:
-			var overcharge_bonus = ((time_percent - 0.75) / 0.25) * (0.25 * 800.0)
-			actual_power = power_for_target + overcharge_bonus
+	# Special handling for GrenadeLauncherClubCard - use direct power calculation
+	if selected_club == "GrenadeLauncherClubCard":
+		var club_max = club_data.get(selected_club, {}).get("max_distance", 2000.0)
+		actual_power = time_percent * club_max
+		print("LaunchManager: GrenadeLauncherClubCard power calculation - time_percent:", time_percent, " club_max:", club_max, " actual_power:", actual_power)
 	else:
-		actual_power = time_percent * MAX_LAUNCH_POWER
+		if chosen_landing_spot != Vector2.ZERO:
+			var sprite = player_node.get_node_or_null("Sprite2D")
+			var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
+			var player_center = player_node.global_position + player_size / 2
+			var distance_to_target = player_center.distance_to(chosen_landing_spot)
+			var reference_distance = 1200.0  # Driver's max distance as reference
+			var distance_factor = distance_to_target / reference_distance
+			var ball_physics_factor = 0.8 + (distance_factor * 0.4)
+			var base_power_per_distance = 0.6 + (distance_factor * 0.2)
+			var base_power_for_target = distance_to_target * base_power_per_distance * ball_physics_factor
+			
+			var club_efficiency = 1.0
+			if selected_club in club_data:
+				var club_max = club_data[selected_club]["max_distance"]
+				var efficiency_factor = 1200.0 / club_max
+				club_efficiency = sqrt(efficiency_factor)
+				club_efficiency = clamp(club_efficiency, 0.7, 1.5)
+			
+			var power_for_target = base_power_for_target * club_efficiency
+			
+			var is_putting = club_data.get(selected_club, {}).get("is_putter", false)
+			if is_putting:
+				var base_putter_power = 300.0
+				actual_power = time_percent * base_putter_power
+			elif time_percent <= 0.75:
+				actual_power = (time_percent / 0.75) * power_for_target
+				var trailoff_forgiveness = club_data[selected_club].get("trailoff_forgiveness", 0.5) if selected_club in club_data else 0.5
+				var undercharge_factor = 1.0 - (time_percent / 0.75)
+				var trailoff_penalty = undercharge_factor * (1.0 - trailoff_forgiveness)
+				actual_power = actual_power * (1.0 - trailoff_penalty)
+			else:
+				var overcharge_bonus = ((time_percent - 0.75) / 0.25) * (0.25 * 800.0)
+				actual_power = power_for_target + overcharge_bonus
+		else:
+			actual_power = time_percent * MAX_LAUNCH_POWER
 	
 	# Apply height resistance
 	var height_percentage = launch_height / MAX_LAUNCH_HEIGHT  # Simplified calculation for 0.0 to MAX_LAUNCH_HEIGHT range

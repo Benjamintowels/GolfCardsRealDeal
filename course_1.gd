@@ -759,6 +759,14 @@ func _input(event: InputEvent) -> void:
 	if game_phase == "aiming":
 		if event is InputEventMouseButton:
 			if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+				# Freeze grenade launcher if using GrenadeLauncherWeaponCard
+				if weapon_handler and weapon_handler.selected_card and weapon_handler.selected_card.name == "GrenadeLauncherWeaponCard":
+					weapon_handler.freeze_grenade_launcher()
+				
+				# Freeze grenade launcher if using GrenadeLauncherClubCard
+				if selected_club == "GrenadeLauncherClubCard" and weapon_handler:
+					weapon_handler.freeze_grenade_launcher()
+				
 				is_aiming_phase = false
 				hide_aiming_circle()
 				hide_aiming_instruction()
@@ -3748,13 +3756,26 @@ func _on_ball_launched(ball: Node2D):
 		# Handle grenade
 		print("=== HANDLING GRENADE LAUNCH ===")
 		
-		# Play grenade whoosh sound when launched
-		var grenade_whoosh = ball.get_node_or_null("GrenadeWhoosh")
-		if grenade_whoosh:
-			grenade_whoosh.play()
-			print("Playing grenade whoosh sound")
+		# Check if using GrenadeLauncherWeaponCard - play launcher sound instead of whoosh sound
+		if selected_club == "GrenadeLauncherClubCard":
+			# Play launcher sound from the grenade launcher weapon
+			if weapon_handler and weapon_handler.weapon_instance:
+				var launcher_sound = weapon_handler.weapon_instance.get_node_or_null("Launcher")
+				if launcher_sound:
+					launcher_sound.play()
+					print("Playing GrenadeLauncherWeaponCard launcher sound")
+				else:
+					print("Warning: Launcher sound not found on grenade launcher weapon")
+			else:
+				print("Warning: Weapon handler or weapon instance not found for GrenadeLauncherWeaponCard")
 		else:
-			print("Warning: GrenadeWhoosh sound not found on grenade")
+			# Play grenade whoosh sound when launched
+			var grenade_whoosh = ball.get_node_or_null("GrenadeWhoosh")
+			if grenade_whoosh:
+				grenade_whoosh.play()
+				print("Playing grenade whoosh sound")
+			else:
+				print("Warning: GrenadeWhoosh sound not found on grenade")
 		
 		# Connect grenade signals
 		ball.landed.connect(_on_grenade_landed)
@@ -3802,6 +3823,7 @@ func _on_ball_launched(ball: Node2D):
 					print("Warning: Launcher sound not found on grenade launcher weapon")
 			else:
 				print("Warning: Weapon handler or weapon instance not found for GrenadeLauncherClubCard")
+
 		else:
 			# Play normal swing sound for other clubs
 			play_swing_sound(ball.get_final_power() if ball.has_method("get_final_power") else 0.0)

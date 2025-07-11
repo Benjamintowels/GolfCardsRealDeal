@@ -7,6 +7,12 @@ var selected_card: CardData = null
 var active_button: TextureButton = null
 var weapon_instance: Node2D = null
 
+# Grenade launcher freeze system
+var grenade_launcher_frozen := false
+var frozen_rotation := 0.0
+var frozen_flip_h := false
+var frozen_flip_v := false
+
 # References
 var player_node: Node2D
 var grid_tiles: Array
@@ -118,6 +124,9 @@ func _on_weapon_card_pressed(card: CardData, button: TextureButton) -> void:
 func enter_weapon_aiming_mode() -> void:
 	"""Enter weapon aiming mode with mouse tracking"""
 	
+	# Reset grenade launcher freeze state
+	grenade_launcher_frozen = false
+	
 	# Change mouse cursor based on weapon type
 	if selected_card and selected_card.name == "Throwing Knife":
 		# Hide mouse cursor for knife aiming (only use aiming circle)
@@ -176,6 +185,31 @@ func enter_weapon_aiming_mode() -> void:
 		# Set a temporary club for grenade aiming (use GrenadeCard for character-specific range)
 		var original_club = course.selected_club
 		course.selected_club = "GrenadeCard"
+		
+		# Show aiming circle with grenade reticle image
+		show_grenade_aiming_circle()
+		
+		# Show grenade-specific aiming instruction
+		show_grenade_aiming_instruction()
+		
+		# Store original club to restore later
+		set_meta("original_club", original_club)
+		
+		# Position camera on player initially
+		var sprite = player_node.get_node_or_null("Sprite2D")
+		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
+		var player_center = player_node.global_position + player_size / 2
+		var tween := get_tree().create_tween()
+		tween.tween_property(course.camera, "position", player_center, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	
+	elif selected_card and selected_card.name == "GrenadeLauncherWeaponCard" and card_effect_handler and card_effect_handler.course:
+		var course = card_effect_handler.course
+		# Set up camera to follow mouse during grenade launcher aiming
+		course.is_aiming_phase = true
+		
+		# Set a temporary club for grenade launcher aiming (use GrenadeLauncherClubCard for character-specific range)
+		var original_club = course.selected_club
+		course.selected_club = "GrenadeLauncherClubCard"
 		
 		# Show aiming circle with grenade reticle image
 		show_grenade_aiming_circle()
@@ -422,6 +456,8 @@ func create_weapon_instance() -> void:
 		weapon_scene = throwing_knife_scene
 	elif selected_card and selected_card.name == "GrenadeCard":
 		weapon_scene = grenade_scene
+	elif selected_card and selected_card.name == "GrenadeLauncherWeaponCard":
+		weapon_scene = grenade_launcher_scene
 	elif selected_card and selected_card.name == "BurstShot":
 		weapon_scene = burst_shot_scene
 	elif selected_card and selected_card.name == "ShotgunCard":
@@ -470,10 +506,59 @@ func hide_weapon() -> void:
 	if weapon_instance:
 		weapon_instance.queue_free()
 		weapon_instance = null
+	
+	# Reset grenade launcher freeze state when hiding weapon
+	grenade_launcher_frozen = false
+
+func freeze_grenade_launcher() -> void:
+	"""Freeze the grenade launcher at its current rotation and flip state"""
+	if not weapon_instance:
+		return
+	
+	# Check if this is a grenade launcher (either weapon card or club card)
+	var is_grenade_launcher = false
+	if selected_card and selected_card.name == "GrenadeLauncherWeaponCard":
+		is_grenade_launcher = true
+	elif card_effect_handler and card_effect_handler.course:
+		var course = card_effect_handler.course
+		if course.selected_club == "GrenadeLauncherClubCard":
+			is_grenade_launcher = true
+	
+	if not is_grenade_launcher:
+		return
+	
+	# Store current rotation and flip state
+	frozen_rotation = weapon_instance.rotation
+	var weapon_sprite = weapon_instance.get_node_or_null("Sprite2D")
+	if weapon_sprite:
+		frozen_flip_h = weapon_sprite.flip_h
+		frozen_flip_v = weapon_sprite.flip_v
+	
+	# Set frozen state
+	grenade_launcher_frozen = true
+	print("Grenade launcher frozen at rotation:", frozen_rotation, " flip_h:", frozen_flip_h, " flip_v:", frozen_flip_v)
 
 func update_weapon_rotation() -> void:
 	"""Update weapon rotation to follow mouse and position based on player direction"""
 	if not weapon_instance or not player_node or not camera:
+		return
+	
+	# Check if grenade launcher should be frozen
+	var is_grenade_launcher = false
+	if selected_card and selected_card.name == "GrenadeLauncherWeaponCard":
+		is_grenade_launcher = true
+	elif card_effect_handler and card_effect_handler.course:
+		var course = card_effect_handler.course
+		if course.selected_club == "GrenadeLauncherClubCard":
+			is_grenade_launcher = true
+	
+	if is_grenade_launcher and grenade_launcher_frozen:
+		# Apply frozen rotation and flip state
+		weapon_instance.rotation = frozen_rotation
+		var weapon_sprite = weapon_instance.get_node_or_null("Sprite2D")
+		if weapon_sprite:
+			weapon_sprite.flip_h = frozen_flip_h
+			weapon_sprite.flip_v = frozen_flip_v
 		return
 	
 	var mouse_pos = camera.get_global_mouse_position()
@@ -511,6 +596,10 @@ func update_weapon_rotation() -> void:
 					# GrenadeLauncher behavior (same as pistol)
 					weapon_sprite.flip_h = false
 					weapon_sprite.flip_v = true
+				elif selected_card and selected_card.name == "GrenadeLauncherWeaponCard":
+					# GrenadeLauncherWeaponCard behavior (same as pistol)
+					weapon_sprite.flip_h = false
+					weapon_sprite.flip_v = true
 				else:
 					# Pistol and BurstShot behavior
 					weapon_sprite.flip_h = false
@@ -531,6 +620,10 @@ func update_weapon_rotation() -> void:
 					weapon_sprite.flip_v = false
 				elif selected_card and selected_card.name == "GrenadeLauncherClubCard":
 					# GrenadeLauncher behavior (same as pistol)
+					weapon_sprite.flip_h = false
+					weapon_sprite.flip_v = false
+				elif selected_card and selected_card.name == "GrenadeLauncherWeaponCard":
+					# GrenadeLauncherWeaponCard behavior (same as pistol)
 					weapon_sprite.flip_h = false
 					weapon_sprite.flip_v = false
 				else:
@@ -554,6 +647,12 @@ func fire_weapon() -> void:
 	if selected_card and selected_card.name == "GrenadeCard" and launch_manager:
 		# Use LaunchManager for grenade throwing
 		launch_grenade()
+		return
+	
+	# Check if this is a grenade launcher weapon and we have LaunchManager
+	if selected_card and selected_card.name == "GrenadeLauncherWeaponCard" and launch_manager:
+		# Use LaunchManager for grenade launcher throwing
+		launch_grenade_launcher()
 		return
 	
 	# Check if this is a spear and we have LaunchManager
@@ -1051,6 +1150,37 @@ func launch_grenade() -> void:
 	# Exit weapon mode (LaunchManager will handle the rest)
 	exit_weapon_mode()
 
+func launch_grenade_launcher() -> void:
+	"""Launch a grenade using the LaunchManager system with GrenadeLauncherClubCard stats"""
+	if not launch_manager or not weapon_instance or not camera:
+		return
+	
+	# Play launcher sound from the grenade launcher weapon
+	var launcher_sound = weapon_instance.get_node_or_null("Launcher")
+	if launcher_sound:
+		launcher_sound.play()
+		print("Playing GrenadeLauncherWeaponCard launcher sound")
+	else:
+		print("Warning: Launcher sound not found on grenade launcher weapon")
+	
+	# Get the landing spot from the aiming circle if available, otherwise use mouse position
+	var landing_spot = camera.get_global_mouse_position()  # Default to mouse position
+	if card_effect_handler and card_effect_handler.course:
+		var course = card_effect_handler.course
+		if course.chosen_landing_spot != Vector2.ZERO:
+			landing_spot = course.chosen_landing_spot
+	
+	# Set up LaunchManager for grenade launcher mode
+	launch_manager.chosen_landing_spot = landing_spot
+	launch_manager.player_stats = player_stats
+	
+	# Enter grenade mode in LaunchManager (it will handle grenade creation)
+	# Use the same grenade mode but with GrenadeLauncherClubCard stats
+	launch_manager.enter_grenade_mode()
+	
+	# Exit weapon mode (LaunchManager will handle the rest)
+	exit_weapon_mode()
+
 func launch_spear() -> void:
 	"""Launch a spear using the LaunchManager system"""
 	if not launch_manager or not weapon_instance or not camera:
@@ -1279,6 +1409,9 @@ func exit_weapon_mode() -> void:
 	
 	is_weapon_mode = false
 	
+	# Reset grenade launcher freeze state
+	grenade_launcher_frozen = false
+	
 	# Restore default mouse cursor
 	Input.set_custom_mouse_cursor(null)
 	
@@ -1301,6 +1434,18 @@ func exit_weapon_mode() -> void:
 	
 	# Clean up grenade aiming mode if it was active
 	if selected_card and selected_card.name == "GrenadeCard" and card_effect_handler and card_effect_handler.course:
+		var course = card_effect_handler.course
+		course.is_aiming_phase = false
+		course.hide_aiming_circle()
+		course.hide_aiming_instruction()
+		
+		# Restore original club if it was stored
+		if has_meta("original_club"):
+			course.selected_club = get_meta("original_club")
+			remove_meta("original_club")
+	
+	# Clean up grenade launcher weapon aiming mode if it was active
+	if selected_card and selected_card.name == "GrenadeLauncherWeaponCard" and card_effect_handler and card_effect_handler.course:
 		var course = card_effect_handler.course
 		course.is_aiming_phase = false
 		course.hide_aiming_circle()
@@ -1395,6 +1540,12 @@ func handle_input(event: InputEvent) -> bool:
 		
 		# For grenade mode, update aiming circle like normal shot placement
 		if selected_card and selected_card.name == "GrenadeCard" and card_effect_handler and card_effect_handler.course:
+			var course = card_effect_handler.course
+			if course.is_aiming_phase and course.aiming_circle:
+				course.update_aiming_circle()
+		
+		# For grenade launcher weapon mode, update aiming circle like normal shot placement
+		if selected_card and selected_card.name == "GrenadeLauncherWeaponCard" and card_effect_handler and card_effect_handler.course:
 			var course = card_effect_handler.course
 			if course.is_aiming_phase and course.aiming_circle:
 				course.update_aiming_circle()
