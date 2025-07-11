@@ -823,3 +823,22 @@ func check_rolling_wall_collisions() -> void:
 			
 			print("Ghost ball bounced off rectangular obstacle with velocity:", velocity)
 			break  # Only handle one collision per frame 
+
+func is_in_flight() -> bool:
+	"""Check if the ghost ball is currently in flight"""
+	return not landed_flag and (velocity.length() > 0.1 or vz != 0.0 or z > current_ground_level)
+
+# NPC Ball Push System helper methods
+func set_rolling_state(rolling: bool) -> void:
+	"""Set the rolling state of the ball (for NPC push system)"""
+	is_rolling = rolling
+	if rolling:
+		print("Ghost ball rolling state enabled by NPC push")
+
+func set_landed_flag(landed: bool) -> void:
+	"""Set the landed flag of the ball (for NPC push system)"""
+	landed_flag = landed
+	if not landed:
+		# Reset bounce count when re-enabling flight
+		bounce_count = 0
+		print("Ghost ball landed flag reset by NPC push") 

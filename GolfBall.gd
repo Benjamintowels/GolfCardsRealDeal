@@ -1881,3 +1881,26 @@ func ballhop():
 	print("  - Cooldown set to:", ballhop_cooldown)
 	print("  - Ball position:", global_position, "z:", z)
 	return true
+
+func is_currently_punching() -> bool:
+	"""Check if currently performing a PunchB animation"""
+	return false  # GolfBall doesn't have punching animations
+
+# NPC Ball Push System helper methods
+func set_rolling_state(rolling: bool) -> void:
+	"""Set the rolling state of the ball (for NPC push system)"""
+	is_rolling = rolling
+	if rolling:
+		# Reset rolling start position when re-enabling rolling
+		roll_start_position = position
+		rolling_start_position = position
+		rolling_collision_enabled = false  # Disable collisions until ball moves away
+		print("Ball rolling state enabled by NPC push")
+
+func set_landed_flag(landed: bool) -> void:
+	"""Set the landed flag of the ball (for NPC push system)"""
+	landed_flag = landed
+	if not landed:
+		# Reset bounce count when re-enabling flight
+		bounce_count = 0
+		print("Ball landed flag reset by NPC push")

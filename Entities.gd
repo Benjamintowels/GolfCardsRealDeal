@@ -17,6 +17,16 @@ const DEFAULT_NPC_HEIGHT = 200.0  # Default NPC height (ball needs 88.0 to pass 
 const DEFAULT_BASE_COLLISION_WIDTH = 10.0
 const DEFAULT_BASE_COLLISION_HEIGHT = 6.5
 
+# NPC ball push constants (when NPCs are moving during their turns)
+const GANGMEMBER_PUSH_VELOCITY = 400.0  # Strong push for GangMembers
+const POLICE_PUSH_VELOCITY = 250.0      # Medium push for Police
+const DEFAULT_PUSH_VELOCITY = 300.0     # Default push for other NPCs
+const PUSH_VELOCITY_MULTIPLIER = 1.5    # Multiplier when NPC is actively moving
+
+# Collision prevention to avoid infinite recursion
+var recent_collisions: Dictionary = {}  # Track recent collisions to prevent duplicates
+const COLLISION_COOLDOWN = 0.1  # 100ms cooldown between same NPC-ball collisions
+
 func _ready():
 	# Disabled automatic NPC turn triggering - now controlled manually by course_1.gd
 	pass
@@ -140,11 +150,196 @@ func is_npc_in_range_of_ball(npc: Node, ball_position: Vector2, ball_height: flo
 
 func handle_npc_ball_collision(npc: Node, ball: Node) -> void:
 	"""Handle collision between an NPC and a ball"""
-	if npc.has_method("handle_ball_collision"):
+	# Create a unique collision key to prevent infinite recursion
+	var collision_key = str(npc.get_instance_id()) + "_" + str(ball.get_instance_id())
+	var current_time = Time.get_ticks_msec() / 1000.0
+	
+	# Check if this collision was recently handled
+	if collision_key in recent_collisions:
+		var last_collision_time = recent_collisions[collision_key]
+		if current_time - last_collision_time < COLLISION_COOLDOWN:
+			print("=== COLLISION PREVENTED (RECENT) ===")
+			print("NPC:", npc.name, "Ball:", ball.name, "Time since last collision:", current_time - last_collision_time)
+			return
+	
+	# Record this collision
+	recent_collisions[collision_key] = current_time
+	
+	# Clean up old collision records (older than 1 second)
+	var keys_to_remove = []
+	for key in recent_collisions:
+		if current_time - recent_collisions[key] > 1.0:
+			keys_to_remove.append(key)
+	
+	for key in keys_to_remove:
+		recent_collisions.erase(key)
+	
+	print("=== HANDLING NPC BALL COLLISION ===")
+	print("NPC:", npc.name, "Ball:", ball.name, "Ball type:", ball.get_class())
+	
+	# Check if this is a grenade - grenades have their own collision handling
+	if ball.has_method("is_grenade_weapon") and ball.is_grenade_weapon():
+		print("=== GRENADE COLLISION - USING GRENADE'S OWN HANDLING ===")
+		# Let the grenade handle its own collision
+		if ball.has_method("_handle_npc_collision"):
+			ball._handle_npc_collision(npc)
+		return
+	
+	# Check if NPC is currently moving during their turn
+	if _is_npc_moving_during_turn(npc):
+		_handle_moving_npc_ball_collision(npc, ball)
+	elif npc.has_method("handle_ball_collision"):
 		npc.handle_ball_collision(ball)
 	else:
 		# Default collision handling with velocity-based damage
 		_apply_default_velocity_damage(npc, ball)
+
+func _is_npc_moving_during_turn(npc: Node) -> bool:
+	"""Check if an NPC is currently moving during their turn"""
+	# Check if NPC has movement tracking properties
+	if npc.has_method("is_currently_moving"):
+		return npc.is_currently_moving()
+	elif "is_moving" in npc:
+		return npc.is_moving
+	return false
+
+func _handle_moving_npc_ball_collision(npc: Node, ball: Node) -> void:
+	"""Handle collision between a moving NPC and a ball - apply push force"""
+	print("=== MOVING NPC BALL COLLISION ===")
+	print("NPC:", npc.name, "is moving and collided with ball")
+	
+	# Additional safety check - prevent grenade pushing
+	if ball.has_method("is_grenade_weapon") and ball.is_grenade_weapon():
+		print("=== GRENADE COLLISION IN MOVING NPC - SKIPPING PUSH ===")
+		return
+	
+	# Get the NPC's movement direction
+	var movement_direction = _get_npc_movement_direction(npc)
+	if movement_direction == Vector2.ZERO:
+		print("No movement direction found, using default collision")
+		if npc.has_method("handle_ball_collision"):
+			npc.handle_ball_collision(ball)
+		else:
+			_apply_default_velocity_damage(npc, ball)
+		return
+	
+	print("NPC movement direction:", movement_direction)
+	
+	# Get the appropriate push velocity for this NPC type
+	var push_velocity = _get_npc_push_velocity(npc)
+	print("NPC push velocity:", push_velocity)
+	
+	# Calculate the push force vector
+	var push_force = movement_direction * push_velocity
+	print("Calculated push force:", push_force)
+	
+	# Apply the push force to the ball
+	_apply_ball_push_force(ball, push_force)
+	
+	# Play collision sound if available
+	_play_npc_collision_sound(npc)
+	
+	print("=== END MOVING NPC BALL COLLISION ===")
+
+func _get_npc_movement_direction(npc: Node) -> Vector2:
+	"""Get the current movement direction of an NPC"""
+	# Try different methods to get movement direction
+	if npc.has_method("get_movement_direction"):
+		return npc.get_movement_direction()
+	elif npc.has_method("get_last_movement_direction"):
+		var last_dir = npc.get_last_movement_direction()
+		return Vector2(last_dir.x, last_dir.y)
+	elif "last_movement_direction" in npc:
+		var last_dir = npc.last_movement_direction
+		return Vector2(last_dir.x, last_dir.y)
+	elif "facing_direction" in npc:
+		var facing_dir = npc.facing_direction
+		return Vector2(facing_dir.x, facing_dir.y)
+	
+	return Vector2.ZERO
+
+func _get_npc_push_velocity(npc: Node) -> float:
+	"""Get the appropriate push velocity for an NPC type"""
+	# Check NPC type and return appropriate velocity
+	if npc.name.contains("GangMember") or npc.get_script().resource_path.contains("GangMember"):
+		return GANGMEMBER_PUSH_VELOCITY
+	elif npc.name.contains("Police") or npc.get_script().resource_path.contains("Police"):
+		return POLICE_PUSH_VELOCITY
+	else:
+		return DEFAULT_PUSH_VELOCITY
+
+func _apply_ball_push_force(ball: Node, push_force: Vector2) -> void:
+	"""Apply a push force to a ball"""
+	# Get the ball's current velocity
+	var ball_velocity = Vector2.ZERO
+	if ball.has_method("get_velocity"):
+		ball_velocity = ball.get_velocity()
+	elif "velocity" in ball:
+		ball_velocity = ball.velocity
+	
+	print("Ball original velocity:", ball_velocity)
+	
+	# Check if ball is in landed/stationary state
+	var is_landed = false
+	var is_rolling = false
+	
+	if ball.has_method("is_in_flight"):
+		is_landed = not ball.is_in_flight()
+	elif "landed_flag" in ball:
+		is_landed = ball.landed_flag
+	elif "is_rolling" in ball:
+		is_rolling = ball.is_rolling
+	
+	# If ball is landed/stationary, we need to "wake it up"
+	if is_landed or (ball_velocity.length() < 10.0 and not is_rolling):
+		print("Ball is landed/stationary - waking it up with push force")
+		
+		# Set a minimum velocity to make the push visible
+		var min_push_velocity = 100.0  # Minimum velocity to make push visible
+		var normalized_push = push_force.normalized()
+		var effective_push_force = normalized_push * max(push_force.length(), min_push_velocity)
+		
+		# Apply the effective push force
+		var new_velocity = effective_push_force
+		print("Applied effective push force:", new_velocity)
+		
+		# Apply the new velocity to the ball
+		if ball.has_method("set_velocity"):
+			ball.set_velocity(new_velocity)
+		elif "velocity" in ball:
+			ball.velocity = new_velocity
+		
+		# Re-enable rolling state if the ball supports it
+		if ball.has_method("set_rolling_state"):
+			ball.set_rolling_state(true)
+		elif "is_rolling" in ball:
+			ball.is_rolling = true
+		
+		# Reset landed flag if the ball supports it
+		if ball.has_method("set_landed_flag"):
+			ball.set_landed_flag(false)
+		elif "landed_flag" in ball:
+			ball.landed_flag = false
+		
+		print("Ball awakened with velocity:", new_velocity)
+	else:
+		# Ball is already moving - add push force to existing velocity
+		var new_velocity = ball_velocity + push_force
+		print("Ball new velocity:", new_velocity)
+		
+		# Apply the new velocity to the ball
+		if ball.has_method("set_velocity"):
+			ball.set_velocity(new_velocity)
+		elif "velocity" in ball:
+			ball.velocity = new_velocity
+
+func _play_npc_collision_sound(npc: Node) -> void:
+	"""Play collision sound for NPC collision"""
+	# Try to play collision sound if NPC has one
+	if npc.has_method("_play_collision_sound"):
+		npc._play_collision_sound()
+	elif npc.has_method("play_collision_sound"):
+		npc.play_collision_sound()
 
 func _apply_default_velocity_damage(npc: Node, ball: Node) -> void:
 	"""Apply default velocity-based damage to an NPC"""

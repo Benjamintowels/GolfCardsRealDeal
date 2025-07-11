@@ -34,6 +34,7 @@ var current_aim_direction: AimDirection = AimDirection.LEFT_RIGHT
 var is_moving: bool = false
 var movement_tween: Tween
 var movement_duration: float = 0.3
+var movement_start_position: Vector2  # Track where movement started
 
 # Facing direction properties
 var facing_direction: Vector2i = Vector2i(1, 0)  # Start facing right
@@ -298,6 +299,12 @@ func _reflect_projectile(projectile: Node2D):
 
 func _handle_ball_collision(ball: Node2D) -> void:
 	"""Handle collision with a ball - called by collision system"""
+	# Use the Entities system for collision handling (includes moving NPC push system)
+	if entities_manager and entities_manager.has_method("handle_npc_ball_collision"):
+		entities_manager.handle_npc_ball_collision(self, ball)
+		return
+	
+	# Fallback to original collision logic if Entities system is not available
 	# This method is required for the player's jump roof bounce system
 	# The actual collision logic is handled in _handle_area_collision
 	# This method just ensures the Police can be detected by the jump system
@@ -533,6 +540,9 @@ func _animate_movement_to_position(target_world_pos: Vector2) -> void:
 	
 	# Set moving state
 	is_moving = true
+	
+	# Store the starting position for movement direction calculation
+	movement_start_position = global_position
 	
 	# Stop any existing movement tween
 	if movement_tween and movement_tween.is_valid():
@@ -1302,3 +1312,23 @@ class DeadState extends BaseState:
 	
 	func exit() -> void:
 		pass
+
+func is_currently_ragdolling() -> bool:
+	"""Check if the Police is currently ragdolling"""
+	return false  # Police don't have ragdoll system
+
+# Ball pushing system methods
+func get_movement_direction() -> Vector2:
+	"""Get the current movement direction as a Vector2"""
+	# If currently moving, return the actual movement direction
+	if is_moving and movement_tween and movement_tween.is_valid():
+		# Calculate the actual movement direction from start to current position
+		var direction = (global_position - movement_start_position).normalized()
+		return direction
+	
+	# If not moving, return the last movement direction
+	return Vector2(last_movement_direction.x, last_movement_direction.y)
+
+func get_last_movement_direction() -> Vector2i:
+	"""Get the last movement direction as Vector2i"""
+	return last_movement_direction

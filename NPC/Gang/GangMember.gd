@@ -22,6 +22,7 @@ var current_action: String = "idle"
 var is_moving: bool = false
 var movement_tween: Tween
 var movement_duration: float = 0.3  # Duration of movement animation in seconds
+var movement_start_position: Vector2  # Track where movement started
 
 # Facing direction properties
 var facing_direction: Vector2i = Vector2i(1, 0)  # Start facing right
@@ -371,6 +372,12 @@ func _handle_ball_collision(ball: Node2D) -> void:
 	"""Handle ball/knife collisions - check height to determine if ball/knife should pass through"""
 	print("Handling ball/knife collision - checking ball/knife height")
 	
+	# Use the Entities system for collision handling (includes moving NPC push system)
+	if entities_manager and entities_manager.has_method("handle_npc_ball_collision"):
+		entities_manager.handle_npc_ball_collision(self, ball)
+		return
+	
+	# Fallback to original collision logic if Entities system is not available
 	# Use enhanced height collision detection with TopHeight markers
 	if Global.is_object_above_obstacle(ball, self):
 		# Ball/knife is above GangMember entirely - let it pass through
@@ -981,6 +988,9 @@ func _animate_movement_to_position(target_world_pos: Vector2) -> void:
 	"""Animate the GangMember's movement to the target position using a tween"""
 	# Set moving state
 	is_moving = true
+	
+	# Store the starting position for movement direction calculation
+	movement_start_position = global_position
 	
 	# Stop any existing movement tween
 	if movement_tween and movement_tween.is_valid():
@@ -2251,3 +2261,19 @@ func _check_fire_tile_thawing() -> void:
 		if not is_dead and not is_ragdolling:
 			print("GangMember thawed by fire - allowing turn to proceed")
 			# The turn will continue normally since we're not skipping it
+
+# Ball pushing system methods
+func get_movement_direction() -> Vector2:
+	"""Get the current movement direction as a Vector2"""
+	# If currently moving, return the actual movement direction
+	if is_moving and movement_tween and movement_tween.is_valid():
+		# Calculate the actual movement direction from start to current position
+		var direction = (global_position - movement_start_position).normalized()
+		return direction
+	
+	# If not moving, return the last movement direction
+	return Vector2(last_movement_direction.x, last_movement_direction.y)
+
+func get_last_movement_direction() -> Vector2i:
+	"""Get the last movement direction as Vector2i"""
+	return last_movement_direction
