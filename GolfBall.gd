@@ -1903,4 +1903,8 @@ func set_landed_flag(landed: bool) -> void:
 	if not landed:
 		# Reset bounce count when re-enabling flight
 		bounce_count = 0
+		# Clear landing highlight system so ball can create new highlight when it stops again
+		remove_landing_highlight()
+		has_emitted_landed_signal = false
+		final_landing_tile = Vector2i.ZERO
 		print("Ball landed flag reset by NPC push")
