@@ -1,0 +1,39 @@
+[gd_scene load_steps=2 format=3 uid="uid://bqxvhqjqxqxqx"]
+
+[ext_resource type="Script" path="res://test_world_turn_manager.gd" id="1_0x0x0"]
+
+[node name="TestWorldTurnManager" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("1_0x0x0")
+
+[node name="TestButton" type="Button" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -100.0
+offset_top = -25.0
+offset_right = 100.0
+offset_bottom = 25.0
+text = "Test World Turn"
+
+[node name="StatusLabel" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = -200.0
+offset_right = 400.0
+offset_bottom = -10.0
+text = "WorldTurnManager Status:
+Waiting for initialization..."
+
+[node name="NPC" type="Node" parent="."]
+
+[node name="WorldTurnManager" type="Node" parent="NPC"] 

@@ -820,6 +820,10 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		squirrel.set_meta("grid_position", squirrel_pos)
 		print("✓ Set squirrel grid_position to:", squirrel_pos)
 		
+		# Setup the Squirrel
+		if squirrel.has_method("setup"):
+			squirrel.setup(squirrel_pos, cell_size)
+		
 		# Add squirrel to groups for smart optimization
 		squirrel.add_to_group("squirrels")
 		squirrel.add_to_group("collision_objects")

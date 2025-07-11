@@ -1,5 +1,8 @@
 extends Control
 
+# WorldTurnManager integration
+signal player_turn_ended
+
 @onready var character_image = $UILayer/CharacterImage
 @onready var character_label = $UILayer/CharacterLabel
 @onready var end_round_button = $UILayer/EndRoundButton
@@ -28,6 +31,9 @@ extends Control
 @onready var kill_gangmember_button: Button = $UILayer/KillGangMemberButton
 @onready var bag_upgrade_test_button: Button = $UILayer/BagUpgradeTestButton
 @onready var background_manager: Node = $BackgroundManager
+
+# WorldTurnManager reference
+@onready var world_turn_manager: Node = $WorldTurnManager
 
 # Movement controller
 const MovementController := preload("res://MovementController.gd")
@@ -1732,12 +1738,70 @@ func _end_turn_logic() -> void:
 			create_movement_buttons()
 			draw_cards_button.visible = false
 	else:
-		# Start NPC turn sequence
+		# Use WorldTurnManager for NPC turn sequence
+		_start_world_turn_sequence()
+
+func _start_world_turn_sequence() -> void:
+	"""Start the world turn sequence using WorldTurnManager"""
+	print("=== STARTING WORLD TURN SEQUENCE ===")
+	
+	# Check if WorldTurnManager is available
+	if world_turn_manager:
+		print("WorldTurnManager found: ", world_turn_manager.name)
+		# Emit player turn ended signal to trigger WorldTurnManager
+		player_turn_ended.emit()
+		
+		# Disable end turn button during world turn
+		if end_turn_button:
+			end_turn_button.disabled = true
+	else:
+		print("ERROR: WorldTurnManager not found!")
+		# Fallback to old system
 		start_npc_turn_sequence()
+
+func _continue_after_world_turn() -> void:
+	"""Continue with player's turn after world turn completion"""
+	print("=== CONTINUING AFTER WORLD TURN ===")
+	
+	# Continue with normal turn flow
+	if waiting_for_player_to_reach_ball and player_grid_pos == ball_landing_tile:
+		if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball) and launch_manager.golf_ball.has_method("remove_landing_highlight"):
+			launch_manager.golf_ball.remove_landing_highlight()
+		
+		enter_draw_cards_phase()  # Start with club selection phase
+	else:
+		draw_cards_for_shot(3)
+		create_movement_buttons()
+		draw_cards_button.visible = false
 
 func start_npc_turn_sequence() -> void:
 	"""Handle the NPC turn sequence with priority-based turns for visible NPCs"""
-	print("Starting NPC turn sequence...")
+	print("=== STARTING NPC TURN SEQUENCE ===")
+	print("Player grid position: ", player_grid_pos)
+	
+	# Debug: Check for golf balls in the scene
+	var golf_balls = get_tree().get_nodes_in_group("golf_balls")
+	var all_balls = get_tree().get_nodes_in_group("balls")
+	print("Golf balls in scene: ", golf_balls.size())
+	print("All balls in scene: ", all_balls.size())
+	for ball in golf_balls:
+		if is_instance_valid(ball):
+			print("  - Ball: ", ball.name, " at position: ", ball.global_position)
+	
+	# Debug: Check for squirrels in the scene
+	var entities = get_node_or_null("Entities")
+	if entities:
+		var npcs = entities.get_npcs()
+		var squirrels = []
+		for npc in npcs:
+			if npc.get_script() and "Squirrel.gd" in npc.get_script().resource_path:
+				squirrels.append(npc)
+		print("Squirrels in scene: ", squirrels.size())
+		for squirrel in squirrels:
+			if is_instance_valid(squirrel):
+				print("  - Squirrel: ", squirrel.name, " at grid position: ", squirrel.get_grid_position() if squirrel.has_method("get_grid_position") else "No grid position method")
+	
+	print("=== END DEBUG INFO ===")
 	
 	# Check if there are any active NPCs on the map (alive and not frozen, or will thaw this turn)
 	if not has_active_npcs():
@@ -1761,41 +1825,8 @@ func start_npc_turn_sequence() -> void:
 	# Disable end turn button during NPC turn
 	end_turn_button.disabled = true
 	
-	# PHASE 1: Handle ball-detecting NPCs first (like Squirrels)
-	print("=== PHASE 1: BALL-DETECTING NPC TURNS ===")
-	var ball_detecting_npcs = get_ball_detecting_npcs()
-	if not ball_detecting_npcs.is_empty():
-		print("Found ", ball_detecting_npcs.size(), " ball-detecting NPCs to process")
-		
-		# Show "Ball-Detecting NPCs Turn" message
-		await show_turn_message("Ball-Detecting NPCs Turn", 2.0)
-		
-		# Process each ball-detecting NPC's turn
-		for npc in ball_detecting_npcs:
-			print("Processing ball-detecting NPC turn: ", npc.name)
-			
-			# Transition camera to NPC and wait for it to complete
-			await transition_camera_to_npc(npc)
-			
-			# Wait a moment for camera transition
-			await get_tree().create_timer(0.5).timeout
-			
-			# Take the NPC's turn
-			print("Taking turn for ball-detecting NPC: ", npc.name)
-			npc.take_turn()
-			
-			# Wait for the NPC's turn to complete
-			await npc.turn_completed
-			
-			# Wait a moment to let player see the result
-			await get_tree().create_timer(0.5).timeout
-		
-		print("=== END PHASE 1: BALL-DETECTING NPC TURNS ===")
-	else:
-		print("No ball-detecting NPCs found")
-	
-	# PHASE 2: Handle player vision-based NPC turns
-	print("=== PHASE 2: PLAYER VISION-BASED NPC TURNS ===")
+	# Handle all NPC turns with priority-based system
+	print("=== NPC TURN SEQUENCE ===")
 	
 	# Find all visible NPCs and sort by priority
 	var visible_npcs = get_visible_npcs_by_priority()
@@ -1835,6 +1866,29 @@ func start_npc_turn_sequence() -> void:
 		
 		# Wait a moment for camera transition
 		await get_tree().create_timer(0.5).timeout
+		
+		# Special handling for squirrels: update ball detection before turn
+		var script_path = npc.get_script().resource_path if npc.get_script() else ""
+		var is_squirrel = "Squirrel.gd" in script_path
+		if is_squirrel:
+			print("=== UPDATING SQUIRREL BALL DETECTION BEFORE TURN ===")
+			print("Squirrel: ", npc.name)
+			if npc.has_method("_check_vision_for_golf_balls"):
+				npc._check_vision_for_golf_balls()
+			if npc.has_method("_update_nearest_golf_ball"):
+				npc._update_nearest_golf_ball()
+			
+			# Check if squirrel can detect ball after update
+			if npc.has_method("has_detected_golf_ball"):
+				var has_ball = npc.has_detected_golf_ball()
+				print("Squirrel ball detection after update: ", has_ball)
+				
+				# Skip squirrel's turn if it no longer detects a ball
+				if not has_ball:
+					print("Squirrel no longer detects ball, skipping turn")
+					await get_tree().create_timer(0.5).timeout
+					continue
+			print("=== END SQUIRREL BALL DETECTION UPDATE ===")
 		
 		# Take the NPC's turn
 		print("Taking turn for NPC: ", npc.name)
@@ -1884,6 +1938,7 @@ func get_visible_npcs_by_priority() -> Array[Node]:
 	
 	for npc in npcs:
 		if is_instance_valid(npc) and npc.has_method("get_grid_position"):
+			
 			# Check if NPC is alive
 			var is_alive = true
 			if npc.has_method("get_is_dead"):
@@ -1920,21 +1975,56 @@ func get_visible_npcs_by_priority() -> Array[Node]:
 			var npc_pos = npc.get_grid_position()
 			var distance = player_grid_pos.distance_to(npc_pos)
 			
-			# Check if NPC is within player's vision range (20 tiles)
-			if distance <= 20:
-				visible_npcs.append(npc)
-				print("NPC ", npc.name, " is visible at distance ", distance, " (Priority: ", get_npc_priority(npc), ")")
+			# Check if this is a squirrel that can detect balls
+			var script_path = npc.get_script().resource_path if npc.get_script() else ""
+			var is_squirrel = "Squirrel.gd" in script_path
+			
+			if is_squirrel:
+				# Special case for squirrels: include them if they can detect a ball, regardless of player vision
+				print("=== CHECKING SQUIRREL FOR TURN SEQUENCE ===")
+				print("Squirrel: ", npc.name, " at distance ", distance, " from player")
+				
+				if npc.has_method("has_detected_golf_ball"):
+					var has_ball = npc.has_detected_golf_ball()
+					if has_ball:
+						visible_npcs.append(npc)
+						print("✓ Squirrel ", npc.name, " can detect ball, including in turn sequence (distance from player: ", distance, ")")
+					else:
+						print("✗ Squirrel ", npc.name, " cannot detect ball, skipping (distance from player: ", distance, ")")
+				else:
+					# Fallback: check if nearest_golf_ball is valid
+					if "nearest_golf_ball" in npc:
+						var has_ball = npc.nearest_golf_ball != null and is_instance_valid(npc.nearest_golf_ball)
+						if has_ball:
+							visible_npcs.append(npc)
+							print("✓ Squirrel ", npc.name, " has valid nearest ball, including in turn sequence (distance from player: ", distance, ")")
+						else:
+							print("✗ Squirrel ", npc.name, " has no valid nearest ball, skipping (distance from player: ", distance, ")")
+					else:
+						print("✗ Squirrel ", npc.name, " has no ball detection method, skipping (distance from player: ", distance, ")")
+				
+				print("=== END SQUIRREL CHECK ===")
 			else:
-				print("NPC ", npc.name, " is not visible at distance ", distance)
+				# For non-squirrel NPCs: only include if within player's vision range (20 tiles)
+				if distance <= 20:
+					visible_npcs.append(npc)
+					print("NPC ", npc.name, " is visible at distance ", distance, " (Priority: ", get_npc_priority(npc), ")")
+				else:
+					print("NPC ", npc.name, " is not visible at distance ", distance)
 		else:
 			print("Invalid NPC or missing get_grid_position method: ", npc.name if npc else "None")
 	
 	# Sort NPCs by priority (highest priority first = fastest first)
 	visible_npcs.sort_custom(func(a, b): return get_npc_priority(a) > get_npc_priority(b))
 	
-	print("Found ", visible_npcs.size(), " visible NPCs, sorted by priority")
+	print("Found ", visible_npcs.size(), " NPCs for turn sequence, sorted by priority")
 	for npc in visible_npcs:
-		print("  - ", npc.name, " (Priority: ", get_npc_priority(npc), ")")
+		var script_path = npc.get_script().resource_path if npc.get_script() else ""
+		var is_squirrel = "Squirrel.gd" in script_path
+		if is_squirrel:
+			print("  - ", npc.name, " (Squirrel with ball detection - Priority: ", get_npc_priority(npc), ")")
+		else:
+			print("  - ", npc.name, " (Priority: ", get_npc_priority(npc), ")")
 	
 	return visible_npcs
 
@@ -1943,14 +2033,14 @@ func get_npc_priority(npc: Node) -> int:
 	# Check the NPC's script to determine type
 	var script_path = npc.get_script().resource_path if npc.get_script() else ""
 	
-	# Zombies are fastest (highest priority)
-	if "ZombieGolfer.gd" in script_path:
+	# Squirrels are fastest (highest priority) - they chase and push balls
+	if "Squirrel.gd" in script_path:
+		return 4
+	# Zombies are second fastest
+	elif "ZombieGolfer.gd" in script_path:
 		return 3
 	# GangMembers are medium priority
 	elif "GangMember.gd" in script_path:
-		return 2
-	# Squirrels are medium priority (same as GangMembers)
-	elif "Squirrel.gd" in script_path:
 		return 2
 	# Police are slowest (lowest priority)
 	elif "police.gd" in script_path:
@@ -2209,6 +2299,8 @@ func get_player_reference() -> Node:
 	"""Get the player reference for NPCs to use"""
 	print("get_player_reference called - player_node: ", player_node.name if player_node else "None")
 	return player_node
+
+
 
 func get_attack_handler() -> Node:
 	"""Get the attack handler reference for NPCs to use"""
@@ -4485,90 +4577,7 @@ func _on_grenade_exploded(explosion_position: Vector2) -> void:
 	
 	camera_following_ball = false
 
-func get_ball_detecting_npcs() -> Array[Node]:
-	"""Get all NPCs that detect golf balls (like Squirrels), regardless of player vision"""
-	var entities = get_node_or_null("Entities")
-	if not entities:
-		print("ERROR: No Entities node found!")
-		return []
-	
-	var npcs = entities.get_npcs()
-	print("Checking ", npcs.size(), " NPCs for ball detection capability")
-	
-	var ball_detecting_npcs: Array[Node] = []
-	
-	for npc in npcs:
-		if is_instance_valid(npc):
-			# Check if NPC is alive
-			var is_alive = true
-			if npc.has_method("get_is_dead"):
-				is_alive = not npc.get_is_dead()
-			elif npc.has_method("is_dead"):
-				is_alive = not npc.is_dead()
-			elif "is_dead" in npc:
-				is_alive = not npc.is_dead
-			
-			if not is_alive:
-				print("NPC ", npc.name, " is dead, skipping")
-				continue
-			
-			# Check if NPC is frozen and won't thaw this turn
-			var is_frozen = false
-			if npc.has_method("is_frozen_state"):
-				is_frozen = npc.is_frozen_state()
-			elif "is_frozen" in npc:
-				is_frozen = npc.is_frozen
-			
-			var will_thaw_this_turn = false
-			if is_frozen and npc.has_method("get_freeze_turns_remaining"):
-				var turns_remaining = npc.get_freeze_turns_remaining()
-				will_thaw_this_turn = turns_remaining <= 1
-			elif is_frozen and "freeze_turns_remaining" in npc:
-				var turns_remaining = npc.freeze_turns_remaining
-				will_thaw_this_turn = turns_remaining <= 1
-			
-			# Skip NPCs that are frozen and won't thaw this turn
-			if is_frozen and not will_thaw_this_turn:
-				print("NPC ", npc.name, " is frozen and won't thaw this turn, skipping")
-				continue
-			
-			# Check if this NPC detects golf balls
-			var script_path = npc.get_script().resource_path if npc.get_script() else ""
-			
-			# Currently only Squirrels detect golf balls
-			if "Squirrel.gd" in script_path:
-				print("=== CHECKING SQUIRREL FOR BALL DETECTION ===")
-				print("Squirrel: ", npc.name)
-				print("Has has_detected_golf_ball method: ", npc.has_method("has_detected_golf_ball"))
-				
-				# Check if this squirrel has actually detected a ball
-				if npc.has_method("has_detected_golf_ball"):
-					var has_ball = npc.has_detected_golf_ball()
-					if has_ball:
-						ball_detecting_npcs.append(npc)
-						print("✓ Found ball-detecting NPC with ball: ", npc.name)
-					else:
-						print("✗ Squirrel ", npc.name, " has no ball detected, skipping")
-				else:
-					# Fallback: check if nearest_golf_ball is valid
-					print("Using fallback ball detection check")
-					if "nearest_golf_ball" in npc:
-						var has_ball = npc.nearest_golf_ball != null and is_instance_valid(npc.nearest_golf_ball)
-						if has_ball:
-							ball_detecting_npcs.append(npc)
-							print("✓ Found ball-detecting NPC with ball (fallback): ", npc.name)
-						else:
-							print("✗ Squirrel ", npc.name, " has no ball detected (fallback), skipping")
-					else:
-						print("✗ Squirrel ", npc.name, " has no ball detection method, skipping")
-				print("=== END SQUIRREL CHECK ===")
-			else:
-				print("NPC ", npc.name, " does not detect golf balls")
-		else:
-			print("Invalid NPC: ", npc.name if npc else "None")
-	
-	print("Found ", ball_detecting_npcs.size(), " ball-detecting NPCs")
-	return ball_detecting_npcs
+
 
 func get_course_bounds() -> Rect2i:
 	"""Get the bounds of the course as a Rect2i"""

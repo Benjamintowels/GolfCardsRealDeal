@@ -77,14 +77,29 @@ func _ready():
 	# Add to groups for smart optimization and roof bounce system
 	add_to_group("collision_objects")
 	
-	# Connect to Entities manager
+	# Connect to WorldTurnManager
 	course = _find_course_script()
 	print("Police course reference: ", course.name if course else "None")
-	if course and course.has_node("Entities"):
-		entities_manager = course.get_node("Entities")
-		entities_manager.register_npc(self)
-		entities_manager.npc_turn_started.connect(_on_turn_started)
-		entities_manager.npc_turn_ended.connect(_on_turn_ended)
+	
+	# Try different paths to find WorldTurnManager
+	var world_turn_manager = null
+	var possible_paths = ["WorldTurnManager", "NPC/WorldTurnManager", "NPC/world_turn_manager"]
+	
+	for path in possible_paths:
+		if course and course.has_node(path):
+			world_turn_manager = course.get_node(path)
+			print("Found WorldTurnManager at path: ", path)
+			break
+	
+	if world_turn_manager:
+		print("Found WorldTurnManager: ", world_turn_manager.name)
+		world_turn_manager.register_npc(self)
+		world_turn_manager.npc_turn_started.connect(_on_turn_started)
+		world_turn_manager.npc_turn_ended.connect(_on_turn_ended)
+		print("✓ Police registered with WorldTurnManager")
+	else:
+		print("✗ ERROR: Could not register with WorldTurnManager")
+		print("Tried paths: ", possible_paths)
 	
 	# Initialize state machine
 	state_machine = StateMachine.new()
@@ -352,6 +367,11 @@ func take_turn() -> void:
 	# Update state machine
 	state_machine.update()
 	
+	# Check if turn was already completed by the state machine
+	if not is_my_turn:
+		print("Turn was completed by state machine, exiting take_turn()")
+		return
+	
 	# Start safety timer to prevent turn from getting stuck
 	_start_turn_safety_timer()
 	
@@ -449,8 +469,8 @@ func _on_turn_ended(npc: Node) -> void:
 func _complete_turn() -> void:
 	"""Complete the current turn"""
 	print("=== POLICE COMPLETING TURN ===")
-	
-	# Mark that our turn is over
+	print("Police: ", name)
+	print("Setting is_my_turn to false")
 	is_my_turn = false
 	
 	# Ensure we're not in an attacking state when completing turn
@@ -463,11 +483,13 @@ func _complete_turn() -> void:
 	if not is_dead:
 		ensure_normal_sprite_visible()
 	
+	print("Emitting turn_completed signal")
 	turn_completed.emit()
+	print("Turn completed signal emitted successfully")
 	
 	# Note: Entities manager notification removed - turn management now handled by course_1.gd
 	
-	print("=== POLICE TURN COMPLETED ===")
+	print("=== END POLICE TURN COMPLETION ===")
 
 func get_grid_position() -> Vector2i:
 	"""Get the current grid position"""
@@ -581,9 +603,18 @@ func _on_movement_completed() -> void:
 
 func _check_turn_completion() -> void:
 	"""Check if the turn can be completed (waits for movement animation to finish)"""
+	print("=== POLICE TURN COMPLETION CHECK ===")
+	print("Police: ", name)
+	print("Is my turn: ", is_my_turn)
+	print("Is moving: ", is_moving)
+	print("Is attacking: ", is_attacking)
+	print("Is dead: ", is_dead)
+	print("Current state: ", current_state)
+	
 	# Only check turn completion if this is actually our turn
 	if not is_my_turn:
 		print("Turn completion check called but not our turn - ignoring")
+		print("=== END TURN COMPLETION CHECK ===")
 		return
 	
 	# Check for turn timeout
@@ -593,14 +624,17 @@ func _check_turn_completion() -> void:
 	if turn_duration > max_turn_duration:
 		print("⚠️ TURN TIMEOUT DETECTED - Forcing completion after ", turn_duration, " seconds")
 		_complete_turn()
+		print("=== END TURN COMPLETION CHECK ===")
 		return
 	
 	if is_moving:
 		print("Police is still moving, waiting for animation to complete...")
+		print("=== END TURN COMPLETION CHECK ===")
 		return
 	
 	if is_attacking:
 		print("Police is still attacking, waiting for animation to complete...")
+		print("=== END TURN COMPLETION CHECK ===")
 		return
 	
 	# Ensure normal sprite is visible before completing turn (unless dead or attacking)
@@ -612,6 +646,7 @@ func _check_turn_completion() -> void:
 	
 	print("Police movement finished, completing turn")
 	_complete_turn()
+	print("=== END TURN COMPLETION CHECK ===")
 
 func _verify_sprite_state() -> void:
 	"""Verify that sprite visibility matches the current sprite state"""
@@ -1146,6 +1181,7 @@ class PatrolState extends BaseState:
 			police.facing_direction = police.last_movement_direction
 			police._update_sprite_facing()
 			# Complete turn immediately since no movement is needed
+			print("Patrol state calling _check_turn_completion()")
 			police._check_turn_completion()
 	
 	func _get_random_patrol_position(max_distance: int) -> Vector2i:

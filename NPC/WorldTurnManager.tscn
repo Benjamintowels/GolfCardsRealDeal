@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://bwu8uv1gonuj7"]
+
+[ext_resource type="Script" uid="uid://c28glmskcnieh" path="res://NPC/world_turn_manager.gd" id="1_ldiyy"]
+
+[node name="WorldTurnManager" type="Node"]
+script = ExtResource("1_ldiyy")

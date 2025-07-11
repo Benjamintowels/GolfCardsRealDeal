@@ -102,16 +102,31 @@ func _ready():
 	# Get references to ice sprite and collision areas
 	_setup_ice_references()
 	
-	# Connect to Entities manager
+	# Connect to WorldTurnManager
 	# Find the course_1.gd script by searching up the scene tree
 	course = _find_course_script()
 	print("GangMember course reference: ", course.name if course else "None")
 	print("Course script: ", course.get_script().resource_path if course and course.get_script() else "None")
-	if course and course.has_node("Entities"):
-		entities_manager = course.get_node("Entities")
-		entities_manager.register_npc(self)
-		entities_manager.npc_turn_started.connect(_on_turn_started)
-		entities_manager.npc_turn_ended.connect(_on_turn_ended)
+	
+	# Try different paths to find WorldTurnManager
+	var world_turn_manager = null
+	var possible_paths = ["WorldTurnManager", "NPC/WorldTurnManager", "NPC/world_turn_manager"]
+	
+	for path in possible_paths:
+		if course and course.has_node(path):
+			world_turn_manager = course.get_node(path)
+			print("Found WorldTurnManager at path: ", path)
+			break
+	
+	if world_turn_manager:
+		print("Found WorldTurnManager: ", world_turn_manager.name)
+		world_turn_manager.register_npc(self)
+		world_turn_manager.npc_turn_started.connect(_on_turn_started)
+		world_turn_manager.npc_turn_ended.connect(_on_turn_ended)
+		print("✓ GangMember registered with WorldTurnManager")
+	else:
+		print("✗ ERROR: Could not register with WorldTurnManager")
+		print("Tried paths: ", possible_paths)
 	
 	# Initialize state machine
 	state_machine = StateMachine.new()
@@ -909,6 +924,9 @@ func _on_turn_ended(npc: Node) -> void:
 
 func _complete_turn() -> void:
 	"""Complete the current turn"""
+	print("=== GANGMEMBER COMPLETING TURN ===")
+	print("GangMember: ", name)
+	
 	# Check for nearby fire tiles that could thaw the GangMember
 	_check_fire_tile_thawing()
 	
@@ -919,9 +937,12 @@ func _complete_turn() -> void:
 		if freeze_turns_remaining <= 0:
 			thaw()
 	
+	print("Emitting turn_completed signal")
 	turn_completed.emit()
+	print("Turn completed signal emitted successfully")
 	
 	# Note: Entities manager notification removed - turn management now handled by course_1.gd
+	print("=== END GANGMEMBER TURN COMPLETION ===")
 
 func get_grid_position() -> Vector2i:
 	"""Get the current grid position"""
@@ -1028,16 +1049,26 @@ func _on_movement_completed() -> void:
 
 func _check_turn_completion() -> void:
 	"""Check if the turn can be completed (waits for movement animation to finish)"""
+	print("=== GANGMEMBER TURN COMPLETION CHECK ===")
+	print("GangMember: ", name)
+	print("Is moving: ", is_moving)
+	print("Is ragdolling: ", is_ragdolling)
+	print("Is frozen: ", is_frozen)
+	print("Current state: ", current_state)
+	
 	if is_moving:
 		print("GangMember is still moving, waiting for animation to complete...")
+		print("=== END TURN COMPLETION CHECK ===")
 		return
 	
 	if is_ragdolling:
 		print("GangMember is still ragdolling, waiting for animation to complete...")
+		print("=== END TURN COMPLETION CHECK ===")
 		return
 	
 	print("GangMember movement finished, completing turn")
 	_complete_turn()
+	print("=== END TURN COMPLETION CHECK ===")
 
 func _handle_player_collision(approach_direction: Vector2i = Vector2i.ZERO) -> void:
 	"""Handle collision with player - deal damage and push back"""
@@ -1562,6 +1593,7 @@ class PatrolState extends BaseState:
 			gang_member.facing_direction = gang_member.last_movement_direction
 			gang_member._update_sprite_facing()
 			# Complete turn immediately since no movement is needed
+			print("Patrol state calling _check_turn_completion()")
 			gang_member._check_turn_completion()
 	
 	func _get_random_patrol_position(max_distance: int) -> Vector2i:

@@ -332,16 +332,8 @@ var is_mouse_over: bool = false
 
 func _on_mouse_entered() -> void:
 	"""Handle mouse entering the tree area - make tree transparent"""
-	print("=== MOUSE ENTERED TREE ===")
-	print("Tree position:", global_position)
-	print("Making tree transparent")
 	set_transparent(true)
-	print("=== END MOUSE ENTERED ===")
 
 func _on_mouse_exited() -> void:
 	"""Handle mouse exiting the tree area - restore tree opacity"""
-	print("=== MOUSE EXITED TREE ===")
-	print("Tree position:", global_position)
-	print("Restoring tree opacity")
 	set_transparent(false)
-	print("=== END MOUSE EXITED ===")

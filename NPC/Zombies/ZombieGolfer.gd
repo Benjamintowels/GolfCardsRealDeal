@@ -62,16 +62,31 @@ func _ready():
 	# Add to groups for smart optimization and roof bounce system
 	add_to_group("collision_objects")
 	
-	# Connect to Entities manager
+	# Connect to WorldTurnManager
 	# Find the course_1.gd script by searching up the scene tree
 	course = _find_course_script()
 	print("ZombieGolfer course reference: ", course.name if course else "None")
 	print("Course script: ", course.get_script().resource_path if course and course.get_script() else "None")
-	if course and course.has_node("Entities"):
-		entities_manager = course.get_node("Entities")
-		entities_manager.register_npc(self)
-		entities_manager.npc_turn_started.connect(_on_turn_started)
-		entities_manager.npc_turn_ended.connect(_on_turn_ended)
+	
+	# Try different paths to find WorldTurnManager
+	var world_turn_manager = null
+	var possible_paths = ["WorldTurnManager", "NPC/WorldTurnManager", "NPC/world_turn_manager"]
+	
+	for path in possible_paths:
+		if course and course.has_node(path):
+			world_turn_manager = course.get_node(path)
+			print("Found WorldTurnManager at path: ", path)
+			break
+	
+	if world_turn_manager:
+		print("Found WorldTurnManager: ", world_turn_manager.name)
+		world_turn_manager.register_npc(self)
+		world_turn_manager.npc_turn_started.connect(_on_turn_started)
+		world_turn_manager.npc_turn_ended.connect(_on_turn_ended)
+		print("✓ ZombieGolfer registered with WorldTurnManager")
+	else:
+		print("✗ ERROR: Could not register with WorldTurnManager")
+		print("Tried paths: ", possible_paths)
 	
 	# Initialize state machine
 	state_machine = StateMachine.new()
@@ -625,11 +640,17 @@ func take_turn() -> void:
 
 func _complete_turn() -> void:
 	"""Complete the current turn"""
+	print("=== ZOMBIEGOLFER COMPLETING TURN ===")
+	print("ZombieGolfer: ", name)
+	print("Setting is_turn_in_progress to false")
 	is_turn_in_progress = false
 	has_attacked_this_turn = false
+	print("Emitting turn_completed signal")
 	turn_completed.emit()
+	print("Turn completed signal emitted successfully")
 	
 	# Note: Entities manager notification removed - turn management now handled by course_1.gd
+	print("=== END ZOMBIEGOLFER TURN COMPLETION ===")
 
 func _check_player_vision() -> void:
 	"""Check if player is within vision range and switch to chase if needed"""
@@ -676,16 +697,25 @@ func _face_player() -> void:
 
 func _check_turn_completion() -> void:
 	"""Check if the turn can be completed (waits for movement animation to finish)"""
+	print("=== ZOMBIEGOLFER TURN COMPLETION CHECK ===")
+	print("ZombieGolfer: ", name)
+	print("Is turn in progress: ", is_turn_in_progress)
+	print("Is moving: ", is_moving)
+	print("Current state: ", current_state)
+	
 	if not is_turn_in_progress:
 		print("ZombieGolfer turn not in progress, skipping completion check")
+		print("=== END TURN COMPLETION CHECK ===")
 		return
 	
 	if is_moving:
 		print("ZombieGolfer is still moving, waiting for animation to complete...")
+		print("=== END TURN COMPLETION CHECK ===")
 		return
 	
 	print("ZombieGolfer movement finished, completing turn")
 	_complete_turn()
+	print("=== END TURN COMPLETION CHECK ===")
 
 func _move_to_position(target_pos: Vector2i) -> void:
 	"""Move to the target position"""
@@ -882,6 +912,7 @@ class PatrolState extends BaseState:
 			zombie.facing_direction = zombie.last_movement_direction
 			zombie._update_sprite_facing()
 			# Complete turn immediately since no movement is needed
+			print("Patrol state calling _check_turn_completion()")
 			zombie._check_turn_completion()
 	
 	func _get_random_patrol_position(max_distance: int) -> Vector2i:
