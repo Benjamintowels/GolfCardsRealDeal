@@ -1070,6 +1070,10 @@ func _ready():
 	if area2d:
 		area2d.connect("area_entered", _on_area_entered)
 		area2d.connect("area_exited", _on_area_exited)
+	
+	# Add to groups for easy detection by NPCs
+	add_to_group("golf_balls")
+	add_to_group("balls")
 
 func update_y_sort() -> void:
 	"""Update the ball's z_index using the simple global Y-sort system"""
@@ -1101,9 +1105,20 @@ func _on_area_entered(area):
 		pass
 	# Check if this is an NPC collision (GangMember)
 	elif area.get_parent() and area.get_parent().has_method("_handle_ball_collision"):
+		# Check if this is a vision area collision - ignore those
+		if area.name == "VisionArea2D":
+			print("GolfBall: Ignoring vision area collision with ", area.get_parent().name)
+			return  # Ignore vision area collisions
+		
+		# Only handle collisions with body areas, not vision areas
+		if area.name != "BodyArea2D":
+			print("GolfBall: Ignoring non-body area collision with ", area.name, " on ", area.get_parent().name)
+			return  # Ignore non-body area collisions
+		
 		# NPC collision detected - let the NPC handle the collision
 		# The NPC will check ball height and apply appropriate effects
 		# GolfBall: NPC collision detected
+		print("GolfBall: Processing body area collision with ", area.get_parent().name)
 		area.get_parent()._handle_ball_collision(self)
 	# Check if this is a Player collision
 	elif area.get_parent() and area.get_parent().has_method("take_damage"):

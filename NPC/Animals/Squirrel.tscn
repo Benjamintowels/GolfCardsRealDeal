@@ -1,0 +1,52 @@
+[gd_scene load_steps=8 format=3 uid="uid://db2aw6jhhn5ty"]
+
+[ext_resource type="Script" uid="uid://dqbuoj7esuc2j" path="res://NPC/Animals/Squirrel.gd" id="1_script"]
+[ext_resource type="Texture2D" uid="uid://cj120eti86itj" path="res://NPC/Animals/SquirrelLeftRight.png" id="2_qji2q"]
+[ext_resource type="Texture2D" uid="uid://otbryrahgxuh" path="res://NPC/Animals/SquirrelUp.png" id="3_a6rej"]
+[ext_resource type="Texture2D" uid="uid://dadxu6vd4ov5p" path="res://NPC/Animals/SquirrelDown.png" id="4_ija0g"]
+[ext_resource type="AudioStream" uid="uid://ctapgmya4obws" path="res://Sounds/squirrel.mp3" id="5_ija0g"]
+[ext_resource type="AudioStream" uid="uid://doybi22w4jqpn" path="res://Sounds/squirrelhurt.mp3" id="6_f70dk"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_qji2q"]
+radius = 13.8907
+
+[node name="Squirrel" type="CharacterBody2D"]
+script = ExtResource("1_script")
+
+[node name="SquirrelSpriteLeftRight" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(0, -25)
+texture = ExtResource("2_qji2q")
+flip_h = true
+
+[node name="SquirrelSpriteUp" type="Sprite2D" parent="."]
+visible = false
+texture_filter = 1
+position = Vector2(0, -25)
+texture = ExtResource("3_a6rej")
+
+[node name="SquirrelSpriteDown" type="Sprite2D" parent="."]
+visible = false
+texture_filter = 1
+position = Vector2(0, -25)
+texture = ExtResource("4_ija0g")
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+
+[node name="BodyArea2D" type="Area2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="BodyArea2D"]
+position = Vector2(0, -10)
+shape = SubResource("CircleShape2D_qji2q")
+
+[node name="SquirrelMove" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("5_ija0g")
+
+[node name="SquirrelHit" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("6_f70dk")
+
+[node name="YSortPoint" type="Node2D" parent="."]
+position = Vector2(0, -5)
+
+[node name="TopHeight" type="Marker2D" parent="."]
+position = Vector2(0, -50)

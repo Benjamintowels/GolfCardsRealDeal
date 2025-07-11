@@ -129,9 +129,8 @@ func is_valid_position_for_object(pos: Vector2i, layout: Array) -> bool:
 	if pos.y < 0 or pos.y >= layout.size() or pos.x < 0 or pos.x >= layout[0].size():
 		return false
 	var tile_type = layout[pos.y][pos.x]
-	if tile_type in ["F", "Tee", "G", "W", "S", "P"]:
-		return false
-	if tile_type in ["W", "S", "P"]:
+	# Allow placement on fairway (F) and base tiles, but not on special tiles
+	if tile_type in ["Tee", "G", "W", "S", "P"]:
 		return false
 	for dy in range(-2, 3):
 		for dx in range(-2, 3):
@@ -146,6 +145,22 @@ func is_valid_position_for_object(pos: Vector2i, layout: Array) -> bool:
 			return false
 	return true
 
+func is_valid_position_for_squirrel(pos: Vector2i, layout: Array) -> bool:
+	"""Check if a position is valid for Squirrel placement (more lenient than other objects)"""
+	if pos.y < 0 or pos.y >= layout.size() or pos.x < 0 or pos.x >= layout[0].size():
+		return false
+	var tile_type = layout[pos.y][pos.x]
+	# Allow placement on base tiles, fairway (F), and rough (R), but not on special tiles
+	if tile_type in ["Tee", "G", "W", "S", "P"]:
+		return false
+	# Don't check for green tiles nearby (Squirrels can be closer to greens)
+	# Only check spacing from other placed objects
+	for placed_pos in placed_objects:
+		var distance = max(abs(pos.x - placed_pos.x), abs(pos.y - placed_pos.y))
+		if distance < 3:  # Minimum spacing between squirrels and other objects
+			return false
+	return true
+
 func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include_shop: bool = true, num_gang_members: int = -1, num_oil_drums: int = -1, num_police: int = 2, num_zombies: int = 1) -> Dictionary:
 	var positions = {
 		"trees": [],
@@ -155,7 +170,8 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 		"stone_walls": [],
 		"boulders": [],
 		"police": [],
-		"zombies": []
+		"zombies": [],
+		"squirrels": []
 	}
 	
 	# Use turn-based spawning if parameters are -1 (default)
@@ -212,6 +228,62 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 			placed_objects.append(tree_pos)
 			trees_placed += 1
 		valid_positions.remove_at(tree_index)
+	
+	# Place Squirrels around trees (5 tiles radius, 5 squirrels total)
+	print("=== PLACING SQUIRRELS AROUND TREES ===")
+	print("Tree positions:", positions.trees)
+	var squirrels_placed = 0
+	var max_squirrels = 5
+	
+	# Get all valid positions within 5 tiles of any tree
+	var squirrel_candidate_positions: Array = []
+	for tree_pos in positions.trees:
+		print("Checking positions around tree at:", tree_pos)
+		for dy in range(-5, 6):  # -5 to +5 inclusive
+			for dx in range(-5, 6):  # -5 to +5 inclusive
+				var candidate_pos = tree_pos + Vector2i(dx, dy)
+				
+				# Check if position is within map bounds
+				if candidate_pos.y < 0 or candidate_pos.y >= layout.size() or candidate_pos.x < 0 or candidate_pos.x >= layout[0].size():
+					continue
+				
+				# Check if position is valid for Squirrel placement (more lenient than other objects)
+				if is_valid_position_for_squirrel(candidate_pos, layout):
+					# Check if not already in candidate list
+					if candidate_pos not in squirrel_candidate_positions:
+						squirrel_candidate_positions.append(candidate_pos)
+						print("  Added candidate position:", candidate_pos)
+				else:
+					print("  Rejected position:", candidate_pos, "tile type:", layout[candidate_pos.y][candidate_pos.x])
+	
+	print("Found", squirrel_candidate_positions.size(), "candidate positions for squirrels")
+	
+	# Randomly select positions for squirrels
+	while squirrels_placed < max_squirrels and squirrel_candidate_positions.size() > 0:
+		var squirrel_index = randi() % squirrel_candidate_positions.size()
+		var squirrel_pos = squirrel_candidate_positions[squirrel_index]
+		
+		# Check spacing from other placed objects
+		var valid = true
+		for placed_pos in placed_objects:
+			var distance = max(abs(squirrel_pos.x - placed_pos.x), abs(squirrel_pos.y - placed_pos.y))
+			if distance < 3:  # Minimum spacing between squirrels and other objects
+				valid = false
+				print("  Rejected squirrel position:", squirrel_pos, "too close to:", placed_pos, "distance:", distance)
+				break
+		
+		if valid:
+			positions.squirrels.append(squirrel_pos)
+			placed_objects.append(squirrel_pos)
+			squirrels_placed += 1
+			print("✓ Squirrel placed at position:", squirrel_pos)
+		else:
+			print("  Squirrel placement failed for position:", squirrel_pos)
+		
+		squirrel_candidate_positions.remove_at(squirrel_index)
+	
+	print("✓ Placed", squirrels_placed, "squirrels around trees")
+	print("=== END PLACING SQUIRRELS ===")
 	
 	# Place Boulders on remaining base tiles (after trees)
 	var num_boulders = 4  # Place 4 boulders per hole
@@ -722,6 +794,43 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		print("✓ StoneWall name:", stone_wall.name)
 		print("✓ StoneWall grid_position property:", stone_wall.get_meta("grid_position") if stone_wall.get_meta("grid_position") != null else "null")
 	print("=== END PLACING STONE WALLS ===")
+	
+	# Place Squirrels
+	print("=== PLACING SQUIRRELS ===")
+	print("Squirrel positions:", object_positions.squirrels)
+	print("Squirrel scene map key exists:", "SQUIRREL" in object_scene_map)
+	if "SQUIRREL" in object_scene_map:
+		print("Squirrel scene:", object_scene_map["SQUIRREL"])
+	
+	for squirrel_pos in object_positions.squirrels:
+		var scene: PackedScene = object_scene_map["SQUIRREL"]
+		if scene == null:
+			push_error("🚫 Squirrel scene is null")
+			continue
+		print("✓ Squirrel scene loaded successfully")
+		var squirrel: Node2D = scene.instantiate() as Node2D
+		if squirrel == null:
+			push_error("❌ Squirrel instantiation failed at (%d,%d)" % [squirrel_pos.x, squirrel_pos.y])
+			continue
+		print("✓ Squirrel instantiated successfully")
+		var world_pos: Vector2 = Vector2(squirrel_pos.x, squirrel_pos.y) * cell_size
+		squirrel.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
+		
+		# Set the grid_position property
+		squirrel.set_meta("grid_position", squirrel_pos)
+		print("✓ Set squirrel grid_position to:", squirrel_pos)
+		
+		# Add squirrel to groups for smart optimization
+		squirrel.add_to_group("squirrels")
+		squirrel.add_to_group("collision_objects")
+		squirrel.add_to_group("npcs")
+		
+		ysort_objects.append({"node": squirrel, "grid_pos": squirrel_pos})
+		obstacle_layer.add_child(squirrel)
+		print("✓ Squirrel placed at grid position:", squirrel_pos, "world position:", world_pos)
+		print("✓ Squirrel name:", squirrel.name)
+		print("✓ Squirrel grid_position property:", squirrel.get_meta("grid_position") if squirrel.get_meta("grid_position") != null else "null")
+	print("=== END PLACING SQUIRRELS ===")
 	
 	update_all_ysort_z_indices() 
 

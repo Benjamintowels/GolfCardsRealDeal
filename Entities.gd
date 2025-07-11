@@ -65,13 +65,20 @@ func _take_next_npc_turn() -> void:
 	
 	var current_npc = npcs[current_npc_index]
 	if is_instance_valid(current_npc):
-		npc_turn_started.emit(current_npc)
-		
-		# Call the NPC's take_turn method
-		if current_npc.has_method("take_turn"):
-			current_npc.take_turn()
+		# Check if this NPC should take a turn (for ball-detecting NPCs like Squirrels)
+		if _should_npc_take_turn(current_npc):
+			npc_turn_started.emit(current_npc)
+			
+			# Call the NPC's take_turn method
+			if current_npc.has_method("take_turn"):
+				current_npc.take_turn()
+			else:
+				_on_npc_turn_completed()
 		else:
-			_on_npc_turn_completed()
+			# NPC should not take a turn, skip to next
+			print("NPC ", current_npc.name, " should not take a turn, skipping")
+			current_npc_index += 1
+			_take_next_npc_turn()
 	else:
 		# NPC was destroyed, skip to next
 		current_npc_index += 1
@@ -91,6 +98,63 @@ func _end_npc_turns() -> void:
 	is_npc_turn = false
 	current_npc_index = -1
 	all_npcs_turn_completed.emit()
+
+func _should_npc_take_turn(npc: Node) -> bool:
+	"""Check if an NPC should take a turn based on their type and current state"""
+	# Check if NPC is alive
+	var is_alive = true
+	if npc.has_method("get_is_dead"):
+		is_alive = not npc.get_is_dead()
+	elif npc.has_method("is_dead"):
+		is_alive = not npc.is_dead()
+	elif "is_dead" in npc:
+		is_alive = not npc.is_dead
+	
+	if not is_alive:
+		print("NPC ", npc.name, " is dead, should not take turn")
+		return false
+	
+	# Check if NPC is frozen and won't thaw this turn
+	var is_frozen = false
+	if npc.has_method("is_frozen_state"):
+		is_frozen = npc.is_frozen_state()
+	elif "is_frozen" in npc:
+		is_frozen = npc.is_frozen
+	
+	var will_thaw_this_turn = false
+	if is_frozen and npc.has_method("get_freeze_turns_remaining"):
+		var turns_remaining = npc.get_freeze_turns_remaining()
+		will_thaw_this_turn = turns_remaining <= 1
+	elif is_frozen and "freeze_turns_remaining" in npc:
+		var turns_remaining = npc.freeze_turns_remaining
+		will_thaw_this_turn = turns_remaining <= 1
+	
+	# Skip NPCs that are frozen and won't thaw this turn
+	if is_frozen and not will_thaw_this_turn:
+		print("NPC ", npc.name, " is frozen and won't thaw this turn, should not take turn")
+		return false
+	
+	# Check if this is a ball-detecting NPC (like Squirrels)
+	var script_path = npc.get_script().resource_path if npc.get_script() else ""
+	
+	if "Squirrel.gd" in script_path:
+		# Squirrels should only take a turn if they detect a golf ball
+		if npc.has_method("has_detected_golf_ball"):
+			var has_ball = npc.has_detected_golf_ball()
+			print("Squirrel ", npc.name, " ball detection check: ", has_ball)
+			return has_ball
+		else:
+			# Fallback: check if nearest_golf_ball is valid
+			if "nearest_golf_ball" in npc:
+				var has_ball = npc.nearest_golf_ball != null and is_instance_valid(npc.nearest_golf_ball)
+				print("Squirrel ", npc.name, " fallback ball detection check: ", has_ball)
+				return has_ball
+			else:
+				print("Squirrel ", npc.name, " has no ball detection method, allowing turn")
+				return true
+	
+	# For non-ball-detecting NPCs, always allow turns
+	return true
 
 func get_npcs() -> Array[Node]:
 	"""Get all registered NPCs"""
