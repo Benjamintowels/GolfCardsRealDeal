@@ -1,0 +1,12 @@
+[gd_scene load_steps=3 format=3 uid="uid://bs2wfjx7tl8hh"]
+
+[ext_resource type="Texture2D" uid="uid://dr3rs5yx8554e" path="res://Weapons/GrenadeLauncher.png" id="1_cfsu3"]
+[ext_resource type="AudioStream" uid="uid://bxqiekvgb7gf4" path="res://Sounds/Launcher.mp3" id="2_2cpup"]
+
+[node name="GrenadeLauncher" type="Node2D"]
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("1_cfsu3")
+
+[node name="Launcher" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("2_2cpup")

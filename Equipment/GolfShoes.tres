@@ -13,6 +13,7 @@ description = "Comfortable golf shoes that increase your mobility on the course.
 buff_type = "mobility"
 buff_value = 2
 price = 150
+default_tier = 1
 is_clothing = false
 clothing_slot = ""
 clothing_scene_path = ""

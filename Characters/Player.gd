@@ -1746,6 +1746,13 @@ func _update_swing_animation() -> void:
 			# Don't play swing animation for weapons
 			return
 	
+	# Check if we're using GrenadeLauncherClubCard - don't play swing animation for this club
+	if course and course.has_method("get_launch_manager"):
+		var launch_manager = course.get_launch_manager()
+		if launch_manager and launch_manager.selected_club == "GrenadeLauncherClubCard":
+			# Don't play swing animation for GrenadeLauncherClubCard
+			return
+	
 	# Check if height charge state changed
 	if is_charging_height != previous_charging_height:
 		if is_charging_height:

@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="CardData" load_steps=3 format=3 uid="uid://dofcnfc3vn2dg"]
+
+[ext_resource type="Texture2D" uid="uid://be72wjjgc3b7v" path="res://Cards/GrenadeLauncherClubCard.png" id="1_ax0aq"]
+[ext_resource type="Script" uid="uid://b1c024jgv23kk" path="res://Cards/CardData.gd" id="1_cyxmb"]
+
+[resource]
+script = ExtResource("1_cyxmb")
+name = "GrenadeLauncherClubCard"
+effect_type = "Club"
+effect_strength = 1
+image = ExtResource("1_ax0aq")
+level = 1
+max_level = 2
+upgrade_cost = 100
+default_tier = 1
+movement_bonus = 1
+attack_bonus = 1
+weapon_shots_bonus = 1
+effect_bonus = 1
+metadata/_custom_type_script = "uid://b1c024jgv23kk"

@@ -41,6 +41,7 @@ var shotgun_scene = preload("res://Weapons/Shotgun.tscn")
 var sniper_scene = preload("res://Weapons/Sniper.tscn")
 var grenade_scene = preload("res://Weapons/Grenade.tscn")
 var spear_scene = preload("res://Weapons/Spear.tscn")
+var grenade_launcher_scene = preload("res://Weapons/GrenadeLauncher.tscn")
 var reticle_texture = preload("res://UI/Reticle.png")
 
 # Signals
@@ -443,6 +444,33 @@ func create_weapon_instance() -> void:
 	var weapon_offset = Vector2(-37.955, 0)  # Closer to player's hands
 	weapon_instance.position = weapon_offset
 
+func show_grenade_launcher_weapon() -> void:
+	"""Show the GrenadeLauncher weapon when GrenadeLauncherClubCard is selected"""
+	if weapon_instance:
+		weapon_instance.queue_free()
+	
+	weapon_instance = grenade_launcher_scene.instantiate()
+	player_node.add_child(weapon_instance)
+	
+	# Reset weapon sprite flip state
+	var weapon_sprite = weapon_instance.get_node_or_null("Sprite2D")
+	if weapon_sprite:
+		weapon_sprite.flip_h = false
+		weapon_sprite.flip_v = false
+	
+	# Position the weapon closer to the player's hands with the specified offset
+	var weapon_offset = Vector2(-37.955, 0)  # Closer to player's hands
+	weapon_instance.position = weapon_offset
+	
+	# Start updating weapon rotation and position
+	update_weapon_rotation()
+
+func hide_weapon() -> void:
+	"""Hide the weapon when switching to a different club"""
+	if weapon_instance:
+		weapon_instance.queue_free()
+		weapon_instance = null
+
 func update_weapon_rotation() -> void:
 	"""Update weapon rotation to follow mouse and position based on player direction"""
 	if not weapon_instance or not player_node or not camera:
@@ -479,6 +507,10 @@ func update_weapon_rotation() -> void:
 					# Sniper behavior (same as pistol)
 					weapon_sprite.flip_h = false
 					weapon_sprite.flip_v = true
+				elif selected_card and selected_card.name == "GrenadeLauncherClubCard":
+					# GrenadeLauncher behavior (same as pistol)
+					weapon_sprite.flip_h = false
+					weapon_sprite.flip_v = true
 				else:
 					# Pistol and BurstShot behavior
 					weapon_sprite.flip_h = false
@@ -495,6 +527,10 @@ func update_weapon_rotation() -> void:
 					weapon_sprite.flip_v = false
 				elif selected_card and selected_card.name == "SniperCard":
 					# Sniper behavior (same as pistol)
+					weapon_sprite.flip_h = false
+					weapon_sprite.flip_v = false
+				elif selected_card and selected_card.name == "GrenadeLauncherClubCard":
+					# GrenadeLauncher behavior (same as pistol)
 					weapon_sprite.flip_h = false
 					weapon_sprite.flip_v = false
 				else:

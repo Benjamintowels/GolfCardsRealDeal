@@ -150,7 +150,8 @@ var club_max_distances = {
 	"Putter": 200.0,         # Shortest distance (now rolling only)
 	"PitchingWedge": 200.0,  # Same as old Putter settings
 	"ShotgunCard": 350.0,    # Shotgun range
-	"SniperCard": 1500.0     # Sniper range
+	"SniperCard": 1500.0,    # Sniper range
+	"GrenadeLauncherClubCard": 2000.0  # Grenade launcher range (much higher velocity!)
 }
 
 # New club data with min distances and trailoff stats
@@ -200,6 +201,13 @@ var club_data = {
 		"max_distance": 900.0,
 		"min_distance": 400.0,    # Medium gap (500)
 		"trailoff_forgiveness": 0.5  # Medium forgiving
+	},
+	"GrenadeLauncherClubCard": {
+		"max_distance": 2000.0,   # Much higher velocity - 3.3x more than before!
+		"min_distance": 500.0,    # Increased min distance to match higher power
+		"trailoff_forgiveness": 0.5,  # Medium forgiving
+		"is_putter": true,  # Flag to identify this as a putter-like club (no height charge)
+		"fixed_height": 50.0  # Fixed height in pixels (no height meter)
 	},
 	"ShotgunCard": {
 		"max_distance": 350.0,
@@ -355,6 +363,10 @@ func _process(delta):
 	# Update block sprite flip every frame when block is active
 	if block_active and Global.selected_character == 2:
 		update_block_sprite_flip()
+	
+	# Update weapon rotation if GrenadeLauncherClubCard is selected
+	if selected_club == "GrenadeLauncherClubCard" and weapon_handler:
+		weapon_handler.update_weapon_rotation()
 
 func update_ball_for_optimizer():
 	"""Update ball state for the smart optimizer"""
@@ -2995,6 +3007,14 @@ func _on_club_card_pressed(club_name: String, club_info: Dictionary, button: Tex
 	max_shot_distance = base_max_distance * strength_multiplier
 	card_click_sound.play()
 	
+	# Special handling for GrenadeLauncherClubCard - show the weapon
+	if club_name == "GrenadeLauncherClubCard" and weapon_handler:
+		weapon_handler.show_grenade_launcher_weapon()
+	else:
+		# Hide weapon if switching to a different club
+		if weapon_handler:
+			weapon_handler.hide_weapon()
+	
 	# Find the selected club card
 	var selected_card = null
 	for card in deck_manager.hand:
@@ -3770,8 +3790,21 @@ func _on_ball_launched(ball: Node2D):
 		# Handle golf ball
 		print("=== HANDLING GOLF BALL LAUNCH ===")
 		
-		# Play swing sound for golf ball
-		play_swing_sound(ball.get_final_power() if ball.has_method("get_final_power") else 0.0)
+		# Check if using GrenadeLauncherClubCard - play launcher sound instead of swing sound
+		if selected_club == "GrenadeLauncherClubCard":
+			# Play launcher sound from the grenade launcher weapon
+			if weapon_handler and weapon_handler.weapon_instance:
+				var launcher_sound = weapon_handler.weapon_instance.get_node_or_null("Launcher")
+				if launcher_sound:
+					launcher_sound.play()
+					print("Playing GrenadeLauncherClubCard launcher sound")
+				else:
+					print("Warning: Launcher sound not found on grenade launcher weapon")
+			else:
+				print("Warning: Weapon handler or weapon instance not found for GrenadeLauncherClubCard")
+		else:
+			# Play normal swing sound for other clubs
+			play_swing_sound(ball.get_final_power() if ball.has_method("get_final_power") else 0.0)
 		
 		# Set ball launch position for player collision delay system
 		if player_node and player_node.has_method("set_ball_launch_position"):
@@ -3856,6 +3889,10 @@ func _on_launch_phase_entered():
 	_update_player_mouse_facing_state()
 
 func _on_launch_phase_exited():
+	# Hide weapon when launch phase ends
+	if weapon_handler:
+		weapon_handler.hide_weapon()
+	
 	# Check if we're in grenade mode and the grenade has already exploded
 	if launch_manager and launch_manager.is_grenade_mode:
 		# If grenade mode is still active, the grenade hasn't exploded yet
@@ -4027,6 +4064,10 @@ func _update_player_mouse_facing_state() -> void:
 	
 	# Update block sprite flip to match normal sprite
 	update_block_sprite_flip()
+	
+	# Hide weapon when game phase changes to move (unless GrenadeLauncherClubCard is selected)
+	if game_phase == "move" and selected_club != "GrenadeLauncherClubCard" and weapon_handler:
+		weapon_handler.hide_weapon()
 
 
 

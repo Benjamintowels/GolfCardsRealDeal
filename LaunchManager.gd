@@ -92,7 +92,14 @@ func _process(delta: float):
 				value_label.text = str(int(current_power))
 	
 	if is_charging_height:
-		launch_height = min(launch_height + HEIGHT_CHARGE_RATE * delta, MAX_LAUNCH_HEIGHT)
+		# Check if this club has a fixed height
+		var fixed_height = club_data.get(selected_club, {}).get("fixed_height", -1.0)
+		if fixed_height >= 0.0:
+			# Don't charge height for clubs with fixed height
+			launch_height = fixed_height
+		else:
+			launch_height = min(launch_height + HEIGHT_CHARGE_RATE * delta, MAX_LAUNCH_HEIGHT)
+		
 		if height_meter:
 			var meter_fill = height_meter.get_node_or_null("MeterFill")
 			var value_label = height_meter.get_node_or_null("HeightValue")
@@ -129,11 +136,18 @@ func enter_launch_phase() -> void:
 		max_charge_time = clamp(max_charge_time, 0.3, 1.5)  # Minimum 0.3 seconds, maximum 1.5 seconds
 	
 	var is_putting = club_data.get(selected_club, {}).get("is_putter", false)
-	if not is_putting:
-		show_height_meter()
-		launch_height = 0.0  # Start at ground level for low shots (was MIN_LAUNCH_HEIGHT)
+	var fixed_height = club_data.get(selected_club, {}).get("fixed_height", -1.0)
+	
+	if fixed_height >= 0.0:
+		# This club has a fixed height (like GrenadeLauncherClubCard)
+		launch_height = fixed_height
+		# Don't show height meter since height is fixed
 	else:
-		launch_height = 0.0
+		if not is_putting:
+			show_height_meter()
+			launch_height = 0.0  # Start at ground level for low shots (was MIN_LAUNCH_HEIGHT)
+		else:
+			launch_height = 0.0
 	
 	var scaled_min_power = power_meter.get_meta("scaled_min_power", MIN_LAUNCH_POWER)
 	launch_power = scaled_min_power

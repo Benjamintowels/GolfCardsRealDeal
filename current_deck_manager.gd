@@ -19,7 +19,7 @@ var starter_deck: Array[CardData] = [
 	preload("res://Cards/PunchB.tres"),
 	preload("res://Cards/PunchB.tres"),
 	preload("res://Cards/Putter.tres"),        # Putter
-	preload("res://Cards/Wooden.tres"),        # Wooden club
+	preload("res://Cards/GrenadeLauncherClubCard.tres"),        # Grenade Launcher Club Card
 	preload("res://Cards/SpearCard.tres")      # SpearCard
 ]
 

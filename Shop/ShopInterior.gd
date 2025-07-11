@@ -438,7 +438,7 @@ func is_club_card(card_data: CardData) -> bool:
 	if card_data.has_method("is_club_card"):
 		return card_data.is_club_card()
 	# Use the same club names list as RewardSelectionDialog
-	var club_names = ["Putter", "Wood", "Wooden", "Iron", "Hybrid", "Driver", "PitchingWedge", "Fire Club", "Ice Club"]
+	var club_names = ["Putter", "Wood", "Wooden", "Iron", "Hybrid", "Driver", "PitchingWedge", "Fire Club", "Ice Club", "GrenadeLauncherClubCard"]
 	return club_names.has(card_data.name)
 
 
