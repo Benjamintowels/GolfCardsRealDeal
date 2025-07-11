@@ -465,12 +465,7 @@ func _complete_turn() -> void:
 	
 	turn_completed.emit()
 	
-	# Notify Entities manager that turn is complete
-	if entities_manager:
-		print("Notifying Entities manager of turn completion")
-		entities_manager._on_npc_turn_completed()
-	else:
-		print("⚠️ WARNING: No entities_manager reference for turn completion")
+	# Note: Entities manager notification removed - turn management now handled by course_1.gd
 	
 	print("=== POLICE TURN COMPLETED ===")
 
@@ -499,6 +494,11 @@ func _is_position_valid(pos: Vector2i) -> bool:
 	"""Check if a position is valid for the Police to move to"""
 	# Basic bounds checking
 	if pos.x < 0 or pos.y < 0 or pos.x > 100 or pos.y > 100:
+		return false
+	
+	# Check if position is occupied by the player
+	if player and player.grid_pos == pos:
+		print("Position ", pos, " is occupied by player")
 		return false
 	
 	# For now, allow movement to any position within bounds
@@ -730,28 +730,9 @@ func _switch_to_directional_aim_sprite() -> void:
 		police_sprite.visible = false
 
 func update_z_index_for_ysort() -> void:
-	"""Update z_index for Y-sorting"""
-	# The global Y-sorting system handles z_index for the Police
-	# We only need to ensure sprite visibility is maintained
-	# The global system will call Global.update_object_y_sort() which handles z_index
-	
-	# Ensure all sprites have the same z_index for proper layering
-	var base_z_index = z_index
-	
-	if is_dead:
-		var dead_sprite = get_node_or_null("Dead")
-		if dead_sprite:
-			dead_sprite.z_index = base_z_index
-	else:
-		# Set z_index for normal sprites
-		if police_sprite:
-			police_sprite.z_index = base_z_index
-		if police_aim_leftright_sprite:
-			police_aim_leftright_sprite.z_index = base_z_index
-		if police_aim_up_sprite:
-			police_aim_up_sprite.z_index = base_z_index
-		if police_aim_down_sprite:
-			police_aim_down_sprite.z_index = base_z_index
+	"""Update Police Y-sort using the simple global system"""
+	# Use the global Y-sort system for characters
+	Global.update_object_y_sort(self, "characters")
 
 func get_y_sort_point() -> float:
 	# Use dead sprite's Y-sort point if Police is dead

@@ -42,8 +42,9 @@ func unregister_npc(npc: Node) -> void:
 		npcs.erase(npc)
 
 func _on_player_end_turn() -> void:
-	"""Called when the player ends their turn"""
-	start_npc_turns()
+	"""Called when the player ends their turn - DISABLED: Now handled by course_1.gd"""
+	# start_npc_turns()  # DISABLED: Turn management now handled by course_1.gd
+	pass
 
 func start_npc_turns() -> void:
 	"""Start the NPC turn sequence"""

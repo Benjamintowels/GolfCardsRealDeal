@@ -921,9 +921,7 @@ func _complete_turn() -> void:
 	
 	turn_completed.emit()
 	
-	# Notify Entities manager that turn is complete
-	if entities_manager:
-		entities_manager._on_npc_turn_completed()
+	# Note: Entities manager notification removed - turn management now handled by course_1.gd
 
 func get_grid_position() -> Vector2i:
 	"""Get the current grid position"""
@@ -950,6 +948,11 @@ func _is_position_valid(pos: Vector2i) -> bool:
 	"""Check if a position is valid for the GangMember to move to"""
 	# Basic bounds checking - ensure position is within reasonable grid bounds
 	if pos.x < 0 or pos.y < 0 or pos.x > 100 or pos.y > 100:
+		return false
+	
+	# Check if position is occupied by the player
+	if player and player.grid_pos == pos:
+		print("Position ", pos, " is occupied by player")
 		return false
 	
 	# For now, allow movement to any position within bounds

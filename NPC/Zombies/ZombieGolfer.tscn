@@ -1,0 +1,65 @@
+[gd_scene load_steps=8 format=3 uid="uid://ut2ifntbow6y"]
+
+[ext_resource type="Script" uid="uid://6eanyonmjidx" path="res://NPC/Zombies/ZombieGolfer.gd" id="1_script"]
+[ext_resource type="Texture2D" uid="uid://dfma71v35t2db" path="res://NPC/Zombies/ZombieGolfer1.png" id="2_naiuu"]
+[ext_resource type="AudioStream" uid="uid://clorehgdvljmk" path="res://Sounds/DeathGroan.mp3" id="3_xstlo"]
+[ext_resource type="Texture2D" uid="uid://cctmn1vycgaxl" path="res://NPC/Zombies/ZombieGolfer1Dead.png" id="4_16hfg"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_naiuu"]
+radius = 1.30545
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_jn01c"]
+radius = 1.30545
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_16hfg"]
+radius = 15.0
+height = 52.0
+
+[node name="ZombieGolfer" type="CharacterBody2D"]
+script = ExtResource("1_script")
+
+[node name="ZombieGolferSprite" type="Sprite2D" parent="."]
+z_index = 10
+texture_filter = 1
+position = Vector2(0, -47.85)
+texture = ExtResource("2_naiuu")
+
+[node name="YSortPoint" type="Node2D" parent="ZombieGolferSprite"]
+position = Vector2(0, 38.85)
+
+[node name="BaseCollisionArea" type="Area2D" parent="."]
+
+[node name="BaseCollision" type="CollisionShape2D" parent="BaseCollisionArea"]
+position = Vector2(1.13, -11)
+scale = Vector2(19.61, 11.409)
+shape = SubResource("CircleShape2D_naiuu")
+
+[node name="Dead" type="Sprite2D" parent="."]
+visible = false
+texture_filter = 1
+position = Vector2(1, -23)
+texture = ExtResource("4_16hfg")
+
+[node name="BaseCollisionArea" type="Area2D" parent="Dead"]
+
+[node name="BaseCollision" type="CollisionShape2D" parent="Dead/BaseCollisionArea"]
+position = Vector2(0, 4.86)
+scale = Vector2(29.945, 11.197)
+shape = SubResource("CircleShape2D_jn01c")
+
+[node name="DeadGangTopHeight" type="Marker2D" parent="Dead"]
+position = Vector2(0, -14)
+
+[node name="DeathGroan" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("3_xstlo")
+volume_db = 2.93
+
+[node name="HitBox" type="Area2D" parent="."]
+visible = false
+
+[node name="HitBoxShape" type="CollisionShape2D" parent="HitBox"]
+position = Vector2(-1, -36)
+shape = SubResource("CapsuleShape2D_16hfg")
+
+[node name="TopHeight" type="Marker2D" parent="."]
+position = Vector2(0, -94)

@@ -115,8 +115,10 @@ func clear_existing_objects() -> void:
 			var is_boulder = obstacle.name == "Boulder" or (obstacle.get_script() and "boulder.gd" in str(obstacle.get_script().get_path()))
 			# Check for police by name or script
 			var is_police = obstacle.name == "Police" or (obstacle.get_script() and "police.gd" in str(obstacle.get_script().get_path()))
+			# Check for zombies by name or script
+			var is_zombie = obstacle.name == "ZombieGolfer" or (obstacle.get_script() and "ZombieGolfer.gd" in str(obstacle.get_script().get_path()))
 			
-			if is_tree or is_shop or is_pin or is_oil_drum or is_stone_wall or is_boulder or is_police:
+			if is_tree or is_shop or is_pin or is_oil_drum or is_stone_wall or is_boulder or is_police or is_zombie:
 				keys_to_remove.append(pos)
 	for pos in keys_to_remove:
 		obstacle_map.erase(pos)
@@ -144,7 +146,7 @@ func is_valid_position_for_object(pos: Vector2i, layout: Array) -> bool:
 			return false
 	return true
 
-func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include_shop: bool = true, num_gang_members: int = -1, num_oil_drums: int = -1, num_police: int = 2) -> Dictionary:
+func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include_shop: bool = true, num_gang_members: int = -1, num_oil_drums: int = -1, num_police: int = 2, num_zombies: int = 1) -> Dictionary:
 	var positions = {
 		"trees": [],
 		"shop": Vector2i.ZERO,
@@ -152,7 +154,8 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 		"oil_drums": [],
 		"stone_walls": [],
 		"boulders": [],
-		"police": []
+		"police": [],
+		"zombies": []
 	}
 	
 	# Use turn-based spawning if parameters are -1 (default)
@@ -262,6 +265,24 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 		police_placed += 1
 		rough_positions.remove_at(police_index)
 	
+	# Place Zombies on sand tiles (S)
+	var sand_positions: Array = []
+	for y in layout.size():
+		for x in layout[y].size():
+			if layout[y][x] == "S":
+				sand_positions.append(Vector2i(x, y))
+	
+	var zombies_placed = 0
+	while zombies_placed < num_zombies and sand_positions.size() > 0:
+		var zombie_index = randi() % sand_positions.size()
+		var zombie_pos = sand_positions[zombie_index]
+		positions.zombies.append(zombie_pos)
+		placed_objects.append(zombie_pos)
+		zombies_placed += 1
+		sand_positions.remove_at(zombie_index)
+	
+	print("✓ Placed", zombies_placed, "zombies on sand tiles")
+	
 	# Place Oil Drums on fairway tiles
 	var fairway_positions: Array = []
 	for y in layout.size():
@@ -315,7 +336,7 @@ func build_map_from_layout_with_randomization(layout: Array) -> void:
 	clear_existing_objects()
 	build_map_from_layout_base(layout)
 	# Use turn-based spawning (-1 means use turn-based calculation)
-	var object_positions = get_random_positions_for_objects(layout, 8, true, -1, -1, 2)
+	var object_positions = get_random_positions_for_objects(layout, 8, true, -1, -1, 2, 1)
 	place_objects_at_positions(object_positions, layout)
 	# position_camera_on_pin()  # This should be called from the main scene if needed
 
@@ -597,6 +618,40 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		ysort_objects.append({"node": police, "grid_pos": police_pos})
 		obstacle_layer.add_child(police)
 		print("✓ Police placed at grid position:", police_pos)
+	
+	# Place Zombies
+	print("=== PLACING ZOMBIES ===")
+	print("Zombie positions:", object_positions.zombies)
+	for zombie_pos in object_positions.zombies:
+		var scene: PackedScene = object_scene_map["ZOMBIE"]
+		if scene == null:
+			push_error("🚫 ZombieGolfer scene is null")
+			continue
+		var zombie: Node2D = scene.instantiate() as Node2D
+		if zombie == null:
+			push_error("❌ ZombieGolfer instantiation failed at (%d,%d)" % [zombie_pos.x, zombie_pos.y])
+			continue
+		var world_pos: Vector2 = Vector2(zombie_pos.x, zombie_pos.y) * cell_size
+		zombie.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
+		# Let the global Y-sort system handle z_index
+		if zombie.has_meta("grid_position") or "grid_position" in zombie:
+			zombie.set("grid_position", zombie_pos)
+		else:
+			push_warning("⚠️ ZombieGolfer missing 'grid_position'. Type: %s" % zombie.get_class())
+		
+		# Setup the ZombieGolfer with random type
+		var zombie_types = ["default", "variant1", "variant2"]
+		var random_type = zombie_types[randi() % zombie_types.size()]
+		if zombie.has_method("setup"):
+			zombie.setup(random_type, zombie_pos, cell_size)
+		
+		# Add zombie to groups for smart optimization
+		zombie.add_to_group("zombies")
+		zombie.add_to_group("collision_objects")
+		
+		ysort_objects.append({"node": zombie, "grid_pos": zombie_pos})
+		obstacle_layer.add_child(zombie)
+		print("✓ ZombieGolfer placed at grid position:", zombie_pos)
 	
 	# Place Oil Drums
 	print("=== PLACING OIL DRUMS ===")

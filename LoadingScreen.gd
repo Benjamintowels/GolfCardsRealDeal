@@ -39,6 +39,7 @@ var resources_to_load = [
 	
 	# NPC scenes
 	"res://NPC/Gang/GangMember.tscn",
+	"res://NPC/Zombies/ZombieGolfer.tscn",
 	
 	# Audio resources
 	"res://Sounds/SwingSoft.mp3",

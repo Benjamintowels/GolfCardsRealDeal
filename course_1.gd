@@ -256,6 +256,7 @@ var object_scene_map := {
 	"OIL": preload("res://Interactables/OilDrum.tscn"),
 	"WALL": preload("res://Obstacles/StoneWall.tscn"),
 	"BOULDER": preload("res://Obstacles/Boulder.tscn"),
+	"ZOMBIE": preload("res://NPC/Zombies/ZombieGolfer.tscn"),
 }
 
 var object_to_tile_mapping := {
@@ -267,6 +268,7 @@ var object_to_tile_mapping := {
 	"OIL": "Base",
 	"WALL": "Base",
 	"BOULDER": "Base",
+	"ZOMBIE": "S",
 }
 
 # Add these variables after the existing object_scene_map and object_to_tile_mapping
@@ -317,8 +319,10 @@ func clear_existing_objects() -> void:
 			var is_stone_wall = obstacle.name == "StoneWall" or (obstacle.get_script() and "StoneWall.gd" in str(obstacle.get_script().get_path()))
 			# Check for police by name or script
 			var is_police = obstacle.name == "Police" or (obstacle.get_script() and "police.gd" in str(obstacle.get_script().get_path()))
+			# Check for zombies by name or script
+			var is_zombie = obstacle.name == "ZombieGolfer" or (obstacle.get_script() and "ZombieGolfer.gd" in str(obstacle.get_script().get_path()))
 			
-			if is_tree or is_shop or is_pin or is_oil_drum or is_stone_wall or is_police:
+			if is_tree or is_shop or is_pin or is_oil_drum or is_stone_wall or is_police or is_zombie:
 				keys_to_remove.append(pos)
 	
 	for pos in keys_to_remove:
@@ -1729,7 +1733,7 @@ func _end_turn_logic() -> void:
 		start_npc_turn_sequence()
 
 func start_npc_turn_sequence() -> void:
-	"""Handle the NPC turn sequence with camera transitions and UI"""
+	"""Handle the NPC turn sequence with priority-based turns for visible NPCs"""
 	print("Starting NPC turn sequence...")
 	
 	# Check if there are any active NPCs on the map (alive and not frozen, or will thaw this turn)
@@ -1754,36 +1758,63 @@ func start_npc_turn_sequence() -> void:
 	# Disable end turn button during NPC turn
 	end_turn_button.disabled = true
 	
-	# Find the nearest visible NPC
-	var nearest_npc = find_nearest_visible_npc()
-	print("Nearest NPC found: ", nearest_npc.name if nearest_npc else "None")
+	# Find all visible NPCs and sort by priority
+	var visible_npcs = get_visible_npcs_by_priority()
+	print("Found ", visible_npcs.size(), " visible NPCs")
 	
-	if nearest_npc:
-		print("Beginning World Turn phase...")
-		
-		# Transition camera to NPC and wait for it to complete
-		await transition_camera_to_npc(nearest_npc)
-		
-		# Show "World Turn" message and wait for it to display
-		await show_turn_message("World Turn", 2.0)
-		
-		# Manually trigger the NPC's turn (not through Entities system)
-		print("Manually triggering NPC turn...")
-		nearest_npc.take_turn()
-		
-		# Wait 1 second after NPC turn to let player see the result
-		await get_tree().create_timer(1.0).timeout
-		
-		# Show "Your Turn" message
+	if visible_npcs.is_empty():
+		print("No visible NPCs found, skipping World Turn")
+		# Show "Your Turn" message immediately
 		show_turn_message("Your Turn", 2.0)
 		
-		# Wait for message to display, then transition camera back to player
-		await get_tree().create_timer(1.0).timeout
-		await transition_camera_to_player()
+		# Re-enable end turn button
+		end_turn_button.disabled = false
 		
-		print("World Turn phase completed")
-	else:
-		print("No visible NPCs found, skipping World Turn phase")
+		# Continue with normal turn flow
+		if waiting_for_player_to_reach_ball and player_grid_pos == ball_landing_tile:
+			if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball) and launch_manager.golf_ball.has_method("remove_landing_highlight"):
+				launch_manager.golf_ball.remove_landing_highlight()
+			
+			enter_draw_cards_phase()  # Start with club selection phase
+		else:
+			draw_cards_for_shot(3)
+			create_movement_buttons()
+			draw_cards_button.visible = false
+		return
+	
+	print("Beginning World Turn phase with ", visible_npcs.size(), " NPCs...")
+	
+	# Show "World Turn" message
+	await show_turn_message("World Turn", 2.0)
+	
+	# Process each NPC's turn in priority order
+	for npc in visible_npcs:
+		print("Processing turn for NPC: ", npc.name, " (Priority: ", get_npc_priority(npc), ")")
+		
+		# Transition camera to NPC and wait for it to complete
+		await transition_camera_to_npc(npc)
+		
+		# Wait a moment for camera transition
+		await get_tree().create_timer(0.5).timeout
+		
+		# Take the NPC's turn
+		print("Taking turn for NPC: ", npc.name)
+		npc.take_turn()
+		
+		# Wait for the NPC's turn to complete
+		await npc.turn_completed
+		
+		# Wait a moment to let player see the result
+		await get_tree().create_timer(0.5).timeout
+	
+	print("World Turn phase completed")
+	
+	# Show "Your Turn" message
+	show_turn_message("Your Turn", 2.0)
+	
+	# Wait for message to display, then transition camera back to player
+	await get_tree().create_timer(1.0).timeout
+	await transition_camera_to_player()
 	
 	# Re-enable end turn button
 	end_turn_button.disabled = false
@@ -1798,6 +1829,92 @@ func start_npc_turn_sequence() -> void:
 		draw_cards_for_shot(3)
 		create_movement_buttons()
 		draw_cards_button.visible = false
+
+func get_visible_npcs_by_priority() -> Array[Node]:
+	"""Get all NPCs visible to the player, sorted by priority (fastest first)"""
+	var entities = get_node_or_null("Entities")
+	if not entities:
+		print("ERROR: No Entities node found!")
+		return []
+	
+	var npcs = entities.get_npcs()
+	print("Checking ", npcs.size(), " NPCs for visibility and priority")
+	
+	var visible_npcs: Array[Node] = []
+	
+	for npc in npcs:
+		if is_instance_valid(npc) and npc.has_method("get_grid_position"):
+			# Check if NPC is alive
+			var is_alive = true
+			if npc.has_method("get_is_dead"):
+				is_alive = not npc.get_is_dead()
+			elif npc.has_method("is_dead"):
+				is_alive = not npc.is_dead()
+			elif "is_dead" in npc:
+				is_alive = not npc.is_dead
+			
+			if not is_alive:
+				print("NPC ", npc.name, " is dead, skipping")
+				continue
+			
+			# Check if NPC is frozen and won't thaw this turn
+			var is_frozen = false
+			if npc.has_method("is_frozen_state"):
+				is_frozen = npc.is_frozen_state()
+			elif "is_frozen" in npc:
+				is_frozen = npc.is_frozen
+			
+			var will_thaw_this_turn = false
+			if is_frozen and npc.has_method("get_freeze_turns_remaining"):
+				var turns_remaining = npc.get_freeze_turns_remaining()
+				will_thaw_this_turn = turns_remaining <= 1
+			elif is_frozen and "freeze_turns_remaining" in npc:
+				var turns_remaining = npc.freeze_turns_remaining
+				will_thaw_this_turn = turns_remaining <= 1
+			
+			# Skip NPCs that are frozen and won't thaw this turn
+			if is_frozen and not will_thaw_this_turn:
+				print("NPC ", npc.name, " is frozen and won't thaw this turn, skipping")
+				continue
+			
+			var npc_pos = npc.get_grid_position()
+			var distance = player_grid_pos.distance_to(npc_pos)
+			
+			# Check if NPC is within player's vision range (20 tiles)
+			if distance <= 20:
+				visible_npcs.append(npc)
+				print("NPC ", npc.name, " is visible at distance ", distance, " (Priority: ", get_npc_priority(npc), ")")
+			else:
+				print("NPC ", npc.name, " is not visible at distance ", distance)
+		else:
+			print("Invalid NPC or missing get_grid_position method: ", npc.name if npc else "None")
+	
+	# Sort NPCs by priority (highest priority first = fastest first)
+	visible_npcs.sort_custom(func(a, b): return get_npc_priority(a) > get_npc_priority(b))
+	
+	print("Found ", visible_npcs.size(), " visible NPCs, sorted by priority")
+	for npc in visible_npcs:
+		print("  - ", npc.name, " (Priority: ", get_npc_priority(npc), ")")
+	
+	return visible_npcs
+
+func get_npc_priority(npc: Node) -> int:
+	"""Get the priority rating for an NPC (higher = faster/more important)"""
+	# Check the NPC's script to determine type
+	var script_path = npc.get_script().resource_path if npc.get_script() else ""
+	
+	# Zombies are fastest (highest priority)
+	if "ZombieGolfer.gd" in script_path:
+		return 3
+	# GangMembers are medium priority
+	elif "GangMember.gd" in script_path:
+		return 2
+	# Police are slowest (lowest priority)
+	elif "police.gd" in script_path:
+		return 1
+	# Default priority for unknown NPCs
+	else:
+		return 0
 
 func find_nearest_visible_npc() -> Node:
 	"""Find the nearest NPC that is visible to the player, alive, and active (not frozen or will thaw this turn)"""

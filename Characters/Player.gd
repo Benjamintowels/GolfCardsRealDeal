@@ -2116,3 +2116,6 @@ func set_footstep_interval(interval: float) -> void:
 	"""Set the interval between footstep sounds during movement"""
 	footstep_interval = max(0.1, interval)  # Minimum 0.1 seconds
 	print("✓ Footstep interval set to:", footstep_interval, "seconds")
+
+func get_grid_position() -> Vector2i:
+	return grid_pos
