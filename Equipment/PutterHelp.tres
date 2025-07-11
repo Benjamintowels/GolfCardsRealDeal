@@ -1,13 +1,12 @@
 [gd_resource type="Resource" script_class="EquipmentData" load_steps=3 format=3 uid="uid://bqx8y7n2k3m4w"]
 
+[ext_resource type="Texture2D" uid="uid://dtiyoeqre1vfp" path="res://Equipment/PutterHelp.png" id="1_amnqr"]
 [ext_resource type="Script" uid="uid://cf85ta7k8ivt1" path="res://Equipment/EquipmentData.gd" id="1_equipment_script"]
-
-[sub_resource type="CompressedTexture2D" id="CompressedTexture2D_putter_help"]
 
 [resource]
 script = ExtResource("1_equipment_script")
 name = "Putter Helper"
-image = SubResource("CompressedTexture2D_putter_help")
+image = ExtResource("1_amnqr")
 description = "A device that provides guidance for putting accuracy."
 buff_type = "strength"
 buff_value = 1
@@ -16,4 +15,4 @@ default_tier = 2
 is_clothing = false
 clothing_slot = ""
 clothing_scene_path = ""
-display_image = SubResource("CompressedTexture2D_putter_help")
+display_image = ExtResource("1_amnqr")

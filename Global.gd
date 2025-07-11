@@ -454,17 +454,90 @@ func calculate_height_percentage(current_height: float, min_height: float, max_h
 	var height_percentage = (current_height - min_height) / (max_height - min_height)
 	return clamp(height_percentage, 0.0, 1.0)
 
+func get_difficulty_tier() -> int:
+	"""Calculate the current difficulty tier based on turn count"""
+	# First hole (turn 1-5): Tier 0 (squirrels only)
+	# After turn 5: Tier 1 (squirrels + 1 zombie)
+	# After turn 10: Tier 2 (squirrels + 1 zombie + 1 gang member)
+	# After turn 15: Tier 3 (squirrels + 1 zombie + 1 gang member + 1 police)
+	# After turn 20: Tier 4 (squirrels + 2 zombies + 1 gang member + 1 police)
+	# After turn 25: Tier 5 (squirrels + 2 zombies + 2 gang members + 1 police)
+	# After turn 30: Tier 6 (squirrels + 2 zombies + 2 gang members + 2 police)
+	# And so on...
+	
+	if global_turn_count <= 5:
+		return 0  # First hole - squirrels only
+	
+	# Calculate tier based on 5-turn increments
+	var tier = (global_turn_count - 1) / 5
+	return tier
+
+func get_difficulty_tier_for_hole(hole_index: int) -> int:
+	"""Calculate the difficulty tier for a specific hole"""
+	# First hole (hole 0) is always tier 0 (squirrels only)
+	if hole_index == 0:
+		return 0
+	
+	# For other holes, use the normal difficulty tier calculation
+	return get_difficulty_tier()
+
+func get_difficulty_tier_npc_counts(hole_index: int = -1) -> Dictionary:
+	"""Get NPC counts for the current difficulty tier"""
+	var tier = get_difficulty_tier()
+	if hole_index >= 0:
+		tier = get_difficulty_tier_for_hole(hole_index)
+	
+	match tier:
+		0:  # First hole - squirrels only
+			return {
+				"squirrels": 5,
+				"zombies": 0,
+				"gang_members": 0,
+				"police": 0
+			}
+		1:  # Squirrels + 1 zombie
+			return {
+				"squirrels": 5,
+				"zombies": 1,
+				"gang_members": 0,
+				"police": 0
+			}
+		2:  # Squirrels + 1 zombie + 1 gang member
+			return {
+				"squirrels": 5,
+				"zombies": 1,
+				"gang_members": 1,
+				"police": 0
+			}
+		3:  # Squirrels + 1 zombie + 1 gang member + 1 police
+			return {
+				"squirrels": 5,
+				"zombies": 1,
+				"gang_members": 1,
+				"police": 1
+			}
+		_:  # Higher tiers - add more NPCs in order
+			var base_zombies = 1
+			var base_gang_members = 1
+			var base_police = 1
+			
+			# Add additional NPCs based on tier
+			var additional_tier = tier - 3
+			var additional_zombies = additional_tier / 3  # Add zombie every 3 tiers
+			var additional_gang_members = (additional_tier % 3) / 2  # Add gang member every 2 tiers
+			var additional_police = additional_tier % 2  # Add police every other tier
+			
+			return {
+				"squirrels": 5,
+				"zombies": base_zombies + additional_zombies,
+				"gang_members": base_gang_members + additional_gang_members,
+				"police": base_police + additional_police
+			}
+
 func get_turn_based_gang_member_count() -> int:
-	"""Calculate number of gang members to spawn based on current turn"""
-	var base_count = 1
-	var turn_increment = 5  # Every 5 turns
-	
-	# Calculate additional gang members based on turn milestones
-	var additional_count = (global_turn_count - 1) / turn_increment
-	
-	# Cap at reasonable maximum (e.g., 5 gang members max)
-	var max_count = 5
-	return min(base_count + additional_count, max_count)
+	"""Calculate number of gang members to spawn based on current turn (legacy function)"""
+	var npc_counts = get_difficulty_tier_npc_counts()
+	return npc_counts.gang_members
 
 func get_turn_based_oil_drum_count() -> int:
 	"""Calculate number of oil drums to spawn based on current turn"""

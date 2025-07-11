@@ -161,7 +161,7 @@ func is_valid_position_for_squirrel(pos: Vector2i, layout: Array) -> bool:
 			return false
 	return true
 
-func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include_shop: bool = true, num_gang_members: int = -1, num_oil_drums: int = -1, num_police: int = 2, num_zombies: int = 1) -> Dictionary:
+func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include_shop: bool = true, num_gang_members: int = -1, num_oil_drums: int = -1, num_police: int = -1, num_zombies: int = -1) -> Dictionary:
 	var positions = {
 		"trees": [],
 		"shop": Vector2i.ZERO,
@@ -174,17 +174,28 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 		"squirrels": []
 	}
 	
-	# Use turn-based spawning if parameters are -1 (default)
+	# Use difficulty tier spawning if parameters are -1 (default)
+	var npc_counts = Global.get_difficulty_tier_npc_counts(current_hole)
+	
 	if num_gang_members == -1:
-		num_gang_members = Global.get_turn_based_gang_member_count()
+		num_gang_members = npc_counts.gang_members
 	if num_oil_drums == -1:
 		num_oil_drums = Global.get_turn_based_oil_drum_count()
+	if num_police == -1:
+		num_police = npc_counts.police
+	if num_zombies == -1:
+		num_zombies = npc_counts.zombies
 	
-	print("=== TURN-BASED SPAWNING ===")
+	print("=== DIFFICULTY TIER SPAWNING ===")
 	print("Global turn: ", Global.global_turn_count)
+	print("Difficulty tier: ", Global.get_difficulty_tier())
+	print("NPC counts: ", npc_counts)
 	print("Gang members to spawn: ", num_gang_members)
+	print("Police to spawn: ", num_police)
+	print("Zombies to spawn: ", num_zombies)
 	print("Oil drums to spawn: ", num_oil_drums)
-	print("=== END TURN-BASED SPAWNING ===")
+	print("Current hole: ", current_hole)
+	print("=== END DIFFICULTY TIER SPAWNING ===")
 	
 	randomize()
 	random_seed_value = current_hole * 1000 + randi()
@@ -229,11 +240,11 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 			trees_placed += 1
 		valid_positions.remove_at(tree_index)
 	
-	# Place Squirrels around trees (5 tiles radius, 5 squirrels total)
+	# Place Squirrels around trees (5 tiles radius, based on difficulty tier)
 	print("=== PLACING SQUIRRELS AROUND TREES ===")
 	print("Tree positions:", positions.trees)
 	var squirrels_placed = 0
-	var max_squirrels = 5
+	var max_squirrels = npc_counts.squirrels
 	
 	# Get all valid positions within 5 tiles of any tree
 	var squirrel_candidate_positions: Array = []
@@ -407,8 +418,8 @@ func build_map_from_layout_with_randomization(layout: Array) -> void:
 	randomize()
 	clear_existing_objects()
 	build_map_from_layout_base(layout)
-	# Use turn-based spawning (-1 means use turn-based calculation)
-	var object_positions = get_random_positions_for_objects(layout, 8, true, -1, -1, 2, 1)
+	# Use difficulty tier spawning (-1 means use difficulty tier calculation)
+	var object_positions = get_random_positions_for_objects(layout, 8, true, -1, -1, -1, -1)
 	place_objects_at_positions(object_positions, layout)
 	# position_camera_on_pin()  # This should be called from the main scene if needed
 

@@ -1,13 +1,12 @@
 [gd_resource type="Resource" script_class="EquipmentData" load_steps=3 format=3 uid="uid://bqx8y7n2k3m5c"]
 
 [ext_resource type="Script" uid="uid://cf85ta7k8ivt1" path="res://Equipment/EquipmentData.gd" id="1_equipment_script"]
-
-[sub_resource type="CompressedTexture2D" id="CompressedTexture2D_sml"]
+[ext_resource type="Texture2D" uid="uid://wi7lcxo6gpx5" path="res://Equipment/SML.png" id="1_qms7y"]
 
 [resource]
 script = ExtResource("1_equipment_script")
 name = "SML Device"
-image = SubResource("CompressedTexture2D_sml")
+image = ExtResource("1_qms7y")
 description = "A mysterious device with unknown capabilities."
 buff_type = "mobility"
 buff_value = 2
@@ -16,4 +15,4 @@ default_tier = 3
 is_clothing = false
 clothing_slot = ""
 clothing_scene_path = ""
-display_image = SubResource("CompressedTexture2D_sml")
+display_image = ExtResource("1_qms7y")

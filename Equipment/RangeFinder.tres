@@ -1,13 +1,12 @@
 [gd_resource type="Resource" script_class="EquipmentData" load_steps=3 format=3 uid="uid://bqx8y7n2k3m4x"]
 
 [ext_resource type="Script" uid="uid://cf85ta7k8ivt1" path="res://Equipment/EquipmentData.gd" id="1_equipment_script"]
-
-[sub_resource type="CompressedTexture2D" id="CompressedTexture2D_range_finder"]
+[ext_resource type="Texture2D" uid="uid://fm88ssw4mu5e" path="res://Equipment/RangeFinder.png" id="1_nwxpm"]
 
 [resource]
 script = ExtResource("1_equipment_script")
 name = "Range Finder"
-image = SubResource("CompressedTexture2D_range_finder")
+image = ExtResource("1_nwxpm")
 description = "A device that measures distance to the hole with precision."
 buff_type = "strength"
 buff_value = 2
@@ -16,4 +15,4 @@ default_tier = 3
 is_clothing = false
 clothing_slot = ""
 clothing_scene_path = ""
-display_image = SubResource("CompressedTexture2D_range_finder")
+display_image = ExtResource("1_nwxpm")

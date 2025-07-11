@@ -1,13 +1,12 @@
 [gd_resource type="Resource" script_class="EquipmentData" load_steps=3 format=3 uid="uid://bqx8y7n2k3m4t"]
 
 [ext_resource type="Script" uid="uid://cf85ta7k8ivt1" path="res://Equipment/EquipmentData.gd" id="1_equipment_script"]
-
-[sub_resource type="CompressedTexture2D" id="CompressedTexture2D_flute"]
+[ext_resource type="Texture2D" uid="uid://g0g5x3jiop04" path="res://Equipment/Flute.png" id="1_yfk6f"]
 
 [resource]
 script = ExtResource("1_equipment_script")
 name = "Flute"
-image = SubResource("CompressedTexture2D_flute")
+image = ExtResource("1_yfk6f")
 description = "A magical flute that soothes animals and improves your focus."
 buff_type = "strength"
 buff_value = 1
@@ -16,4 +15,4 @@ default_tier = 2
 is_clothing = false
 clothing_slot = ""
 clothing_scene_path = ""
-display_image = SubResource("CompressedTexture2D_flute")
+display_image = ExtResource("1_yfk6f")

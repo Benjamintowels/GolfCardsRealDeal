@@ -1,13 +1,12 @@
 [gd_resource type="Resource" script_class="EquipmentData" load_steps=3 format=3 uid="uid://bqx8y7n2k3m5a"]
 
+[ext_resource type="Texture2D" uid="uid://b3smy0ypjqjbp" path="res://Equipment/Sword.png" id="1_4m4oc"]
 [ext_resource type="Script" uid="uid://cf85ta7k8ivt1" path="res://Equipment/EquipmentData.gd" id="1_equipment_script"]
-
-[sub_resource type="CompressedTexture2D" id="CompressedTexture2D_sword"]
 
 [resource]
 script = ExtResource("1_equipment_script")
 name = "Sword"
-image = SubResource("CompressedTexture2D_sword")
+image = ExtResource("1_4m4oc")
 description = "A sharp sword that increases your combat effectiveness."
 buff_type = "strength"
 buff_value = 3
@@ -16,4 +15,4 @@ default_tier = 3
 is_clothing = false
 clothing_slot = ""
 clothing_scene_path = ""
-display_image = SubResource("CompressedTexture2D_sword")
+display_image = ExtResource("1_4m4oc")
