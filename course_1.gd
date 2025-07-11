@@ -480,6 +480,11 @@ func _ready() -> void:
 	equipment_manager.name = "EquipmentManager"
 	add_child(equipment_manager)
 	
+	# Add starter equipment - Watch for together mode
+	var watch_equipment = preload("res://Equipment/Watch.tres")
+	equipment_manager.add_equipment(watch_equipment)
+	print("Course: Added Watch equipment to starter loadout for together mode")
+	
 	# Player starts with level 1 backpack (handled by bag system)
 	print("Course: Player starts with level 1 backpack for their character")
 	

@@ -36,6 +36,11 @@ var turn_message_display: Control = null
 var last_turn_cleanup_time: float = 0.0
 const TURN_CLEANUP_INTERVAL: float = 5.0  # Clean up old data every 5 seconds
 
+# Together Mode - All NPCs execute simultaneously in priority cascade
+var together_mode_enabled: bool = false
+var together_mode_turn_duration: float = 3.0  # Total time for together mode turn
+var together_mode_cascade_delay: float = 0.1  # Delay between NPC activations in cascade
+
 # NPC Priority System (higher number = higher priority/faster)
 const NPC_PRIORITIES = {
 	"Squirrel": 4,      # Fastest - ball chasers
@@ -317,6 +322,11 @@ func get_npc_priority(npc: Node) -> int:
 
 func _process_next_npc_turn() -> void:
 	"""Process the next NPC's turn in the sequence"""
+	# If together mode is enabled, use cascade execution
+	if together_mode_enabled:
+		_process_together_mode_turn()
+		return
+	
 	current_npc_index += 1
 	
 	# Safety check to prevent infinite loops
@@ -376,6 +386,198 @@ func _process_next_npc_turn() -> void:
 	
 	# Process next NPC
 	_process_next_npc_turn()
+
+func _process_together_mode_turn() -> void:
+	"""Process all NPC turns simultaneously in a priority cascade"""
+	print("=== TOGETHER MODE: CASCADE EXECUTION ===")
+	print("Total NPCs to process: ", npcs_in_turn_order.size())
+	
+	# Show "World Turn - Together!" message
+	_show_turn_message("World Turn - Together!", 1.5)
+	
+	# Wait a moment for message to display
+	await get_tree().create_timer(0.5).timeout
+	
+	# Group NPCs by priority for cascade effect
+	var priority_groups: Dictionary = {}
+	for npc in npcs_in_turn_order:
+		if not is_instance_valid(npc):
+			continue
+		
+		var priority = get_npc_priority(npc)
+		if not priority_groups.has(priority):
+			priority_groups[priority] = []
+		priority_groups[priority].append(npc)
+	
+	# Get sorted priorities (highest first)
+	var sorted_priorities = priority_groups.keys()
+	sorted_priorities.sort()
+	sorted_priorities.reverse()
+	
+	print("Priority groups for cascade:")
+	for priority in sorted_priorities:
+		print("  Priority ", priority, ": ", priority_groups[priority].size(), " NPCs")
+	
+	# Find the highest priority NPC for camera focus
+	var highest_priority_npc = _get_highest_priority_npc_for_camera()
+	if highest_priority_npc:
+		print("=== TOGETHER MODE: CAMERA TRANSITION ===")
+		print("Moving camera to highest priority NPC: ", highest_priority_npc.name, " (Priority: ", get_npc_priority(highest_priority_npc), ")")
+		
+		# Transition camera to the highest priority NPC
+		await _transition_camera_to_npc(highest_priority_npc)
+		
+		# Wait for camera transition
+		await get_tree().create_timer(CAMERA_TRANSITION_DURATION).timeout
+	else:
+		print("No valid NPCs found for camera focus")
+	
+	# Execute cascade by priority
+	for priority in sorted_priorities:
+		var npcs_in_priority = priority_groups[priority]
+		print("=== CASCADE PRIORITY ", priority, " ===")
+		
+		# Execute all NPCs in this priority simultaneously
+		var turn_tasks: Array = []
+		for npc in npcs_in_priority:
+			if not is_instance_valid(npc):
+				continue
+			
+			# Update squirrel ball detection
+			_update_squirrel_ball_detection(npc)
+			
+			# Check if NPC should take turn
+			if not _should_npc_take_turn(npc):
+				print("  Skipping NPC: ", npc.name)
+				npcs_skipped_this_turn.append(npc)
+				continue
+			
+			print("  Activating NPC: ", npc.name)
+			
+			# Emit turn started signal
+			npc_turn_started.emit(npc)
+			
+			# Start NPC turn asynchronously
+			var turn_task = _execute_npc_turn_async(npc)
+			turn_tasks.append(turn_task)
+		
+		# Wait for all NPCs in this priority to complete their turns
+		if not turn_tasks.is_empty():
+			await _wait_for_all_tasks(turn_tasks)
+		
+		# Small delay between priority groups for visual effect
+		if priority != sorted_priorities[-1]:  # Not the last priority
+			await get_tree().create_timer(together_mode_cascade_delay).timeout
+	
+	# Wait for the total turn duration to complete
+	var remaining_time = together_mode_turn_duration - (Time.get_ticks_msec() / 1000.0)
+	if remaining_time > 0:
+		await get_tree().create_timer(remaining_time).timeout
+	
+	print("=== TOGETHER MODE COMPLETED ===")
+	_complete_world_turn()
+
+func _execute_npc_turn_async(npc: Node) -> Dictionary:
+	"""Execute an NPC's turn asynchronously and return a task reference"""
+	var task = {
+		"npc": npc,
+		"completed": false,
+		"start_time": Time.get_ticks_msec() / 1000.0
+	}
+	
+	# Start the turn execution
+	_execute_npc_turn_task(task)
+	
+	return task
+
+func _execute_npc_turn_task(task: Dictionary) -> void:
+	"""Execute the actual NPC turn for a task"""
+	var npc = task.npc
+	if not is_instance_valid(npc):
+		task.completed = true
+		return
+	
+	# Take the NPC's turn
+	npc.take_turn()
+	
+	# Mark as completed after a short delay
+	await get_tree().create_timer(0.5).timeout
+	
+	# Mark task as completed
+	task.completed = true
+	npcs_completed_this_turn.append(npc)
+	npc_turn_ended.emit(npc)
+	
+	print("  Completed turn for: ", npc.name)
+
+func _get_highest_priority_npc_for_camera() -> Node:
+	"""Get the highest priority NPC that should take a turn for camera focus"""
+	var highest_priority_npc: Node = null
+	var highest_priority: int = -1
+	
+	for npc in npcs_in_turn_order:
+		if not is_instance_valid(npc):
+			continue
+		
+		# Check if NPC should take a turn
+		if not _should_npc_take_turn(npc):
+			continue
+		
+		var priority = get_npc_priority(npc)
+		if priority > highest_priority:
+			highest_priority = priority
+			highest_priority_npc = npc
+	
+	print("Highest priority NPC for camera: ", highest_priority_npc.name if highest_priority_npc else "None", " (Priority: ", highest_priority, ")")
+	return highest_priority_npc
+
+func _wait_for_all_tasks(tasks: Array) -> void:
+	"""Wait for all tasks to complete"""
+	var completed_tasks = 0
+	var total_tasks = tasks.size()
+	
+	while completed_tasks < total_tasks:
+		completed_tasks = 0
+		for task in tasks:
+			if task.completed:
+				completed_tasks += 1
+		
+		if completed_tasks < total_tasks:
+			await get_tree().create_timer(0.1).timeout
+
+func toggle_together_mode() -> void:
+	"""Toggle together mode on/off"""
+	together_mode_enabled = !together_mode_enabled
+	print("=== TOGETHER MODE TOGGLED ===")
+	print("Together mode: ", "ENABLED" if together_mode_enabled else "DISABLED")
+	
+	# Show toggle message
+	var message = "Together Mode: ON" if together_mode_enabled else "Together Mode: OFF"
+	_show_turn_message(message, 2.0)
+
+func set_together_mode(enabled: bool) -> void:
+	"""Set together mode to a specific state"""
+	together_mode_enabled = enabled
+	print("=== TOGETHER MODE SET ===")
+	print("Together mode: ", "ENABLED" if together_mode_enabled else "DISABLED")
+	
+	# Show setting message
+	var message = "Together Mode: ON" if together_mode_enabled else "Together Mode: OFF"
+	_show_turn_message(message, 2.0)
+
+func is_together_mode_enabled() -> bool:
+	"""Check if together mode is currently enabled"""
+	return together_mode_enabled
+
+func set_together_mode_duration(duration: float) -> void:
+	"""Set the total duration for together mode turns"""
+	together_mode_turn_duration = duration
+	print("Together mode duration set to: ", duration, " seconds")
+
+func set_together_mode_cascade_delay(delay: float) -> void:
+	"""Set the delay between priority groups in cascade mode"""
+	together_mode_cascade_delay = delay
+	print("Together mode cascade delay set to: ", delay, " seconds")
 
 func _update_squirrel_ball_detection(npc: Node) -> void:
 	"""Update ball detection for Squirrel NPCs before their turn"""
@@ -516,7 +718,10 @@ func get_turn_progress() -> Dictionary:
 		"total_npcs": npcs_in_turn_order.size(),
 		"completed": npcs_completed_this_turn.size(),
 		"skipped": npcs_skipped_this_turn.size(),
-		"current_npc": get_current_npc()
+		"current_npc": get_current_npc(),
+		"together_mode": together_mode_enabled,
+		"together_duration": together_mode_turn_duration,
+		"together_cascade_delay": together_mode_cascade_delay
 	}
 
 func force_complete_world_turn() -> void:
@@ -528,6 +733,7 @@ func force_complete_world_turn() -> void:
 func manually_start_world_turn() -> void:
 	"""Manually start world turn for testing purposes"""
 	print("=== MANUALLY STARTING WORLD TURN ===")
+	print("Together mode: ", "ENABLED" if together_mode_enabled else "DISABLED")
 	start_world_turn()
 
 func force_advance_to_next_npc() -> void:
@@ -535,6 +741,47 @@ func force_advance_to_next_npc() -> void:
 	if is_world_turn_active and current_npc_index < npcs_in_turn_order.size():
 		print("Force advancing to next NPC")
 		_process_next_npc_turn()
+
+func debug_together_mode_status() -> void:
+	"""Debug method to show together mode status"""
+	print("=== TOGETHER MODE DEBUG STATUS ===")
+	print("Together mode enabled: ", together_mode_enabled)
+	print("Turn duration: ", together_mode_turn_duration, " seconds")
+	print("Cascade delay: ", together_mode_cascade_delay, " seconds")
+	print("Registered NPCs: ", registered_npcs.size())
+	
+	if together_mode_enabled:
+		print("Next world turn will use cascade execution")
+	else:
+		print("Next world turn will use sequential execution")
+	print("=== END TOGETHER MODE DEBUG ===")
+
+func debug_priority_groups() -> void:
+	"""Debug method to show how NPCs would be grouped by priority in together mode"""
+	print("=== PRIORITY GROUPS DEBUG ===")
+	
+	var priority_groups: Dictionary = {}
+	for npc in registered_npcs:
+		if not is_instance_valid(npc):
+			continue
+		
+		var priority = get_npc_priority(npc)
+		if not priority_groups.has(priority):
+			priority_groups[priority] = []
+		priority_groups[priority].append(npc)
+	
+	var sorted_priorities = priority_groups.keys()
+	sorted_priorities.sort()
+	sorted_priorities.reverse()
+	
+	print("NPCs grouped by priority (for together mode cascade):")
+	for priority in sorted_priorities:
+		var npcs_in_priority = priority_groups[priority]
+		print("  Priority ", priority, " (", npcs_in_priority.size(), " NPCs):")
+		for npc in npcs_in_priority:
+			print("    - ", npc.name)
+	
+	print("=== END PRIORITY GROUPS DEBUG ===")
 
 func _process(delta: float) -> void:
 	"""Process function for cleanup and maintenance"""

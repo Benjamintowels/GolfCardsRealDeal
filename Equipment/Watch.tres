@@ -8,8 +8,8 @@
 script = ExtResource("1_equipment_script")
 name = "Watch"
 image = SubResource("CompressedTexture2D_watch")
-description = "A reliable watch that helps you keep track of time and improve timing."
-buff_type = "strength"
+description = "A reliable watch that helps you keep track of time and improve timing. Toggles Together Mode for faster NPC turns."
+buff_type = "together_mode"
 buff_value = 1
 price = 200
 default_tier = 2

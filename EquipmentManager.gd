@@ -336,6 +336,9 @@ func apply_equipment_effects(equipment: EquipmentData):
 		"card_draw":
 			card_draw_bonus += equipment.buff_value
 			print("EquipmentManager: Applied card draw bonus +", equipment.buff_value, "from", equipment.name)
+		"together_mode":
+			_apply_together_mode_effect(equipment)
+			print("EquipmentManager: Applied together mode effect from", equipment.name)
 
 func remove_equipment_effects(equipment: EquipmentData):
 	"""Remove the effects of a piece of equipment"""
@@ -349,6 +352,37 @@ func remove_equipment_effects(equipment: EquipmentData):
 		"card_draw":
 			card_draw_bonus -= equipment.buff_value
 			print("EquipmentManager: Removed card draw bonus -", equipment.buff_value, "from", equipment.name)
+		"together_mode":
+			_remove_together_mode_effect(equipment)
+			print("EquipmentManager: Removed together mode effect from", equipment.name)
+
+func _apply_together_mode_effect(equipment: EquipmentData):
+	"""Apply together mode effect from equipment"""
+	# Use call_deferred to ensure WorldTurnManager is available
+	call_deferred("_apply_together_mode_effect_deferred", equipment)
+
+func _apply_together_mode_effect_deferred(equipment: EquipmentData):
+	"""Apply together mode effect from equipment (deferred)"""
+	var world_turn_manager = get_tree().current_scene.get_node_or_null("WorldTurnManager")
+	if world_turn_manager:
+		world_turn_manager.set_together_mode(true)
+		print("EquipmentManager: Enabled together mode via", equipment.name)
+	else:
+		print("EquipmentManager: Could not find WorldTurnManager for together mode effect")
+
+func _remove_together_mode_effect(equipment: EquipmentData):
+	"""Remove together mode effect from equipment"""
+	# Use call_deferred to ensure WorldTurnManager is available
+	call_deferred("_remove_together_mode_effect_deferred", equipment)
+
+func _remove_together_mode_effect_deferred(equipment: EquipmentData):
+	"""Remove together mode effect from equipment (deferred)"""
+	var world_turn_manager = get_tree().current_scene.get_node_or_null("WorldTurnManager")
+	if world_turn_manager:
+		world_turn_manager.set_together_mode(false)
+		print("EquipmentManager: Disabled together mode via", equipment.name)
+	else:
+		print("EquipmentManager: Could not find WorldTurnManager for together mode effect")
 
 func get_mobility_bonus() -> int:
 	"""Get the total mobility bonus from all equipped items"""
