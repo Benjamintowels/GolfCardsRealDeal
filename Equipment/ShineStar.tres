@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="EquipmentData" load_steps=3 format=3 uid="uid://bqx8y7n2k3m4y"]
+
+[ext_resource type="Script" uid="uid://cf85ta7k8ivt1" path="res://Equipment/EquipmentData.gd" id="1_equipment_script"]
+
+[sub_resource type="CompressedTexture2D" id="CompressedTexture2D_shine_star"]
+
+[resource]
+script = ExtResource("1_equipment_script")
+name = "Shine Star"
+image = SubResource("CompressedTexture2D_shine_star")
+description = "A magical star that provides guidance and luck on the course."
+buff_type = "card_draw"
+buff_value = 2
+price = 400
+default_tier = 3
+is_clothing = false
+clothing_slot = ""
+clothing_scene_path = ""
+display_image = SubResource("CompressedTexture2D_shine_star")

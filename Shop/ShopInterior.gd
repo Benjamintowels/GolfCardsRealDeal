@@ -97,7 +97,21 @@ func load_shop_items():
 		preload("res://Equipment/Clothes/Cape.tres"),
 		preload("res://Equipment/Clothes/TopHat.tres"),
 		preload("res://Equipment/Clothes/Crown.tres"),
-		preload("res://Equipment/Clothes/Halo.tres")
+		preload("res://Equipment/Clothes/Halo.tres"),
+		# New equipment
+		preload("res://Equipment/AnimalTranslator.tres"),
+		preload("res://Equipment/Drone.tres"),
+		preload("res://Equipment/FlashLight.tres"),
+		preload("res://Equipment/Flute.tres"),
+		preload("res://Equipment/FancyWatch.tres"),
+		preload("res://Equipment/HeadPhones.tres"),
+		preload("res://Equipment/PutterHelp.tres"),
+		preload("res://Equipment/RangeFinder.tres"),
+		preload("res://Equipment/ShineStar.tres"),
+		preload("res://Equipment/SoundBowl.tres"),
+		preload("res://Equipment/Sword.tres"),
+		preload("res://Equipment/Watch.tres"),
+		preload("res://Equipment/SML.tres")
 	]
 	
 	# Load cards from Cards folder - expanded pool

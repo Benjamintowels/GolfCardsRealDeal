@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="EquipmentData" load_steps=3 format=3 uid="uid://bqx8y7n2k3m5b"]
+
+[ext_resource type="Script" uid="uid://cf85ta7k8ivt1" path="res://Equipment/EquipmentData.gd" id="1_equipment_script"]
+
+[sub_resource type="CompressedTexture2D" id="CompressedTexture2D_watch"]
+
+[resource]
+script = ExtResource("1_equipment_script")
+name = "Watch"
+image = SubResource("CompressedTexture2D_watch")
+description = "A reliable watch that helps you keep track of time and improve timing."
+buff_type = "strength"
+buff_value = 1
+price = 200
+default_tier = 2
+is_clothing = false
+clothing_slot = ""
+clothing_scene_path = ""
+display_image = SubResource("CompressedTexture2D_watch")
