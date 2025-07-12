@@ -191,6 +191,13 @@ func update_ysort_systems(course_instance, current_time: float):
 	# Clear the update queue
 	objects_need_ysort_update.clear()
 	
+	# Update grass elements Y-sort when camera moves or ball is active
+	if ball_is_active or aiming_phase_active or launch_phase_active:
+		var grass_elements = get_tree().get_nodes_in_group("grass_elements")
+		for grass in grass_elements:
+			if is_instance_valid(grass) and grass.has_method("_update_ysort"):
+				grass._update_ysort()
+	
 	# Update camera position for spatial calculations
 	update_camera_state(course_instance.camera.global_position)
 

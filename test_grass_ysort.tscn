@@ -1,0 +1,20 @@
+[gd_scene load_steps=4 format=3 uid="uid://test_grass_ysort"]
+
+[ext_resource type="Script" uid="uid://test_grass_ysort_script" path="res://test_grass_ysort.gd" id="1_test_script"]
+[ext_resource type="PackedScene" uid="uid://sb58hx2holiw" path="res://Obstacles/GrassVariations/SummerGrass.tscn" id="2_grass_scene"]
+[ext_resource type="PackedScene" uid="uid://ccplraisoursi" path="res://GolfBall.tscn" id="3_ball_scene"]
+
+[node name="TestGrassYsort" type="Node2D"]
+script = ExtResource("1_test_script")
+
+[node name="Grass1" parent="." instance=ExtResource("2_grass_scene")]
+position = Vector2(100, 200)
+
+[node name="Grass2" parent="." instance=ExtResource("2_grass_scene")]
+position = Vector2(200, 150)
+
+[node name="Grass3" parent="." instance=ExtResource("2_grass_scene")]
+position = Vector2(300, 250)
+
+[node name="GolfBall" parent="." instance=ExtResource("3_ball_scene")]
+position = Vector2(150, 180) 

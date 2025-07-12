@@ -1,0 +1,18 @@
+[gd_scene load_steps=3 format=3 uid="uid://sb58hx2holiw"]
+
+[ext_resource type="Texture2D" uid="uid://bjlm348in7dew" path="res://Obstacles/SummerGrass1.png" id="1_cedim"]
+[ext_resource type="Script" uid="uid://by5ksxcn0x4os" path="res://Obstacles/GrassVariations/summer_grass.gd" id="1_ltwjw"]
+
+[node name="SummerGrass" type="Node2D"]
+script = ExtResource("1_ltwjw")
+
+[node name="GrassSprite" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(0, -32)
+texture = ExtResource("1_cedim")
+
+[node name="TopHeight" type="Marker2D" parent="."]
+position = Vector2(0, -41)
+
+[node name="YsortPoint" type="Marker2D" parent="."]
+position = Vector2(0, -23)

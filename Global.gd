@@ -225,6 +225,8 @@ func update_all_objects_y_sort(ysort_objects: Array):
 			object_type = "objects"
 		elif "Player" in node.name or "GangMember" in node.name or "Police" in node.name:
 			object_type = "characters"
+		elif node.is_in_group("grass_elements") or (node.get_script() and "summer_grass.gd" in str(node.get_script().get_path())):
+			object_type = "objects"  # Grass uses same offset as other objects
 		
 		update_object_y_sort(node, object_type)
 

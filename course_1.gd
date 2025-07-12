@@ -263,6 +263,7 @@ var object_scene_map := {
 	"WALL": preload("res://Obstacles/StoneWall.tscn"),
 	"BOULDER": preload("res://Obstacles/Boulder.tscn"),
 	"BUSH": preload("res://Obstacles/Bush.tscn"),
+	"GRASS": preload("res://Obstacles/GrassVariations/SummerGrass.tscn"),
 	"ZOMBIE": preload("res://NPC/Zombies/ZombieGolfer.tscn"),
 	"SQUIRREL": preload("res://NPC/Animals/Squirrel.tscn"),
 }
@@ -277,6 +278,7 @@ var object_to_tile_mapping := {
 	"WALL": "Base",
 	"BOULDER": "Base",
 	"BUSH": "Base",
+	"GRASS": "Base",
 	"ZOMBIE": "S",
 	"SQUIRREL": "Base",
 }

@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="GrassData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://Obstacles/GrassData.gd" id="1_grass1"]
+[ext_resource type="Texture2D" path="res://Obstacles/SummerGrass1.png" id="2_grass1"]
+
+[resource]
+script = ExtResource("1_grass1")
+name = "SummerGrass1"
+sprite_texture = ExtResource("2_grass1")
+rarity = 1.0
+description = "A summer grass patch"
+height = 15.0
+seasons = ["summer"] 

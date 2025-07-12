@@ -170,6 +170,7 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 		"stone_walls": [],
 		"boulders": [],
 		"bushes": [],
+		"grass": [],
 		"police": [],
 		"zombies": [],
 		"squirrels": []
@@ -326,6 +327,57 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 	
 	print("✓ Placed", bushes_placed, "bushes on remaining base tiles")
 	print("Bush positions:", positions.bushes)
+	
+	# Place Grass ONLY on base tiles that are adjacent to rough tiles (transition zones)
+	# PERFORMANCE: Adjust this number based on desired density vs performance
+	var num_grass = 30  # Place 30 grass patches per hole (moderate performance impact)
+	# Options: 8-12 (very performant), 15-20 (performant), 25-30 (moderate), 50+ (may impact performance)
+	
+	# Find ONLY base tiles that are adjacent to rough tiles
+	var rough_adjacent_positions: Array = []
+	
+	for pos in valid_positions:
+		var is_adjacent_to_rough = false
+		# Check all 8 adjacent tiles (including diagonals)
+		for dy in range(-1, 2):
+			for dx in range(-1, 2):
+				if dx == 0 and dy == 0:
+					continue  # Skip the current tile
+				var check_pos = pos + Vector2i(dx, dy)
+				# Check if the adjacent position is within map bounds
+				if check_pos.y >= 0 and check_pos.y < layout.size() and check_pos.x >= 0 and check_pos.x < layout[0].size():
+					if layout[check_pos.y][check_pos.x] == "R":  # Rough tile
+						is_adjacent_to_rough = true
+						break
+			if is_adjacent_to_rough:
+				break
+		
+		if is_adjacent_to_rough:
+			rough_adjacent_positions.append(pos)
+	
+	print("✓ Found", rough_adjacent_positions.size(), "base tiles adjacent to rough")
+	
+	# Place grass ONLY on rough-adjacent tiles
+	var grass_placed = 0
+	var positions_to_check = rough_adjacent_positions.duplicate()  # Only rough-adjacent tiles
+	
+	while grass_placed < num_grass and positions_to_check.size() > 0:
+		var grass_index = randi() % positions_to_check.size()
+		var grass_pos = positions_to_check[grass_index]
+		var valid = true
+		for placed_pos in placed_objects:
+			var distance = max(abs(grass_pos.x - placed_pos.x), abs(grass_pos.y - placed_pos.y))
+			if distance < 3:  # Closer spacing than bushes for more grass coverage
+				valid = false
+				break
+		if valid:
+			positions.grass.append(grass_pos)
+			placed_objects.append(grass_pos)
+			grass_placed += 1
+		positions_to_check.remove_at(grass_index)
+	
+	print("✓ Placed", grass_placed, "grass patches on remaining base tiles")
+	print("Grass positions:", positions.grass)
 	
 	# Place GangMembers on green tiles
 	var green_positions: Array = []
@@ -686,6 +738,68 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		print("✓ Bush name:", bush.name)
 		print("✓ Bush grid_position property:", bush.get_meta("grid_position") if bush.get_meta("grid_position") != null else "null")
 	print("=== END PLACING BUSHES ===")
+	
+	# Place Grass
+	print("=== PLACING GRASS ===")
+	print("Grass positions:", object_positions.grass)
+	
+	# Get GrassManager for random grass variations
+	var grass_manager = get_node_or_null("/root/GrassManager")
+	if not grass_manager:
+		# Create GrassManager if it doesn't exist
+		var GrassManager = preload("res://Obstacles/GrassManager.gd")
+		grass_manager = GrassManager.new()
+		get_tree().root.add_child(grass_manager)
+		grass_manager.name = "GrassManager"
+	
+	for grass_pos in object_positions.grass:
+		var scene: PackedScene = object_scene_map["GRASS"]
+		if scene == null:
+			push_error("🚫 Grass scene is null")
+			continue
+		print("✓ Grass scene loaded successfully")
+		var grass: Node2D = scene.instantiate() as Node2D
+		if grass == null:
+			push_error("❌ Grass instantiation failed at (%d,%d)" % [grass_pos.x, grass_pos.y])
+			continue
+		print("✓ Grass instantiated successfully")
+		print("✓ Grass script attached:", grass.get_script() != null)
+		if grass.get_script():
+			print("✓ Grass script path:", grass.get_script().resource_path)
+		else:
+			print("✗ Grass script is null!")
+		
+		# Store grass data for later application (after adding to scene tree)
+		var grass_data = grass_manager.get_random_grass_data()
+		
+		var world_pos: Vector2 = Vector2(grass_pos.x, grass_pos.y) * cell_size
+		grass.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
+		
+		# Always set the grid_position property unconditionally
+		grass.set_meta("grid_position", grass_pos)
+		print("✓ Set grass grid_position to:", grass_pos)
+		
+		# Add grass to groups for smart optimization
+		grass.add_to_group("grass_elements")
+		grass.add_to_group("visual_objects")
+		
+		ysort_objects.append({"node": grass, "grid_pos": grass_pos})
+		obstacle_layer.add_child(grass)
+		print("✓ Grass added to obstacle_layer")
+		print("✓ Grass is in scene tree:", grass.is_inside_tree())
+		
+		# Apply grass variety after adding to scene tree
+		if grass_data:
+			# Use call_deferred to ensure the grass is fully in the scene tree
+			grass.call_deferred("set_grass_data", grass_data)
+			print("✓ Deferred grass variety application:", grass_data.name)
+		else:
+			print("✗ No grass data available")
+		
+		print("✓ Grass placed at grid position:", grass_pos, "world position:", world_pos)
+		print("✓ Grass name:", grass.name)
+		print("✓ Grass grid_position property:", grass.get_meta("grid_position") if grass.get_meta("grid_position") != null else "null")
+	print("=== END PLACING GRASS ===")
 	if object_positions.shop != Vector2i.ZERO:
 		var scene: PackedScene = object_scene_map["SHOP"]
 		if scene == null:
