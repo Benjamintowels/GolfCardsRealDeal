@@ -3466,6 +3466,7 @@ func draw_club_cards() -> void:
 			equipment_indicator.size = Vector2(20, 20)
 			equipment_indicator.position = Vector2(btn.custom_minimum_size.x - 25, 5)
 			equipment_indicator.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			equipment_indicator.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 			equipment_indicator.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			equipment_indicator.z_index = 1  # Ensure it appears on top
 			btn.add_child(equipment_indicator)

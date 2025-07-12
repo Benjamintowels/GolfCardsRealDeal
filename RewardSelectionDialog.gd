@@ -774,6 +774,7 @@ func setup_reward_button(button: Button, reward_data: Resource, reward_type: Str
 			image_rect.scale = Vector2(2.0, 2.0)  # Standard scale for regular equipment
 		
 		image_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		image_rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		image_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		container.add_child(image_rect)
 		

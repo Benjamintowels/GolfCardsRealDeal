@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="GrassData" load_steps=3 format=3 uid="uid://do5ag856objma"]
+
+[ext_resource type="Script" uid="uid://dd8vdrnjjdukm" path="res://Obstacles/GrassData.gd" id="1_rs12j"]
+[ext_resource type="Texture2D" uid="uid://j8g7ubb0tgek" path="res://Obstacles/SummerHeather2.png" id="2_3ydti"]
+
+[resource]
+script = ExtResource("1_rs12j")
+name = "SummerHeather2"
+sprite_texture = ExtResource("2_3ydti")
+rarity = 1.0
+description = "Heather"
+height = 15.0
+seasons = Array[String](["summer"])

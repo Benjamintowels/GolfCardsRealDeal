@@ -696,6 +696,7 @@ func create_equipment_display(equipment_data: EquipmentData) -> Control:
 		image_rect.size = Vector2(40, 40)  # Standard size for regular equipment
 		image_rect.position = Vector2(10, 10)  # Standard position
 	image_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	image_rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	image_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Allow clicks to pass through
 	container.add_child(image_rect)
 	
