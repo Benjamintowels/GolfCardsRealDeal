@@ -1,6 +1,12 @@
 extends CharacterBody2D
 
+# Import TreeData for sprite variations
+const TreeData = preload("res://Obstacles/TreeData.gd")
+
 var blocks_movement := true  # Trees block by default; water might not
+
+# TreeData support for sprite variations
+@export var tree_data: TreeData
 
 func blocks(): 
 	return blocks_movement
@@ -55,6 +61,9 @@ func _ready():
 	
 	# Ensure z_index is properly set for Ysort
 	call_deferred("_update_ysort")
+	
+	# Apply TreeData if provided
+	call_deferred("_apply_tree_data")
 
 func _on_trunk_area_entered(area: Area2D):
 	"""Handle collisions with the trunk base area (ground-level collision)"""
@@ -239,6 +248,23 @@ func _verify_collision_setup():
 			print("ERROR: TrunkBase collision shape not found!")
 	else:
 		print("ERROR: TrunkBaseArea not found during verification!")
+
+func set_tree_data(new_tree_data: TreeData):
+	"""Set the TreeData for this tree and apply it immediately"""
+	tree_data = new_tree_data
+	_apply_tree_data()
+
+func _apply_tree_data():
+	"""Apply TreeData to change the tree sprite"""
+	if not tree_data or not tree_data.sprite_texture:
+		return
+	
+	var sprite = get_node_or_null("Sprite2D")
+	if sprite:
+		sprite.texture = tree_data.sprite_texture
+		print("✓ Applied TreeData sprite:", tree_data.name)
+	else:
+		print("✗ ERROR: Tree Sprite2D not found!")
 
 # OPTIMIZED: Tree collision detection moved to ball for better performance
 # Trees no longer check for balls every frame - ball handles its own collision detection

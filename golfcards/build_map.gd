@@ -129,8 +129,8 @@ func is_valid_position_for_object(pos: Vector2i, layout: Array) -> bool:
 	if pos.y < 0 or pos.y >= layout.size() or pos.x < 0 or pos.x >= layout[0].size():
 		return false
 	var tile_type = layout[pos.y][pos.x]
-	# Allow placement on fairway (F) and base tiles, but not on special tiles
-	if tile_type in ["Tee", "G", "W", "S", "P"]:
+	# Only allow placement on Base tiles (basic grass), not on fairway (F) or special tiles
+	if tile_type != "Base":
 		return false
 	for dy in range(-2, 3):
 		for dx in range(-2, 3):
@@ -532,6 +532,15 @@ func build_map_from_layout_base(layout: Array, place_pin: bool = true) -> void:
 				update_all_ysort_z_indices()
 
 func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> void:
+	# Get TreeManager for random tree variations
+	var tree_manager = get_node_or_null("/root/TreeManager")
+	if not tree_manager:
+		# Create TreeManager if it doesn't exist
+		var TreeManager = preload("res://Obstacles/TreeManager.gd")
+		tree_manager = TreeManager.new()
+		get_tree().root.add_child(tree_manager)
+		tree_manager.name = "TreeManager"
+	
 	for tree_pos in object_positions.trees:
 		var scene: PackedScene = object_scene_map["T"]
 		if scene == null:
@@ -541,6 +550,14 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		if tree == null:
 			push_error("❌ Tree instantiation failed at (%d,%d)" % [tree_pos.x, tree_pos.y])
 			continue
+		
+		# Apply random tree variation
+		var tree_data = tree_manager.get_random_tree_data()
+		if tree_data and tree.has_method("set_tree_data"):
+			tree.set_tree_data(tree_data)
+		elif tree_data and "tree_data" in tree:
+			tree.tree_data = tree_data
+		
 		var world_pos: Vector2 = Vector2(tree_pos.x, tree_pos.y) * cell_size
 		tree.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
 		if tree.has_meta("grid_position") or "grid_position" in tree:

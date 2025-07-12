@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="TreeData" load_steps=3 format=3 uid="uid://861gkqil6joo"]
+
+[ext_resource type="Script" uid="uid://7djp3h5jqsdc" path="res://Obstacles/TreeData.gd" id="1_mjm7r"]
+[ext_resource type="Texture2D" uid="uid://fq4orohxi7f3" path="res://Obstacles/Tree3.png" id="2_yyf5o"]
+
+[resource]
+script = ExtResource("1_mjm7r")
+name = "SummerTree3"
+sprite_texture = ExtResource("2_yyf5o")
+rarity = 1.0
+description = "A tree"
