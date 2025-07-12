@@ -31,15 +31,34 @@ func _ready():
 	# Disabled automatic NPC turn triggering - now controlled manually by course_1.gd
 	pass
 
+func re_register_all_npcs():
+	print("=== RE-REGISTERING ALL NPCs IN SCENE ===")
+	npcs.clear()
+	var npc_count = 0
+	# Recursively find all nodes in the scene in the 'NPC' group
+	var npc_nodes = get_tree().get_nodes_in_group("NPC")
+	for node in npc_nodes:
+		if is_instance_valid(node):
+			npcs.append(node)
+			npc_count += 1
+			print("  Registered NPC:", node.name, "at", node.global_position)
+	print("Total NPCs registered in Entities:", npc_count)
+
 func register_npc(npc: Node) -> void:
 	"""Register an NPC to be managed by this system"""
 	if npc not in npcs:
 		npcs.append(npc)
+		print("Entities: Registered NPC:", npc.name, "at", npc.global_position)
+	else:
+		print("Entities: NPC already registered:", npc.name)
 
 func unregister_npc(npc: Node) -> void:
 	"""Unregister an NPC from the system"""
 	if npc in npcs:
 		npcs.erase(npc)
+		print("Entities: Unregistered NPC:", npc.name)
+	else:
+		print("Entities: Tried to unregister NPC not in list:", npc.name)
 
 func _on_player_end_turn() -> void:
 	"""Called when the player ends their turn - DISABLED: Now handled by course_1.gd"""
@@ -158,7 +177,25 @@ func _should_npc_take_turn(npc: Node) -> bool:
 
 func get_npcs() -> Array[Node]:
 	"""Get all registered NPCs"""
+	# Clean up invalid NPCs first
+	_cleanup_invalid_npcs()
 	return npcs
+
+func _cleanup_invalid_npcs() -> void:
+	"""Remove invalid NPCs from the list"""
+	var valid_npcs: Array[Node] = []
+	var removed_count = 0
+	
+	for npc in npcs:
+		if is_instance_valid(npc):
+			valid_npcs.append(npc)
+		else:
+			removed_count += 1
+			print("Removing invalid NPC from Entities list")
+	
+	if removed_count > 0:
+		print("Cleaned up", removed_count, "invalid NPCs from Entities list")
+		npcs = valid_npcs
 
 func is_npc_turn_active() -> bool:
 	"""Check if NPCs are currently taking their turns"""

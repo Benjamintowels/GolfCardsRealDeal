@@ -1,0 +1,33 @@
+[gd_scene load_steps=4 format=3 uid="uid://test_drone_zoom_system"]
+
+[ext_resource type="Script" path="res://test_drone_zoom_system.gd" id="1_test_script"]
+[ext_resource type="Script" path="res://CameraZoom.gd" id="2_camera_script"]
+[ext_resource type="Script" path="res://EquipmentManager.gd" id="3_equipment_manager"]
+
+[node name="TestDroneZoomSystem" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("1_test_script")
+
+[node name="GameCamera" type="Camera2D" parent="."]
+script = ExtResource("2_camera_script")
+
+[node name="EquipmentManager" type="Node" parent="."]
+script = ExtResource("3_equipment_manager")
+
+[node name="TestInstructions" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = -100.0
+offset_right = 400.0
+offset_bottom = -10.0
+text = "DRONE ZOOM TEST
+Press 1: Add Drone
+Press 2: Remove Drone  
+Press 3: Test Zoom Limits
+Press 4: Show Status" 

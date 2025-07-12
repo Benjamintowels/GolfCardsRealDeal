@@ -434,6 +434,21 @@ func _process(delta):
 	if ballhop_cooldown > 0.0:
 		ballhop_cooldown -= delta
 	
+	# Comprehensive water collision check for all ball states (including putters)
+	if map_manager != null and not ice_club_active:
+		var tile_x = int(floor(position.x / cell_size))
+		var tile_y = int(floor(position.y / cell_size))
+		var tile_type = map_manager.get_tile_type(tile_x, tile_y)
+		if tile_type == "W":
+			# Ball hit water tile - treat as out of bounds
+			velocity = Vector2.ZERO
+			vz = 0.0
+			landed_flag = true
+			remove_landing_highlight()  # Remove highlight if it exists
+			reset_shot_effects()
+			out_of_bounds.emit()
+			return
+	
 	# Apply progressive height resistance during flight
 	if is_applying_height_resistance and z > 0.0:
 		# Use the initial height percentage that was set at launch

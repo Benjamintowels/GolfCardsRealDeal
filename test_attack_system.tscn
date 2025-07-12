@@ -1,0 +1,20 @@
+[gd_scene load_steps=2 format=3 uid="uid://test_attack_system"]
+
+[ext_resource type="Script" path="res://test_attack_system.gd" id="1_test"]
+
+[node name="TestAttackSystem" type="Node2D"]
+script = ExtResource("1_test")
+
+[node name="Instructions" type="Label" parent="."]
+offset_left = 10.0
+offset_top = 10.0
+offset_right = 400.0
+offset_bottom = 100.0
+text = "Attack System Test
+
+Press F1: Test attack system setup
+Press F2: Test NPC detection  
+Press F3: Test card handling
+Press F4: Test entities system
+
+Check console for debug output" 

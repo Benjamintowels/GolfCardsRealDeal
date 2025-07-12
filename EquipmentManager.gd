@@ -16,11 +16,17 @@ var mobility_bonus: int = 0
 var strength_bonus: int = 0
 var card_draw_bonus: int = 0
 
+# Drone zoom effect
+var drone_zoom_enabled: bool = false
+
 # Player reference for clothing visualization
 var player: Node2D = null
 
 func _ready():
 	print("EquipmentManager: _ready() called")
+	
+	# Initialize camera zoom limits based on current equipment
+	call_deferred("_initialize_camera_zoom_limits")
 
 func add_equipment(equipment: EquipmentData):
 	"""Add equipment and apply its effects"""
@@ -339,6 +345,9 @@ func apply_equipment_effects(equipment: EquipmentData):
 		"together_mode":
 			_apply_together_mode_effect(equipment)
 			print("EquipmentManager: Applied together mode effect from", equipment.name)
+		"drone_zoom":
+			_apply_drone_zoom_effect(equipment)
+			print("EquipmentManager: Applied drone zoom effect from", equipment.name)
 
 func remove_equipment_effects(equipment: EquipmentData):
 	"""Remove the effects of a piece of equipment"""
@@ -355,6 +364,9 @@ func remove_equipment_effects(equipment: EquipmentData):
 		"together_mode":
 			_remove_together_mode_effect(equipment)
 			print("EquipmentManager: Removed together mode effect from", equipment.name)
+		"drone_zoom":
+			_remove_drone_zoom_effect(equipment)
+			print("EquipmentManager: Removed drone zoom effect from", equipment.name)
 
 func _apply_together_mode_effect(equipment: EquipmentData):
 	"""Apply together mode effect from equipment"""
@@ -383,6 +395,45 @@ func _remove_together_mode_effect_deferred(equipment: EquipmentData):
 		print("EquipmentManager: Disabled together mode via", equipment.name)
 	else:
 		print("EquipmentManager: Could not find WorldTurnManager for together mode effect")
+
+func _apply_drone_zoom_effect(equipment: EquipmentData):
+	"""Apply drone zoom effect from equipment"""
+	drone_zoom_enabled = true
+	_update_camera_zoom_limits()
+	print("EquipmentManager: Enabled drone zoom via", equipment.name)
+
+func _remove_drone_zoom_effect(equipment: EquipmentData):
+	"""Remove drone zoom effect from equipment"""
+	drone_zoom_enabled = false
+	_update_camera_zoom_limits()
+	print("EquipmentManager: Disabled drone zoom via", equipment.name)
+
+func _update_camera_zoom_limits():
+	"""Update camera zoom limits based on drone equipment"""
+	var camera = get_tree().current_scene.get_node_or_null("GameCamera")
+	if camera and camera.has_method("set_zoom_limits"):
+		if drone_zoom_enabled:
+			# Drone equipped - generous zoom (current settings)
+			camera.set_zoom_limits(0.5, 3.0)
+			print("EquipmentManager: Set camera to drone zoom limits (0.5 - 3.0)")
+		else:
+			# No drone - reduced zoom
+			camera.set_zoom_limits(0.8, 2.0)
+			print("EquipmentManager: Set camera to reduced zoom limits (0.8 - 2.0)")
+	else:
+		print("EquipmentManager: Could not find GameCamera for zoom limit update")
+
+func _initialize_camera_zoom_limits():
+	"""Initialize camera zoom limits when the game starts"""
+	# Check if drone is equipped and set initial zoom limits
+	if has_drone():
+		drone_zoom_enabled = true
+		print("EquipmentManager: Drone found in equipment, enabling drone zoom")
+	else:
+		drone_zoom_enabled = false
+		print("EquipmentManager: No drone found, using reduced zoom")
+	
+	_update_camera_zoom_limits()
 
 func get_mobility_bonus() -> int:
 	"""Get the total mobility bonus from all equipped items"""
@@ -470,7 +521,12 @@ func force_update_player_clothing():
 func force_update_clothing_flip():
 	"""Force update all clothing sprites to match player sprite flip"""
 	print("EquipmentManager: Force updating clothing flip")
-	update_all_clothing_flip() 
+	update_all_clothing_flip()
+
+func force_update_camera_zoom():
+	"""Force update camera zoom limits - useful for testing"""
+	print("EquipmentManager: Force updating camera zoom limits")
+	_update_camera_zoom_limits() 
 
 func has_wand() -> bool:
 	"""Check if the player has a Wand equipped"""
@@ -484,4 +540,15 @@ func has_putter_help() -> bool:
 	for equipment in equipped_equipment:
 		if equipment.name == "PutterHelp":
 			return true
-	return false 
+	return false
+
+func has_drone() -> bool:
+	"""Check if the player has Drone equipment equipped"""
+	for equipment in equipped_equipment:
+		if equipment.name == "Drone":
+			return true
+	return false
+
+func is_drone_zoom_enabled() -> bool:
+	"""Check if drone zoom is currently enabled"""
+	return drone_zoom_enabled 

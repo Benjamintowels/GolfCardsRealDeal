@@ -3,6 +3,9 @@ extends CharacterBody2D
 # ZombieGolfer NPC - handles ZombieGolfer-specific functions
 # Integrates with the Entities system for turn management
 
+# Coin explosion system
+const CoinExplosionManager = preload("res://CoinExplosionManager.gd")
+
 signal turn_completed
 
 @onready var sprite: Sprite2D = $ZombieGolferSprite
@@ -61,6 +64,7 @@ var course: Node
 func _ready():
 	# Add to groups for smart optimization and roof bounce system
 	add_to_group("collision_objects")
+	add_to_group("NPC")
 	
 	# Connect to WorldTurnManager
 	# Find the course_1.gd script by searching up the scene tree
@@ -206,13 +210,14 @@ func _handle_area_collision(projectile: Node2D):
 	
 	# Apply the collision logic:
 	# If projectile height > ZombieGolfer height: allow entry and set ground level
-	# If projectile height < ZombieGolfer height: reflect
+	# If projectile height < ZombieGolfer height: deal damage and reflect
 	if projectile_height > zombie_height:
 		print("✓ Projectile is above ZombieGolfer - allowing entry and setting ground level")
 		_allow_projectile_entry(projectile, zombie_height)
 	else:
-		print("✗ Projectile is below ZombieGolfer height - reflecting")
-		_reflect_projectile(projectile)
+		print("✗ Projectile is below ZombieGolfer height - dealing damage and reflecting")
+		# Deal damage first, then reflect
+		_handle_ball_collision(projectile)
 
 func _handle_knife_area_collision(knife: Node2D, knife_height: float, zombie_height: float):
 	"""Handle knife collision with ZombieGolfer area"""
@@ -339,22 +344,65 @@ func _handle_regular_ball_collision(ball: Node2D) -> void:
 	# Play collision sound effect
 	_play_collision_sound()
 	
+	# Calculate velocity-based damage
+	var ball_velocity = Vector2.ZERO
+	if ball.has_method("get_velocity"):
+		ball_velocity = ball.get_velocity()
+	elif "velocity" in ball:
+		ball_velocity = ball.velocity
+	
+	var damage = _calculate_velocity_damage(ball_velocity.length())
+	print("Ball velocity:", ball_velocity.length(), "Calculated damage:", damage)
+	
 	# Apply damage to ZombieGolfer
-	take_damage(10, false)  # Base damage for ball collision
+	take_damage(damage, false)
 	
 	# Reflect the ball
-	if ball.has_method("get_velocity"):
-		var ball_velocity = ball.get_velocity()
-		var reflected_velocity = -ball_velocity * 0.8  # Reverse and reduce speed
+	var reflected_velocity = -ball_velocity * 0.8  # Reverse and reduce speed
+	if ball.has_method("set_velocity"):
 		ball.set_velocity(reflected_velocity)
 	elif "velocity" in ball:
-		ball.velocity = -ball.velocity * 0.8
+		ball.velocity = reflected_velocity
+
+func _calculate_velocity_damage(velocity_magnitude: float) -> int:
+	"""Calculate damage based on ball velocity magnitude (same as Entities system)"""
+	# Define velocity ranges for damage scaling
+	const MIN_VELOCITY = 25.0  # Minimum velocity for 1 damage
+	const MAX_VELOCITY = 1200.0  # Maximum velocity for 88 damage
+	
+	# Clamp velocity to our defined range
+	var clamped_velocity = clamp(velocity_magnitude, MIN_VELOCITY, MAX_VELOCITY)
+	
+	# Calculate damage percentage (0.0 to 1.0)
+	var damage_percentage = (clamped_velocity - MIN_VELOCITY) / (MAX_VELOCITY - MIN_VELOCITY)
+	
+	# Scale damage from 1 to 88
+	var damage = 1 + (damage_percentage * 87)
+	
+	# Return as integer
+	var final_damage = int(damage)
+	
+	print("=== VELOCITY DAMAGE CALCULATION ===")
+	print("Raw velocity magnitude:", velocity_magnitude)
+	print("Clamped velocity:", clamped_velocity)
+	print("Damage percentage:", damage_percentage)
+	print("Calculated damage:", damage)
+	print("Final damage (int):", final_damage)
+	print("=== END VELOCITY DAMAGE CALCULATION ===")
+	
+	return final_damage
 
 func _play_collision_sound() -> void:
 	"""Play collision sound effect"""
 	var death_groan = get_node_or_null("DeathGroan")
 	if death_groan and death_groan.stream:
 		death_groan.play()
+
+func _trigger_coin_explosion() -> void:
+	"""Trigger a coin explosion when the ZombieGolfer dies"""
+	# Use the static method from CoinExplosionManager
+	CoinExplosionManager.trigger_coin_explosion(global_position)
+	print("✓ Triggered coin explosion for ZombieGolfer at:", global_position)
 
 func setup(zombie_type_param: String, pos: Vector2i, cell_size_param: int = 48) -> void:
 	"""Setup the ZombieGolfer with specific parameters"""
@@ -458,6 +506,9 @@ func die() -> void:
 	
 	# Play death sound
 	_play_collision_sound()
+	
+	# Trigger coin explosion
+	_trigger_coin_explosion()
 	
 	# Switch to dead state
 	current_state = State.DEAD

@@ -484,57 +484,145 @@ func get_difficulty_tier_for_hole(hole_index: int) -> int:
 	return get_difficulty_tier()
 
 func get_difficulty_tier_npc_counts(hole_index: int = -1) -> Dictionary:
-	"""Get NPC counts for the current difficulty tier"""
-	var tier = get_difficulty_tier()
-	if hole_index >= 0:
-		tier = get_difficulty_tier_for_hole(hole_index)
+	"""Get NPC counts for the current difficulty tier with hole-based base difficulty"""
 	
-	match tier:
-		0:  # First hole - squirrels only
+	# If hole_index is -1, we need to get the current hole from the course
+	# For now, default to hole 0 (first hole) if we can't determine the current hole
+	if hole_index == -1:
+		# Try to get current hole from the course if available
+		# This is a fallback - ideally the hole_index should be passed correctly
+		hole_index = 0  # Default to first hole
+		print("WARNING: get_difficulty_tier_npc_counts called with hole_index -1, defaulting to hole 0")
+	
+	# Get the base difficulty for this specific hole
+	var base_counts = get_hole_base_npc_counts(hole_index)
+	
+	# Get the difficulty tier (amplification factor)
+	var tier = get_difficulty_tier()
+	
+	# Apply tier amplification to base counts
+	var amplified_counts = amplify_npc_counts_by_tier(base_counts, tier)
+	
+	print("=== HOLE-BASED DIFFICULTY SYSTEM ===")
+	print("Hole index:", hole_index)
+	print("Base counts:", base_counts)
+	print("Difficulty tier:", tier)
+	print("Amplified counts:", amplified_counts)
+	print("=== END HOLE-BASED DIFFICULTY SYSTEM ===")
+	
+	return amplified_counts
+
+func get_hole_base_npc_counts(hole_index: int) -> Dictionary:
+	"""Get the base NPC counts for a specific hole (before tier amplification)"""
+	# Convert hole index to 1-based for easier reading
+	var hole_number = hole_index + 1
+	
+	# Handle invalid hole numbers (shouldn't happen with proper hole_index)
+	if hole_number <= 0:
+		print("WARNING: Invalid hole_number: ", hole_number, " (hole_index: ", hole_index, "), defaulting to hole 1")
+		hole_number = 1
+	
+	match hole_number:
+		1:  # Hole 1 - just squirrels
 			return {
 				"squirrels": 5,
 				"zombies": 0,
 				"gang_members": 0,
 				"police": 0
 			}
-		1:  # Squirrels + 1 zombie
+		2:  # Hole 2 - 2 zombies and squirrels
 			return {
 				"squirrels": 5,
-				"zombies": 1,
+				"zombies": 2,
 				"gang_members": 0,
 				"police": 0
 			}
-		2:  # Squirrels + 1 zombie + 1 gang member
+		3:  # Hole 3 - lots of zombies and squirrels
 			return {
 				"squirrels": 5,
-				"zombies": 1,
+				"zombies": 4,
+				"gang_members": 0,
+				"police": 0
+			}
+		4:  # Hole 4 - lots of zombies, 1 gang member, and squirrels
+			return {
+				"squirrels": 5,
+				"zombies": 4,
 				"gang_members": 1,
 				"police": 0
 			}
-		3:  # Squirrels + 1 zombie + 1 gang member + 1 police
+		5:  # Hole 5 - 3 gang members and squirrels
 			return {
 				"squirrels": 5,
-				"zombies": 1,
+				"zombies": 0,
+				"gang_members": 3,
+				"police": 0
+			}
+		6:  # Hole 6 - 1 police, 1 gang member, and squirrels
+			return {
+				"squirrels": 5,
+				"zombies": 0,
 				"gang_members": 1,
 				"police": 1
 			}
-		_:  # Higher tiers - add more NPCs in order
-			var base_zombies = 1
-			var base_gang_members = 1
-			var base_police = 1
-			
-			# Add additional NPCs based on tier
-			var additional_tier = tier - 3
-			var additional_zombies = additional_tier / 3  # Add zombie every 3 tiers
-			var additional_gang_members = (additional_tier % 3) / 2  # Add gang member every 2 tiers
-			var additional_police = additional_tier % 2  # Add police every other tier
-			
+		7:  # Hole 7 - 2 police, 2 gang members, and squirrels
 			return {
 				"squirrels": 5,
-				"zombies": base_zombies + additional_zombies,
-				"gang_members": base_gang_members + additional_gang_members,
-				"police": base_police + additional_police
+				"zombies": 0,
+				"gang_members": 2,
+				"police": 2
 			}
+		8:  # Hole 8 - 2 police, 2 gang members, lots of zombies, and squirrels
+			return {
+				"squirrels": 5,
+				"zombies": 4,
+				"gang_members": 2,
+				"police": 2
+			}
+		9:  # Hole 9 - 3 police, 3 gang members, lots of zombies, and squirrels
+			return {
+				"squirrels": 5,
+				"zombies": 4,
+				"gang_members": 3,
+				"police": 3
+			}
+		_:  # Back 9 holes (10-18) - use the same pattern but with higher base difficulty
+			# For holes 10-18, we use the same pattern as 1-9 but with increased base counts
+			var back_9_hole = ((hole_number - 1) % 9) + 1  # Convert 10-18 to 1-9 pattern
+			var back_9_base_counts = get_hole_base_npc_counts(back_9_hole - 1)  # Get base for 1-9
+			
+			# Increase base counts for back 9 (more challenging)
+			return {
+				"squirrels": back_9_base_counts.squirrels + 2,  # +2 more squirrels
+				"zombies": back_9_base_counts.zombies + 1,      # +1 more zombie
+				"gang_members": back_9_base_counts.gang_members + 1,  # +1 more gang member
+				"police": back_9_base_counts.police + 1        # +1 more police
+			}
+
+func amplify_npc_counts_by_tier(base_counts: Dictionary, tier: int) -> Dictionary:
+	"""Amplify base NPC counts based on difficulty tier"""
+	var amplified = base_counts.duplicate()
+	
+	# Tier 0: No amplification (base counts)
+	if tier <= 0:
+		return amplified
+	
+	# Tier 1+: Add NPCs based on tier
+	# Every 2 tiers, add 1 zombie
+	# Every 3 tiers, add 1 gang member  
+	# Every 4 tiers, add 1 police
+	var additional_zombies = tier / 2
+	var additional_gang_members = tier / 3
+	var additional_police = tier / 4
+	
+	amplified.zombies += additional_zombies
+	amplified.gang_members += additional_gang_members
+	amplified.police += additional_police
+	
+	# Add more squirrels every tier
+	amplified.squirrels += tier
+	
+	return amplified
 
 func get_turn_based_gang_member_count() -> int:
 	"""Calculate number of gang members to spawn based on current turn (legacy function)"""

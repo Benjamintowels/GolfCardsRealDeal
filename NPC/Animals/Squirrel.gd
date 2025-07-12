@@ -3,6 +3,8 @@ extends CharacterBody2D
 # Squirrel NPC - handles Squirrel-specific functions
 # Integrates with the Entities system for turn management
 
+
+
 signal turn_completed
 
 # Sprite references for different directions
@@ -79,6 +81,7 @@ var last_player_movement_damage_time: float = 0.0
 func _ready():
 	# Add to groups for smart optimization and roof bounce system
 	add_to_group("collision_objects")
+	add_to_group("NPC")
 	
 	print("=== SQUIRREL READY DEBUG ===")
 	print("Squirrel name: ", name)
@@ -507,9 +510,6 @@ func _on_player_moved_to_tile(new_grid_pos: Vector2i) -> void:
 
 func _on_vision_area_entered(area: Area2D) -> void:
 	"""Called when the player enters the vision area"""
-	print("=== SQUIRREL VISION AREA ENTERED ===")
-	print("Area entered: ", area.name)
-	print("Area parent: ", area.get_parent().name if area.get_parent() else "None")
 	
 	# Check if this is the player
 	if area.get_parent() and area.get_parent().name == "Player":
@@ -521,9 +521,6 @@ func _on_vision_area_entered(area: Area2D) -> void:
 
 func _on_vision_area_exited(area: Area2D) -> void:
 	"""Called when the player exits the vision area"""
-	print("=== SQUIRREL VISION AREA EXITED ===")
-	print("Area exited: ", area.name)
-	print("Area parent: ", area.get_parent().name if area.get_parent() else "None")
 	
 	# Check if this is the player
 	if area.get_parent() and area.get_parent().name == "Player":
@@ -534,15 +531,8 @@ func _on_vision_area_exited(area: Area2D) -> void:
 
 func _on_turn_started(npc: Node) -> void:
 	"""Called when this NPC's turn starts"""
-	print("=== SQUIRREL TURN STARTED SIGNAL RECEIVED ===")
-	print("Signal NPC: ", npc.name if npc else "None")
-	print("This squirrel: ", name)
-	print("Is this squirrel's turn: ", npc == self)
 	
 	if npc == self:
-		print("=== SQUIRREL TURN STARTED ===")
-		print("Squirrel: ", name)
-		print("Grid position: ", grid_position)
 		
 		# Update detected golf balls before taking turn
 		_check_vision_for_golf_balls()
@@ -1441,9 +1431,6 @@ func _process(delta):
 	else:
 		# Fallback: use direct calculation without camera offset
 		calc_grid = Vector2i(floor(global_position.x / cell_size), floor(global_position.y / cell_size))
-	
-	if calc_grid != grid_position:
-		print("WARNING: Squirrel grid_position desynced! grid_position=", grid_position, " calc=", calc_grid) 
 	
 	# Fallback proximity check - check for player proximity every frame as backup
 	_check_player_proximity_fallback()

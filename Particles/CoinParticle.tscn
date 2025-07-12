@@ -1,0 +1,11 @@
+[gd_scene load_steps=3 format=3 uid="uid://bplc7c8nqx2m8"]
+
+[ext_resource type="Script" uid="uid://dpejo2plqa840" path="res://Particles/CoinParticle.gd" id="1_ef0px"]
+[ext_resource type="Texture2D" uid="uid://bnoitpt2w6fe7" path="res://Particles/CoinParticle.png" id="2_k07vc"]
+
+[node name="CoinParticle" type="Node2D"]
+script = ExtResource("1_ef0px")
+
+[node name="CoinParticleSprite" type="Sprite2D" parent="."]
+texture_filter = 1
+texture = ExtResource("2_k07vc")

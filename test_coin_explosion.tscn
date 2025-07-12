@@ -1,0 +1,22 @@
+[gd_scene load_steps=3 format=3 uid="uid://test_coin_explosion"]
+
+[ext_resource type="Script" path="res://test_coin_explosion.gd" id="1_test"]
+[ext_resource type="Script" path="res://CoinExplosionManager.gd" id="2_coin_manager"]
+
+[node name="TestCoinExplosion" type="Node2D"]
+script = ExtResource("1_test")
+
+[node name="CoinExplosionManager" type="Node" parent="."]
+script = ExtResource("2_coin_manager")
+
+[node name="Instructions" type="Label" parent="."]
+offset_left = 20.0
+offset_top = 20.0
+offset_right = 600.0
+offset_bottom = 80.0
+text = "Coin Explosion Test Scene
+
+Press SPACE to trigger coin explosion at mouse position
+Press 1 for small explosion (3 coins)
+Press 2 for large explosion (10 coins)
+Click the button for medium explosion (5 coins)" 

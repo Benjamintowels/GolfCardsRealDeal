@@ -197,6 +197,7 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 	print("Zombies to spawn: ", num_zombies)
 	print("Oil drums to spawn: ", num_oil_drums)
 	print("Current hole: ", current_hole)
+	print("Current hole + 1: ", current_hole + 1)
 	print("=== END DIFFICULTY TIER SPAWNING ===")
 	
 	randomize()
@@ -381,10 +382,22 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 	
 	# Place GangMembers on green tiles
 	var green_positions: Array = []
+	var tile_type_counts = {}
 	for y in layout.size():
 		for x in layout[y].size():
-			if layout[y][x] == "G":
+			var tile_type = layout[y][x]
+			if tile_type not in tile_type_counts:
+				tile_type_counts[tile_type] = 0
+			tile_type_counts[tile_type] += 1
+			
+			if tile_type == "G":
 				green_positions.append(Vector2i(x, y))
+	
+	print("=== GANG MEMBER PLACEMENT DEBUG ===")
+	print("Tile type counts in layout:", tile_type_counts)
+	print("Green positions found:", green_positions.size())
+	print("Gang members to place:", num_gang_members)
+	print("Green positions:", green_positions)
 	
 	var gang_members_placed = 0
 	while gang_members_placed < num_gang_members and green_positions.size() > 0:
@@ -395,12 +408,20 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 		gang_members_placed += 1
 		green_positions.remove_at(gang_index)
 	
+	print("Gang members actually placed:", gang_members_placed)
+	print("=== END GANG MEMBER DEBUG ===")
+	
 	# Place Police on rough tiles (R)
 	var rough_positions: Array = []
 	for y in layout.size():
 		for x in layout[y].size():
 			if layout[y][x] == "R":
 				rough_positions.append(Vector2i(x, y))
+	
+	print("=== POLICE PLACEMENT DEBUG ===")
+	print("Rough positions found:", rough_positions.size())
+	print("Police to place:", num_police)
+	print("Rough positions:", rough_positions)
 	
 	var police_placed = 0
 	while police_placed < num_police and rough_positions.size() > 0:
@@ -411,12 +432,20 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 		police_placed += 1
 		rough_positions.remove_at(police_index)
 	
+	print("Police actually placed:", police_placed)
+	print("=== END POLICE DEBUG ===")
+	
 	# Place Zombies on sand tiles (S)
 	var sand_positions: Array = []
 	for y in layout.size():
 		for x in layout[y].size():
 			if layout[y][x] == "S":
 				sand_positions.append(Vector2i(x, y))
+	
+	print("=== ZOMBIE PLACEMENT DEBUG ===")
+	print("Sand positions found:", sand_positions.size())
+	print("Zombies to place:", num_zombies)
+	print("Sand positions:", sand_positions)
 	
 	var zombies_placed = 0
 	while zombies_placed < num_zombies and sand_positions.size() > 0:
@@ -427,7 +456,9 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 		zombies_placed += 1
 		sand_positions.remove_at(zombie_index)
 	
+	print("Zombies actually placed:", zombies_placed)
 	print("✓ Placed", zombies_placed, "zombies on sand tiles")
+	print("=== END ZOMBIE DEBUG ===")
 	
 	# Place Oil Drums on fairway tiles
 	var fairway_positions: Array = []
@@ -477,7 +508,12 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 	
 	return positions
 
-func build_map_from_layout_with_randomization(layout: Array) -> void:
+func build_map_from_layout_with_randomization(layout: Array, hole_index: int = -1) -> void:
+	# Update current_hole if hole_index is provided
+	if hole_index >= 0:
+		current_hole = hole_index
+		print("BuildMap: Updated current_hole to:", current_hole)
+	
 	randomize()
 	clear_existing_objects()
 	build_map_from_layout_base(layout)
@@ -639,7 +675,6 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 	
 	# Place Boulders
 	print("=== PLACING BOULDERS ===")
-	print("Boulder positions:", object_positions.boulders)
 	for boulder_pos in object_positions.boulders:
 		var scene: PackedScene = object_scene_map["BOULDER"]
 		if scene == null:
@@ -650,13 +685,11 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		if boulder == null:
 			push_error("❌ Boulder instantiation failed at (%d,%d)" % [boulder_pos.x, boulder_pos.y])
 			continue
-		print("✓ Boulder instantiated successfully")
 		var world_pos: Vector2 = Vector2(boulder_pos.x, boulder_pos.y) * cell_size
 		boulder.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
 		
 		# Always set the grid_position property unconditionally
 		boulder.set_meta("grid_position", boulder_pos)
-		print("✓ Set boulder grid_position to:", boulder_pos)
 		
 		# Add boulder to groups for smart optimization
 		boulder.add_to_group("boulders")
@@ -664,14 +697,10 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		
 		ysort_objects.append({"node": boulder, "grid_pos": boulder_pos})
 		obstacle_layer.add_child(boulder)
-		print("✓ Boulder placed at grid position:", boulder_pos, "world position:", world_pos)
-		print("✓ Boulder name:", boulder.name)
-		print("✓ Boulder grid_position property:", boulder.get_meta("grid_position") if boulder.get_meta("grid_position") != null else "null")
 	print("=== END PLACING BOULDERS ===")
 	
 	# Place Bushes
 	print("=== PLACING BUSHES ===")
-	print("Bush positions:", object_positions.bushes)
 	
 	# Get BushManager for random bush variations
 	var bush_manager = get_node_or_null("/root/BushManager")
@@ -692,8 +721,6 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		if bush == null:
 			push_error("❌ Bush instantiation failed at (%d,%d)" % [bush_pos.x, bush_pos.y])
 			continue
-		print("✓ Bush instantiated successfully")
-		print("✓ Bush script attached:", bush.get_script() != null)
 		if bush.get_script():
 			print("✓ Bush script path:", bush.get_script().resource_path)
 		else:
@@ -707,24 +734,15 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		
 		# Always set the grid_position property unconditionally
 		bush.set_meta("grid_position", bush_pos)
-		print("✓ Set bush grid_position to:", bush_pos)
 		
 		# Add bush to groups for smart optimization
 		bush.add_to_group("bushes")
 		bush.add_to_group("collision_objects")
 		
 		# Verify Area2D collision layers
-		var bush_area = bush.get_node_or_null("BushArea2D")
-		if bush_area:
-			print("✓ Bush Area2D collision layer:", bush_area.collision_layer)
-			print("✓ Bush Area2D collision mask:", bush_area.collision_mask)
-		else:
-			print("✗ Bush Area2D not found")
 		
 		ysort_objects.append({"node": bush, "grid_pos": bush_pos})
 		obstacle_layer.add_child(bush)
-		print("✓ Bush added to obstacle_layer")
-		print("✓ Bush is in scene tree:", bush.is_inside_tree())
 		
 		# Apply bush variety after adding to scene tree
 		if bush_data:
@@ -740,8 +758,6 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 	print("=== END PLACING BUSHES ===")
 	
 	# Place Grass
-	print("=== PLACING GRASS ===")
-	print("Grass positions:", object_positions.grass)
 	
 	# Get GrassManager for random grass variations
 	var grass_manager = get_node_or_null("/root/GrassManager")
@@ -757,17 +773,10 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		if scene == null:
 			push_error("🚫 Grass scene is null")
 			continue
-		print("✓ Grass scene loaded successfully")
 		var grass: Node2D = scene.instantiate() as Node2D
 		if grass == null:
 			push_error("❌ Grass instantiation failed at (%d,%d)" % [grass_pos.x, grass_pos.y])
 			continue
-		print("✓ Grass instantiated successfully")
-		print("✓ Grass script attached:", grass.get_script() != null)
-		if grass.get_script():
-			print("✓ Grass script path:", grass.get_script().resource_path)
-		else:
-			print("✗ Grass script is null!")
 		
 		# Store grass data for later application (after adding to scene tree)
 		var grass_data = grass_manager.get_random_grass_data()
@@ -777,7 +786,6 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		
 		# Always set the grid_position property unconditionally
 		grass.set_meta("grid_position", grass_pos)
-		print("✓ Set grass grid_position to:", grass_pos)
 		
 		# Add grass to groups for smart optimization
 		grass.add_to_group("grass_elements")
@@ -785,21 +793,12 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		
 		ysort_objects.append({"node": grass, "grid_pos": grass_pos})
 		obstacle_layer.add_child(grass)
-		print("✓ Grass added to obstacle_layer")
-		print("✓ Grass is in scene tree:", grass.is_inside_tree())
 		
 		# Apply grass variety after adding to scene tree
 		if grass_data:
 			# Use call_deferred to ensure the grass is fully in the scene tree
 			grass.call_deferred("set_grass_data", grass_data)
-			print("✓ Deferred grass variety application:", grass_data.name)
-		else:
-			print("✗ No grass data available")
 		
-		print("✓ Grass placed at grid position:", grass_pos, "world position:", world_pos)
-		print("✓ Grass name:", grass.name)
-		print("✓ Grass grid_position property:", grass.get_meta("grid_position") if grass.get_meta("grid_position") != null else "null")
-	print("=== END PLACING GRASS ===")
 	if object_positions.shop != Vector2i.ZERO:
 		var scene: PackedScene = object_scene_map["SHOP"]
 		if scene == null:
@@ -852,15 +851,19 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 					print("✓ InvisibleBlocker placed at grid position:", blocker_pos)
 	
 	# Place GangMembers
+	print("=== PLACING GANG MEMBERS ===")
+	print("Gang member positions:", object_positions.gang_members)
 	for gang_pos in object_positions.gang_members:
 		var scene: PackedScene = object_scene_map["GANG"]
 		if scene == null:
 			push_error("🚫 GangMember scene is null")
 			continue
+		print("✓ GangMember scene loaded successfully")
 		var gang_member: Node2D = scene.instantiate() as Node2D
 		if gang_member == null:
 			push_error("❌ GangMember instantiation failed at (%d,%d)" % [gang_pos.x, gang_pos.y])
 			continue
+		print("✓ GangMember instantiated successfully")
 		var world_pos: Vector2 = Vector2(gang_pos.x, gang_pos.y) * cell_size
 		gang_member.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
 		# Let the global Y-sort system handle z_index
@@ -881,6 +884,8 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		
 		ysort_objects.append({"node": gang_member, "grid_pos": gang_pos})
 		obstacle_layer.add_child(gang_member)
+		print("✓ GangMember placed at grid position:", gang_pos)
+	print("=== END PLACING GANG MEMBERS ===")
 	
 	# Place Police
 	print("=== PLACING POLICE ===")
@@ -922,10 +927,12 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		if scene == null:
 			push_error("🚫 ZombieGolfer scene is null")
 			continue
+		print("✓ ZombieGolfer scene loaded successfully")
 		var zombie: Node2D = scene.instantiate() as Node2D
 		if zombie == null:
 			push_error("❌ ZombieGolfer instantiation failed at (%d,%d)" % [zombie_pos.x, zombie_pos.y])
 			continue
+		print("✓ ZombieGolfer instantiated successfully")
 		var world_pos: Vector2 = Vector2(zombie_pos.x, zombie_pos.y) * cell_size
 		zombie.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
 		# Let the global Y-sort system handle z_index
@@ -947,6 +954,7 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		ysort_objects.append({"node": zombie, "grid_pos": zombie_pos})
 		obstacle_layer.add_child(zombie)
 		print("✓ ZombieGolfer placed at grid position:", zombie_pos)
+	print("=== END PLACING ZOMBIES ===")
 	
 	# Place Oil Drums
 	print("=== PLACING OIL DRUMS ===")
@@ -967,7 +975,6 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		
 		# Always set the grid_position property unconditionally
 		oil_drum.set_meta("grid_position", oil_pos)
-		print("✓ Set oil drum grid_position to:", oil_pos)
 		
 		# Add oil drum to groups for smart optimization
 		oil_drum.add_to_group("interactables")
@@ -975,13 +982,10 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		
 		ysort_objects.append({"node": oil_drum, "grid_pos": oil_pos})
 		obstacle_layer.add_child(oil_drum)
-		if oil_drum.has_meta("grid_position"):
-			print("✓ Oil Drum meta grid_position:", oil_drum.get_meta("grid_position"))
 	print("=== END PLACING OIL DRUMS ===")
 	
 	# Place Stone Walls
 	print("=== PLACING STONE WALLS ===")
-	print("Stone wall positions:", object_positions.stone_walls)
 	for wall_pos in object_positions.stone_walls:
 		var scene: PackedScene = object_scene_map["WALL"]
 		if scene == null:
@@ -991,7 +995,6 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		if stone_wall == null:
 			push_error("❌ StoneWall instantiation failed at (%d,%d)" % [wall_pos.x, wall_pos.y])
 			continue
-		print("✓ StoneWall instantiated successfully")
 		var world_pos: Vector2 = Vector2(wall_pos.x, wall_pos.y) * cell_size
 		stone_wall.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
 		

@@ -7,8 +7,8 @@
 script = ExtResource("1_equipment_script")
 name = "Drone"
 image = ExtResource("1_kfp3j")
-description = "A flying drone that provides aerial reconnaissance of the course."
-buff_type = "mobility"
+description = "A flying drone that provides aerial reconnaissance and enhanced camera zoom capabilities."
+buff_type = "drone_zoom"
 buff_value = 1
 price = 400
 default_tier = 3

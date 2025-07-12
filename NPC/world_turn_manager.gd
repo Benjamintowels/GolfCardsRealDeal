@@ -140,15 +140,7 @@ func unregister_npc(npc: Node) -> void:
 		print("Unregistered NPC: ", npc.name, " (Total NPCs: ", registered_npcs.size(), ")")
 
 func _on_player_turn_ended() -> void:
-	"""Called when the player ends their turn - start world turn sequence"""
-	print("=== PLAYER TURN ENDED - STARTING WORLD TURN ===")
-	print("WorldTurnManager received player_turn_ended signal")
-	print("Current registered NPCs: ", registered_npcs.size())
-	for npc in registered_npcs:
-		if is_instance_valid(npc):
-			print("  - ", npc.name, " (valid)")
-		else:
-			print("  - ", npc.name, " (invalid)")
+
 	start_world_turn()
 
 func start_world_turn() -> void:

@@ -484,37 +484,13 @@ func _ready() -> void:
 	equipment_manager.add_equipment(watch_equipment)
 	print("Course: Added Watch equipment to starter loadout for together mode")
 	
-	# Add PutterHelp equipment for testing
-	var putter_help_equipment = preload("res://Equipment/PutterHelp.tres")
-	equipment_manager.add_equipment(putter_help_equipment)
-	print("Course: Added PutterHelp equipment to starter loadout for testing")
-	
 	# Player starts with level 1 backpack (handled by bag system)
 	print("Course: Player starts with level 1 backpack for their character")
 	
 	# Force sync with CurrentDeckManager immediately
 	deck_manager.sync_with_current_deck()
 	
-	# Setup movement controller after deck_manager is created
-	movement_controller.setup(
-		player_node,
-		grid_tiles,
-		grid_size,
-		cell_size,
-		obstacle_map,
-		player_grid_pos,
-		player_stats,
-		movement_buttons_container,
-		card_click_sound,
-		card_play_sound,
-		card_stack_display,
-		deck_manager,
-		card_effect_handler,
-		attack_handler,
-		weapon_handler
-	)
-	
-	# Setup attack handler after deck_manager is created
+	# Setup attack handler first (before movement controller)
 	attack_handler.setup(
 		player_node,
 		grid_tiles,
@@ -533,7 +509,7 @@ func _ready() -> void:
 		player_node.get_node_or_null("PunchB")  # Add PunchB sound reference
 	)
 	
-	# Setup weapon handler after deck_manager is created
+	# Setup weapon handler after attack handler
 	weapon_handler.setup(
 		player_node,
 		grid_tiles,
@@ -550,6 +526,27 @@ func _ready() -> void:
 		card_effect_handler,
 		launch_manager
 	)
+	
+	# Setup movement controller last (after attack and weapon handlers are ready)
+	movement_controller.setup(
+		player_node,
+		grid_tiles,
+		grid_size,
+		cell_size,
+		obstacle_map,
+		player_grid_pos,
+		player_stats,
+		movement_buttons_container,
+		card_click_sound,
+		card_play_sound,
+		card_stack_display,
+		deck_manager,
+		card_effect_handler,
+		attack_handler,
+		weapon_handler
+	)
+	
+
 	
 	# Set the movement controller reference for button cleanup
 	attack_handler.set_movement_controller(movement_controller)
@@ -731,6 +728,11 @@ func adjust_background_positioning() -> void:
 	
 	# Register any existing Squirrels with the Entities system
 	register_existing_squirrels()
+	
+	# Re-register all NPCs in Entities to ensure attack system works
+	var entities = get_node_or_null("Entities")
+	if entities:
+		entities.re_register_all_npcs()
 	
 	# Initialize player mouse facing system
 	if player_node and player_node.has_method("set_camera_reference"):
@@ -3056,19 +3058,17 @@ func _on_suitcase_opened():
 
 func _on_reward_selected(reward_data: Resource, reward_type: String):
 	"""Handle when a reward is selected"""
+	
 	if reward_data == null:
 		print("ERROR: reward_data is null in _on_reward_selected! reward_type:", reward_type)
 		return
-	print("Reward selected:", reward_data.name, "Type:", reward_type)
 	
 	if reward_type == "equipment":
 		var equip_data = reward_data as EquipmentData
 		# TODO: Apply equipment effect
-		print("Equipment selected:", equip_data.name)
 	
 	# Special handling for hole 9 - show front nine completion dialog
 	if current_hole == 8 and not is_back_9_mode:  # Hole 9 (index 8) in front 9 mode
-		print("Hole 9 completed, showing front nine completion dialog")
 		show_front_nine_complete_dialog()
 	else:
 		# Fade to next hole
@@ -3076,37 +3076,35 @@ func _on_reward_selected(reward_data: Resource, reward_type: String):
 
 func _on_advance_to_next_hole():
 	"""Handle when the advance button is pressed"""
-	print("Advance to next hole button pressed")
 	
 	# Special handling for hole 9 - show front nine completion dialog
 	if current_hole == 8 and not is_back_9_mode:  # Hole 9 (index 8) in front 9 mode
-		print("Hole 9 completed, showing front nine completion dialog")
 		show_front_nine_complete_dialog()
 	else:
 		# Fade to next hole
 		FadeManager.fade_to_black(func(): reset_for_next_hole(), 0.5)
 
 func reset_for_next_hole():
+	print("=== ADVANCING TO HOLE", current_hole + 2, "===")
+	
 	# Clean up any existing reward UI
 	var existing_suitcase = $UILayer.get_node_or_null("SuitCase")
 	if existing_suitcase:
 		existing_suitcase.queue_free()
-		print("Cleaned up existing suitcase")
 	
 	var existing_reward_dialog = $UILayer.get_node_or_null("RewardSelectionDialog")
 	if existing_reward_dialog:
 		existing_reward_dialog.queue_free()
-		print("Cleaned up existing reward dialog")
 	
 	# Reset launch manager state for new hole
 	if launch_manager and launch_manager.has_method("set_ball_in_flight"):
 		launch_manager.set_ball_in_flight(false)
-		print("Launch manager ball in flight state reset for new hole")
 	
 	# Clear any existing balls from the previous hole
 	remove_all_balls()
 	
 	current_hole += 1
+	
 	var round_end_hole = 0
 	if is_back_9_mode:
 		round_end_hole = back_9_start_hole + NUM_HOLES - 1  # Hole 18 (index 17)
@@ -3115,25 +3113,21 @@ func reset_for_next_hole():
 	
 	if current_hole > round_end_hole:
 		return
+		
 	if player_node and is_instance_valid(player_node):
 		# Disable animations before hiding player for next hole
 		if player_node.has_method("disable_animations"):
 			player_node.disable_animations()
-			print("Player movement animations disabled for next hole")
 		player_node.visible = false
 	
 	map_manager.load_map_data(GolfCourseLayout.get_hole_layout(current_hole))
-	build_map.build_map_from_layout_with_randomization(map_manager.level_layout)
+	build_map.build_map_from_layout_with_randomization(map_manager.level_layout, current_hole)
 	
 	# Sync shop grid position with build_map
 	shop_grid_pos = build_map.shop_grid_pos
 	
 	# Ensure Y-sort objects are properly registered for pin detection
 	update_all_ysort_z_indices()
-	print("Y-sort updated after map building")
-	
-	# Checkpoint: Map building completed
-	print("=== BuildMapCompleted Checkpoint ===")
 	
 	position_camera_on_pin()  # Add camera positioning for next hole
 	hole_score = 0
@@ -3147,6 +3141,10 @@ func reset_for_next_hole():
 	is_placing_player = true
 	highlight_tee_tiles()
 	show_tee_selection_instruction()
+	# After all NPCs are spawned/registered for the new hole
+	var entities = get_node_or_null("Entities")
+	if entities:
+		entities.re_register_all_npcs()
 
 func show_course_complete_dialog():
 	var dialog = AcceptDialog.new()

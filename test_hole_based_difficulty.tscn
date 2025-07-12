@@ -1,0 +1,20 @@
+[gd_scene load_steps=2 format=3 uid="uid://test_hole_difficulty"]
+
+[ext_resource type="Script" path="res://test_hole_based_difficulty.gd" id="1_test"]
+
+[node name="TestHoleBasedDifficulty" type="Node2D"]
+script = ExtResource("1_test")
+
+[node name="Instructions" type="Label" parent="."]
+offset_left = 20.0
+offset_top = 20.0
+offset_right = 600.0
+offset_bottom = 120.0
+text = "Hole-Based Difficulty System Test
+
+Press SPACE to test specific hole/tier
+Press R to test base difficulty (tier 0)
+Press T to test tier amplification on hole 1
+Press B to compare front 9 vs back 9
+
+Check console for detailed output" 

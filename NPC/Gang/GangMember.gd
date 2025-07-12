@@ -3,6 +3,9 @@ extends CharacterBody2D
 # GangMember NPC - handles GangMember-specific functions
 # Integrates with the Entities system for turn management
 
+# Coin explosion system
+const CoinExplosionManager = preload("res://CoinExplosionManager.gd")
+
 signal turn_completed
 
 @onready var sprite: Sprite2D = $Sprite2D
@@ -98,6 +101,7 @@ var course: Node
 func _ready():
 	# Add to groups for smart optimization and roof bounce system
 	add_to_group("collision_objects")
+	add_to_group("NPC")
 	
 	# Get references to ice sprite and collision areas
 	_setup_ice_references()
@@ -1291,6 +1295,12 @@ func _play_death_sound() -> void:
 	else:
 		pass
 
+func _trigger_coin_explosion() -> void:
+	"""Trigger a coin explosion when the GangMember dies"""
+	# Use the static method from CoinExplosionManager
+	CoinExplosionManager.trigger_coin_explosion(global_position)
+	print("✓ Triggered coin explosion for GangMember at:", global_position)
+
 func _find_nearest_available_adjacent_tile(player_pos: Vector2i, approach_direction: Vector2i = Vector2i.ZERO) -> Vector2i:
 	"""Find the nearest available adjacent tile to push the player to based on GangMember's approach direction"""
 	# Use the passed approach direction
@@ -1720,15 +1730,15 @@ class DeadState extends BaseState:
 		pass
 
 # Health and damage methods
-func take_damage(amount: int, is_headshot: bool = false, weapon_position: Vector2 = Vector2.ZERO) -> void:
+func take_damage(damage: int, is_headshot: bool = false, weapon_position: Vector2 = Vector2.ZERO) -> void:
 	"""Take damage and handle death if health reaches 0, or pushback if survives"""
 	if not is_alive:
 		print("GangMember is already dead, ignoring damage")
 		return
 	
 	# Allow negative health for overkill calculations
-	current_health = current_health - amount
-	print("GangMember took", amount, "damage. Current health:", current_health, "/", max_health)
+	current_health = current_health - damage
+	print("GangMember took", damage, "damage. Current health:", current_health, "/", max_health)
 	
 	# Update health bar (but don't show negative values to player)
 	var display_health = max(0, current_health)
@@ -1807,6 +1817,9 @@ func die() -> void:
 	# Play death groan sound
 	print("Calling _play_death_sound()")
 	_play_death_sound()
+	
+	# Trigger coin explosion
+	_trigger_coin_explosion()
 	
 	# Clear all attached knives when the GangMember dies
 	clear_all_attached_knives()

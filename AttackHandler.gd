@@ -96,6 +96,8 @@ func _on_attack_card_pressed(card: CardData, button: TextureButton) -> void:
 	print("=== ATTACK CARD PRESSED ===")
 	print("Card:", card.name, "Effect type:", card.effect_type)
 	print("Card in hand:", deck_manager.hand.has(card))
+	print("Attack handler setup check - card_effect_handler:", card_effect_handler != null)
+	print("Attack handler setup check - deck_manager:", deck_manager != null)
 	
 	if selected_card == card:
 		print("Card already selected, returning")
@@ -108,6 +110,7 @@ func _on_attack_card_pressed(card: CardData, button: TextureButton) -> void:
 	active_button = button
 	selected_card = card
 	attack_range = card.get_effective_strength()
+	print("Attack range set to:", attack_range)
 
 	calculate_valid_attack_tiles()
 	show_attack_highlights()
@@ -241,8 +244,23 @@ func has_npc_at_position(pos: Vector2i) -> bool:
 	
 	var npcs = entities.get_npcs()
 	for npc in npcs:
-		if is_instance_valid(npc) and npc.has_method("get_grid_position"):
-			if npc.get_grid_position() == pos:
+		if is_instance_valid(npc):
+			var npc_pos = Vector2i.ZERO
+			
+			# Try to get grid position using different methods
+			if npc.has_method("get_grid_position"):
+				npc_pos = npc.get_grid_position()
+			elif "grid_position" in npc:
+				npc_pos = npc.grid_position
+			elif "grid_pos" in npc:
+				npc_pos = npc.grid_pos
+			else:
+				# Fallback: calculate grid position from world position
+				var world_pos = npc.global_position
+				var cell_size_used = cell_size if "cell_size" in npc else 48
+				npc_pos = Vector2i(floor(world_pos.x / cell_size_used), floor(world_pos.y / cell_size_used))
+			
+			if npc_pos == pos:
 				print("Found NPC at position:", pos, "NPC:", npc.name)
 				return true
 	
@@ -251,19 +269,65 @@ func has_npc_at_position(pos: Vector2i) -> bool:
 
 func get_npc_at_position(pos: Vector2i) -> Node:
 	"""Get the NPC at the given grid position, or null if none"""
+	print("=== GETTING NPC AT POSITION ===")
+	print("Position:", pos)
+	print("Card effect handler:", card_effect_handler != null)
+	
 	if not card_effect_handler or not card_effect_handler.course:
+		print("✗ No card_effect_handler or course found")
 		return null
 	
 	var entities = card_effect_handler.course.get_node_or_null("Entities")
 	if not entities:
+		print("✗ No Entities node found")
 		return null
 	
+	print("✓ Entities found")
 	var npcs = entities.get_npcs()
-	for npc in npcs:
-		if is_instance_valid(npc) and npc.has_method("get_grid_position"):
-			if npc.get_grid_position() == pos:
-				return npc
+	print("Total NPCs found:", npcs.size())
 	
+	for npc in npcs:
+		print("=== CHECKING NPC ===")
+		print("NPC reference:", npc)
+		print("Is instance valid:", is_instance_valid(npc))
+		
+		if is_instance_valid(npc):
+			print("NPC name:", npc.name)
+			print("NPC class:", npc.get_class())
+			print("NPC script:", npc.get_script().resource_path if npc.get_script() else "No script")
+			print("NPC global position:", npc.global_position)
+			
+			var npc_pos = Vector2i.ZERO
+			
+			# Try to get grid position using different methods
+			if npc.has_method("get_grid_position"):
+				npc_pos = npc.get_grid_position()
+				print("Checking NPC:", npc.name, "at position:", npc_pos, "(using get_grid_position)")
+			elif "grid_position" in npc:
+				npc_pos = npc.grid_position
+				print("Checking NPC:", npc.name, "at position:", npc_pos, "(using grid_position property)")
+			elif "grid_pos" in npc:
+				npc_pos = npc.grid_pos
+				print("Checking NPC:", npc.name, "at position:", npc_pos, "(using grid_pos property)")
+			else:
+				# Fallback: calculate grid position from world position
+				var world_pos = npc.global_position
+				var cell_size_used = cell_size if "cell_size" in npc else 48
+				npc_pos = Vector2i(floor(world_pos.x / cell_size_used), floor(world_pos.y / cell_size_used))
+				print("Checking NPC:", npc.name, "at position:", npc_pos, "(calculated from world position)")
+			
+			if npc_pos == pos:
+				print("✓ Found NPC at position:", pos, "NPC:", npc.name)
+				return npc
+		else:
+			print("✗ NPC is invalid - reference:", npc)
+			if npc != null:
+				print("  - NPC name (if available):", npc.name if "name" in npc else "No name property")
+				print("  - NPC class (if available):", npc.get_class() if "get_class" in npc else "No get_class method")
+		
+		print("=== END CHECKING NPC ===")
+	
+	print("✗ No NPC found at position:", pos)
 	return null
 
 func show_attack_highlights() -> void:

@@ -233,21 +233,11 @@ func _verify_collision_setup():
 	"""Verify that collision layers are properly set up"""
 	var trunk_base_area = get_node_or_null("TrunkBaseArea")
 	if trunk_base_area:
-		print("Tree collision layer:", trunk_base_area.collision_layer)
-		print("Tree collision mask:", trunk_base_area.collision_mask)
 		
 		# Check collision shape
 		var collision_shape = trunk_base_area.get_node_or_null("TrunkBase")
 		if collision_shape:
-			print("Tree collision shape radius:", collision_shape.shape.radius)
-			print("Tree collision shape scale:", collision_shape.scale)
-			print("Tree collision shape position:", collision_shape.position)
 			var actual_radius = collision_shape.shape.radius * collision_shape.scale.x
-			print("Tree actual collision radius:", actual_radius)
-		else:
-			print("ERROR: TrunkBase collision shape not found!")
-	else:
-		print("ERROR: TrunkBaseArea not found during verification!")
 
 func set_tree_data(new_tree_data: TreeData):
 	"""Set the TreeData for this tree and apply it immediately"""
@@ -262,9 +252,6 @@ func _apply_tree_data():
 	var sprite = get_node_or_null("Sprite2D")
 	if sprite:
 		sprite.texture = tree_data.sprite_texture
-		print("✓ Applied TreeData sprite:", tree_data.name)
-	else:
-		print("✗ ERROR: Tree Sprite2D not found!")
 
 # OPTIMIZED: Tree collision detection moved to ball for better performance
 # Trees no longer check for balls every frame - ball handles its own collision detection

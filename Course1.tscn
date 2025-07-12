@@ -1,4 +1,4 @@
-[gd_scene load_steps=26 format=3 uid="uid://dlq5ygh2wv33m"]
+[gd_scene load_steps=27 format=3 uid="uid://dlq5ygh2wv33m"]
 
 [ext_resource type="Script" uid="uid://d4hrfk75nrm45" path="res://course_1.gd" id="1_pe8tc"]
 [ext_resource type="Texture2D" uid="uid://cpe67sk2vh8me" path="res://EDGE.png" id="2_eymfu"]
@@ -25,6 +25,7 @@
 [ext_resource type="PackedScene" path="res://BlockHealthBar.tscn" id="22_block_health_bar"]
 [ext_resource type="AudioStream" uid="uid://tu47pjuwugnn" path="res://Sounds/Snow.mp3" id="23_6ixtt"]
 [ext_resource type="Script" uid="uid://d3eloiw6y4k1g" path="res://BackgroundManager.gd" id="25_bg_manager"]
+[ext_resource type="Script" uid="uid://co4tpic85friv" path="res://CoinExplosionManager.gd" id="26_coin_explosion"]
 
 [node name="Course1" type="Control"]
 layout_mode = 3
@@ -74,6 +75,9 @@ script = ExtResource("16_entities")
 
 [node name="BackgroundManager" type="Node" parent="."]
 script = ExtResource("25_bg_manager")
+
+[node name="CoinExplosionManager" type="Node" parent="."]
+script = ExtResource("26_coin_explosion")
 
 [node name="WorldTurnManager" parent="." instance=ExtResource("11_rkv8t")]
 

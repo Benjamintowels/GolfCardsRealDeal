@@ -3,6 +3,9 @@ extends CharacterBody2D
 # Police NPC - handles Police-specific functions
 # Integrates with the Entities system for turn management
 
+# Coin explosion system
+const CoinExplosionManager = preload("res://CoinExplosionManager.gd")
+
 signal turn_completed
 
 @onready var police_sprite: Sprite2D = $Police
@@ -74,6 +77,7 @@ var player: Node
 var course: Node
 
 func _ready():
+	add_to_group("NPC")
 	# Add to groups for smart optimization and roof bounce system
 	add_to_group("collision_objects")
 	
@@ -804,7 +808,7 @@ func setup(pos: Vector2i, cell_size_param: int = 48) -> void:
 	
 	print("Police setup at ", pos)
 
-func take_damage(amount: int, is_headshot: bool = false) -> void:
+func take_damage(amount: int, is_headshot: bool = false, weapon_position: Vector2 = Vector2.ZERO) -> void:
 	"""Take damage and handle death if health reaches 0"""
 	if not is_alive:
 		print("Police is already dead, ignoring damage")
@@ -842,6 +846,12 @@ func _play_collision_sound() -> void:
 	# For now, just print a message - you can add actual sound effects later
 	print("Police collision sound played")
 
+func _trigger_coin_explosion() -> void:
+	"""Trigger a coin explosion when the Police dies"""
+	# Use the static method from CoinExplosionManager
+	CoinExplosionManager.trigger_coin_explosion(global_position)
+	print("✓ Triggered coin explosion for Police at:", global_position)
+
 func die() -> void:
 	"""Handle Police death"""
 	if is_dead:
@@ -854,6 +864,9 @@ func die() -> void:
 	# Play death sound
 	if death_groan_sound:
 		death_groan_sound.play()
+	
+	# Trigger coin explosion
+	_trigger_coin_explosion()
 	
 	# Switch to dead state
 	current_state = State.DEAD

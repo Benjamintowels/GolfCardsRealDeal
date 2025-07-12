@@ -1,6 +1,6 @@
 extends Camera2D
 
-@export var min_zoom: float = 0.5
+@export var min_zoom: float = 0.4
 @export var max_zoom: float = 3.0
 @export var zoom_speed: float = 0.1
 @export var zoom_smoothness: float = 5.0
@@ -9,9 +9,17 @@ var target_zoom: float = 1.0
 var is_zooming: bool = false
 var zoom_tween: Tween = null
 
+# Dynamic zoom limits for drone equipment
+var current_min_zoom: float = 0.5
+var current_max_zoom: float = 3.0
+
 func _ready():
 	# Initialize zoom
 	zoom = Vector2(target_zoom, target_zoom)
+	
+	# Initialize dynamic zoom limits
+	current_min_zoom = min_zoom
+	current_max_zoom = max_zoom
 	
 	# Set camera limits to prevent excessive panning (ignoring far-out parallax layers)
 	limit_left = -2000.0  # Prevent panning too far left
@@ -30,7 +38,7 @@ func _input(event):
 
 # Public methods for external control
 func set_zoom_level(zoom_level: float):
-	target_zoom = clamp(zoom_level, min_zoom, max_zoom)
+	target_zoom = clamp(zoom_level, current_min_zoom, current_max_zoom)
 	_start_zoom_tween()
 
 func reset_zoom():
@@ -46,6 +54,21 @@ func set_camera_limits(left: float, right: float, top: float, bottom: float):
 	limit_right = right
 	limit_top = top
 	limit_bottom = bottom
+
+func set_zoom_limits(min_zoom_level: float, max_zoom_level: float):
+	"""Set zoom limits dynamically (for drone equipment)"""
+	current_min_zoom = min_zoom_level
+	current_max_zoom = max_zoom_level
+	
+	# Clamp current zoom to new limits
+	if target_zoom < current_min_zoom:
+		target_zoom = current_min_zoom
+	elif target_zoom > current_max_zoom:
+		target_zoom = current_max_zoom
+	
+	# Apply the new zoom immediately
+	_start_zoom_tween()
+	print("CameraZoom: Set zoom limits to", current_min_zoom, "-", current_max_zoom)
 
 func _start_zoom_tween():
 	"""Start a smooth zoom tween to the target zoom level"""
