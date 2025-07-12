@@ -99,21 +99,15 @@ func _ready():
 	
 	# If this is a manually placed squirrel (no metadata), ensure it's on a valid position
 	if not has_meta("grid_position"):
-		print("WARNING: Manually placed squirrel detected - ensuring valid position")
 		if not _is_position_valid(grid_position):
-			print("Squirrel at invalid position, attempting to find valid nearby position")
 			var valid_pos = _find_nearest_valid_position(grid_position)
 			if valid_pos != grid_position:
-				print("Moving squirrel from ", grid_position, " to valid position ", valid_pos)
 				grid_position = valid_pos
 				position = Vector2(grid_position.x, grid_position.y) * cell_size + Vector2(cell_size / 2, cell_size / 2)
 				update_grid_position_from_world()
-			else:
-				print("Could not find valid position for manually placed squirrel")
 	
 	# Connect to WorldTurnManager
 	course = _find_course_script()
-	print("Squirrel course reference: ", course.name if course else "None")
 	
 	# Try different paths to find WorldTurnManager
 	var world_turn_manager = null
@@ -122,27 +116,17 @@ func _ready():
 	for path in possible_paths:
 		if course and course.has_node(path):
 			world_turn_manager = course.get_node(path)
-			print("Found WorldTurnManager at path: ", path)
 			break
 	
 	if world_turn_manager:
-		print("Found WorldTurnManager: ", world_turn_manager.name)
 		world_turn_manager.register_npc(self)
-		print("Squirrel registered with WorldTurnManager")
 		world_turn_manager.npc_turn_started.connect(_on_turn_started)
 		world_turn_manager.npc_turn_ended.connect(_on_turn_ended)
 		
 		# Connect turn_completed signal to a debug function
 		turn_completed.connect(_on_turn_completed_debug)
-		print("✓ Squirrel registered with WorldTurnManager and signals connected")
-	else:
-		print("✗ ERROR: Could not register with WorldTurnManager")
-		print("Tried paths: ", possible_paths)
 		if course:
-			print("Course children: ", course.get_children())
 			var npc_node = course.get_node_or_null("NPC")
-			if npc_node:
-				print("NPC node children: ", npc_node.get_children())
 	
 	# Initialize state machine
 	state_machine = StateMachine.new()
@@ -173,14 +157,8 @@ func _set_initial_state() -> void:
 	# Check if player is already within vision range when Squirrel is created
 	if player and "grid_pos" in player:
 		var player_tile_distance = abs(player.grid_pos.x - grid_position.x) + abs(player.grid_pos.y - grid_position.y)
-		print("Initial player distance check:")
-		print("  Squirrel position: ", grid_position)
-		print("  Player position: ", player.grid_pos)
-		print("  Tile distance: ", player_tile_distance)
-		print("  Vision range: ", vision_tile_range)
 		
 		if player_tile_distance <= vision_tile_range:
-			print("✓ Player already within Squirrel vision range on creation - taking 1 damage")
 			take_damage(1, false, player.global_position if player else Vector2.ZERO)
 		else:
 			print("✗ Player outside Squirrel vision range on creation - no damage")
@@ -206,27 +184,18 @@ func setup(pos: Vector2i, cell_size_param: int = 48) -> void:
 	# Note: We don't call update_grid_position_from_world() here because we want to keep
 	# the grid position from the build system, not recalculate it from world position
 	
-	print("Squirrel setup: at ", pos, " with cell_size: ", cell_size)
-	print("Squirrel world position: ", position)
-	
 	# Check if the position is valid
 	if course:
 		var course_bounds = course.get_course_bounds()
-		print("Course bounds during setup: ", course_bounds)
 		var is_valid = _is_position_valid(pos)
-		print("Squirrel position valid: ", is_valid)
 		
 		# If position is invalid, try to find a valid nearby position
 		if not is_valid:
-			print("WARNING: Squirrel placed at invalid position, attempting to find valid nearby position")
 			var valid_pos = _find_nearest_valid_position(pos)
 			if valid_pos != pos:
-				print("Moving squirrel from ", pos, " to valid position ", valid_pos)
 				grid_position = valid_pos
 				position = Vector2(grid_position.x, grid_position.y) * cell_size + Vector2(cell_size / 2, cell_size / 2)
 				update_grid_position_from_world() # Ensure grid_position is synced after moving
-			else:
-				print("Could not find valid position for squirrel")
 	
 	# Force a vision update after setup
 	call_deferred("_check_vision_for_golf_balls")
@@ -250,7 +219,6 @@ func _find_nearest_valid_position(invalid_pos: Vector2i) -> Vector2i:
 					return test_pos
 	
 	# If no valid position found, return the original position
-	print("No valid position found within search radius")
 	return invalid_pos
 
 func _find_course_script() -> Node:
@@ -279,11 +247,6 @@ func _setup_base_collision() -> void:
 		# Connect to area_entered and area_exited signals for collision detection
 		base_collision_area.connect("area_entered", _on_base_area_entered)
 		base_collision_area.connect("area_exited", _on_area_exited)
-		print("✓ Squirrel body collision area setup complete")
-		print("✓ Body area collision layer: ", base_collision_area.collision_layer)
-		print("✓ Body area collision mask: ", base_collision_area.collision_mask)
-		print("✓ Body area monitorable: ", base_collision_area.monitorable)
-		print("✓ Body area monitoring: ", base_collision_area.monitoring)
 	else:
 		print("✗ ERROR: BodyArea2D not found!")
 	
@@ -300,10 +263,6 @@ func _setup_base_collision() -> void:
 		vision_area.connect("area_entered", _on_vision_area_entered)
 		vision_area.connect("area_exited", _on_vision_area_exited)
 		print("✓ Squirrel vision area setup complete")
-		print("✓ Vision area collision layer: ", vision_area.collision_layer)
-		print("✓ Vision area collision mask: ", vision_area.collision_mask)
-		print("✓ Vision area monitorable: ", vision_area.monitorable)
-		print("✓ Vision area monitoring: ", vision_area.monitoring)
 	else:
 		print("✗ ERROR: VisionArea2D not found!")
 
@@ -401,12 +360,6 @@ func has_detected_golf_ball() -> bool:
 	# Check if we have a valid nearest golf ball
 	var has_ball = nearest_golf_ball != null and is_instance_valid(nearest_golf_ball)
 	
-	print("=== SQUIRREL BALL DETECTION CHECK ===")
-	print("Squirrel: ", name, " at grid position: ", grid_position)
-	print("Detected balls count: ", detected_golf_balls.size())
-	print("Nearest ball: ", nearest_golf_ball.name if nearest_golf_ball else "None")
-	print("Has ball detected: ", has_ball)
-	print("=== END BALL DETECTION CHECK ===")
 	
 	return has_ball
 
@@ -446,7 +399,6 @@ func _find_player_reference() -> void:
 		if course.has_method("get_player_reference"):
 			player = course.get_player_reference()
 			if player:
-				print("✓ Squirrel found player reference via course.get_player_reference(): ", player.name)
 				_connect_to_player_movement()
 				return
 			else:
@@ -463,9 +415,6 @@ func _find_player_reference() -> void:
 		for path in possible_paths:
 			player = course.get_node_or_null(path)
 			if player:
-				print("✓ Squirrel found player reference via path '", path, "': ", player.name)
-				print("Player has moved_to_tile signal: ", player.has_signal("moved_to_tile"))
-				print("Player has grid_pos property: ", "grid_pos" in player)
 				if "grid_pos" in player:
 					print("Player grid_pos: ", player.grid_pos)
 				# Connect to player's movement signal
@@ -495,8 +444,6 @@ func _find_player_reference() -> void:
 					return
 		
 		print("✗ ERROR: Player not found via any method!")
-		print("Tried paths: ", possible_paths)
-		print("Course children: ", course.get_children())
 		
 		# Check if CameraContainer exists and what's in it
 		var camera_container = course.get_node_or_null("CameraContainer")
@@ -545,12 +492,6 @@ func _on_player_moved_to_tile(new_grid_pos: Vector2i) -> void:
 	
 	# Calculate tile distance between squirrel and new player position
 	var tile_distance = abs(new_grid_pos.x - grid_position.x) + abs(new_grid_pos.y - grid_position.y)
-	
-	print("=== SQUIRREL PLAYER MOVEMENT CHECK ===")
-	print("Squirrel: ", name, " at grid position: ", grid_position)
-	print("Player moved from: ", previous_player_grid_pos, " to: ", new_grid_pos)
-	print("Tile distance to player: ", tile_distance)
-	print("Vision tile range: ", vision_tile_range)
 	
 	# Check if player moved within vision range
 	if tile_distance <= vision_tile_range:

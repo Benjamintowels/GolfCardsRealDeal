@@ -386,17 +386,14 @@ func _create_fire_tile_at_explosion_position():
 	
 	# Check if this tile is already on fire or has been scorched
 	if _is_tile_on_fire_or_scorched(tile_pos):
-		print("Tile already on fire/scorched at", tile_pos, "- skipping fire tile creation")
 		return
 	
 	# Check if this is a grass tile that can catch fire
 	var tile_type = _get_tile_type(tile_pos)
 	if not _is_grass_tile(tile_type):
-		print("Not a grass tile at", tile_pos, "(", tile_type, ") - skipping fire tile creation")
 		return
 	
 	# Create fire tile
-	print("Creating fire tile at explosion position:", tile_pos, "on tile type:", tile_type)
 	
 	var fire_tile_scene = preload("res://Particles/FireTile.tscn")
 	var fire_tile = fire_tile_scene.instantiate()
@@ -407,7 +404,6 @@ func _create_fire_tile_at_explosion_position():
 	# Find the camera container to add the fire tile to (so it moves with the world)
 	var camera_container = _find_camera_container()
 	if not camera_container:
-		print("Could not find camera container - adding fire tile to current scene")
 		get_tree().current_scene.add_child(fire_tile)
 	else:
 		# Add to camera container so it moves with the world
@@ -428,7 +424,6 @@ func _create_fire_tile_at_explosion_position():
 	# Connect to completion signal
 	fire_tile.fire_tile_completed.connect(_on_fire_tile_completed)
 	
-	print("Fire tile created successfully at:", tile_pos, "z_index:", fire_tile.z_index)
 
 func _is_tile_on_fire_or_scorched(tile_pos: Vector2i) -> bool:
 	"""Check if a tile is currently on fire or has been scorched"""
@@ -499,5 +494,4 @@ func _on_fire_tile_completed(tile_pos: Vector2i) -> void:
 	# We just need to notify the map manager that this tile is now scorched
 	var map_manager = _find_map_manager()
 	if map_manager and map_manager.has_method("set_tile_scorched"):
-		map_manager.set_tile_scorched(tile_pos.x, tile_pos.y)
-		print("Tile marked as scorched at:", tile_pos) 
+		map_manager.set_tile_scorched(tile_pos.x, tile_pos.y) 

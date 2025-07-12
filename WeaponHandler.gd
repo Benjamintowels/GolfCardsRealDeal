@@ -98,11 +98,8 @@ func set_movement_controller(controller: Node) -> void:
 	movement_controller = controller
 
 func _on_weapon_card_pressed(card: CardData, button: TextureButton) -> void:
-	print("=== WEAPON CARD PRESSED ===")
-	print("Card:", card.name, "Effect type:", card.effect_type)
 	
 	if selected_card == card:
-		print("Card already selected, returning")
 		return
 	card_click_sound.play()
 	
@@ -110,25 +107,20 @@ func _on_weapon_card_pressed(card: CardData, button: TextureButton) -> void:
 	active_button = button
 	selected_card = card
 	
-	print("Weapon mode set to true, selected_card:", selected_card.name)
-	
 	# Discard the card immediately
 	if deck_manager.hand.has(selected_card):
 		deck_manager.discard(selected_card)
 		card_stack_display.animate_card_discard(selected_card.name)
 		emit_signal("card_discarded", selected_card)
-		print("Card discarded from hand")
 	
 	# Clean up the button
 	cleanup_weapon_card_button()
 	
 	# Enter weapon aiming mode
-	print("Entering weapon aiming mode...")
 	enter_weapon_aiming_mode()
 	
 	emit_signal("weapon_mode_entered")
 	emit_signal("card_selected", card)
-	print("=== END WEAPON CARD PRESSED ===")
 
 func enter_weapon_aiming_mode() -> void:
 	"""Enter weapon aiming mode with mouse tracking"""
@@ -459,47 +451,33 @@ func show_grenade_aiming_instruction() -> void:
 
 func create_weapon_instance() -> void:
 	"""Create the weapon instance (pistol, knife, burst shot, shotgun, or grenade) in front of the player"""
-	print("=== CREATE WEAPON INSTANCE ===")
-	print("Selected card:", selected_card.name if selected_card else "None")
-	print("Current weapon_instance:", weapon_instance != null)
 	
 	if weapon_instance:
-		print("Clearing existing weapon instance")
 		weapon_instance.queue_free()
 	
 	# Determine which weapon to create based on the selected card
 	var weapon_scene = pistol_scene  # Default to pistol
 	if selected_card and selected_card.name == "Throwing Knife":
 		weapon_scene = throwing_knife_scene
-		print("Creating throwing knife")
 	elif selected_card and selected_card.name == "GrenadeCard":
 		weapon_scene = grenade_scene
-		print("Creating grenade")
 	elif selected_card and selected_card.name == "GrenadeLauncherWeaponCard":
 		weapon_scene = grenade_launcher_scene
-		print("Creating grenade launcher weapon")
 	elif selected_card and selected_card.name == "BurstShot":
 		weapon_scene = burst_shot_scene
-		print("Creating burst shot")
 	elif selected_card and selected_card.name == "ShotgunCard":
 		weapon_scene = shotgun_scene
-		print("Creating shotgun")
 	elif selected_card and selected_card.name == "SniperCard":
 		weapon_scene = sniper_scene
-		print("Creating sniper")
 	elif selected_card and selected_card.name == "SpearCard":
 		weapon_scene = spear_scene
-		print("Creating spear")
 	else:
-		print("Creating default pistol")
+		weapon_scene = pistol_scene # Fallback to pistol
 	
-	print("Instantiating weapon scene...")
 	weapon_instance = weapon_scene.instantiate()
-	print("Weapon instance created:", weapon_instance != null)
 	
 	if weapon_instance and player_node:
 		player_node.add_child(weapon_instance)
-		print("Weapon added to player node")
 		
 		# Reset weapon sprite flip state
 		var weapon_sprite = weapon_instance.get_node_or_null("Sprite2D")
@@ -510,11 +488,8 @@ func create_weapon_instance() -> void:
 		# Position the weapon closer to the player's hands with the specified offset
 		var weapon_offset = Vector2(-37.955, 0)  # Closer to player's hands
 		weapon_instance.position = weapon_offset
-		print("Weapon positioned at offset:", weapon_offset)
 	else:
-		print("ERROR: Could not create weapon instance or player_node is null")
-	
-	print("=== END CREATE WEAPON INSTANCE ===")
+		printerr("ERROR: Could not create weapon instance or player_node is null")
 
 func show_grenade_launcher_weapon() -> void:
 	"""Show the GrenadeLauncher weapon when GrenadeLauncherClubCard is selected"""
@@ -572,7 +547,6 @@ func freeze_grenade_launcher() -> void:
 	
 	# Set frozen state
 	grenade_launcher_frozen = true
-	print("Grenade launcher frozen at rotation:", frozen_rotation, " flip_h:", frozen_flip_h, " flip_v:", frozen_flip_v)
 
 func update_weapon_rotation() -> void:
 	"""Update weapon rotation to follow mouse and position based on player direction"""
@@ -1209,7 +1183,6 @@ func launch_grenade_launcher() -> void:
 	# Don't exit weapon mode immediately - let the grenade landing handlers clear the weapon
 	# This allows the weapon to stay visible during the grenade's flight
 	# The weapon will be cleared when the grenade lands/explodes
-	print("GrenadeLauncherWeaponCard: Keeping weapon visible during grenade flight")
 	
 	# Reset weapon mode state but keep the weapon instance
 	is_weapon_mode = false

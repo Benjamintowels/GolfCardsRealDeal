@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="BushData" load_steps=4 format=3 uid="uid://c4negnj2sn3mr"]
+
+[ext_resource type="Script" path="res://Obstacles/BushData.gd" id="1_7lbx0"]
+[ext_resource type="AudioStream" uid="uid://c72rjrdcq46a6" path="res://Sounds/LeavesRustle.mp3" id="1_58160"]
+[ext_resource type="Texture2D" uid="uid://bxonhwa77hsew" path="res://Obstacles/SummerBush1.png" id="3_pkl41"]
+
+[resource]
+script = ExtResource("1_7lbx0")
+name = "SummerBush1"
+sprite_texture = ExtResource("3_pkl41")
+rarity = 1.0
+description = "A bush"
+collision_radius = 38.0
+height = 25.0
+velocity_damping_factor = 0.6
+leaves_rustle_sound = ExtResource("1_58160")
+seasonal_variant = "summer"
+is_dense = true
+wind_resistance = 1.0

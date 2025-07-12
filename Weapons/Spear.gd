@@ -614,7 +614,6 @@ func _physics_process(delta: float):
 	
 	# Update horizontal position
 	position += velocity * delta
-	print("Spear physics - position: ", position, " velocity: ", velocity, " z: ", z, " vz: ", vz)
 	
 	# Update Y-sort for proper layering
 	update_y_sort()
@@ -669,16 +668,13 @@ func _physics_process(delta: float):
 				
 				# Emit landed signals
 				emit_signal("spear_landed", global_position)
-				print("Spear landing - map_manager: ", map_manager, " global_position: ", global_position)
 				
 				# Emit landed signal for course compatibility (convert position to tile)
 				if map_manager and map_manager.has_method("world_to_map"):
 					var final_tile = map_manager.world_to_map(position)
-					print("Spear landed at tile: ", final_tile)
 					emit_signal("landed", final_tile)
 				else:
 					# Fallback if no map manager or no world_to_map method
-					print("Spear using fallback - no map_manager")
 					emit_signal("landed", Vector2i.ZERO)
 				
 				# Check for target hits

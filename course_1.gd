@@ -288,7 +288,6 @@ var placed_objects: Array[Vector2i] = []  # Track placed objects for spacing rul
 # Add these functions before build_map_from_layout_with_randomization
 func clear_existing_objects() -> void:
 	"""Clear all existing objects (trees, shop, etc.) from the map"""
-	print("Clearing existing objects...")
 	
 	var objects_removed = 0
 	
@@ -338,15 +337,12 @@ func clear_existing_objects() -> void:
 	for pos in keys_to_remove:
 		obstacle_map.erase(pos)
 	
-	print("Removed", keys_to_remove.size(), "object entries from obstacle_map")
 	
 	# Clear ysort_objects (including Pin now)
 	var ysort_count = ysort_objects.size()
 	ysort_objects.clear()
 	placed_objects.clear()
 	
-	print("Cleared", ysort_count, "ysort objects")
-	print("Objects cleared. Remaining obstacles:", obstacle_map.size())
 
 func _get_tee_area_center() -> Vector2:
 	var tee_positions: Array[Vector2i] = []
@@ -398,7 +394,6 @@ func _ready() -> void:
 	
 	if Global.putt_putt_mode:
 		print("=== PUTT PUTT MODE ENABLED ===")
-		print("Only putters will be available for club selection")
 		print("Available putters:", deck_manager.club_draw_pile.filter(func(card): 
 			var club_info = club_data.get(card.name, {})
 			return club_info.get("is_putter", false)

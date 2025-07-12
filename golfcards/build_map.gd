@@ -250,7 +250,6 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 	# Get all valid positions within 5 tiles of any tree
 	var squirrel_candidate_positions: Array = []
 	for tree_pos in positions.trees:
-		print("Checking positions around tree at:", tree_pos)
 		for dy in range(-5, 6):  # -5 to +5 inclusive
 			for dx in range(-5, 6):  # -5 to +5 inclusive
 				var candidate_pos = tree_pos + Vector2i(dx, dy)
@@ -264,11 +263,7 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 					# Check if not already in candidate list
 					if candidate_pos not in squirrel_candidate_positions:
 						squirrel_candidate_positions.append(candidate_pos)
-						print("  Added candidate position:", candidate_pos)
-				else:
-					print("  Rejected position:", candidate_pos, "tile type:", layout[candidate_pos.y][candidate_pos.x])
 	
-	print("Found", squirrel_candidate_positions.size(), "candidate positions for squirrels")
 	
 	# Randomly select positions for squirrels
 	while squirrels_placed < max_squirrels and squirrel_candidate_positions.size() > 0:
@@ -288,14 +283,8 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 			positions.squirrels.append(squirrel_pos)
 			placed_objects.append(squirrel_pos)
 			squirrels_placed += 1
-			print("✓ Squirrel placed at position:", squirrel_pos)
-		else:
-			print("  Squirrel placement failed for position:", squirrel_pos)
 		
 		squirrel_candidate_positions.remove_at(squirrel_index)
-	
-	print("✓ Placed", squirrels_placed, "squirrels around trees")
-	print("=== END PLACING SQUIRRELS ===")
 	
 	# Place Boulders on remaining base tiles (after trees)
 	var num_boulders = 4  # Place 4 boulders per hole
@@ -631,6 +620,16 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 	# Place Bushes
 	print("=== PLACING BUSHES ===")
 	print("Bush positions:", object_positions.bushes)
+	
+	# Get BushManager for random bush variations
+	var bush_manager = get_node_or_null("/root/BushManager")
+	if not bush_manager:
+		# Create BushManager if it doesn't exist
+		var BushManager = preload("res://Obstacles/BushManager.gd")
+		bush_manager = BushManager.new()
+		get_tree().root.add_child(bush_manager)
+		bush_manager.name = "BushManager"
+	
 	for bush_pos in object_positions.bushes:
 		var scene: PackedScene = object_scene_map["BUSH"]
 		if scene == null:
@@ -647,6 +646,10 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 			print("✓ Bush script path:", bush.get_script().resource_path)
 		else:
 			print("✗ Bush script is null!")
+		
+		# Store bush data for later application (after adding to scene tree)
+		var bush_data = bush_manager.get_random_bush_data()
+		
 		var world_pos: Vector2 = Vector2(bush_pos.x, bush_pos.y) * cell_size
 		bush.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
 		
@@ -670,6 +673,15 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		obstacle_layer.add_child(bush)
 		print("✓ Bush added to obstacle_layer")
 		print("✓ Bush is in scene tree:", bush.is_inside_tree())
+		
+		# Apply bush variety after adding to scene tree
+		if bush_data:
+			# Use call_deferred to ensure the bush is fully in the scene tree
+			bush.call_deferred("set_bush_data", bush_data)
+			print("✓ Deferred bush variety application:", bush_data.name)
+		else:
+			print("✗ No bush data available")
+		
 		print("✓ Bush placed at grid position:", bush_pos, "world position:", world_pos)
 		print("✓ Bush name:", bush.name)
 		print("✓ Bush grid_position property:", bush.get_meta("grid_position") if bush.get_meta("grid_position") != null else "null")
@@ -849,10 +861,6 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		
 		ysort_objects.append({"node": oil_drum, "grid_pos": oil_pos})
 		obstacle_layer.add_child(oil_drum)
-		print("✓ Oil Drum placed at grid position:", oil_pos, "world position:", world_pos)
-		print("✓ Oil Drum name:", oil_drum.name)
-		print("✓ Oil Drum grid_position property:", oil_drum.get_meta("grid_position") if oil_drum.get_meta("grid_position") != null else "null")
-		print("✓ Oil Drum has meta grid_position:", oil_drum.has_meta("grid_position"))
 		if oil_drum.has_meta("grid_position"):
 			print("✓ Oil Drum meta grid_position:", oil_drum.get_meta("grid_position"))
 	print("=== END PLACING OIL DRUMS ===")
@@ -865,7 +873,6 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		if scene == null:
 			push_error("🚫 StoneWall scene is null")
 			continue
-		print("✓ StoneWall scene loaded successfully")
 		var stone_wall: Node2D = scene.instantiate() as Node2D
 		if stone_wall == null:
 			push_error("❌ StoneWall instantiation failed at (%d,%d)" % [wall_pos.x, wall_pos.y])
@@ -876,7 +883,6 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		
 		# Always set the grid_position property unconditionally
 		stone_wall.set_meta("grid_position", wall_pos)
-		print("✓ Set stone wall grid_position to:", wall_pos)
 		
 		# Add stone wall to groups for smart optimization
 		stone_wall.add_to_group("obstacles")
@@ -887,15 +893,9 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		obstacle_layer.add_child(stone_wall)
 		if stone_wall.has_method("blocks") and stone_wall.blocks():
 			obstacle_map[wall_pos] = stone_wall
-		print("✓ StoneWall placed at grid position:", wall_pos, "world position:", world_pos)
-		print("✓ StoneWall name:", stone_wall.name)
-		print("✓ StoneWall grid_position property:", stone_wall.get_meta("grid_position") if stone_wall.get_meta("grid_position") != null else "null")
 	print("=== END PLACING STONE WALLS ===")
 	
 	# Place Squirrels
-	print("=== PLACING SQUIRRELS ===")
-	print("Squirrel positions:", object_positions.squirrels)
-	print("Squirrel scene map key exists:", "SQUIRREL" in object_scene_map)
 	if "SQUIRREL" in object_scene_map:
 		print("Squirrel scene:", object_scene_map["SQUIRREL"])
 	

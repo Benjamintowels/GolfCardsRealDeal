@@ -52,15 +52,12 @@ func _ready():
 	
 	# Deal damage to objects on this tile and adjacent tiles
 	call_deferred("_deal_fire_damage")
-	
-	print("FireTile ready - z_index:", z_index, "position:", global_position, "tile_position:", tile_position)
 
 func _find_original_tile_sprite():
 	"""Find and store reference to the original tile sprite at this position"""
 	# Find the course to access the obstacle map
 	var course = get_tree().current_scene
 	if not course:
-		print("Could not find course for tile sprite reference")
 		return
 	
 	# Check if course has obstacle_map
@@ -70,13 +67,12 @@ func _find_original_tile_sprite():
 			var tile = obstacle_map[tile_position]
 			if tile and tile.has_node("Sprite2D"):
 				original_tile_sprite = tile.get_node("Sprite2D")
-				print("Found original tile sprite for scorched earth at:", tile_position)
 			else:
-				print("Tile at", tile_position, "does not have Sprite2D child")
+				pass
 		else:
-			print("No tile found in obstacle_map at position:", tile_position)
+			pass
 	else:
-		print("Course does not have obstacle_map property")
+		pass
 
 func _create_scorched_overlay():
 	"""Create the scorched earth overlay (kept for compatibility but not used)"""
@@ -140,9 +136,8 @@ func _transition_to_scorched():
 	if original_tile_sprite:
 		# Apply a dark brown tint to simulate scorched earth
 		original_tile_sprite.modulate = Color(0.3, 0.2, 0.1, 1.0)  # Dark brown tint
-		print("Applied scorched earth effect to tile sprite at:", tile_position)
 	else:
-		print("No original tile sprite found for scorched earth effect at:", tile_position)
+		pass
 		# Fallback to overlay if no tile sprite found
 		if scorched_overlay:
 			scorched_overlay.visible = true
@@ -172,8 +167,6 @@ func _update_y_sort():
 	
 	# Set the z_index
 	self.z_index = z_index
-	
-	print("Fire tile Y-sort updated - position:", world_position, "z_index:", z_index)
 
 func _deal_fire_damage():
 	"""Deal damage to objects on the fire tile and adjacent tiles"""
@@ -189,8 +182,6 @@ func _deal_fire_damage():
 	var adjacent_positions = _get_adjacent_positions(tile_position)
 	for adj_pos in adjacent_positions:
 		_deal_damage_to_objects_at_position(adj_pos, ADJACENT_TILE_DAMAGE)
-	
-	print("Fire tile damage dealt at position:", tile_position)
 
 func _get_adjacent_positions(pos: Vector2i) -> Array[Vector2i]:
 	"""Get all adjacent positions to the given position"""
@@ -225,7 +216,6 @@ func _deal_damage_to_objects_at_position(pos: Vector2i, damage: int):
 			var player = course.get_node_or_null("Player")
 			if player and player.has_method("take_damage"):
 				player.take_damage(damage)
-				print("Player took", damage, "fire damage at position:", pos)
 	
 	# Check for NPCs at this position
 	var entities = course.get_node_or_null("Entities")
@@ -236,7 +226,6 @@ func _deal_damage_to_objects_at_position(pos: Vector2i, damage: int):
 				if npc.get_grid_position() == pos:
 					if npc.has_method("take_damage"):
 						npc.take_damage(damage)
-						print("NPC", npc.name, "took", damage, "fire damage at position:", pos)
 	
 	# Check for other objects with health (like oil drums)
 	var interactables = get_tree().get_nodes_in_group("interactables")
@@ -245,4 +234,3 @@ func _deal_damage_to_objects_at_position(pos: Vector2i, damage: int):
 			if interactable.get_grid_position() == pos:
 				if interactable.has_method("take_damage"):
 					interactable.take_damage(damage)
-					print("Object", interactable.name, "took", damage, "fire damage at position:", pos)

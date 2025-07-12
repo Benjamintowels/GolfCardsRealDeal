@@ -43,15 +43,12 @@ func _ready():
 	
 	# Apply zero friction to this tile
 	call_deferred("_apply_ice_friction")
-	
-	print("IceTile ready - z_index:", z_index, "position:", global_position, "tile_position:", tile_position)
 
 func _find_original_tile_sprite():
 	"""Find and store reference to the original tile sprite at this position"""
 	# Find the course to access the obstacle map
 	var course = get_tree().current_scene
 	if not course:
-		print("Could not find course for tile sprite reference")
 		return
 	
 	# Check if course has obstacle_map
@@ -61,7 +58,6 @@ func _find_original_tile_sprite():
 			var tile = obstacle_map[tile_position]
 			if tile and tile.has_node("Sprite2D"):
 				original_tile_sprite = tile.get_node("Sprite2D")
-				print("Found original tile sprite for frozen effect at:", tile_position)
 			else:
 				print("Tile at", tile_position, "does not have Sprite2D child")
 		else:
@@ -85,7 +81,6 @@ func _show_ice_effect():
 	if original_tile_sprite:
 		# Apply a more pronounced blue tint to simulate ice
 		original_tile_sprite.modulate = Color(0.6, 0.8, 1.0, 1.0)  # More blue tint
-		print("Applied ice effect to tile sprite at:", tile_position)
 	else:
 		print("No original tile sprite found for ice effect at:", tile_position)
 		# Fallback to overlay if no tile sprite found
@@ -134,8 +129,6 @@ func _update_y_sort():
 	
 	# Set the z_index
 	self.z_index = z_index
-	
-	print("Ice tile Y-sort updated - position:", world_position, "z_index:", z_index)
 
 func _apply_ice_friction():
 	"""Apply zero friction to this tile"""
@@ -148,7 +141,6 @@ func _apply_ice_friction():
 	var map_manager = _find_map_manager()
 	if map_manager and map_manager.has_method("set_tile_iced"):
 		map_manager.set_tile_iced(tile_position.x, tile_position.y)
-		print("Ice tile friction applied at position:", tile_position)
 
 func _find_map_manager() -> Node:
 	"""Find the map manager in the scene"""

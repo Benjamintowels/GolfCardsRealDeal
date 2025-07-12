@@ -133,14 +133,6 @@ func initialize_available_cards():
 			1: tier_1_count += 1
 			2: tier_2_count += 1
 			3: tier_3_count += 1
-	
-	# Debug output
-	print("=== AVAILABLE CARDS INITIALIZED ===")
-	print("Base cards: ", base_cards.size())
-	print("Total available cards (including upgrades): ", available_cards.size())
-	print("Tier 1 cards: ", tier_1_count)
-	print("Tier 2 cards: ", tier_2_count)
-	print("Tier 3 cards: ", tier_3_count)
 
 func create_upgraded_card(base_card: CardData, level: int) -> CardData:
 	"""Create an upgraded version of a base card"""
@@ -881,7 +873,6 @@ func handle_reward_selection(reward_data: Resource, reward_type: String):
 		visible = false
 	else:
 		# Bag is full - trigger replacement system
-		print("RewardSelectionDialog: Bag is full, triggering replacement system")
 		trigger_replacement_system(reward_data, reward_type)
 
 func trigger_replacement_system(reward_data: Resource, reward_type: String):
@@ -968,7 +959,6 @@ func _on_replacement_completed(reward_data: Resource, reward_type: String):
 
 func _on_replacement_cancelled():
 	"""Called when replacement is cancelled"""
-	print("RewardSelectionDialog: Replacement cancelled")
 	# Show the reward selection dialog again
 	visible = true
 	# Re-enable reward buttons
