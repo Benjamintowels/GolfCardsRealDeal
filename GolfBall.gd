@@ -468,6 +468,20 @@ func _process(delta):
 	# Only check for tree collisions when ball is in the air (during launch mode)
 	if z > 0.0:
 		check_nearby_tree_collisions()
+	# Bush collisions are now handled through proper Area2D collision detection
+	# No need for distance-based checking
+	
+	# DEBUG: Check if there are any bushes in the scene
+	if Time.get_ticks_msec() % 1000 < 16:  # Only check every ~1 second to avoid spam
+		var bushes = get_tree().get_nodes_in_group("bushes")
+		if bushes.size() > 0:
+			print("DEBUG: Found", bushes.size(), "bushes in scene")
+			for bush in bushes:
+				var distance = global_position.distance_to(bush.global_position)
+				if distance < 200:  # Only show nearby bushes
+					print("  Bush at", bush.global_position, "distance:", distance)
+		else:
+			print("DEBUG: No bushes found in scene")
 	
 	# Update vertical physics (arc and bounce)
 	if z > 0.0:
@@ -1168,6 +1182,16 @@ func _on_area_entered(area):
 		_handle_roof_bounce_collision(area.get_parent())
 		# Notify course to re-enable player collision since ball hit boulder
 		notify_course_of_collision()
+	# Check if this is a Bush collision
+	elif area.get_parent() and area.get_parent().has_method("_handle_bush_collision"):
+		print("=== GOLFBALL BUSH COLLISION DETECTED ===")
+		print("Area parent:", area.get_parent().name)
+		print("Area parent type:", area.get_parent().get_class())
+		# Bush collision detected - use bush velocity damping system
+		_handle_bush_collision(area.get_parent())
+		# Notify course to re-enable player collision since ball hit bush
+		notify_course_of_collision()
+		print("=== END GOLFBALL BUSH COLLISION ===")
 
 
 func _on_area_exited(area):
@@ -1340,7 +1364,12 @@ func check_nearby_tree_collisions() -> void:
 						# Mark when we last played the sound for this ball-tree combination
 						set_meta(sound_key, current_time)
 
-
+func check_nearby_bush_collisions() -> void:
+	"""Ball checks for nearby bush collisions during flight (distance-based, like tree leaves)"""
+	# REMOVED: Distance-based bush collision detection
+	# Bush collisions are now handled through proper Area2D collision detection
+	# The bush's Area2D will automatically trigger when the ball enters/exits
+	pass
 
 # Simple collision system methods
 func _handle_roof_bounce_collision(object: Node2D) -> void:
@@ -1356,6 +1385,16 @@ func _handle_roof_bounce_collision(object: Node2D) -> void:
 		current_ground_level = object_height
 	else:
 		_reflect_off_object(object)
+
+func _handle_bush_collision(bush: Node2D) -> void:
+	"""
+	Handle collision with bush - uses velocity damping instead of bouncing.
+	"""
+	if not bush or not bush.has_method("_handle_bush_collision"):
+		return
+	
+	# Let the bush handle the collision (velocity damping and sound)
+	bush._handle_bush_collision(self)
 
 func _reflect_off_object(object: Node2D) -> void:
 	"""

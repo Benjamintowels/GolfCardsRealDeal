@@ -262,6 +262,7 @@ var object_scene_map := {
 	"OIL": preload("res://Interactables/OilDrum.tscn"),
 	"WALL": preload("res://Obstacles/StoneWall.tscn"),
 	"BOULDER": preload("res://Obstacles/Boulder.tscn"),
+	"BUSH": preload("res://Obstacles/Bush.tscn"),
 	"ZOMBIE": preload("res://NPC/Zombies/ZombieGolfer.tscn"),
 	"SQUIRREL": preload("res://NPC/Animals/Squirrel.tscn"),
 }
@@ -275,6 +276,7 @@ var object_to_tile_mapping := {
 	"OIL": "Base",
 	"WALL": "Base",
 	"BOULDER": "Base",
+	"BUSH": "Base",
 	"ZOMBIE": "S",
 	"SQUIRREL": "Base",
 }
@@ -3764,6 +3766,8 @@ func restore_game_state():
 			if ball_area:
 				ball_area.collision_layer = 1
 				ball_area.collision_mask = 1  # Collide with layer 1 (trees)
+				print("✓ Ball collision layer set to:", ball_area.collision_layer)
+				print("✓ Ball collision mask set to:", ball_area.collision_mask)
 			launch_manager.golf_ball.collision_layer = 1
 			launch_manager.golf_ball.collision_mask = 1  # Collide with layer 1 (trees)
 			var ball_local_position = Global.saved_ball_position - camera_container.global_position

@@ -1,0 +1,33 @@
+[gd_scene load_steps=5 format=3 uid="uid://dpaepe4khjeko"]
+
+[ext_resource type="Texture2D" uid="uid://bxonhwa77hsew" path="res://Obstacles/SummerBush1.png" id="1_gh3tr"]
+[ext_resource type="Script" uid="uid://u2l56ft34bno" path="res://Obstacles/bush.gd" id="1_upr5p"]
+[ext_resource type="AudioStream" uid="uid://c72rjrdcq46a6" path="res://Sounds/LeavesRustle.mp3" id="3_upr5p"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_upr5p"]
+radius = 38.0501
+
+[node name="Bush" type="Node2D"]
+script = ExtResource("1_upr5p")
+
+[node name="BushSprite" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(0, -21)
+texture = ExtResource("1_gh3tr")
+
+[node name="TopHeight" type="Marker2D" parent="."]
+position = Vector2(0, -43)
+
+[node name="YsortPoint" type="Marker2D" parent="."]
+position = Vector2(0, 5)
+
+[node name="LeavesRustle" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("3_upr5p")
+volume_db = -4.224
+
+[node name="BushArea2D" type="Area2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="BushArea2D"]
+position = Vector2(0, -15)
+scale = Vector2(1, 1.025)
+shape = SubResource("CircleShape2D_upr5p")

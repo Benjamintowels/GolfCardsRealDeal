@@ -169,6 +169,7 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 		"oil_drums": [],
 		"stone_walls": [],
 		"boulders": [],
+		"bushes": [],
 		"police": [],
 		"zombies": [],
 		"squirrels": []
@@ -315,6 +316,27 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 		valid_positions.remove_at(boulder_index)
 	
 	print("✓ Placed", boulders_placed, "boulders on remaining base tiles")
+	
+	# Place Bushes on remaining base tiles (after boulders)
+	var num_bushes = 6  # Place 6 bushes per hole
+	var bushes_placed = 0
+	while bushes_placed < num_bushes and valid_positions.size() > 0:
+		var bush_index = randi() % valid_positions.size()
+		var bush_pos = valid_positions[bush_index]
+		var valid = true
+		for placed_pos in placed_objects:
+			var distance = max(abs(bush_pos.x - placed_pos.x), abs(bush_pos.y - placed_pos.y))
+			if distance < 4:  # Closer spacing than boulders
+				valid = false
+				break
+		if valid:
+			positions.bushes.append(bush_pos)
+			placed_objects.append(bush_pos)
+			bushes_placed += 1
+		valid_positions.remove_at(bush_index)
+	
+	print("✓ Placed", bushes_placed, "bushes on remaining base tiles")
+	print("Bush positions:", positions.bushes)
 	
 	# Place GangMembers on green tiles
 	var green_positions: Array = []
@@ -605,6 +627,53 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		print("✓ Boulder name:", boulder.name)
 		print("✓ Boulder grid_position property:", boulder.get_meta("grid_position") if boulder.get_meta("grid_position") != null else "null")
 	print("=== END PLACING BOULDERS ===")
+	
+	# Place Bushes
+	print("=== PLACING BUSHES ===")
+	print("Bush positions:", object_positions.bushes)
+	for bush_pos in object_positions.bushes:
+		var scene: PackedScene = object_scene_map["BUSH"]
+		if scene == null:
+			push_error("🚫 Bush scene is null")
+			continue
+		print("✓ Bush scene loaded successfully")
+		var bush: Node2D = scene.instantiate() as Node2D
+		if bush == null:
+			push_error("❌ Bush instantiation failed at (%d,%d)" % [bush_pos.x, bush_pos.y])
+			continue
+		print("✓ Bush instantiated successfully")
+		print("✓ Bush script attached:", bush.get_script() != null)
+		if bush.get_script():
+			print("✓ Bush script path:", bush.get_script().resource_path)
+		else:
+			print("✗ Bush script is null!")
+		var world_pos: Vector2 = Vector2(bush_pos.x, bush_pos.y) * cell_size
+		bush.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
+		
+		# Always set the grid_position property unconditionally
+		bush.set_meta("grid_position", bush_pos)
+		print("✓ Set bush grid_position to:", bush_pos)
+		
+		# Add bush to groups for smart optimization
+		bush.add_to_group("bushes")
+		bush.add_to_group("collision_objects")
+		
+		# Verify Area2D collision layers
+		var bush_area = bush.get_node_or_null("BushArea2D")
+		if bush_area:
+			print("✓ Bush Area2D collision layer:", bush_area.collision_layer)
+			print("✓ Bush Area2D collision mask:", bush_area.collision_mask)
+		else:
+			print("✗ Bush Area2D not found")
+		
+		ysort_objects.append({"node": bush, "grid_pos": bush_pos})
+		obstacle_layer.add_child(bush)
+		print("✓ Bush added to obstacle_layer")
+		print("✓ Bush is in scene tree:", bush.is_inside_tree())
+		print("✓ Bush placed at grid position:", bush_pos, "world position:", world_pos)
+		print("✓ Bush name:", bush.name)
+		print("✓ Bush grid_position property:", bush.get_meta("grid_position") if bush.get_meta("grid_position") != null else "null")
+	print("=== END PLACING BUSHES ===")
 	if object_positions.shop != Vector2i.ZERO:
 		var scene: PackedScene = object_scene_map["SHOP"]
 		if scene == null:
