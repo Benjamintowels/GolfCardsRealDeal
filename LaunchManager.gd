@@ -382,6 +382,26 @@ func launch_golf_ball(launch_direction: Vector2, final_power: float, height: flo
 	time_percent = clamp(time_percent, 0.0, 1.0)
 	golf_ball.time_percentage = time_percent
 	
+	# Play launcher sound if using GrenadeLauncherClubCard
+	if selected_club == "GrenadeLauncherClubCard":
+		# Find the weapon instance to play the launcher sound
+		if card_effect_handler and card_effect_handler.course:
+			var course = card_effect_handler.course
+			if course.weapon_handler and is_instance_valid(course.weapon_handler) and course.weapon_handler.weapon_instance and is_instance_valid(course.weapon_handler.weapon_instance):
+				var launcher_sound = course.weapon_handler.weapon_instance.get_node_or_null("Launcher")
+				if launcher_sound:
+					launcher_sound.play()
+					print("Playing GrenadeLauncherClubCard launcher sound for golf ball launch")
+					
+					# Clear the aiming circle/reticle when launcher sound plays
+					if course.has_method("hide_aiming_circle"):
+						course.hide_aiming_circle()
+						print("Cleared aiming circle when launcher sound played")
+				else:
+					print("Warning: Launcher sound not found on grenade launcher weapon")
+			else:
+				print("Warning: Weapon handler or weapon instance not found for GrenadeLauncherClubCard")
+	
 	# Launch the ball
 	golf_ball.launch(launch_direction, final_power, height, launch_spin, spin_strength_category)
 	
@@ -554,6 +574,26 @@ func launch_grenade(launch_direction: Vector2, final_power: float, height: float
 	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
 	var player_center = player_node.global_position + player_size / 2
 	var direction = (chosen_landing_spot - player_center).normalized()
+	
+	# Play launcher sound if using GrenadeLauncherClubCard
+	if selected_club == "GrenadeLauncherClubCard":
+		# Find the weapon instance to play the launcher sound
+		if card_effect_handler and card_effect_handler.course:
+			var course = card_effect_handler.course
+			if course.weapon_handler and is_instance_valid(course.weapon_handler) and course.weapon_handler.weapon_instance and is_instance_valid(course.weapon_handler.weapon_instance):
+				var launcher_sound = course.weapon_handler.weapon_instance.get_node_or_null("Launcher")
+				if launcher_sound:
+					launcher_sound.play()
+					print("Playing GrenadeLauncherClubCard launcher sound at launch moment")
+					
+					# Clear the aiming circle/reticle when launcher sound plays
+					if course.has_method("hide_aiming_circle"):
+						course.hide_aiming_circle()
+						print("Cleared aiming circle when launcher sound played")
+				else:
+					print("Warning: Launcher sound not found on grenade launcher weapon")
+			else:
+				print("Warning: Weapon handler or weapon instance not found for GrenadeLauncherClubCard")
 	
 	# Launch the grenade
 	self.grenade.launch(direction, final_power, height, launch_spin, spin_strength_category)

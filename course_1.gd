@@ -1608,6 +1608,28 @@ func _on_golf_ball_landed(tile: Vector2i):
 	camera_following_ball = false
 	ball_landing_tile = tile
 	
+	# Hide grenade launcher weapon now that golf ball has landed (if using GrenadeLauncherClubCard)
+	print("Golf ball landed - checking weapon handler:", weapon_handler != null, " weapon_instance:", weapon_handler.weapon_instance != null if weapon_handler else "N/A", " selected_club:", selected_club)
+	
+	# Check if we have a grenade launcher weapon instance (either by club or by weapon type)
+	var should_hide_weapon = false
+	if weapon_handler and weapon_handler.weapon_instance:
+		# Check if it's a grenade launcher by scene name
+		var weapon_scene_name = weapon_handler.weapon_instance.scene_file_path
+		if weapon_scene_name and "GrenadeLauncher" in weapon_scene_name:
+			should_hide_weapon = true
+			print("Detected grenade launcher by scene name:", weapon_scene_name)
+		elif selected_club == "GrenadeLauncherClubCard":
+			should_hide_weapon = true
+			print("Detected grenade launcher by club selection")
+		elif weapon_handler.selected_card and weapon_handler.selected_card.name == "GrenadeLauncherWeaponCard":
+			should_hide_weapon = true
+			print("Detected grenade launcher by weapon card selection")
+	
+	if should_hide_weapon:
+		print("Hiding grenade launcher weapon after golf ball landing")
+		weapon_handler.hide_weapon()
+	
 	# Reset ball in flight state in launch manager
 	if launch_manager and launch_manager.has_method("set_ball_in_flight"):
 		launch_manager.set_ball_in_flight(false)
@@ -1626,18 +1648,30 @@ func _on_golf_ball_landed(tile: Vector2i):
 		# Normal landing - ball still exists
 		ball_landing_position = launch_manager.golf_ball.global_position
 		waiting_for_player_to_reach_ball = true
-		var sprite = player_node.get_node_or_null("Sprite2D")
-		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
-		var player_center = player_node.global_position + player_size / 2
-		var player_start_pos = player_center
-		var ball_landing_pos = launch_manager.golf_ball.global_position
-		drive_distance = player_start_pos.distance_to(ball_landing_pos)
-		var dialog_timer = get_tree().create_timer(0.5)  # Reduced from 1.5 to 0.5 second delay
-		dialog_timer.timeout.connect(func():
-			show_drive_distance_dialog()
-		)
-		game_phase = "move"
-		_update_player_mouse_facing_state()
+		
+		# Check if player is already on the landing tile
+		if player_grid_pos == ball_landing_tile:
+			print("Player is already on the ball landing tile - showing club cards immediately")
+			# Player is already on the ball tile - show "Draw Club Cards" button immediately
+			if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball) and launch_manager.golf_ball.has_method("remove_landing_highlight"):
+				launch_manager.golf_ball.remove_landing_highlight()
+			
+			# Show the "Draw Club Cards" button instead of waiting for movement
+			show_draw_club_cards_button()
+		else:
+			# Player needs to move to the ball - show drive distance dialog
+			var sprite = player_node.get_node_or_null("Sprite2D")
+			var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
+			var player_center = player_node.global_position + player_size / 2
+			var player_start_pos = player_center
+			var ball_landing_pos = launch_manager.golf_ball.global_position
+			drive_distance = player_start_pos.distance_to(ball_landing_pos)
+			var dialog_timer = get_tree().create_timer(0.5)  # Reduced from 1.5 to 0.5 second delay
+			dialog_timer.timeout.connect(func():
+				show_drive_distance_dialog()
+			)
+			game_phase = "move"
+			_update_player_mouse_facing_state()
 	else:
 		# Ball went in the hole - don't show drive distance dialog
 		# The hole completion dialog will be shown by the pin's hole_in_one signal
@@ -2515,6 +2549,22 @@ func _on_golf_ball_out_of_bounds():
 		water_plunk_sound.play()
 	camera_following_ball = false
 	
+	# Hide grenade launcher weapon now that golf ball has gone out of bounds (if using GrenadeLauncherClubCard)
+	# Check if we have a grenade launcher weapon instance (either by club or by weapon type)
+	var should_hide_weapon = false
+	if weapon_handler and weapon_handler.weapon_instance:
+		# Check if it's a grenade launcher by scene name
+		var weapon_scene_name = weapon_handler.weapon_instance.scene_file_path
+		if weapon_scene_name and "GrenadeLauncher" in weapon_scene_name:
+			should_hide_weapon = true
+		elif selected_club == "GrenadeLauncherClubCard":
+			should_hide_weapon = true
+		elif weapon_handler.selected_card and weapon_handler.selected_card.name == "GrenadeLauncherWeaponCard":
+			should_hide_weapon = true
+	
+	if should_hide_weapon:
+		weapon_handler.hide_weapon()
+	
 	# Reset ball in flight state in launch manager
 	if launch_manager and launch_manager.has_method("set_ball_in_flight"):
 		launch_manager.set_ball_in_flight(false)
@@ -2660,6 +2710,22 @@ func _on_golf_ball_sand_landing():
 		sand_thunk_sound.play()
 	
 	camera_following_ball = false
+	
+	# Hide grenade launcher weapon now that golf ball has landed in sand (if using GrenadeLauncherClubCard)
+	# Check if we have a grenade launcher weapon instance (either by club or by weapon type)
+	var should_hide_weapon = false
+	if weapon_handler and weapon_handler.weapon_instance:
+		# Check if it's a grenade launcher by scene name
+		var weapon_scene_name = weapon_handler.weapon_instance.scene_file_path
+		if weapon_scene_name and "GrenadeLauncher" in weapon_scene_name:
+			should_hide_weapon = true
+		elif selected_club == "GrenadeLauncherClubCard":
+			should_hide_weapon = true
+		elif weapon_handler.selected_card and weapon_handler.selected_card.name == "GrenadeLauncherWeaponCard":
+			should_hide_weapon = true
+	
+	if should_hide_weapon:
+		weapon_handler.hide_weapon()
 	# Re-enable player collision shape after ball lands in sand
 	if player_node and player_node.has_method("enable_collision_shape"):
 		player_node.enable_collision_shape()
@@ -2672,6 +2738,35 @@ func _on_golf_ball_sand_landing():
 func _on_grenade_landed(final_tile: Vector2i) -> void:
 	"""Handle when a grenade lands"""
 	print("Grenade landed at tile:", final_tile)
+	
+	# Hide grenade launcher weapon now that grenade has landed
+	print("Grenade landed - checking weapon handler:", weapon_handler != null, " weapon_instance:", weapon_handler.weapon_instance != null if weapon_handler else "N/A", " selected_club:", selected_club)
+	
+	# Check if we have a grenade launcher weapon instance (either by club or by weapon type)
+	var should_hide_weapon = false
+	if weapon_handler and weapon_handler.weapon_instance:
+		# Check if it's a grenade launcher by scene name
+		var weapon_scene_name = weapon_handler.weapon_instance.scene_file_path
+		if weapon_scene_name and "GrenadeLauncher" in weapon_scene_name:
+			should_hide_weapon = true
+			print("Detected grenade launcher by scene name:", weapon_scene_name)
+		elif selected_club == "GrenadeLauncherClubCard":
+			should_hide_weapon = true
+			print("Detected grenade launcher by club selection")
+		elif weapon_handler.selected_card and weapon_handler.selected_card.name == "GrenadeLauncherWeaponCard":
+			should_hide_weapon = true
+			print("Detected grenade launcher by weapon card selection")
+	
+	if should_hide_weapon:
+		print("Hiding grenade launcher weapon after landing")
+		weapon_handler.hide_weapon()
+		
+		# Ensure weapon mode is properly exited to fix cursor stuck on reticle
+		if weapon_handler.is_weapon_mode:
+			weapon_handler.is_weapon_mode = false
+			weapon_handler.selected_card = null
+			weapon_handler.active_button = null
+			print("Exited weapon mode after grenade landing")
 	
 	# Update smart optimizer state immediately when grenade lands
 	if smart_optimizer:
@@ -2705,6 +2800,29 @@ func _on_grenade_out_of_bounds() -> void:
 	"""Handle when a grenade goes out of bounds"""
 	print("Grenade went out of bounds")
 	
+	# Hide grenade launcher weapon now that grenade has gone out of bounds
+	# Check if we have a grenade launcher weapon instance (either by club or by weapon type)
+	var should_hide_weapon = false
+	if weapon_handler and weapon_handler.weapon_instance:
+		# Check if it's a grenade launcher by scene name
+		var weapon_scene_name = weapon_handler.weapon_instance.scene_file_path
+		if weapon_scene_name and "GrenadeLauncher" in weapon_scene_name:
+			should_hide_weapon = true
+		elif selected_club == "GrenadeLauncherClubCard":
+			should_hide_weapon = true
+		elif weapon_handler.selected_card and weapon_handler.selected_card.name == "GrenadeLauncherWeaponCard":
+			should_hide_weapon = true
+	
+	if should_hide_weapon:
+		weapon_handler.hide_weapon()
+		
+		# Ensure weapon mode is properly exited to fix cursor stuck on reticle
+		if weapon_handler.is_weapon_mode:
+			weapon_handler.is_weapon_mode = false
+			weapon_handler.selected_card = null
+			weapon_handler.active_button = null
+			print("Exited weapon mode after grenade out of bounds")
+	
 	# Update smart optimizer state
 	if smart_optimizer:
 		smart_optimizer.update_game_state("move", false, false, false)
@@ -2732,6 +2850,29 @@ func _on_grenade_out_of_bounds() -> void:
 func _on_grenade_sand_landing() -> void:
 	"""Handle when a grenade lands in sand"""
 	print("Grenade landed in sand")
+	
+	# Hide grenade launcher weapon now that grenade has landed in sand
+	# Check if we have a grenade launcher weapon instance (either by club or by weapon type)
+	var should_hide_weapon = false
+	if weapon_handler and weapon_handler.weapon_instance:
+		# Check if it's a grenade launcher by scene name
+		var weapon_scene_name = weapon_handler.weapon_instance.scene_file_path
+		if weapon_scene_name and "GrenadeLauncher" in weapon_scene_name:
+			should_hide_weapon = true
+		elif selected_club == "GrenadeLauncherClubCard":
+			should_hide_weapon = true
+		elif weapon_handler.selected_card and weapon_handler.selected_card.name == "GrenadeLauncherWeaponCard":
+			should_hide_weapon = true
+	
+	if should_hide_weapon:
+		weapon_handler.hide_weapon()
+		
+		# Ensure weapon mode is properly exited to fix cursor stuck on reticle
+		if weapon_handler.is_weapon_mode:
+			weapon_handler.is_weapon_mode = false
+			weapon_handler.selected_card = null
+			weapon_handler.active_button = null
+			print("Exited weapon mode after grenade sand landing")
 	
 	# Play sand landing sound
 	if sand_thunk_sound and sand_thunk_sound.stream:
@@ -3997,20 +4138,31 @@ func _on_scramble_complete(closest_ball_position: Vector2, closest_ball_tile: Ve
 	ball_landing_position = closest_ball_position
 	waiting_for_player_to_reach_ball = true
 	
-	# Note: golf_ball is already set to the closest scramble ball in CardEffectHandler
-	# Show drive distance dialog for the scramble result (same as normal shots)
-	var sprite = player_node.get_node_or_null("Sprite2D")
-	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
-	var player_center = player_node.global_position + player_size / 2
-	var drive_distance = player_center.distance_to(closest_ball_position)
-	
-	var dialog_timer = get_tree().create_timer(0.5)
-	dialog_timer.timeout.connect(func():
-		show_drive_distance_dialog()
-	)
-	
-	game_phase = "move"
-	_update_player_mouse_facing_state()
+	# Check if player is already on the landing tile
+	if player_grid_pos == ball_landing_tile:
+		print("Player is already on the scramble ball landing tile - showing club cards immediately")
+		# Player is already on the ball tile - show "Draw Club Cards" button immediately
+		if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball) and launch_manager.golf_ball.has_method("remove_landing_highlight"):
+			launch_manager.golf_ball.remove_landing_highlight()
+		
+		# Show the "Draw Club Cards" button instead of waiting for movement
+		show_draw_club_cards_button()
+	else:
+		# Player needs to move to the ball - show drive distance dialog
+		# Note: golf_ball is already set to the closest scramble ball in CardEffectHandler
+		# Show drive distance dialog for the scramble result (same as normal shots)
+		var sprite = player_node.get_node_or_null("Sprite2D")
+		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
+		var player_center = player_node.global_position + player_size / 2
+		var drive_distance = player_center.distance_to(closest_ball_position)
+		
+		var dialog_timer = get_tree().create_timer(0.5)
+		dialog_timer.timeout.connect(func():
+			show_drive_distance_dialog()
+		)
+		
+		game_phase = "move"
+		_update_player_mouse_facing_state()
 
 # LaunchManager signal handlers
 func _on_ball_launched(ball: Node2D):
@@ -4046,17 +4198,10 @@ func _on_ball_launched(ball: Node2D):
 		print("=== HANDLING GRENADE LAUNCH ===")
 		
 		# Check if using GrenadeLauncherWeaponCard - play launcher sound instead of whoosh sound
+		# Note: Launcher sound is already played in WeaponHandler.launch_grenade_launcher()
+		# so we don't need to play it again here
 		if selected_club == "GrenadeLauncherClubCard":
-			# Play launcher sound from the grenade launcher weapon
-			if weapon_handler and weapon_handler.weapon_instance:
-				var launcher_sound = weapon_handler.weapon_instance.get_node_or_null("Launcher")
-				if launcher_sound:
-					launcher_sound.play()
-					print("Playing GrenadeLauncherWeaponCard launcher sound")
-				else:
-					print("Warning: Launcher sound not found on grenade launcher weapon")
-			else:
-				print("Warning: Weapon handler or weapon instance not found for GrenadeLauncherWeaponCard")
+			print("GrenadeLauncherClubCard detected - launcher sound already played in WeaponHandler")
 		else:
 			# Play grenade whoosh sound when launched
 			var grenade_whoosh = ball.get_node_or_null("GrenadeWhoosh")
@@ -4101,18 +4246,10 @@ func _on_ball_launched(ball: Node2D):
 		print("=== HANDLING GOLF BALL LAUNCH ===")
 		
 		# Check if using GrenadeLauncherClubCard - play launcher sound instead of swing sound
+		# Note: Launcher sound is already played in WeaponHandler.launch_grenade_launcher()
+		# so we don't need to play it again here
 		if selected_club == "GrenadeLauncherClubCard":
-			# Play launcher sound from the grenade launcher weapon
-			if weapon_handler and weapon_handler.weapon_instance:
-				var launcher_sound = weapon_handler.weapon_instance.get_node_or_null("Launcher")
-				if launcher_sound:
-					launcher_sound.play()
-					print("Playing GrenadeLauncherClubCard launcher sound")
-				else:
-					print("Warning: Launcher sound not found on grenade launcher weapon")
-			else:
-				print("Warning: Weapon handler or weapon instance not found for GrenadeLauncherClubCard")
-
+			print("GrenadeLauncherClubCard detected - launcher sound already played in WeaponHandler")
 		else:
 			# Play normal swing sound for other clubs
 			play_swing_sound(ball.get_final_power() if ball.has_method("get_final_power") else 0.0)
@@ -4200,9 +4337,15 @@ func _on_launch_phase_entered():
 	_update_player_mouse_facing_state()
 
 func _on_launch_phase_exited():
-	# Hide weapon when launch phase ends
+	# Hide weapon when launch phase ends, but keep grenade launcher visible until grenade lands
 	if weapon_handler:
-		weapon_handler.hide_weapon()
+		# Check if we're using a grenade launcher - don't hide it yet
+		var is_grenade_launcher = false
+		if selected_club == "GrenadeLauncherClubCard":
+			is_grenade_launcher = true
+		
+		if not is_grenade_launcher:
+			weapon_handler.hide_weapon()
 	
 	# Check if we're in grenade mode and the grenade has already exploded
 	if launch_manager and launch_manager.is_grenade_mode:
@@ -4552,6 +4695,29 @@ func _clear_existing_state():
 func _on_grenade_exploded(explosion_position: Vector2) -> void:
 	"""Handle when a grenade explodes"""
 	print("Grenade exploded at position:", explosion_position)
+	
+	# Hide grenade launcher weapon now that grenade has exploded
+	# Check if we have a grenade launcher weapon instance (either by club or by weapon type)
+	var should_hide_weapon = false
+	if weapon_handler and weapon_handler.weapon_instance:
+		# Check if it's a grenade launcher by scene name
+		var weapon_scene_name = weapon_handler.weapon_instance.scene_file_path
+		if weapon_scene_name and "GrenadeLauncher" in weapon_scene_name:
+			should_hide_weapon = true
+		elif selected_club == "GrenadeLauncherClubCard":
+			should_hide_weapon = true
+		elif weapon_handler.selected_card and weapon_handler.selected_card.name == "GrenadeLauncherWeaponCard":
+			should_hide_weapon = true
+	
+	if should_hide_weapon:
+		weapon_handler.hide_weapon()
+		
+		# Ensure weapon mode is properly exited to fix cursor stuck on reticle
+		if weapon_handler.is_weapon_mode:
+			weapon_handler.is_weapon_mode = false
+			weapon_handler.selected_card = null
+			weapon_handler.active_button = null
+			print("Exited weapon mode after grenade explosion")
 	
 	# Set explosion in progress flag to prevent launch phase exit
 	if launch_manager:

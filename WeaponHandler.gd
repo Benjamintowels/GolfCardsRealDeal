@@ -98,7 +98,11 @@ func set_movement_controller(controller: Node) -> void:
 	movement_controller = controller
 
 func _on_weapon_card_pressed(card: CardData, button: TextureButton) -> void:
+	print("=== WEAPON CARD PRESSED ===")
+	print("Card:", card.name, "Effect type:", card.effect_type)
+	
 	if selected_card == card:
+		print("Card already selected, returning")
 		return
 	card_click_sound.play()
 	
@@ -106,20 +110,25 @@ func _on_weapon_card_pressed(card: CardData, button: TextureButton) -> void:
 	active_button = button
 	selected_card = card
 	
+	print("Weapon mode set to true, selected_card:", selected_card.name)
+	
 	# Discard the card immediately
 	if deck_manager.hand.has(selected_card):
 		deck_manager.discard(selected_card)
 		card_stack_display.animate_card_discard(selected_card.name)
 		emit_signal("card_discarded", selected_card)
+		print("Card discarded from hand")
 	
 	# Clean up the button
 	cleanup_weapon_card_button()
 	
 	# Enter weapon aiming mode
+	print("Entering weapon aiming mode...")
 	enter_weapon_aiming_mode()
 	
 	emit_signal("weapon_mode_entered")
 	emit_signal("card_selected", card)
+	print("=== END WEAPON CARD PRESSED ===")
 
 func enter_weapon_aiming_mode() -> void:
 	"""Enter weapon aiming mode with mouse tracking"""
@@ -133,6 +142,9 @@ func enter_weapon_aiming_mode() -> void:
 		Input.set_custom_mouse_cursor(null)
 	elif selected_card and selected_card.name == "GrenadeCard":
 		# Hide mouse cursor for grenade aiming (only use aiming circle)
+		Input.set_custom_mouse_cursor(null)
+	elif selected_card and selected_card.name == "GrenadeLauncherWeaponCard":
+		# Hide mouse cursor for grenade launcher aiming (only use aiming circle)
 		Input.set_custom_mouse_cursor(null)
 	elif selected_card and selected_card.name == "ShotgunCard":
 		# Use regular reticle for shotgun aiming
@@ -447,38 +459,62 @@ func show_grenade_aiming_instruction() -> void:
 
 func create_weapon_instance() -> void:
 	"""Create the weapon instance (pistol, knife, burst shot, shotgun, or grenade) in front of the player"""
+	print("=== CREATE WEAPON INSTANCE ===")
+	print("Selected card:", selected_card.name if selected_card else "None")
+	print("Current weapon_instance:", weapon_instance != null)
+	
 	if weapon_instance:
+		print("Clearing existing weapon instance")
 		weapon_instance.queue_free()
 	
 	# Determine which weapon to create based on the selected card
 	var weapon_scene = pistol_scene  # Default to pistol
 	if selected_card and selected_card.name == "Throwing Knife":
 		weapon_scene = throwing_knife_scene
+		print("Creating throwing knife")
 	elif selected_card and selected_card.name == "GrenadeCard":
 		weapon_scene = grenade_scene
+		print("Creating grenade")
 	elif selected_card and selected_card.name == "GrenadeLauncherWeaponCard":
 		weapon_scene = grenade_launcher_scene
+		print("Creating grenade launcher weapon")
 	elif selected_card and selected_card.name == "BurstShot":
 		weapon_scene = burst_shot_scene
+		print("Creating burst shot")
 	elif selected_card and selected_card.name == "ShotgunCard":
 		weapon_scene = shotgun_scene
+		print("Creating shotgun")
 	elif selected_card and selected_card.name == "SniperCard":
 		weapon_scene = sniper_scene
+		print("Creating sniper")
 	elif selected_card and selected_card.name == "SpearCard":
 		weapon_scene = spear_scene
+		print("Creating spear")
+	else:
+		print("Creating default pistol")
 	
+	print("Instantiating weapon scene...")
 	weapon_instance = weapon_scene.instantiate()
-	player_node.add_child(weapon_instance)
+	print("Weapon instance created:", weapon_instance != null)
 	
-	# Reset weapon sprite flip state
-	var weapon_sprite = weapon_instance.get_node_or_null("Sprite2D")
-	if weapon_sprite:
-		weapon_sprite.flip_h = false
-		weapon_sprite.flip_v = false
+	if weapon_instance and player_node:
+		player_node.add_child(weapon_instance)
+		print("Weapon added to player node")
+		
+		# Reset weapon sprite flip state
+		var weapon_sprite = weapon_instance.get_node_or_null("Sprite2D")
+		if weapon_sprite:
+			weapon_sprite.flip_h = false
+			weapon_sprite.flip_v = false
+		
+		# Position the weapon closer to the player's hands with the specified offset
+		var weapon_offset = Vector2(-37.955, 0)  # Closer to player's hands
+		weapon_instance.position = weapon_offset
+		print("Weapon positioned at offset:", weapon_offset)
+	else:
+		print("ERROR: Could not create weapon instance or player_node is null")
 	
-	# Position the weapon closer to the player's hands with the specified offset
-	var weapon_offset = Vector2(-37.955, 0)  # Closer to player's hands
-	weapon_instance.position = weapon_offset
+	print("=== END CREATE WEAPON INSTANCE ===")
 
 func show_grenade_launcher_weapon() -> void:
 	"""Show the GrenadeLauncher weapon when GrenadeLauncherClubCard is selected"""
@@ -1155,14 +1191,6 @@ func launch_grenade_launcher() -> void:
 	if not launch_manager or not weapon_instance or not camera:
 		return
 	
-	# Play launcher sound from the grenade launcher weapon
-	var launcher_sound = weapon_instance.get_node_or_null("Launcher")
-	if launcher_sound:
-		launcher_sound.play()
-		print("Playing GrenadeLauncherWeaponCard launcher sound")
-	else:
-		print("Warning: Launcher sound not found on grenade launcher weapon")
-	
 	# Get the landing spot from the aiming circle if available, otherwise use mouse position
 	var landing_spot = camera.get_global_mouse_position()  # Default to mouse position
 	if card_effect_handler and card_effect_handler.course:
@@ -1178,8 +1206,29 @@ func launch_grenade_launcher() -> void:
 	# Use the same grenade mode but with GrenadeLauncherClubCard stats
 	launch_manager.enter_grenade_mode()
 	
-	# Exit weapon mode (LaunchManager will handle the rest)
-	exit_weapon_mode()
+	# Don't exit weapon mode immediately - let the grenade landing handlers clear the weapon
+	# This allows the weapon to stay visible during the grenade's flight
+	# The weapon will be cleared when the grenade lands/explodes
+	print("GrenadeLauncherWeaponCard: Keeping weapon visible during grenade flight")
+	
+	# Reset weapon mode state but keep the weapon instance
+	is_weapon_mode = false
+	selected_card = null
+	active_button = null
+	
+	# Clean up aiming mode if it was active
+	if card_effect_handler and card_effect_handler.course:
+		var course = card_effect_handler.course
+		course.is_aiming_phase = false
+		course.hide_aiming_circle()
+		course.hide_aiming_instruction()
+		
+		# Restore original club if it was stored
+		if has_meta("original_club"):
+			course.selected_club = get_meta("original_club")
+			remove_meta("original_club")
+	
+	emit_signal("weapon_mode_exited")
 
 func launch_spear() -> void:
 	"""Launch a spear using the LaunchManager system"""
