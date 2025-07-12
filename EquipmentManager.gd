@@ -477,4 +477,11 @@ func has_wand() -> bool:
 	for equipment in equipped_equipment:
 		if equipment.name == "Wand":
 			return true
+	return false
+
+func has_putter_help() -> bool:
+	"""Check if the player has PutterHelp equipment equipped"""
+	for equipment in equipped_equipment:
+		if equipment.name == "PutterHelp":
+			return true
 	return false 

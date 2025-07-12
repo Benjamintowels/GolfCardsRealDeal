@@ -485,6 +485,11 @@ func _ready() -> void:
 	equipment_manager.add_equipment(watch_equipment)
 	print("Course: Added Watch equipment to starter loadout for together mode")
 	
+	# Add PutterHelp equipment for testing
+	var putter_help_equipment = preload("res://Equipment/PutterHelp.tres")
+	equipment_manager.add_equipment(putter_help_equipment)
+	print("Course: Added PutterHelp equipment to starter loadout for testing")
+	
 	# Player starts with level 1 backpack (handled by bag system)
 	print("Course: Player starts with level 1 backpack for their character")
 	
@@ -3372,6 +3377,13 @@ func draw_club_cards() -> void:
 	# Actually draw club cards to hand first - draw enough for the selection
 	deck_manager.draw_club_cards_to_hand(final_club_count)
 	
+	# Check for PutterHelp equipment and add an extra putter card if equipped
+	var equipment_manager = get_node_or_null("EquipmentManager")
+	var putter_help_active = false
+	if equipment_manager and equipment_manager.has_putter_help():
+		print("PutterHelp equipment detected - adding virtual putter card")
+		putter_help_active = deck_manager.add_virtual_putter_to_hand()
+	
 	# Then get available clubs from the hand
 	var available_clubs = deck_manager.hand.filter(func(card): return deck_manager.is_club_card(card))
 	if Global.putt_putt_mode:
@@ -3380,27 +3392,42 @@ func draw_club_cards() -> void:
 			return club_info.get("is_putter", false)
 		)
 	
-	final_club_count = max(1, min(final_club_count, available_clubs.size()))
+	# Calculate how many clubs we should show total (including virtual putter if active)
+	var total_clubs_to_show = final_club_count
+	if putter_help_active:
+		total_clubs_to_show += 1  # Add one more slot for the virtual putter
+		print("PutterHelp active - total clubs to show:", total_clubs_to_show)
+	
+	total_clubs_to_show = max(1, min(total_clubs_to_show, available_clubs.size()))
+	print("Available clubs in hand:", available_clubs.map(func(card): return card.name))
+	print("Total clubs to show:", total_clubs_to_show)
 	var selected_clubs: Array[CardData] = []
 	var bonus_cards: Array[CardData] = []
+	
 	if not Global.putt_putt_mode:
 		var putters = available_clubs.filter(func(card): 
 			var club_info = club_data.get(card.name, {})
 			return club_info.get("is_putter", false)
 		)
 		
+		# Always include at least one putter if available
 		if putters.size() > 0:
 			var random_putter_index = randi() % putters.size()
 			var selected_putter = putters[random_putter_index]
 			selected_clubs.append(selected_putter)
 			available_clubs.erase(selected_putter)
-			final_club_count -= 1
+			total_clubs_to_show -= 1
+	
+	# Select remaining clubs to fill the total count
 	var club_candidates = available_clubs.filter(func(card): return card.effect_type != "ModifyNext" and card.effect_type != "ModifyNextCard")
-	for i in range(final_club_count):
+	print("Club candidates for selection:", club_candidates.map(func(card): return card.name))
+	for i in range(total_clubs_to_show):
 		if club_candidates.size() > 0:
 			var random_index = randi() % club_candidates.size()
 			selected_clubs.append(club_candidates[random_index])
 			club_candidates.remove_at(random_index)
+	
+	print("Final selected clubs:", selected_clubs.map(func(card): return card.name))
 	
 	var modify_next_candidates = available_clubs.filter(func(card): return card.effect_type == "ModifyNext")
 	if force_stickyshot_bonus:
@@ -3429,6 +3456,21 @@ func draw_club_cards() -> void:
 		btn.texture_normal = club_card.image  # Use the actual card image
 		btn.custom_minimum_size = Vector2(100, 140)
 		btn.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
+		
+		# Add PutterHelp indicator if this is a putter card and PutterHelp is active
+		if putter_help_active and club_name == "Putter":
+			# Create a small equipment indicator in the top-right corner
+			var equipment_indicator = TextureRect.new()
+			var putter_help_equipment = preload("res://Equipment/PutterHelp.tres")
+			equipment_indicator.texture = putter_help_equipment.image
+			equipment_indicator.custom_minimum_size = Vector2(20, 20)
+			equipment_indicator.size = Vector2(20, 20)
+			equipment_indicator.position = Vector2(btn.custom_minimum_size.x - 25, 5)
+			equipment_indicator.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			equipment_indicator.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			equipment_indicator.z_index = 1  # Ensure it appears on top
+			btn.add_child(equipment_indicator)
+			print("Added PutterHelp indicator to putter card")
 		
 		btn.mouse_filter = Control.MOUSE_FILTER_STOP
 		btn.focus_mode = Control.FOCUS_NONE

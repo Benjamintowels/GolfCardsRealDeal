@@ -189,6 +189,21 @@ func draw_club_cards_to_hand(count: int = 1) -> void:
 		hand.append(card)
 	emit_signal("deck_updated")
 
+func create_virtual_putter_card() -> CardData:
+	"""Create a virtual putter card that doesn't come from the deck. Returns the created card."""
+	var virtual_putter = preload("res://Cards/Putter.tres").duplicate()
+	virtual_putter.name = "Putter"  # Ensure the name is set correctly
+	print("DeckManager: Created virtual putter card for PutterHelp equipment")
+	return virtual_putter
+
+func add_virtual_putter_to_hand() -> bool:
+	"""Add a virtual putter card to the hand. Returns true if successful."""
+	var virtual_putter = create_virtual_putter_card()
+	hand.append(virtual_putter)
+	emit_signal("deck_updated")
+	print("DeckManager: Added virtual putter card to hand via PutterHelp equipment")
+	return true
+
 func reshuffle_club_discard() -> void:
 	"""Reshuffle club discard pile into draw pile"""
 	var count := club_discard_pile.size()

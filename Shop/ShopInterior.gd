@@ -159,42 +159,169 @@ func load_shop_items():
 	]
 
 func generate_shop_items():
-	"""Generate random shop items with more variety"""
+	"""Generate structured shop items with guaranteed slots"""
 	current_shop_items.clear()
 	
-	# Randomly decide what type of items to show - now supporting up to 4 items
-	var shop_configs = [
-		{"equipment": 1, "cards": 1},      # 1 equipment + 1 card
-		{"equipment": 0, "cards": 2},      # 2 cards
-		{"equipment": 1, "cards": 0},      # 1 equipment only
-		{"equipment": 0, "cards": 1},      # 1 card only
-		{"equipment": 0, "cards": 3},      # 3 cards
-		{"equipment": 1, "cards": 2},      # 1 equipment + 2 cards
-		{"equipment": 0, "cards": 4},      # 4 cards
-		{"equipment": 1, "cards": 3},      # 1 equipment + 3 cards
-		{"equipment": 2, "cards": 1},      # 2 equipment + 1 card
-		{"equipment": 2, "cards": 2}       # 2 equipment + 2 cards
-	]
+	# Get current reward tier for random items
+	var current_tier = Global.get_current_reward_tier()
+	var probabilities = Global.get_tier_probabilities()
+	print("ShopInterior: Current reward tier:", current_tier)
+	print("ShopInterior: Tier probabilities - Tier 1:", probabilities["tier_1"], "Tier 2:", probabilities["tier_2"], "Tier 3:", probabilities["tier_3"])
 	
-	var selected_config = shop_configs[randi() % shop_configs.size()]
-	print("ShopInterior: Selected config:", selected_config)
+	# Slot 1: Guaranteed club card
+	var club_cards = get_club_cards()
+	if club_cards.size() > 0:
+		var random_club = club_cards[randi() % club_cards.size()]
+		current_shop_items.append(random_club)
+		print("ShopInterior: Added guaranteed club card:", random_club.name)
+	else:
+		print("ShopInterior: WARNING - No club cards available!")
 	
-	# Add equipment items
-	for i in range(selected_config.equipment):
-		if available_equipment.size() > 0:
-			var random_equipment = available_equipment[randi() % available_equipment.size()]
-			current_shop_items.append(random_equipment)
-			print("ShopInterior: Added equipment:", random_equipment.name)
+	# Slot 2: Guaranteed equipment
+	if available_equipment.size() > 0:
+		var random_equipment = available_equipment[randi() % available_equipment.size()]
+		current_shop_items.append(random_equipment)
+		print("ShopInterior: Added guaranteed equipment:", random_equipment.name)
+	else:
+		print("ShopInterior: WARNING - No equipment available!")
 	
-	# Add card items
-	for i in range(selected_config.cards):
-		if available_cards.size() > 0:
-			var random_card = available_cards[randi() % available_cards.size()]
-			current_shop_items.append(random_card)
-			print("ShopInterior: Added card:", random_card.name)
+	# Slot 3: Random item based on reward tier
+	var tiered_item = get_tiered_random_item(current_tier)
+	if tiered_item:
+		current_shop_items.append(tiered_item)
+		print("ShopInterior: Added tiered random item:", tiered_item.name)
 	
-	print("ShopInterior: Generated shop config:", selected_config, "with", current_shop_items.size(), "items")
+	# Slot 4: Random item based on reward tier
+	var tiered_item2 = get_tiered_random_item(current_tier)
+	if tiered_item2:
+		current_shop_items.append(tiered_item2)
+		print("ShopInterior: Added second tiered random item:", tiered_item2.name)
+	
+	print("ShopInterior: Generated structured shop with", current_shop_items.size(), "items")
 	print("ShopInterior: Final items list:", current_shop_items.map(func(item): return item.name))
+
+func get_club_cards() -> Array[CardData]:
+	"""Get all available club cards"""
+	var club_cards: Array[CardData] = []
+	var club_names = ["Putter", "Wood", "Wooden", "Iron", "Hybrid", "Driver", "PitchingWedge", "Fire Club", "Ice Club"]
+	
+	for card in available_cards:
+		if club_names.has(card.name):
+			club_cards.append(card)
+	
+	return club_cards
+
+func get_tiered_random_item(current_tier: int) -> Resource:
+	"""Get a random item (card or equipment) based on the current reward tier"""
+	var probabilities = Global.get_tier_probabilities()
+	
+	# Decide whether to pick a card or equipment (50/50 chance)
+	var pick_card = randf() < 0.5
+	
+	if pick_card:
+		# Get tiered cards with proper weighted selection
+		var tiered_cards = get_tiered_cards_for_shop(current_tier, probabilities)
+		if tiered_cards.size() > 0:
+			return tiered_cards[randi() % tiered_cards.size()]
+	else:
+		# Get tiered equipment with proper weighted selection
+		var tiered_equipment = get_tiered_equipment_for_shop(current_tier, probabilities)
+		if tiered_equipment.size() > 0:
+			return tiered_equipment[randi() % tiered_equipment.size()]
+	
+	# Fallback: return a random card if no tiered items found
+	if available_cards.size() > 0:
+		return available_cards[randi() % available_cards.size()]
+	
+	return null
+
+func get_tiered_cards_for_shop(current_tier: int, probabilities: Dictionary) -> Array[CardData]:
+	"""Get cards filtered by current tier probabilities for shop"""
+	var tier_1_cards: Array[CardData] = []
+	var tier_2_cards: Array[CardData] = []
+	var tier_3_cards: Array[CardData] = []
+	
+	# Categorize cards by their reward tier
+	for card in available_cards:
+		var tier = card.get_reward_tier()
+		match tier:
+			1:
+				tier_1_cards.append(card)
+			2:
+				tier_2_cards.append(card)
+			3:
+				tier_3_cards.append(card)
+	
+	# Create weighted selection based on probabilities
+	var selected_cards: Array[CardData] = []
+	
+	# Add tier 1 cards with tier 1 probability weight
+	var tier_1_weight = int(probabilities["tier_1"] * 10)  # Convert to integer weight
+	for i in range(tier_1_weight):
+		for card in tier_1_cards:
+			selected_cards.append(card)
+	
+	# Add tier 2 cards with tier 2 probability weight
+	var tier_2_weight = int(probabilities["tier_2"] * 10)  # Convert to integer weight
+	for i in range(tier_2_weight):
+		for card in tier_2_cards:
+			selected_cards.append(card)
+	
+	# Add tier 3 cards with tier 3 probability weight
+	var tier_3_weight = int(probabilities["tier_3"] * 10)  # Convert to integer weight
+	for i in range(tier_3_weight):
+		for card in tier_3_cards:
+			selected_cards.append(card)
+	
+	# If no cards were added (all tiers empty), fallback to all available cards
+	if selected_cards.is_empty():
+		selected_cards = available_cards.duplicate()
+	
+	return selected_cards
+
+func get_tiered_equipment_for_shop(current_tier: int, probabilities: Dictionary) -> Array[EquipmentData]:
+	"""Get equipment filtered by current tier probabilities for shop"""
+	var tier_1_equipment: Array[EquipmentData] = []
+	var tier_2_equipment: Array[EquipmentData] = []
+	var tier_3_equipment: Array[EquipmentData] = []
+	
+	# Categorize equipment by their reward tier
+	for equipment in available_equipment:
+		var tier = equipment.get_reward_tier()
+		match tier:
+			1:
+				tier_1_equipment.append(equipment)
+			2:
+				tier_2_equipment.append(equipment)
+			3:
+				tier_3_equipment.append(equipment)
+	
+	# Create weighted selection based on probabilities
+	var selected_equipment: Array[EquipmentData] = []
+	
+	# Add tier 1 equipment with tier 1 probability weight
+	var tier_1_weight = int(probabilities["tier_1"] * 10)  # Convert to integer weight
+	for i in range(tier_1_weight):
+		for equipment in tier_1_equipment:
+			selected_equipment.append(equipment)
+	
+	# Add tier 2 equipment with tier 2 probability weight
+	var tier_2_weight = int(probabilities["tier_2"] * 10)  # Convert to integer weight
+	for i in range(tier_2_weight):
+		for equipment in tier_2_equipment:
+			selected_equipment.append(equipment)
+	
+	# Add tier 3 equipment with tier 3 probability weight
+	var tier_3_weight = int(probabilities["tier_3"] * 10)  # Convert to integer weight
+	for i in range(tier_3_weight):
+		for equipment in tier_3_equipment:
+			selected_equipment.append(equipment)
+	
+	# If no equipment was added (all tiers empty), fallback to all available equipment
+	if selected_equipment.is_empty():
+		selected_equipment = available_equipment.duplicate()
+	
+	return selected_equipment
 
 func display_shop_items():
 	"""Display shop items in the manual containers"""
@@ -216,28 +343,42 @@ func display_shop_items():
 	print("ShopInterior: Cleared existing items, creating new ones...")
 	
 	# Create shop item displays in manual containers
-	for i in range(current_shop_items.size()):
-		if i >= manual_containers.size():
-			print("ShopInterior: WARNING - More items than containers! Item", i, "cannot be displayed")
-			break
-		
-		var item = current_shop_items[i]
+	# Always try to fill all 4 slots, even if some items are missing
+	for i in range(manual_containers.size()):
 		var manual_container = manual_containers[i]
 		
-		print("ShopInterior: Creating item", i, ":", item.name, "in container", manual_container.name)
-		
-		# Get the actual size of the container (accounting for scale)
-		var container_size = manual_container.size * manual_container.scale
-		var item_display = create_shop_item_display(item, container_size)
-		
-		# Position the item display to fill the container
-		item_display.size = container_size
-		item_display.position = Vector2.ZERO
-		
-		manual_container.add_child(item_display)
-		shop_item_containers.append(item_display)
-		
-		print("ShopInterior: Added", item.name, "to", manual_container.name, "with size", container_size)
+		if i < current_shop_items.size():
+			# We have an item for this slot
+			var item = current_shop_items[i]
+			print("ShopInterior: Creating item", i, ":", item.name, "in container", manual_container.name)
+			
+			# Get the actual size of the container (accounting for scale)
+			var container_size = manual_container.size * manual_container.scale
+			var item_display = create_shop_item_display(item, container_size)
+			
+			# Position the item display to fill the container
+			item_display.size = container_size
+			item_display.position = Vector2.ZERO
+			
+			manual_container.add_child(item_display)
+			shop_item_containers.append(item_display)
+			
+			print("ShopInterior: Added", item.name, "to", manual_container.name, "with size", container_size)
+		else:
+			# No item for this slot - create an empty slot display
+			print("ShopInterior: Creating empty slot", i, "in container", manual_container.name)
+			
+			var container_size = manual_container.size * manual_container.scale
+			var empty_display = create_empty_slot_display(container_size)
+			
+			# Position the empty display to fill the container
+			empty_display.size = container_size
+			empty_display.position = Vector2.ZERO
+			
+			manual_container.add_child(empty_display)
+			shop_item_containers.append(empty_display)
+			
+			print("ShopInterior: Added empty slot to", manual_container.name, "with size", container_size)
 	
 	print("ShopInterior: Display complete, total shop items:", shop_item_containers.size())
 
@@ -319,6 +460,50 @@ func create_shop_item_display(item, container_size: Vector2) -> Control:
 	container.set_meta("shop_item_container", true)
 	
 	print("ShopInterior: Created shop item display for", item.name, "with size", container_size)
+	
+	return container
+
+func create_empty_slot_display(container_size: Vector2) -> Control:
+	"""Create a display for an empty shop slot"""
+	var container = Control.new()
+	container.size = container_size
+	container.position = Vector2.ZERO
+	container.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Not clickable
+	
+	# Background panel - darker for empty slots
+	var background = ColorRect.new()
+	background.color = Color(0.1, 0.1, 0.1, 0.7)
+	background.size = container_size
+	background.position = Vector2.ZERO
+	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	container.add_child(background)
+	
+	# Border - dimmed for empty slots
+	var border = ColorRect.new()
+	border.color = Color(0.4, 0.4, 0.4, 0.4)  # Dimmed border
+	border.size = Vector2(container_size.x + 4, container_size.y + 4)
+	border.position = Vector2(-2, -2)
+	border.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	container.add_child(border)
+	border.z_index = -1
+	
+	# Empty slot text
+	var empty_label = Label.new()
+	empty_label.text = "Empty"
+	empty_label.add_theme_font_size_override("font_size", 16)
+	empty_label.add_theme_color_override("font_color", Color.GRAY)
+	empty_label.add_theme_constant_override("outline_size", 1)
+	empty_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	empty_label.position = Vector2(10, 180)
+	empty_label.size = Vector2(180, 30)
+	empty_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	empty_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	container.add_child(empty_label)
+	
+	# Store reference to container
+	container.set_meta("shop_item_container", true)
+	
+	print("ShopInterior: Created empty slot display with size", container_size)
 	
 	return container
 
