@@ -1,0 +1,28 @@
+[gd_scene load_steps=2 format=3 uid="uid://b8xmd6rrxr7oj"]
+
+[ext_resource type="Script" path="res://test_three_slot_reward_system.gd" id="1_script"]
+
+[node name="TestThreeSlotRewardSystem" type="Node2D"]
+script = ExtResource("1_script")
+
+[node name="Instructions" type="Label" parent="."]
+offset_left = 10.0
+offset_top = 10.0
+offset_right = 790.0
+offset_bottom = 200.0
+text = "Three-Slot Reward System Test
+
+Controls:
+- SPACE: Increment turn counter
+- R: Reset turn counter
+- T: Test three-slot reward generation
+- S: Show reward selection dialog
+- ESC: Close reward dialog
+
+This test demonstrates the new three-slot reward system:
+- Left slot: Always a club card (Putter, Wood, Iron, etc.)
+- Middle slot: Always equipment or bag upgrade
+- Right slot: Always an action card (Move, Attack, etc.)
+
+All rewards are filtered by the current tier probabilities."
+vertical_alignment = 1 

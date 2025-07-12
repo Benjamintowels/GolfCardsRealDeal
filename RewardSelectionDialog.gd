@@ -7,11 +7,14 @@ signal advance_to_next_hole
 
 @onready var reward_container: Control = $RewardContainer
 @onready var left_reward_button: Button = $RewardContainer/LeftReward
+@onready var middle_reward_button: Button = $RewardContainer/MiddleReward
 @onready var right_reward_button: Button = $RewardContainer/RightReward
 
 var left_reward_data: Resource
+var middle_reward_data: Resource
 var right_reward_data: Resource
 var left_reward_type: String
+var middle_reward_type: String
 var right_reward_type: String
 
 # Base cards for rewards (level 1)
@@ -85,6 +88,7 @@ func _ready():
 	
 	# Connect button signals
 	left_reward_button.pressed.connect(_on_left_reward_selected)
+	middle_reward_button.pressed.connect(_on_middle_reward_selected)
 	right_reward_button.pressed.connect(_on_right_reward_selected)
 	
 	# Initialize available cards with all levels
@@ -310,21 +314,186 @@ func get_tiered_equipment() -> Array[EquipmentData]:
 	
 	return selected_equipment
 
+func get_club_cards() -> Array[CardData]:
+	"""Get all club cards from available cards"""
+	var club_cards: Array[CardData] = []
+	var club_names = ["Putter", "Wood", "Wooden", "Iron", "Hybrid", "Driver", "PitchingWedge", "Fire Club", "Ice Club"]
+	
+	for card in available_cards:
+		if club_names.has(card.name):
+			club_cards.append(card)
+	
+	return club_cards
+
+func get_action_cards() -> Array[CardData]:
+	"""Get all action cards (non-club cards) from available cards"""
+	var action_cards: Array[CardData] = []
+	var club_names = ["Putter", "Wood", "Wooden", "Iron", "Hybrid", "Driver", "PitchingWedge", "Fire Club", "Ice Club"]
+	
+	for card in available_cards:
+		if not club_names.has(card.name):
+			action_cards.append(card)
+	
+	return action_cards
+
+func get_tiered_club_cards() -> Array[CardData]:
+	"""Get club cards filtered by current tier probabilities"""
+	var club_cards = get_club_cards()
+	var probabilities = Global.get_tier_probabilities()
+	var tier_1_cards: Array[CardData] = []
+	var tier_2_cards: Array[CardData] = []
+	var tier_3_cards: Array[CardData] = []
+	
+	# Categorize club cards by their reward tier
+	for card in club_cards:
+		var tier = card.get_reward_tier()
+		match tier:
+			1: tier_1_cards.append(card)
+			2: tier_2_cards.append(card)
+			3: tier_3_cards.append(card)
+	
+	# Use weighted random selection based on probabilities
+	var selected_cards: Array[CardData] = []
+	
+	# Create a weighted pool of all club cards
+	var all_cards: Array[CardData] = []
+	var weights: Array[float] = []
+	
+	# Add tier 1 cards with tier 1 weight
+	for card in tier_1_cards:
+		all_cards.append(card)
+		weights.append(probabilities["tier_1"])
+	
+	# Add tier 2 cards with tier 2 weight
+	for card in tier_2_cards:
+		all_cards.append(card)
+		weights.append(probabilities["tier_2"])
+	
+	# Add tier 3 cards with tier 3 weight
+	for card in tier_3_cards:
+		all_cards.append(card)
+		weights.append(probabilities["tier_3"])
+	
+	# Select cards using weighted random selection
+	var num_to_select = min(club_cards.size(), all_cards.size())
+	for i in range(num_to_select):
+		if all_cards.size() == 0:
+			break
+		
+		# Calculate total weight
+		var total_weight = 0.0
+		for weight in weights:
+			total_weight += weight
+		
+		# Select random card based on weights
+		var random_value = randf() * total_weight
+		var current_weight = 0.0
+		var selected_index = 0
+		
+		for j in range(weights.size()):
+			current_weight += weights[j]
+			if random_value <= current_weight:
+				selected_index = j
+				break
+		
+		# Add selected card
+		selected_cards.append(all_cards[selected_index])
+		
+		# Remove selected card from pool
+		all_cards.remove_at(selected_index)
+		weights.remove_at(selected_index)
+	
+	return selected_cards
+
+func get_tiered_action_cards() -> Array[CardData]:
+	"""Get action cards filtered by current tier probabilities"""
+	var action_cards = get_action_cards()
+	var probabilities = Global.get_tier_probabilities()
+	var tier_1_cards: Array[CardData] = []
+	var tier_2_cards: Array[CardData] = []
+	var tier_3_cards: Array[CardData] = []
+	
+	# Categorize action cards by their reward tier
+	for card in action_cards:
+		var tier = card.get_reward_tier()
+		match tier:
+			1: tier_1_cards.append(card)
+			2: tier_2_cards.append(card)
+			3: tier_3_cards.append(card)
+	
+	# Use weighted random selection based on probabilities
+	var selected_cards: Array[CardData] = []
+	
+	# Create a weighted pool of all action cards
+	var all_cards: Array[CardData] = []
+	var weights: Array[float] = []
+	
+	# Add tier 1 cards with tier 1 weight
+	for card in tier_1_cards:
+		all_cards.append(card)
+		weights.append(probabilities["tier_1"])
+	
+	# Add tier 2 cards with tier 2 weight
+	for card in tier_2_cards:
+		all_cards.append(card)
+		weights.append(probabilities["tier_2"])
+	
+	# Add tier 3 cards with tier 3 weight
+	for card in tier_3_cards:
+		all_cards.append(card)
+		weights.append(probabilities["tier_3"])
+	
+	# Select cards using weighted random selection
+	var num_to_select = min(action_cards.size(), all_cards.size())
+	for i in range(num_to_select):
+		if all_cards.size() == 0:
+			break
+		
+		# Calculate total weight
+		var total_weight = 0.0
+		for weight in weights:
+			total_weight += weight
+		
+		# Select random card based on weights
+		var random_value = randf() * total_weight
+		var current_weight = 0.0
+		var selected_index = 0
+		
+		for j in range(weights.size()):
+			current_weight += weights[j]
+			if random_value <= current_weight:
+				selected_index = j
+				break
+		
+		# Add selected card
+		selected_cards.append(all_cards[selected_index])
+		
+		# Remove selected card from pool
+		all_cards.remove_at(selected_index)
+		weights.remove_at(selected_index)
+	
+	return selected_cards
+
 func show_reward_selection():
 	# Initialize bag upgrades before generating rewards
 	initialize_bag_upgrades()
 	
-	# Generate two random rewards
-	var rewards = generate_random_rewards()
+	# Generate three specific rewards (club card, equipment, action card)
+	var rewards = generate_three_slot_rewards()
 	
-	# Set up the left reward
+	# Set up the left reward (club card)
 	left_reward_data = rewards[0]
 	left_reward_type = rewards[1]
 	setup_reward_button(left_reward_button, left_reward_data, left_reward_type)
 	
-	# Set up the right reward
-	right_reward_data = rewards[2]
-	right_reward_type = rewards[3]
+	# Set up the middle reward (equipment)
+	middle_reward_data = rewards[2]
+	middle_reward_type = rewards[3]
+	setup_reward_button(middle_reward_button, middle_reward_data, middle_reward_type)
+	
+	# Set up the right reward (action card)
+	right_reward_data = rewards[4]
+	right_reward_type = rewards[5]
 	setup_reward_button(right_reward_button, right_reward_data, right_reward_type)
 	
 	# Add Advance button
@@ -344,7 +513,7 @@ func add_advance_button():
 	var advance_button = Button.new()
 	advance_button.name = "AdvanceButton"
 	advance_button.text = "Advance to Next Hole"
-	advance_button.position = Vector2(400, 300)
+	advance_button.position = Vector2(325, 389.2)  # Centered below the three reward buttons
 	advance_button.size = Vector2(200, 50)
 	advance_button.pressed.connect(_on_advance_pressed)
 	reward_container.add_child(advance_button)
@@ -415,6 +584,63 @@ func create_card_display(card_data: CardData, count: int) -> Control:
 	container.add_child(image_rect)
 	
 	return container
+
+func generate_three_slot_rewards() -> Array:
+	"""Generate three specific rewards: club card, equipment, action card"""
+	var rewards = []
+	
+	# Get tiered rewards for each type
+	var tiered_club_cards = get_tiered_club_cards()
+	var tiered_action_cards = get_tiered_action_cards()
+	var tiered_equipment = get_tiered_equipment()
+	
+	# Check if bag upgrades are available
+	var has_bag_upgrades = available_bag_upgrades.size() > 0
+	
+	# Slot 1: Club Card (left)
+	var club_card
+	if tiered_club_cards.size() > 0:
+		club_card = tiered_club_cards[randi() % tiered_club_cards.size()]
+	else:
+		# Fallback to any card if no club cards available
+		var all_cards = get_tiered_cards()
+		club_card = all_cards[randi() % all_cards.size()]
+	
+	# Slot 2: Equipment (middle)
+	var equipment
+	if tiered_equipment.size() > 0:
+		equipment = tiered_equipment[randi() % tiered_equipment.size()]
+	else:
+		# Fallback to bag upgrade if no equipment available
+		if has_bag_upgrades:
+			equipment = available_bag_upgrades[randi() % available_bag_upgrades.size()]
+		else:
+			# Fallback to any card if no equipment or bag upgrades available
+			var all_cards = get_tiered_cards()
+			equipment = all_cards[randi() % all_cards.size()]
+	
+	# Slot 3: Action Card (right)
+	var action_card
+	if tiered_action_cards.size() > 0:
+		action_card = tiered_action_cards[randi() % tiered_action_cards.size()]
+	else:
+		# Fallback to any card if no action cards available
+		var all_cards = get_tiered_cards()
+		action_card = all_cards[randi() % all_cards.size()]
+	
+	# Determine reward types
+	var club_type = "card"
+	var equipment_type = "equipment"
+	var action_type = "card"
+	
+	# Check if equipment is actually a bag upgrade
+	if equipment is BagData:
+		equipment_type = "bag_upgrade"
+	
+	# Build rewards array: [club_card, club_type, equipment, equipment_type, action_card, action_type]
+	rewards = [club_card, club_type, equipment, equipment_type, action_card, action_type]
+	
+	return rewards
 
 func generate_random_rewards() -> Array:
 	var rewards = []
@@ -629,6 +855,9 @@ func _on_reward_button_hover(button: Button, is_hovering: bool):
 func _on_left_reward_selected():
 	handle_reward_selection(left_reward_data, left_reward_type)
 
+func _on_middle_reward_selected():
+	handle_reward_selection(middle_reward_data, middle_reward_type)
+
 func _on_right_reward_selected():
 	handle_reward_selection(right_reward_data, right_reward_type)
 
@@ -643,7 +872,7 @@ func handle_reward_selection(reward_data: Resource, reward_type: String):
 	var slots_available = check_bag_slots(reward_data, reward_type)
 	
 	if slots_available:
-		# Clear both reward buttons
+		# Clear all reward buttons
 		clear_reward_buttons()
 		
 		# Add reward directly since slots are available
@@ -712,12 +941,17 @@ func _exit_tree():
 	pass
 
 func clear_reward_buttons():
-	"""Clear both left and right reward buttons"""
+	"""Clear all three reward buttons"""
 	if left_reward_button:
 		left_reward_button.text = ""
 		for child in left_reward_button.get_children():
 			child.queue_free()
 		left_reward_button.disabled = true
+	if middle_reward_button:
+		middle_reward_button.text = ""
+		for child in middle_reward_button.get_children():
+			child.queue_free()
+		middle_reward_button.disabled = true
 	if right_reward_button:
 		right_reward_button.text = ""
 		for child in right_reward_button.get_children():
@@ -729,7 +963,7 @@ func _on_replacement_completed(reward_data: Resource, reward_type: String):
 	# Emit the reward selected signal
 	reward_selected.emit(reward_data, reward_type)
 
-	# Clear and disable left and right reward buttons
+	# Clear and disable all reward buttons
 	clear_reward_buttons() 
 
 func _on_replacement_cancelled():
@@ -740,5 +974,7 @@ func _on_replacement_cancelled():
 	# Re-enable reward buttons
 	if left_reward_button:
 		left_reward_button.disabled = false
+	if middle_reward_button:
+		middle_reward_button.disabled = false
 	if right_reward_button:
 		right_reward_button.disabled = false 
