@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3 uid="uid://db2aw6jhhn5ty"]
+[gd_scene load_steps=9 format=3 uid="uid://db2aw6jhhn5ty"]
 
 [ext_resource type="Script" uid="uid://dqbuoj7esuc2j" path="res://NPC/Animals/Squirrel.gd" id="1_script"]
 [ext_resource type="Texture2D" uid="uid://cj120eti86itj" path="res://NPC/Animals/SquirrelLeftRight.png" id="2_qji2q"]
@@ -9,6 +9,9 @@
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_qji2q"]
 radius = 13.8907
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_f70dk"]
+radius = 215.037
 
 [node name="Squirrel" type="CharacterBody2D"]
 script = ExtResource("1_script")
@@ -50,3 +53,10 @@ position = Vector2(0, -5)
 
 [node name="TopHeight" type="Marker2D" parent="."]
 position = Vector2(0, -50)
+
+[node name="VisionArea2D" type="Area2D" parent="."]
+collision_layer = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="VisionArea2D"]
+position = Vector2(0, -10)
+shape = SubResource("CircleShape2D_f70dk")

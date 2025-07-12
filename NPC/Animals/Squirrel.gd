@@ -13,6 +13,7 @@ signal turn_completed
 
 # Area2D references for body collision only
 @onready var body_area: Area2D = $BodyArea2D
+@onready var vision_area: Area2D = $VisionArea2D
 
 var grid_position: Vector2i
 var cell_size: int = 48
@@ -36,8 +37,8 @@ var facing_direction: Vector2i = Vector2i(1, 0)  # Start facing right
 var last_movement_direction: Vector2i = Vector2i(1, 0)  # Track last movement direction
 
 # Health and damage properties
-var max_health: int = 10
-var current_health: int = 10
+var max_health: int = 1
+var current_health: int = 1
 var is_alive: bool = true
 var is_dead: bool = false
 var damage_cooldown: float = 0.1  # Prevent multiple damage calls in short time
@@ -70,6 +71,11 @@ var detected_golf_balls: Array[Node] = []
 var nearest_golf_ball: Node = null
 var vision_tile_range: int = 5  # How many tiles away the squirrel can see (reduced from 20)
 
+# Player movement tracking for damage system
+var previous_player_grid_pos: Vector2i = Vector2i.ZERO
+var player_movement_damage_cooldown: float = 0.5  # Prevent multiple damage calls from rapid movement
+var last_player_movement_damage_time: float = 0.0
+
 func _ready():
 	# Add to groups for smart optimization and roof bounce system
 	add_to_group("collision_objects")
@@ -88,7 +94,8 @@ func _ready():
 		print("Squirrel grid position calculated from position: ", grid_position)
 	
 	# After setting position, ensure grid_position is synced with actual world position
-	update_grid_position_from_world()
+	# Note: We don't call update_grid_position_from_world() here because the metadata
+	# should contain the correct grid position from the build system
 	
 	# If this is a manually placed squirrel (no metadata), ensure it's on a valid position
 	if not has_meta("grid_position"):
@@ -161,12 +168,33 @@ func _ready():
 
 func _set_initial_state() -> void:
 	"""Set the initial state after vision system is set up"""
+	print("=== SQUIRREL SETTING INITIAL STATE ===")
+	
+	# Check if player is already within vision range when Squirrel is created
+	if player and "grid_pos" in player:
+		var player_tile_distance = abs(player.grid_pos.x - grid_position.x) + abs(player.grid_pos.y - grid_position.y)
+		print("Initial player distance check:")
+		print("  Squirrel position: ", grid_position)
+		print("  Player position: ", player.grid_pos)
+		print("  Tile distance: ", player_tile_distance)
+		print("  Vision range: ", vision_tile_range)
+		
+		if player_tile_distance <= vision_tile_range:
+			print("✓ Player already within Squirrel vision range on creation - taking 1 damage")
+			take_damage(1, false, player.global_position if player else Vector2.ZERO)
+		else:
+			print("✗ Player outside Squirrel vision range on creation - no damage")
+	else:
+		print("⚠ No player reference or grid_pos property for initial damage check")
+	
 	if has_detected_golf_ball():
 		state_machine.set_state("chase_ball")
 		print("Squirrel starting in chase mode - ball detected")
 	else:
 		state_machine.set_state("patrol")
 		print("Squirrel starting in patrol mode - no ball detected")
+	
+	print("=== END INITIAL STATE SETUP ===")
 
 func setup(pos: Vector2i, cell_size_param: int = 48) -> void:
 	"""Setup the Squirrel with specific parameters"""
@@ -175,8 +203,8 @@ func setup(pos: Vector2i, cell_size_param: int = 48) -> void:
 	
 	# Set position based on grid position
 	position = Vector2(grid_position.x, grid_position.y) * cell_size + Vector2(cell_size / 2, cell_size / 2)
-	# After setting position, ensure grid_position is synced
-	update_grid_position_from_world()
+	# Note: We don't call update_grid_position_from_world() here because we want to keep
+	# the grid position from the build system, not recalculate it from world position
 	
 	print("Squirrel setup: at ", pos, " with cell_size: ", cell_size)
 	print("Squirrel world position: ", position)
@@ -258,6 +286,26 @@ func _setup_base_collision() -> void:
 		print("✓ Body area monitoring: ", base_collision_area.monitoring)
 	else:
 		print("✗ ERROR: BodyArea2D not found!")
+	
+	# Setup vision area for player detection (separate from ball collision)
+	if vision_area:
+		# Set collision layer to 0 so golf balls DON'T detect it
+		vision_area.collision_layer = 0
+		# Set collision mask to 2 so it can detect player on layer 2
+		vision_area.collision_mask = 2
+		# Make sure the vision area is monitorable and monitoring
+		vision_area.monitorable = false  # Don't want other things to detect this
+		vision_area.monitoring = true   # But we want to detect the player
+		# Connect to area_entered and area_exited signals for player detection
+		vision_area.connect("area_entered", _on_vision_area_entered)
+		vision_area.connect("area_exited", _on_vision_area_exited)
+		print("✓ Squirrel vision area setup complete")
+		print("✓ Vision area collision layer: ", vision_area.collision_layer)
+		print("✓ Vision area collision mask: ", vision_area.collision_mask)
+		print("✓ Vision area monitorable: ", vision_area.monitorable)
+		print("✓ Vision area monitoring: ", vision_area.monitoring)
+	else:
+		print("✗ ERROR: VisionArea2D not found!")
 
 func _setup_tile_based_vision() -> void:
 	"""Setup tile-based vision system for detecting golf balls"""
@@ -274,7 +322,7 @@ func _start_vision_check_timer() -> void:
 	"""Start a timer to periodically check for golf balls in vision range"""
 	var vision_timer = Timer.new()
 	vision_timer.name = "VisionCheckTimer"
-	vision_timer.wait_time = 3.0  # Check every 3 seconds (less frequent to reduce debug spam)
+	vision_timer.wait_time = 0.5  # Check every 0.5 seconds for more responsive ball detection
 	vision_timer.timeout.connect(_check_vision_for_golf_balls)
 	add_child(vision_timer)
 	vision_timer.start()
@@ -298,8 +346,16 @@ func _check_vision_for_golf_balls() -> void:
 		if not is_instance_valid(ball):
 			continue
 		
-		# Get ball's tile position
-		var ball_tile_pos = Vector2i(floor(ball.global_position.x / cell_size), floor(ball.global_position.y / cell_size))
+		# Get ball's tile position (accounting for camera offset)
+		var ball_tile_pos: Vector2i
+		if course and "camera_offset" in course:
+			var camera_offset = course.camera_offset
+			var adjusted_ball_pos = ball.global_position - camera_offset
+			ball_tile_pos = Vector2i(floor(adjusted_ball_pos.x / cell_size), floor(adjusted_ball_pos.y / cell_size))
+		else:
+			# Fallback: use direct calculation without camera offset
+			ball_tile_pos = Vector2i(floor(ball.global_position.x / cell_size), floor(ball.global_position.y / cell_size))
+		
 		var squirrel_tile_pos = grid_position
 		
 		# Calculate tile distance
@@ -312,10 +368,12 @@ func _check_vision_for_golf_balls() -> void:
 		if tile_distance <= vision_tile_range:
 			if ball not in detected_golf_balls:
 				detected_golf_balls.append(ball)
+				print("✓ Squirrel ", name, " detected ball at tile ", ball_tile_pos, " (distance: ", tile_distance, ")")
 		else:
 			# Remove ball from detected list if it's no longer in range
 			if ball in detected_golf_balls:
 				detected_golf_balls.erase(ball)
+				print("✗ Squirrel ", name, " lost ball at tile ", ball_tile_pos, " (distance: ", tile_distance, ")")
 
 	
 	# Update nearest ball
@@ -380,12 +438,158 @@ func _create_health_bar() -> void:
 
 func _find_player_reference() -> void:
 	"""Find the player reference after scene is loaded"""
+	print("=== SQUIRREL FINDING PLAYER REFERENCE ===")
 	if course:
-		player = course.get_node_or_null("Player")
-		if player:
-			print("✓ Squirrel found player reference")
+		print("Course found: ", course.name)
+		
+		# Method 1: Try to get player from course method (most reliable)
+		if course.has_method("get_player_reference"):
+			player = course.get_player_reference()
+			if player:
+				print("✓ Squirrel found player reference via course.get_player_reference(): ", player.name)
+				_connect_to_player_movement()
+				return
+			else:
+				print("course.get_player_reference returned null")
+		
+		# Method 2: Try different paths to find the player
+		var possible_paths = [
+			"Player",  # Direct child of course
+			"player_node",  # Alternative name
+			"CameraContainer/GridContainer/Player",  # Correct path based on scene hierarchy
+			"CameraContainer/Player"  # Fallback path
+		]
+		
+		for path in possible_paths:
+			player = course.get_node_or_null(path)
+			if player:
+				print("✓ Squirrel found player reference via path '", path, "': ", player.name)
+				print("Player has moved_to_tile signal: ", player.has_signal("moved_to_tile"))
+				print("Player has grid_pos property: ", "grid_pos" in player)
+				if "grid_pos" in player:
+					print("Player grid_pos: ", player.grid_pos)
+				# Connect to player's movement signal
+				_connect_to_player_movement()
+				return
+		
+		# Method 3: Try to find player in scene tree by name
+		var scene_tree = get_tree()
+		var all_nodes = scene_tree.get_nodes_in_group("")
+		print("Searching ", all_nodes.size(), " nodes in scene tree for player...")
+		
+		for node in all_nodes:
+			if node.name == "Player":
+				player = node
+				print("✓ Squirrel found player in scene tree: ", player.name)
+				_connect_to_player_movement()
+				return
+		
+		# Method 4: Try to find by script type
+		for node in all_nodes:
+			if node.get_script():
+				var script_path = node.get_script().resource_path
+				if script_path.ends_with("Player.gd"):
+					player = node
+					print("✓ Squirrel found player by script: ", player.name)
+					_connect_to_player_movement()
+					return
+		
+		print("✗ ERROR: Player not found via any method!")
+		print("Tried paths: ", possible_paths)
+		print("Course children: ", course.get_children())
+		
+		# Check if CameraContainer exists and what's in it
+		var camera_container = course.get_node_or_null("CameraContainer")
+		if camera_container:
+			print("CameraContainer found, children: ", camera_container.get_children())
+			var grid_container = camera_container.get_node_or_null("GridContainer")
+			if grid_container:
+				print("GridContainer found, children: ", grid_container.get_children())
+		
+		# Set up a retry timer to try again later
+		_setup_player_reference_retry()
+	else:
+		print("✗ ERROR: Course reference not found!")
+		# Set up a retry timer to try again later
+		_setup_player_reference_retry()
+	print("=== END PLAYER REFERENCE SEARCH ===")
+
+func _connect_to_player_movement() -> void:
+	"""Connect to the player's movement signal to track when they move within vision range"""
+	print("=== SQUIRREL CONNECTING TO PLAYER MOVEMENT ===")
+	if player and player.has_signal("moved_to_tile"):
+		player.moved_to_tile.connect(_on_player_moved_to_tile)
+		print("✓ Squirrel connected to player movement signal")
+		
+		# Initialize previous player position
+		if "grid_pos" in player:
+			previous_player_grid_pos = player.grid_pos
+			print("✓ Squirrel initialized previous player position: ", previous_player_grid_pos)
 		else:
-			print("✗ ERROR: Player not found in course!")
+			print("⚠ WARNING: Player doesn't have grid_pos property")
+	else:
+		print("✗ ERROR: Player doesn't have moved_to_tile signal or grid_pos property")
+		if player:
+			print("Player signals: ", player.get_signal_list())
+	print("=== END PLAYER MOVEMENT CONNECTION ===")
+
+func _on_player_moved_to_tile(new_grid_pos: Vector2i) -> void:
+	"""Called when the player moves to a new tile - check if they moved within vision range"""
+	if not is_alive or is_dead:
+		return
+	
+	# Check damage cooldown to prevent multiple damage calls from rapid movement
+	var current_time = Time.get_ticks_msec() / 1000.0
+	if current_time - last_player_movement_damage_time < player_movement_damage_cooldown:
+		return
+	
+	# Calculate tile distance between squirrel and new player position
+	var tile_distance = abs(new_grid_pos.x - grid_position.x) + abs(new_grid_pos.y - grid_position.y)
+	
+	print("=== SQUIRREL PLAYER MOVEMENT CHECK ===")
+	print("Squirrel: ", name, " at grid position: ", grid_position)
+	print("Player moved from: ", previous_player_grid_pos, " to: ", new_grid_pos)
+	print("Tile distance to player: ", tile_distance)
+	print("Vision tile range: ", vision_tile_range)
+	
+	# Check if player moved within vision range
+	if tile_distance <= vision_tile_range:
+		print("✓ Player moved within Squirrel vision range - taking 1 damage")
+		last_player_movement_damage_time = current_time
+		take_damage(1, false, player.global_position if player else Vector2.ZERO)
+	else:
+		print("✗ Player moved outside Squirrel vision range - no damage")
+	
+	# Update previous player position
+	previous_player_grid_pos = new_grid_pos
+	print("=== END PLAYER MOVEMENT CHECK ===")
+
+func _on_vision_area_entered(area: Area2D) -> void:
+	"""Called when the player enters the vision area"""
+	print("=== SQUIRREL VISION AREA ENTERED ===")
+	print("Area entered: ", area.name)
+	print("Area parent: ", area.get_parent().name if area.get_parent() else "None")
+	
+	# Check if this is the player
+	if area.get_parent() and area.get_parent().name == "Player":
+		print("✓ Player entered Squirrel vision area")
+		# The player movement signal will handle the damage, this is just for detection
+	else:
+		print("✗ Non-player entered vision area: ", area.get_parent().name if area.get_parent() else "None")
+	print("=== END VISION AREA ENTERED ===")
+
+func _on_vision_area_exited(area: Area2D) -> void:
+	"""Called when the player exits the vision area"""
+	print("=== SQUIRREL VISION AREA EXITED ===")
+	print("Area exited: ", area.name)
+	print("Area parent: ", area.get_parent().name if area.get_parent() else "None")
+	
+	# Check if this is the player
+	if area.get_parent() and area.get_parent().name == "Player":
+		print("✓ Player exited Squirrel vision area")
+	else:
+		print("✗ Non-player exited vision area: ", area.get_parent().name if area.get_parent() else "None")
+	print("=== END VISION AREA EXITED ===")
 
 func _on_turn_started(npc: Node) -> void:
 	"""Called when this NPC's turn starts"""
@@ -520,17 +724,26 @@ func _move_to_position(target_pos: Vector2i) -> void:
 	var direction = target_pos - grid_position
 	last_movement_direction = direction
 	facing_direction = direction
-	# Update grid_position immediately for logic
-	grid_position = target_pos
+	# Do NOT update grid_position here! It will be updated after movement completes.
+	# grid_position = target_pos
 	
 	# Update sprite facing before movement
 	_update_sprite_facing()
 	
 	# Calculate world position
-	var world_pos = Vector2(
-		target_pos.x * cell_size + cell_size / 2,
-		target_pos.y * cell_size + cell_size / 2
-	)
+	var world_pos: Vector2
+	if course and "camera_offset" in course:
+		var camera_offset = course.camera_offset
+		world_pos = Vector2(
+			target_pos.x * cell_size + cell_size / 2,
+			target_pos.y * cell_size + cell_size / 2
+		) + camera_offset
+	else:
+		# Fallback: calculate without camera offset
+		world_pos = Vector2(
+			target_pos.x * cell_size + cell_size / 2,
+			target_pos.y * cell_size + cell_size / 2
+		)
 	
 	print("Squirrel moving from ", grid_position, " to ", target_pos, " with direction: ", direction)
 	print("Started movement animation to position: ", world_pos)
@@ -560,7 +773,7 @@ func _on_movement_completed() -> void:
 	"""Called when movement animation completes"""
 	print("Squirrel movement animation completed")
 	is_moving = false
-	# Recalculate grid_position from global_position
+	# Recalculate grid_position from global_position with camera offset correction
 	update_grid_position_from_world()
 	_check_turn_completion()
 
@@ -584,36 +797,16 @@ func _check_turn_completion() -> void:
 	print("=== END TURN COMPLETION CHECK ===")
 
 func _is_position_valid(pos: Vector2i) -> bool:
-	"""Check if a grid position is valid for movement"""
-	if not course:
-		print("Position validation failed - no course reference")
+	# Basic bounds checking - ensure position is within reasonable grid bounds
+	if pos.x < 0 or pos.y < 0 or pos.x > 100 or pos.y > 100:
 		return false
-	
-	# Allow negative coordinates since squirrels are being placed at negative Y positions
-	# Use extended bounds to accommodate squirrel placement system
-	if pos.x < -10 or pos.y < -10 or pos.x > 110 or pos.y > 110:
-		print("Position ", pos, " is out of extended bounds (-10 to 110)")
-		return false
-	
+
 	# Check if position is occupied by the player
 	if player and player.grid_pos == pos:
 		print("Position ", pos, " is occupied by player")
 		return false
-	
-	# Check if position is walkable (not occupied by obstacles)
-	# Only check walkability if position is within the course bounds (0-50)
-	if pos.x >= 0 and pos.x < 50 and pos.y >= 0 and pos.y < 50:
-		var is_walkable = course.is_position_walkable(pos)
-		if not is_walkable:
-			print("Position ", pos, " is not walkable")
-			# Try to get more info about why it's not walkable
-			if course.has_method("get_tile_type"):
-				var tile_type = course.get_tile_type(pos.x, pos.y)
-				print("Tile type at ", pos, ": ", tile_type)
-			return false
-	else:
-		print("Position ", pos, " is outside course bounds (0-50) but within extended bounds - allowing movement")
-	
+
+	# For now, allow movement to any position within bounds
 	return true
 
 func _get_valid_adjacent_positions() -> Array[Vector2i]:
@@ -1115,7 +1308,14 @@ class ChaseBallState extends BaseState:
 			return
 		
 		var ball_pos = squirrel.nearest_golf_ball.global_position
-		var ball_grid_pos = Vector2i(floor(ball_pos.x / squirrel.cell_size), floor(ball_pos.y / squirrel.cell_size))
+		var ball_grid_pos: Vector2i
+		if squirrel.course and "camera_offset" in squirrel.course:
+			var camera_offset = squirrel.course.camera_offset
+			var adjusted_ball_pos = ball_pos - camera_offset
+			ball_grid_pos = Vector2i(floor(adjusted_ball_pos.x / squirrel.cell_size), floor(adjusted_ball_pos.y / squirrel.cell_size))
+		else:
+			# Fallback: use direct calculation without camera offset
+			ball_grid_pos = Vector2i(floor(ball_pos.x / squirrel.cell_size), floor(ball_pos.y / squirrel.cell_size))
 		
 		print("Ball global position: ", ball_pos)
 		print("Ball grid position: ", ball_grid_pos)
@@ -1281,9 +1481,359 @@ class RetreatingState extends BaseState:
 		pass 
 
 func update_grid_position_from_world():
-	grid_position = Vector2i(floor(global_position.x / cell_size), floor(global_position.y / cell_size))
+	"""Update grid position from world position, accounting for camera offset"""
+	if course and "camera_offset" in course:
+		var camera_offset = course.camera_offset
+		var adjusted_position = global_position - camera_offset
+		grid_position = Vector2i(floor(adjusted_position.x / cell_size), floor(adjusted_position.y / cell_size))
+	else:
+		# Fallback: use direct calculation without camera offset
+		grid_position = Vector2i(floor(global_position.x / cell_size), floor(global_position.y / cell_size))
 
 func _process(delta):
-	var calc_grid = Vector2i(floor(global_position.x / cell_size), floor(global_position.y / cell_size))
+	"""Process function with corrected grid position calculation"""
+	var calc_grid: Vector2i
+	if course and "camera_offset" in course:
+		var camera_offset = course.camera_offset
+		var adjusted_position = global_position - camera_offset
+		calc_grid = Vector2i(floor(adjusted_position.x / cell_size), floor(adjusted_position.y / cell_size))
+	else:
+		# Fallback: use direct calculation without camera offset
+		calc_grid = Vector2i(floor(global_position.x / cell_size), floor(global_position.y / cell_size))
+	
 	if calc_grid != grid_position:
 		print("WARNING: Squirrel grid_position desynced! grid_position=", grid_position, " calc=", calc_grid) 
+	
+	# Fallback proximity check - check for player proximity every frame as backup
+	_check_player_proximity_fallback()
+
+func _check_player_proximity_fallback() -> void:
+	"""Fallback system to check player proximity every frame in case signal connection fails"""
+	if not is_alive or is_dead:
+		return
+	
+	# Only check if we have a player reference
+	if not player or not is_instance_valid(player):
+		return
+	
+	# Only check if player has grid_pos property
+	if not "grid_pos" in player:
+		return
+	
+	var current_player_pos = player.grid_pos
+	
+	# Skip if player hasn't moved
+	if current_player_pos == previous_player_grid_pos:
+		return
+	
+	# Check damage cooldown
+	var current_time = Time.get_ticks_msec() / 1000.0
+	if current_time - last_player_movement_damage_time < player_movement_damage_cooldown:
+		return
+	
+	# Calculate tile distance
+	var tile_distance = abs(current_player_pos.x - grid_position.x) + abs(current_player_pos.y - grid_position.y)
+	
+	# Only print debug info occasionally to avoid spam
+	if randf() < 0.01:  # 1% chance per frame
+		print("=== SQUIRREL FALLBACK PROXIMITY CHECK ===")
+		print("Squirrel: ", name, " at grid position: ", grid_position)
+		print("Player moved from: ", previous_player_grid_pos, " to: ", current_player_pos)
+		print("Tile distance to player: ", tile_distance)
+		print("Vision tile range: ", vision_tile_range)
+		print("=== END FALLBACK CHECK ===")
+	
+	# Check if player moved within vision range
+	if tile_distance <= vision_tile_range:
+		print("✓ FALLBACK: Player moved within Squirrel vision range - taking 1 damage")
+		last_player_movement_damage_time = current_time
+		take_damage(1, false, player.global_position if player else Vector2.ZERO)
+	
+	# Update previous player position
+	previous_player_grid_pos = current_player_pos
+
+# Manual test functions for debugging
+func test_damage_system() -> void:
+	"""Manual test function to verify the damage system is working"""
+	print("=== MANUAL SQUIRREL DAMAGE TEST ===")
+	print("Squirrel: ", name)
+	print("Current health: ", current_health, "/", max_health)
+	print("Is alive: ", is_alive)
+	print("Is dead: ", is_dead)
+	print("Player reference: ", player.name if player else "None")
+	print("Player grid position: ", player.grid_pos if player and "grid_pos" in player else "Unknown")
+	print("Squirrel grid position: ", grid_position)
+	print("Vision tile range: ", vision_tile_range)
+	
+	# Test taking damage directly
+	print("Testing direct damage...")
+	take_damage(1, false, Vector2.ZERO)
+	print("Health after test damage: ", current_health, "/", max_health)
+	print("=== END MANUAL DAMAGE TEST ===")
+
+func test_player_movement_damage(player_test_pos: Vector2i) -> void:
+	"""Manual test function to simulate player movement to a specific position"""
+	print("=== MANUAL PLAYER MOVEMENT TEST ===")
+	print("Testing player movement to: ", player_test_pos)
+	_on_player_moved_to_tile(player_test_pos)
+	print("=== END PLAYER MOVEMENT TEST ===")
+
+func test_ball_detection() -> void:
+	"""Manual test function to trigger ball detection check"""
+	print("=== MANUAL BALL DETECTION TEST ===")
+	_check_vision_for_golf_balls()
+	print("=== END BALL DETECTION TEST ===")
+
+func retry_player_reference() -> void:
+	"""Manual function to retry finding the player reference"""
+	print("=== MANUAL PLAYER REFERENCE RETRY ===")
+	print("Current player reference: ", player.name if player else "None")
+	print("Retrying player reference search...")
+	_find_player_reference()
+	print("=== END MANUAL PLAYER REFERENCE RETRY ===")
+
+func debug_coordinate_system() -> void:
+	"""Debug function to check coordinate system alignment"""
+	print("=== SQUIRREL COORDINATE SYSTEM DEBUG ===")
+	print("Squirrel name: ", name)
+	print("Global position: ", global_position)
+	print("Position: ", position)
+	print("Grid position: ", grid_position)
+	
+	if course and "camera_offset" in course:
+		var camera_offset = course.camera_offset
+		var adjusted_position = global_position - camera_offset
+		var calculated_grid = Vector2i(floor(adjusted_position.x / cell_size), floor(adjusted_position.y / cell_size))
+		print("Camera offset: ", camera_offset)
+		print("Adjusted position: ", adjusted_position)
+		print("Calculated grid position: ", calculated_grid)
+		print("Grid position matches calculated: ", grid_position == calculated_grid)
+	else:
+		print("No camera offset available")
+		var calculated_grid = Vector2i(floor(global_position.x / cell_size), floor(global_position.y / cell_size))
+		print("Calculated grid position (no offset): ", calculated_grid)
+		print("Grid position matches calculated: ", grid_position == calculated_grid)
+	
+	if player and "grid_pos" in player:
+		var tile_distance = abs(player.grid_pos.x - grid_position.x) + abs(player.grid_pos.y - grid_position.y)
+		print("Player grid position: ", player.grid_pos)
+		print("Tile distance to player: ", tile_distance)
+		print("Vision tile range: ", vision_tile_range)
+		print("Player in vision range: ", tile_distance <= vision_tile_range)
+	
+	print("=== END COORDINATE SYSTEM DEBUG ===")
+
+func debug_ball_detection() -> void:
+	"""Debug function to check ball detection system"""
+	print("=== SQUIRREL BALL DETECTION DEBUG ===")
+	print("Squirrel name: ", name)
+	print("Squirrel grid position: ", grid_position)
+	print("Vision tile range: ", vision_tile_range)
+	
+	# Get all golf balls in the scene
+	var golf_balls = get_tree().get_nodes_in_group("golf_balls")
+	if golf_balls.is_empty():
+		golf_balls = get_tree().get_nodes_in_group("balls")
+	
+	print("Total golf balls found: ", golf_balls.size())
+	
+	for ball in golf_balls:
+		if not is_instance_valid(ball):
+			continue
+		
+		# Get ball's tile position (accounting for camera offset)
+		var ball_tile_pos: Vector2i
+		if course and "camera_offset" in course:
+			var camera_offset = course.camera_offset
+			var adjusted_ball_pos = ball.global_position - camera_offset
+			ball_tile_pos = Vector2i(floor(adjusted_ball_pos.x / cell_size), floor(adjusted_ball_pos.y / cell_size))
+		else:
+			ball_tile_pos = Vector2i(floor(ball.global_position.x / cell_size), floor(ball.global_position.y / cell_size))
+		
+		var tile_distance = abs(ball_tile_pos.x - grid_position.x) + abs(ball_tile_pos.y - grid_position.y)
+		var in_range = tile_distance <= vision_tile_range
+		
+		print("Ball: ", ball.name)
+		print("  Global position: ", ball.global_position)
+		print("  Calculated tile position: ", ball_tile_pos)
+		print("  Tile distance: ", tile_distance)
+		print("  In vision range: ", in_range)
+		print("  Currently detected: ", ball in detected_golf_balls)
+	
+	print("Currently detected balls: ", detected_golf_balls.size())
+	print("Nearest ball: ", nearest_golf_ball.name if nearest_golf_ball else "None")
+	print("Has detected ball: ", has_detected_golf_ball())
+	print("=== END BALL DETECTION DEBUG ===")
+
+func _setup_player_reference_retry() -> void:
+	"""Set up a retry timer to find the player reference later"""
+	var retry_timer = Timer.new()
+	retry_timer.name = "PlayerReferenceRetryTimer"
+	retry_timer.wait_time = 1.0  # Wait 1 second before retrying
+	retry_timer.one_shot = true
+	retry_timer.timeout.connect(_retry_find_player_reference)
+	add_child(retry_timer)
+	retry_timer.start()
+	print("✓ Set up player reference retry timer")
+
+func _retry_find_player_reference() -> void:
+	"""Retry finding the player reference after a delay"""
+	print("=== SQUIRREL RETRYING PLAYER REFERENCE SEARCH ===")
+	
+	# Remove the retry timer
+	var retry_timer = get_node_or_null("PlayerReferenceRetryTimer")
+	if retry_timer:
+		retry_timer.queue_free()
+	
+	# Try to find course reference again if we don't have it
+	if not course:
+		course = _find_course_script()
+	
+	if course:
+		print("Course found on retry: ", course.name)
+		
+		# Method 1: Try to get player from course method (most reliable)
+		if course.has_method("get_player_reference"):
+			player = course.get_player_reference()
+			if player:
+				print("✓ Squirrel found player reference on retry via course.get_player_reference(): ", player.name)
+				_connect_to_player_movement()
+				return
+			else:
+				print("course.get_player_reference returned null on retry")
+		
+		# Method 2: Try different paths to find the player
+		var possible_paths = [
+			"Player",  # Direct child of course
+			"player_node",  # Alternative name
+			"CameraContainer/GridContainer/Player",  # Correct path based on scene hierarchy
+			"CameraContainer/Player"  # Fallback path
+		]
+		
+		for path in possible_paths:
+			player = course.get_node_or_null(path)
+			if player:
+				print("✓ Squirrel found player reference on retry via path '", path, "': ", player.name)
+				_connect_to_player_movement()
+				return
+		
+		# Method 3: Try to find player in scene tree by name
+		var scene_tree = get_tree()
+		var all_nodes = scene_tree.get_nodes_in_group("")
+		print("Searching ", all_nodes.size(), " nodes in scene tree for player on retry...")
+		
+		for node in all_nodes:
+			if node.name == "Player":
+				player = node
+				print("✓ Squirrel found player in scene tree on retry: ", player.name)
+				_connect_to_player_movement()
+				return
+		
+		# Method 4: Try to find by script type
+		for node in all_nodes:
+			if node.get_script():
+				var script_path = node.get_script().resource_path
+				if script_path.ends_with("Player.gd"):
+					player = node
+					print("✓ Squirrel found player by script on retry: ", player.name)
+					_connect_to_player_movement()
+					return
+		
+		print("✗ Player still not found on retry")
+		# Try one more time with a longer delay
+		_setup_player_reference_final_retry()
+	else:
+		print("✗ Course reference still not found on retry")
+		_setup_player_reference_final_retry()
+	
+	print("=== END PLAYER REFERENCE RETRY ===")
+
+func _setup_player_reference_final_retry() -> void:
+	"""Set up a final retry with longer delay"""
+	var final_retry_timer = Timer.new()
+	final_retry_timer.name = "PlayerReferenceFinalRetryTimer"
+	final_retry_timer.wait_time = 3.0  # Wait 3 seconds for final retry
+	final_retry_timer.one_shot = true
+	final_retry_timer.timeout.connect(_final_retry_find_player_reference)
+	add_child(final_retry_timer)
+	final_retry_timer.start()
+	print("✓ Set up final player reference retry timer")
+
+func _final_retry_find_player_reference() -> void:
+	"""Final retry to find player reference"""
+	print("=== SQUIRREL FINAL PLAYER REFERENCE RETRY ===")
+	
+	# Remove the final retry timer
+	var final_retry_timer = get_node_or_null("PlayerReferenceFinalRetryTimer")
+	if final_retry_timer:
+		final_retry_timer.queue_free()
+	
+	# Try to find course reference again
+	if not course:
+		course = _find_course_script()
+	
+	if course:
+		print("Course found on final retry: ", course.name)
+		
+		# Method 1: Try to get player from course method (most reliable)
+		if course.has_method("get_player_reference"):
+			player = course.get_player_reference()
+			if player:
+				print("✓ Squirrel found player reference on final retry via course.get_player_reference(): ", player.name)
+				_connect_to_player_movement()
+				return
+			else:
+				print("course.get_player_reference returned null on final retry")
+		
+		# Method 2: Try different paths to find the player
+		var possible_paths = [
+			"Player",  # Direct child of course
+			"player_node",  # Alternative name
+			"CameraContainer/GridContainer/Player",  # Correct path based on scene hierarchy
+			"CameraContainer/Player"  # Fallback path
+		]
+		
+		for path in possible_paths:
+			player = course.get_node_or_null(path)
+			if player:
+				print("✓ Squirrel found player reference on final retry via path '", path, "': ", player.name)
+				_connect_to_player_movement()
+				return
+		
+		# Method 3: Try to find player in scene tree by name
+		var scene_tree = get_tree()
+		var all_nodes = scene_tree.get_nodes_in_group("")
+		print("Searching ", all_nodes.size(), " nodes in scene tree for player on final retry...")
+		
+		for node in all_nodes:
+			if node.name == "Player":
+				player = node
+				print("✓ Squirrel found player in scene tree on final retry: ", player.name)
+				_connect_to_player_movement()
+				return
+		
+		# Method 4: Try to find by script type
+		for node in all_nodes:
+			if node.get_script():
+				var script_path = node.get_script().resource_path
+				if script_path.ends_with("Player.gd"):
+					player = node
+					print("✓ Squirrel found player by script on final retry: ", player.name)
+					_connect_to_player_movement()
+					return
+		
+		print("✗ CRITICAL: Player reference not found after all retries!")
+		print("This Squirrel will not react to player movement")
+		print("Available course children: ", course.get_children())
+		
+		# Check if CameraContainer exists and what's in it
+		var camera_container = course.get_node_or_null("CameraContainer")
+		if camera_container:
+			print("CameraContainer found, children: ", camera_container.get_children())
+			var grid_container = camera_container.get_node_or_null("GridContainer")
+			if grid_container:
+				print("GridContainer found, children: ", grid_container.get_children())
+	else:
+		print("✗ CRITICAL: Course reference not found after all retries!")
+	
+	print("=== END FINAL PLAYER REFERENCE RETRY ===") 

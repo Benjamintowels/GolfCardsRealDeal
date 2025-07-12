@@ -159,10 +159,13 @@ func _setup_ball_collision() -> void:
 	base_collision_area = _find_character_area2d()
 	if base_collision_area:
 		# Set collision layer to 1 so golf balls can detect it
-		base_collision_area.collision_layer = 1
+		# Also set layer 2 so VisionArea2D can detect the player
+		base_collision_area.collision_layer = 3  # Layer 1 (1) + Layer 2 (2) = 3
 		# Set collision mask to 1 so it can detect golf balls on layer 1
 		base_collision_area.collision_mask = 1
 		print("✓ Player base collision area setup complete")
+		print("✓ Player collision layer: ", base_collision_area.collision_layer, " (layers 1 & 2)")
+		print("✓ Player collision mask: ", base_collision_area.collision_mask)
 	else:
 		print("✗ ERROR: BaseCollisionArea not found!")
 

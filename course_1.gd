@@ -758,6 +758,26 @@ func _on_complete_hole_pressed():
 	show_hole_completion_dialog()
 
 func _input(event: InputEvent) -> void:
+	# Debug key bindings for Squirrel damage system testing
+	if event is InputEventKey and event.pressed:
+		match event.keycode:
+			KEY_F1:
+				test_squirrel_damage()
+			KEY_F2:
+				test_squirrel_player_movement()
+			KEY_F3:
+				list_squirrels()
+			KEY_F4:
+				retry_squirrel_player_references()
+			KEY_F5:
+				test_squirrel_vision_damage()
+			KEY_F6:
+				debug_squirrel_coordinate_system()
+			KEY_F7:
+				debug_squirrel_ball_detection()
+			KEY_F8:
+				test_squirrel_ball_detection()
+	
 	# Debug: Log all left click events to see what phase we're in
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		print("Course: Left click detected - current game_phase:", game_phase)
@@ -4774,3 +4794,156 @@ func is_position_walkable(pos: Vector2i) -> bool:
 	
 	# Position is walkable if no obstacle is present
 	return true
+
+# Debug functions for testing Squirrel damage system
+func test_squirrel_damage() -> void:
+	"""Test Squirrel damage system by finding all Squirrels and testing their damage"""
+	print("=== TESTING SQUIRREL DAMAGE SYSTEM ===")
+	
+	var squirrels = get_tree().get_nodes_in_group("collision_objects")
+	var squirrel_count = 0
+	
+	for node in squirrels:
+		if node.get_script() and node.get_script().resource_path.ends_with("Squirrel.gd"):
+			squirrel_count += 1
+			print("Found Squirrel: ", node.name)
+			if node.has_method("test_damage_system"):
+				node.test_damage_system()
+	
+	print("Total Squirrels found: ", squirrel_count)
+	print("=== END SQUIRREL DAMAGE TEST ===")
+
+func test_squirrel_player_movement() -> void:
+	"""Test Squirrel player movement detection by simulating player movement"""
+	print("=== TESTING SQUIRREL PLAYER MOVEMENT ===")
+	
+	var squirrels = get_tree().get_nodes_in_group("collision_objects")
+	var squirrel_count = 0
+	
+	for node in squirrels:
+		if node.get_script() and node.get_script().resource_path.ends_with("Squirrel.gd"):
+			squirrel_count += 1
+			print("Found Squirrel: ", node.name)
+			print("Squirrel position: ", node.grid_position if "grid_position" in node else "Unknown")
+			print("Player position: ", player_node.grid_pos if player_node else "Unknown")
+			
+			if node.has_method("test_player_movement_damage"):
+				# Test moving player to a position within 5 tiles of the Squirrel
+				var squirrel_pos = node.grid_position if "grid_position" in node else Vector2i.ZERO
+				var test_pos = squirrel_pos + Vector2i(3, 0)  # 3 tiles to the right
+				print("Testing player movement to: ", test_pos, " (should be within vision range)")
+				node.test_player_movement_damage(test_pos)
+	
+	print("Total Squirrels tested: ", squirrel_count)
+	print("=== END PLAYER MOVEMENT TEST ===")
+
+func list_squirrels() -> void:
+	"""List all Squirrels in the scene with their positions and player references"""
+	print("=== LISTING ALL SQUIRRELS ===")
+	
+	var squirrels = get_tree().get_nodes_in_group("collision_objects")
+	var squirrel_count = 0
+	
+	for node in squirrels:
+		if node.get_script() and node.get_script().resource_path.ends_with("Squirrel.gd"):
+			squirrel_count += 1
+			print("Squirrel ", squirrel_count, ": ", node.name)
+			print("  Position: ", node.grid_position if "grid_position" in node else "Unknown")
+			print("  Player reference: ", node.player.name if node.player else "None")
+			print("  Health: ", node.current_health, "/", node.max_health if "current_health" in node and "max_health" in node else "Unknown")
+			print("  Is alive: ", node.is_alive if "is_alive" in node else "Unknown")
+	
+	print("Total Squirrels: ", squirrel_count)
+	print("=== END SQUIRREL LIST ===")
+
+func retry_squirrel_player_references() -> void:
+	"""Retry finding player references for all Squirrels"""
+	print("=== RETRYING SQUIRREL PLAYER REFERENCES ===")
+	
+	var squirrels = get_tree().get_nodes_in_group("collision_objects")
+	var squirrel_count = 0
+	
+	for node in squirrels:
+		if node.get_script() and node.get_script().resource_path.ends_with("Squirrel.gd"):
+			squirrel_count += 1
+			print("Retrying player reference for Squirrel: ", node.name)
+			if node.has_method("retry_player_reference"):
+				node.retry_player_reference()
+	
+	print("Total Squirrels retried: ", squirrel_count)
+	print("=== END PLAYER REFERENCE RETRY ===")
+
+func test_squirrel_vision_damage() -> void:
+	"""Test Squirrel damage by temporarily moving player within vision range"""
+	print("=== TESTING SQUIRREL VISION DAMAGE ===")
+	
+	var squirrels = get_tree().get_nodes_in_group("collision_objects")
+	var squirrel_count = 0
+	
+	for node in squirrels:
+		if node.get_script() and node.get_script().resource_path.ends_with("Squirrel.gd"):
+			squirrel_count += 1
+			print("Found Squirrel: ", node.name)
+			print("Squirrel position: ", node.grid_position if "grid_position" in node else "Unknown")
+			print("Player position: ", player_node.grid_pos if player_node else "Unknown")
+			
+			if node.has_method("test_player_movement_damage"):
+				# Test moving player to a position within 5 tiles of the Squirrel
+				var squirrel_pos = node.grid_position if "grid_position" in node else Vector2i.ZERO
+				var test_pos = squirrel_pos + Vector2i(3, 0)  # 3 tiles to the right
+				print("Testing player movement to: ", test_pos, " (should be within vision range)")
+				node.test_player_movement_damage(test_pos)
+	
+	print("Total Squirrels tested: ", squirrel_count)
+	print("=== END VISION DAMAGE TEST ===")
+
+func debug_squirrel_coordinate_system() -> void:
+	"""Debug Squirrel coordinate system to check for alignment issues"""
+	print("=== DEBUGGING SQUIRREL COORDINATE SYSTEM ===")
+	
+	var squirrels = get_tree().get_nodes_in_group("collision_objects")
+	var squirrel_count = 0
+	
+	for node in squirrels:
+		if node.get_script() and node.get_script().resource_path.ends_with("Squirrel.gd"):
+			squirrel_count += 1
+			print("Found Squirrel: ", node.name)
+			if node.has_method("debug_coordinate_system"):
+				node.debug_coordinate_system()
+	
+	print("Total Squirrels debugged: ", squirrel_count)
+	print("=== END COORDINATE SYSTEM DEBUG ===")
+
+func debug_squirrel_ball_detection() -> void:
+	"""Debug Squirrel ball detection system"""
+	print("=== DEBUGGING SQUIRREL BALL DETECTION ===")
+	
+	var squirrels = get_tree().get_nodes_in_group("collision_objects")
+	var squirrel_count = 0
+	
+	for node in squirrels:
+		if node.get_script() and node.get_script().resource_path.ends_with("Squirrel.gd"):
+			squirrel_count += 1
+			print("Found Squirrel: ", node.name)
+			if node.has_method("debug_ball_detection"):
+				node.debug_ball_detection()
+	
+	print("Total Squirrels debugged: ", squirrel_count)
+	print("=== END BALL DETECTION DEBUG ===")
+
+func test_squirrel_ball_detection() -> void:
+	"""Test Squirrel ball detection by manually triggering detection checks"""
+	print("=== TESTING SQUIRREL BALL DETECTION ===")
+	
+	var squirrels = get_tree().get_nodes_in_group("collision_objects")
+	var squirrel_count = 0
+	
+	for node in squirrels:
+		if node.get_script() and node.get_script().resource_path.ends_with("Squirrel.gd"):
+			squirrel_count += 1
+			print("Testing ball detection for Squirrel: ", node.name)
+			if node.has_method("test_ball_detection"):
+				node.test_ball_detection()
+	
+	print("Total Squirrels tested: ", squirrel_count)
+	print("=== END BALL DETECTION TEST ===")
