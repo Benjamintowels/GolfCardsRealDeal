@@ -90,18 +90,12 @@ func _ready():
 	add_to_group("collision_objects")
 	add_to_group("NPC")
 	
-	print("=== SQUIRREL READY DEBUG ===")
-	print("Squirrel name: ", name)
-	print("Squirrel position: ", global_position)
-	
 	# Get grid position from metadata set by build system, or calculate from position if not set
 	if has_meta("grid_position"):
 		grid_position = get_meta("grid_position")
-		print("Squirrel grid position from metadata: ", grid_position)
 	else:
 		# Fallback: calculate from position (but this should not happen with proper setup)
 		grid_position = Vector2i(floor(position.x / cell_size), floor(position.y / cell_size))
-		print("Squirrel grid position calculated from position: ", grid_position)
 	
 	# After setting position, ensure grid_position is synced with actual world position
 	# Note: We don't call update_grid_position_from_world() here because the metadata
@@ -165,27 +159,23 @@ func _ready():
 
 func _set_initial_state() -> void:
 	"""Set the initial state after vision system is set up"""
-	print("=== SQUIRREL SETTING INITIAL STATE ===")
-	
+	# Removed debug prints
 	# Check if player is already within vision range when Squirrel is created
 	if player and "grid_pos" in player:
 		var player_tile_distance = abs(player.grid_pos.x - grid_position.x) + abs(player.grid_pos.y - grid_position.y)
-		
 		if player_tile_distance <= vision_tile_range:
 			take_damage(1, false, player.global_position if player else Vector2.ZERO)
 		else:
-			print("✗ Player outside Squirrel vision range on creation - no damage")
+			pass # Removed debug print
 	else:
-		print("⚠ No player reference or grid_pos property for initial damage check")
-	
+		pass # Removed debug print
 	if has_detected_golf_ball():
 		state_machine.set_state("chase_ball")
-		print("Squirrel starting in chase mode - ball detected")
+		# Removed debug print
 	else:
 		state_machine.set_state("patrol")
-		print("Squirrel starting in patrol mode - no ball detected")
-	
-	print("=== END INITIAL STATE SETUP ===")
+		# Removed debug print
+	# Removed debug print
 
 func setup(pos: Vector2i, cell_size_param: int = 48) -> void:
 	"""Setup the Squirrel with specific parameters"""
@@ -228,7 +218,7 @@ func _find_nearest_valid_position(invalid_pos: Vector2i) -> Vector2i:
 				
 				# Check if position is within bounds and walkable
 				if _is_position_valid(test_pos):
-					print("Found valid position at ", test_pos, " (distance: ", radius, ")")
+					# Removed debug print
 					return test_pos
 	
 	# If no valid position found, return the original position
@@ -239,11 +229,11 @@ func _find_course_script() -> Node:
 	var current_node = self
 	while current_node:
 		if current_node.get_script() and current_node.get_script().resource_path.ends_with("course_1.gd"):
-			print("Found course_1.gd script at: ", current_node.name)
+			# Removed debug print
 			return current_node
 		current_node = current_node.get_parent()
 	
-	print("ERROR: Could not find course_1.gd script in scene tree!")
+	# Removed debug print
 	return null
 
 func _setup_base_collision() -> void:
@@ -261,7 +251,8 @@ func _setup_base_collision() -> void:
 		base_collision_area.connect("area_entered", _on_base_area_entered)
 		base_collision_area.connect("area_exited", _on_area_exited)
 	else:
-		print("✗ ERROR: BodyArea2D not found!")
+		# Removed debug print
+		pass
 	
 	# Setup vision area for player detection (separate from ball collision)
 	if vision_area:
@@ -275,18 +266,16 @@ func _setup_base_collision() -> void:
 		# Connect to area_entered and area_exited signals for player detection
 		vision_area.connect("area_entered", _on_vision_area_entered)
 		vision_area.connect("area_exited", _on_vision_area_exited)
-		print("✓ Squirrel vision area setup complete")
+		# Removed debug print
 	else:
-		print("✗ ERROR: VisionArea2D not found!")
+		# Removed debug print
+		pass
 
 func _setup_tile_based_vision() -> void:
 	"""Setup tile-based vision system for detecting golf balls"""
-	print("✓ Setting up tile-based vision system")
-	print("✓ Vision tile range: ", vision_tile_range, " tiles")
-	
+	# Removed debug prints
 	# VisionArea2D removed - using tile-based vision instead
-	print("✓ Using tile-based vision system")
-	
+	# Removed debug print
 	# Start the vision check timer
 	_start_vision_check_timer()
 
@@ -340,12 +329,14 @@ func _check_vision_for_golf_balls() -> void:
 		if tile_distance <= vision_tile_range:
 			if ball not in detected_golf_balls:
 				detected_golf_balls.append(ball)
-				print("✓ Squirrel ", name, " detected ball at tile ", ball_tile_pos, " (distance: ", tile_distance, ")")
+				# Removed debug print
+			# Removed debug print
 		else:
 			# Remove ball from detected list if it's no longer in range
 			if ball in detected_golf_balls:
 				detected_golf_balls.erase(ball)
-				print("✗ Squirrel ", name, " lost ball at tile ", ball_tile_pos, " (distance: ", tile_distance, ")")
+				# Removed debug print
+			# Removed debug print
 
 	
 	# Update nearest ball
@@ -404,9 +395,9 @@ func _create_health_bar() -> void:
 
 func _find_player_reference() -> void:
 	"""Find the player reference after scene is loaded"""
-	print("=== SQUIRREL FINDING PLAYER REFERENCE ===")
+	# Removed debug prints
 	if course:
-		print("Course found: ", course.name)
+		# Removed debug print
 		
 		# Method 1: Try to get player from course method (most reliable)
 		if course.has_method("get_player_reference"):
@@ -415,7 +406,8 @@ func _find_player_reference() -> void:
 				_connect_to_player_movement()
 				return
 			else:
-				print("course.get_player_reference returned null")
+				# Removed debug print
+				pass
 		
 		# Method 2: Try different paths to find the player
 		var possible_paths = [
@@ -429,7 +421,8 @@ func _find_player_reference() -> void:
 			player = course.get_node_or_null(path)
 			if player:
 				if "grid_pos" in player:
-					print("Player grid_pos: ", player.grid_pos)
+					# Removed debug print
+					pass
 				# Connect to player's movement signal
 				_connect_to_player_movement()
 				return
@@ -437,12 +430,12 @@ func _find_player_reference() -> void:
 		# Method 3: Try to find player in scene tree by name
 		var scene_tree = get_tree()
 		var all_nodes = scene_tree.get_nodes_in_group("")
-		print("Searching ", all_nodes.size(), " nodes in scene tree for player...")
+		# Removed debug print
 		
 		for node in all_nodes:
 			if node.name == "Player":
 				player = node
-				print("✓ Squirrel found player in scene tree: ", player.name)
+				# Removed debug print
 				_connect_to_player_movement()
 				return
 		
@@ -452,46 +445,49 @@ func _find_player_reference() -> void:
 				var script_path = node.get_script().resource_path
 				if script_path.ends_with("Player.gd"):
 					player = node
-					print("✓ Squirrel found player by script: ", player.name)
+					# Removed debug print
 					_connect_to_player_movement()
 					return
 		
-		print("✗ ERROR: Player not found via any method!")
+		# Removed debug print
 		
 		# Check if CameraContainer exists and what's in it
 		var camera_container = course.get_node_or_null("CameraContainer")
 		if camera_container:
-			print("CameraContainer found, children: ", camera_container.get_children())
+			# Removed debug print
 			var grid_container = camera_container.get_node_or_null("GridContainer")
 			if grid_container:
-				print("GridContainer found, children: ", grid_container.get_children())
+				# Removed debug print
+				pass
 		
 		# Set up a retry timer to try again later
 		_setup_player_reference_retry()
 	else:
-		print("✗ ERROR: Course reference not found!")
+		# Removed debug print
 		# Set up a retry timer to try again later
 		_setup_player_reference_retry()
-	print("=== END PLAYER REFERENCE SEARCH ===")
+	# Removed debug print
 
 func _connect_to_player_movement() -> void:
 	"""Connect to the player's movement signal to track when they move within vision range"""
-	print("=== SQUIRREL CONNECTING TO PLAYER MOVEMENT ===")
+	# Removed debug prints
 	if player and player.has_signal("moved_to_tile"):
 		player.moved_to_tile.connect(_on_player_moved_to_tile)
-		print("✓ Squirrel connected to player movement signal")
+		# Removed debug print
 		
 		# Initialize previous player position
 		if "grid_pos" in player:
 			previous_player_grid_pos = player.grid_pos
-			print("✓ Squirrel initialized previous player position: ", previous_player_grid_pos)
+			# Removed debug print
 		else:
-			print("⚠ WARNING: Player doesn't have grid_pos property")
+			# Removed debug print
+			pass
 	else:
-		print("✗ ERROR: Player doesn't have moved_to_tile signal or grid_pos property")
+		# Removed debug print
 		if player:
-			print("Player signals: ", player.get_signal_list())
-	print("=== END PLAYER MOVEMENT CONNECTION ===")
+			# Removed debug print
+			pass
+	# Removed debug print
 
 func _on_player_moved_to_tile(new_grid_pos: Vector2i) -> void:
 	"""Called when the player moves to a new tile - check if they moved within vision range"""
@@ -508,13 +504,13 @@ func _on_player_moved_to_tile(new_grid_pos: Vector2i) -> void:
 	
 	# Check if player moved within vision range
 	if tile_distance <= vision_tile_range:
-		print("✓ Player moved within Squirrel vision range - taking 1 damage")
+		# Removed debug print
 		last_player_movement_damage_time = current_time
 		take_damage(1, false, player.global_position if player else Vector2.ZERO)
 	
 	# Update previous player position
 	previous_player_grid_pos = new_grid_pos
-	print("=== END PLAYER MOVEMENT CHECK ===")
+	# Removed debug print
 
 func _on_vision_area_entered(area: Area2D) -> void:
 	"""Called when the player enters the vision area"""
@@ -525,10 +521,12 @@ func _on_vision_area_exited(area: Area2D) -> void:
 	
 	# Check if this is the player
 	if area.get_parent() and area.get_parent().name == "Player":
-		print("✓ Player exited Squirrel vision area")
+		# Removed debug print
+		pass
 	else:
-		print("✗ Non-player exited vision area: ", area.get_parent().name if area.get_parent() else "None")
-	print("=== END VISION AREA EXITED ===")
+		# Removed debug print
+		pass
+	# Removed debug print
 
 func _on_turn_started(npc: Node) -> void:
 	"""Called when this NPC's turn starts"""
@@ -543,27 +541,16 @@ func _on_turn_started(npc: Node) -> void:
 		var has_ball = has_detected_golf_ball()
 		var current_state = state_machine.current_state
 		
-		print("Has ball detected: ", has_ball)
-		print("Current state: ", current_state)
-		
 		# Squirrels always chase balls when detected, regardless of player visibility
 		if has_ball and current_state == "patrol":
-			print("Ball detected during patrol, switching to chase mode")
 			state_machine.set_state("chase_ball")
 		elif not has_ball and current_state == "chase_ball":
-			print("No ball detected during chase, switching to patrol mode")
 			state_machine.set_state("patrol")
 		
-		print("Final state after turn start: ", state_machine.current_state)
-		print("=== END TURN STARTED ===")
-		
 		# Call take_turn() to execute the turn
-		print("About to call take_turn()")
 		take_turn()
-		print("take_turn() completed")
 	else:
 		print("Not this squirrel's turn")
-	print("=== END TURN STARTED SIGNAL ===")
 
 func _on_turn_ended(npc: Node) -> void:
 	"""Called when this NPC's turn ends"""
@@ -579,76 +566,33 @@ func _on_turn_completed_debug() -> void:
 
 func take_turn() -> void:
 	"""Take the Squirrel's turn"""
-	print("=== SQUIRREL TAKE_TURN CALLED ===")
-	print("Squirrel: ", name)
-	print("Is alive: ", is_alive)
-	print("Is dead: ", is_dead)
-	print("Is retreating: ", is_retreating)
 	
 	# Reset turn completion flag
 	turn_completion_emitted = false
 	
 	if not is_alive or is_dead or is_retreating:
-		print("Squirrel is dead or retreating, skipping turn")
 		turn_completed.emit()
 		return
 	
-	print("=== SQUIRREL TURN START ===")
-	print("Squirrel: ", name)
-	print("Current state: ", state_machine.current_state)
-	print("Has detected golf ball: ", has_detected_golf_ball())
-	print("Nearest golf ball: ", nearest_golf_ball.name if nearest_golf_ball else "None")
-	print("Grid position: ", grid_position)
-	
-	# Check if we should switch states based on current conditions
-	var has_ball = has_detected_golf_ball()
-	var current_state = state_machine.current_state
-	
-	print("Has ball detected: ", has_ball)
-	print("Current state: ", current_state)
-	
-	# Squirrels always chase balls when detected, regardless of player visibility
-	if has_ball and current_state == "patrol":
-		print("Ball detected during patrol, switching to chase mode")
-		state_machine.set_state("chase_ball")
-	elif not has_ball and current_state == "chase_ball":
-		print("No ball detected during chase, switching to patrol mode")
-		state_machine.set_state("patrol")
-	
-	print("Final state after turn start: ", state_machine.current_state)
-	
 	# Update state machine - this will handle the turn logic and completion
-	print("About to call state_machine.update()")
 	state_machine.update()
-	print("state_machine.update() completed")
 	
 	# The state machine should handle turn completion, so we don't need to call it again
 	# Only check turn completion if the state machine didn't handle it
 	if not is_moving:
-		print("State machine didn't start movement, checking turn completion")
 		_check_turn_completion()
-	
-	print("=== SQUIRREL TURN END ===")
 
 func _move_to_position(target_pos: Vector2i) -> void:
 	"""Move the Squirrel to a target grid position"""
-	print("=== SQUIRREL MOVE TO POSITION CALLED ===")
-	print("Target position: ", target_pos)
-	print("Current grid position: ", grid_position)
-	print("Is moving: ", is_moving)
-	print("Target valid: ", _is_position_valid(target_pos))
 	
 	if is_moving:
-		print("Squirrel is already moving, ignoring movement command")
 		return
 	
 	if target_pos == grid_position:
-		print("Squirrel target position is same as current position")
 		_check_turn_completion()
 		return
 	
 	if not _is_position_valid(target_pos):
-		print("Squirrel target position is invalid: ", target_pos)
 		_check_turn_completion()
 		return
 	
@@ -677,9 +621,6 @@ func _move_to_position(target_pos: Vector2i) -> void:
 			target_pos.y * cell_size + cell_size / 2
 		)
 	
-	print("Squirrel moving from ", grid_position, " to ", target_pos, " with direction: ", direction)
-	print("Started movement animation to position: ", world_pos)
-	
 	# Play footstep sound right before movement starts
 	_play_footstep_sound_before_movement()
 	
@@ -699,14 +640,9 @@ func _move_to_position(target_pos: Vector2i) -> void:
 	if move_sound:
 		move_sound.play()
 	
-	print("=== MOVEMENT STARTED ===")
-	print("Movement tween created: ", movement_tween != null)
-	print("Target world position: ", world_pos)
-	print("=== END MOVE TO POSITION ===")
 
 func _on_movement_completed() -> void:
 	"""Called when movement animation completes"""
-	print("Squirrel movement animation completed")
 	is_moving = false
 	# Recalculate grid_position from global_position with camera offset correction
 	update_grid_position_from_world()
@@ -714,22 +650,14 @@ func _on_movement_completed() -> void:
 
 func _check_turn_completion() -> void:
 	"""Check if the turn should be completed"""
-	print("=== TURN COMPLETION CHECK ===")
-	print("Is moving: ", is_moving)
-	print("Current state: ", state_machine.current_state)
-	print("Turn completion already emitted: ", turn_completion_emitted)
 	
 	if not is_moving and not turn_completion_emitted:
-		print("Squirrel movement finished, completing turn")
-		print("About to emit turn_completed signal")
 		turn_completion_emitted = true
 		turn_completed.emit()
-		print("Turn completed signal emitted successfully")
 	elif turn_completion_emitted:
-		print("Turn completion already emitted, skipping")
+		pass
 	else:
-		print("Squirrel still moving, waiting for completion")
-	print("=== END TURN COMPLETION CHECK ===")
+		pass
 
 func _is_position_valid(pos: Vector2i) -> bool:
 	# Basic bounds checking - ensure position is within reasonable grid bounds
@@ -738,7 +666,6 @@ func _is_position_valid(pos: Vector2i) -> bool:
 
 	# Check if position is occupied by the player
 	if player and player.grid_pos == pos:
-		print("Position ", pos, " is occupied by player")
 		return false
 
 	# For now, allow movement to any position within bounds
@@ -749,20 +676,10 @@ func _get_valid_adjacent_positions() -> Array[Vector2i]:
 	var adjacent: Array[Vector2i] = []
 	var directions = [Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 0), Vector2i(-1, 0)]
 	
-	print("=== CHECKING ADJACENT POSITIONS ===")
-	print("Squirrel at: ", grid_position)
-	
 	for direction in directions:
 		var pos = grid_position + direction
-		print("Checking adjacent position: ", pos, " (direction: ", direction, ")")
 		if _is_position_valid(pos):
 			adjacent.append(pos)
-			print("✓ Position ", pos, " is valid")
-		else:
-			print("✗ Position ", pos, " is invalid")
-	
-	print("Valid adjacent positions found: ", adjacent.size())
-	print("=== END ADJACENT POSITIONS CHECK ===")
 	return adjacent
 
 func _update_sprite_facing() -> void:
@@ -784,13 +701,11 @@ func _update_sprite_facing() -> void:
 		# Moving down
 		sprite_down.visible = true
 	
-	print("Updated Squirrel sprite facing - Direction: ", facing_direction)
 
 func _face_direction(direction: Vector2i) -> void:
 	"""Make the Squirrel face a specific direction"""
 	facing_direction = direction
 	_update_sprite_facing()
-	print("Squirrel facing direction: ", facing_direction)
 
 func _face_ball() -> void:
 	"""Make the Squirrel face the nearest golf ball"""
@@ -810,18 +725,12 @@ func _face_ball() -> void:
 	facing_direction = Vector2i(direction_to_ball.x, direction_to_ball.y)
 	_update_sprite_facing()
 	
-	print("Facing ball - Direction: ", facing_direction)
 
 func _push_ball_away() -> void:
 	"""Push the golf ball away from the squirrel"""
 	if not nearest_golf_ball or not is_instance_valid(nearest_golf_ball):
-		print("No valid golf ball to push")
 		_check_turn_completion()
 		return
-	
-	print("=== SQUIRREL PUSHING BALL AWAY ===")
-	print("Squirrel position: ", grid_position)
-	print("Ball position: ", nearest_golf_ball.global_position)
 	
 	# Face the ball first
 	_face_ball()
@@ -841,7 +750,6 @@ func _push_ball_away() -> void:
 	if nearest_golf_ball.has_method("set_velocity"):
 		var new_velocity = push_direction * push_force
 		nearest_golf_ball.set_velocity(new_velocity)
-		print("Applied push velocity to ball: ", new_velocity)
 		
 		# Re-enable ball rolling if it was stopped
 		if nearest_golf_ball.has_method("set_rolling_state"):
@@ -853,7 +761,6 @@ func _push_ball_away() -> void:
 		var push_sound = get_node_or_null("SquirrelPush")
 		if push_sound and push_sound.stream:
 			push_sound.play()
-			print("Playing squirrel push sound")
 	else:
 		print("Ball doesn't have set_velocity method")
 	
@@ -862,31 +769,22 @@ func _push_ball_away() -> void:
 	
 	# Complete the turn
 	_check_turn_completion()
-	print("=== END SQUIRREL PUSHING BALL ===")
 
 # Health and damage methods
 func take_damage(amount: int, is_headshot: bool = false, weapon_position: Vector2 = Vector2.ZERO) -> void:
 	"""Take damage and handle death if health reaches 0"""
-	print("=== SQUIRREL TAKE_DAMAGE CALLED ===")
-	print("Amount: ", amount)
-	print("Is headshot: ", is_headshot)
-	print("Weapon position: ", weapon_position)
-	print("Call stack: ", get_stack())
 	
 	if not is_alive:
-		print("Squirrel is already dead, ignoring damage")
 		return
 	
 	# Check damage cooldown to prevent duplicate damage calls
 	var current_time = Time.get_ticks_msec() / 1000.0
 	if current_time - last_damage_time < damage_cooldown:
-		print("Squirrel damage cooldown active, ignoring damage")
 		return
 	
 	last_damage_time = current_time
 	
 	current_health = current_health - amount
-	print("Squirrel took", amount, "damage. Current health:", current_health, "/", max_health)
 	
 	# Update health bar
 	if health_bar:
@@ -898,7 +796,6 @@ func take_damage(amount: int, is_headshot: bool = false, weapon_position: Vector
 		hit_sound.play()
 	
 	if current_health <= 0 and not is_dead:
-		print("Squirrel health reached 0, calling die()")
 		die()
 
 func die() -> void:
@@ -906,7 +803,6 @@ func die() -> void:
 	if is_dead:
 		return
 	
-	print("Squirrel dying - starting retreat animation")
 	is_dead = true
 	is_alive = false
 	
@@ -926,7 +822,6 @@ func _start_retreat_animation() -> void:
 		return
 	
 	is_retreating = true
-	print("Starting Squirrel retreat animation")
 	
 	# Calculate retreat position (bottom of screen)
 	var retreat_pos = global_position
@@ -941,7 +836,6 @@ func _start_retreat_animation() -> void:
 
 func _on_retreat_completed() -> void:
 	"""Called when retreat animation completes"""
-	print("Squirrel retreat animation completed")
 	# Remove from Entities system
 	if entities_manager:
 		entities_manager.unregister_npc(self)
@@ -953,25 +847,12 @@ func _on_retreat_completed() -> void:
 func _on_base_area_entered(area: Area2D) -> void:
 	"""Handle collision with projectiles"""
 	var projectile = area.get_parent()
-	print("=== BASE AREA COLLISION DEBUG ===")
-	print("Area entered: ", area.name)
-	print("Area parent: ", area.get_parent().name if area.get_parent() else "None")
-	print("Projectile name:", projectile.name if projectile else "None")
-	print("Projectile type:", projectile.get_class() if projectile else "None")
-	print("Base collision area name: ", base_collision_area.name if base_collision_area else "None")
-	print("Is body area collision: ", area == base_collision_area)
-	print("Area path: ", area.get_path())
-	print("Base collision area path: ", base_collision_area.get_path() if base_collision_area else "None")
 	
 	# Only handle collisions with the body area, not the vision area
 	if area != base_collision_area:
-		print("Collision with vision area, ignoring")
 		return
 	
 	if projectile and (projectile.name == "GolfBall" or projectile.name == "GhostBall" or projectile.has_method("is_throwing_knife")):
-		print("=== HANDLING SQUIRREL AREA COLLISION ===")
-		print("Projectile name:", projectile.name)
-		print("Projectile type:", projectile.get_class())
 		
 		# Get projectile height
 		var projectile_height = 0.0
@@ -980,15 +861,10 @@ func _on_base_area_entered(area: Area2D) -> void:
 		elif "height" in projectile:
 			projectile_height = projectile.height
 		
-		print("Projectile height:", projectile_height)
-		print("Squirrel height:", get_height())
-		
 		# Check if projectile is above Squirrel height
 		if projectile_height > get_height():
-			print("✓ Projectile is above Squirrel height - no collision")
 			return
 		else:
-			print("✗ Projectile is below Squirrel height - reflecting")
 			_reflect_projectile(projectile)
 		
 		# Handle ball/knife collision
@@ -1000,13 +876,10 @@ func _on_area_exited(area: Area2D) -> void:
 
 func _reflect_projectile(projectile: Node2D) -> void:
 	"""Reflect a projectile that hits the Squirrel"""
-	print("=== REFLECTING PROJECTILE ===")
 	
 	var projectile_velocity = Vector2.ZERO
 	if "velocity" in projectile:
 		projectile_velocity = projectile.velocity
-	
-	print("Reflecting projectile with velocity:", projectile_velocity)
 	
 	# Calculate reflection direction (reverse the velocity)
 	var reflected_velocity = -projectile_velocity
@@ -1014,12 +887,9 @@ func _reflect_projectile(projectile: Node2D) -> void:
 	# Apply reflected velocity
 	if "velocity" in projectile:
 		projectile.velocity = reflected_velocity
-	
-	print("Reflected velocity:", reflected_velocity)
 
 func _handle_ball_knife_collision(projectile: Node2D) -> void:
 	"""Handle collision with ball or knife"""
-	print("Handling ball/knife collision - checking ball/knife height")
 	
 	# Get projectile height
 	var projectile_height = 0.0
@@ -1030,21 +900,15 @@ func _handle_ball_knife_collision(projectile: Node2D) -> void:
 	
 	# Check if this is a throwing knife
 	if projectile.has_method("is_throwing_knife") and projectile.is_throwing_knife():
-		print("=== THROWING KNIFE COLLISION ===")
 		_handle_throwing_knife_collision(projectile, projectile_height)
 	else:
-		print("=== GOLF BALL COLLISION ===")
 		_handle_golf_ball_collision(projectile, projectile_height)
 
 func _handle_throwing_knife_collision(knife: Node2D, knife_height: float) -> void:
 	"""Handle collision with throwing knife"""
-	print("=== HANDLING THROWING KNIFE COLLISION ===")
-	print("Knife height:", knife_height)
-	print("Squirrel height:", get_height())
 	
 	# Check if knife hits in valid height range
 	if knife_height > get_height():
-		print("✓ Knife is above Squirrel - no damage")
 		return
 	
 	# Calculate damage based on knife velocity
@@ -1054,8 +918,6 @@ func _handle_throwing_knife_collision(knife: Node2D, knife_height: float) -> voi
 	
 	var damage = int(knife_velocity.length() / 10.0)  # Scale velocity to damage
 	damage = max(1, min(damage, 5))  # Clamp damage between 1-5
-	
-	print("Knife velocity:", knife_velocity, "Calculated damage:", damage)
 	
 	# Apply damage
 	take_damage(damage, false, knife.global_position)
@@ -1068,13 +930,9 @@ func _handle_throwing_knife_collision(knife: Node2D, knife_height: float) -> voi
 
 func _handle_golf_ball_collision(ball: Node2D, ball_height: float) -> void:
 	"""Handle collision with golf ball"""
-	print("=== HANDLING GOLF BALL COLLISION ===")
-	print("Ball height:", ball_height)
-	print("Squirrel height:", get_height())
 	
 	# Check if ball hits in valid height range
 	if ball_height > get_height():
-		print("✓ Ball is above Squirrel - no damage")
 		return
 	
 	# Calculate damage based on ball velocity
@@ -1084,8 +942,6 @@ func _handle_golf_ball_collision(ball: Node2D, ball_height: float) -> void:
 	
 	var damage = int(ball_velocity.length() / 20.0)  # Scale velocity to damage
 	damage = max(1, min(damage, 3))  # Clamp damage between 1-3
-	
-	print("Ball velocity:", ball_velocity, "Calculated damage:", damage)
 	
 	# Apply damage
 	take_damage(damage, false, ball.global_position)
@@ -1142,20 +998,10 @@ class StateMachine:
 				states[current_state].exit()
 			current_state = state_name
 			states[current_state].enter()
-			print("StateMachine: Switched to state: ", state_name)
-	
+
 	func update() -> void:
-		print("=== STATEMACHINE UPDATE CALLED ===")
-		print("Current state: ", current_state)
-		print("Available states: ", states.keys())
 		if current_state != "" and current_state in states:
-			print("StateMachine updating state: ", current_state)
 			states[current_state].update()
-			print("StateMachine update completed for state: ", current_state)
-		else:
-			print("StateMachine: No current state or state not found")
-			print("Current state is empty: ", current_state == "")
-			print("Current state in states: ", current_state in states)
 
 class BaseState extends Node:
 	var squirrel: Node
@@ -1306,10 +1152,6 @@ class ChaseBallState extends BaseState:
 		var max_steps = squirrel.chase_movement_range
 		var steps = 0
 		
-		print("=== PATHFINDING DEBUG ===")
-		print("Starting from ", current_pos, " to ", ball_pos, " with max steps: ", max_steps)
-		print("Chase movement range: ", squirrel.chase_movement_range)
-		
 		while current_pos != ball_pos and steps < max_steps:
 			var direction = (ball_pos - current_pos)
 			# Normalize the direction vector for Vector2i
@@ -1319,18 +1161,12 @@ class ChaseBallState extends BaseState:
 				direction.y = 1 if direction.y > 0 else -1
 			var next_pos = current_pos + direction
 			
-			print("Pathfinding step ", steps, " - Direction: ", direction, ", Next pos: ", next_pos)
-			print("Next position valid: ", squirrel._is_position_valid(next_pos))
-			
 			if squirrel._is_position_valid(next_pos):
 				current_pos = next_pos
 				path.append(current_pos)
-				print("Pathfinding - Valid position, moving to: ", current_pos)
 			else:
-				print("Pathfinding - Invalid position, trying adjacent positions")
 				# Try to find an alternative path
 				var adjacent = squirrel._get_valid_adjacent_positions()
-				print("Adjacent positions found: ", adjacent.size())
 				if adjacent.size() > 0:
 					# Find the adjacent position closest to ball
 					var best_pos = adjacent[0]
@@ -1344,9 +1180,7 @@ class ChaseBallState extends BaseState:
 					
 					current_pos = best_pos
 					path.append(current_pos)
-					print("Pathfinding - Using adjacent position: ", current_pos)
 				else:
-					print("Pathfinding - No valid adjacent positions found")
 					break
 			
 			steps += 1
@@ -1354,26 +1188,15 @@ class ChaseBallState extends BaseState:
 		# Check if we're very close to the ball (within 1 tile)
 		var distance_to_ball = current_pos.distance_to(ball_pos)
 		if distance_to_ball <= 1.0:
-			print("Pathfinding - Very close to ball, staying in place")
-			# Don't add any movement - just stay where we are
 			return path
 		
 		# Check if we're trapped (no valid adjacent positions)
 		var adjacent = squirrel._get_valid_adjacent_positions()
 		if adjacent.size() == 0:
-			print("Pathfinding - Squirrel is trapped, cannot move")
-			# Squirrel is trapped, return current path without movement
 			return path
 		
 		# Ensure we always return at least one step towards the ball if we haven't reached it
 		if path.size() == 1 and current_pos != ball_pos:
-			print("Pathfinding - No valid path found, but ball is within range")
-			print("Current pos: ", current_pos, " Ball pos: ", ball_pos)
-			print("Distance: ", current_pos.distance_to(ball_pos))
-			print("Max steps: ", max_steps)
-			print("Steps taken: ", steps)
-			
-			# Try to add at least one step towards the ball
 			var direction = (ball_pos - current_pos)
 			if direction.x != 0:
 				direction.x = 1 if direction.x > 0 else -1
@@ -1382,10 +1205,7 @@ class ChaseBallState extends BaseState:
 			var next_pos = current_pos + direction
 			if squirrel._is_position_valid(next_pos):
 				path.append(next_pos)
-				print("Pathfinding - Added fallback step to: ", next_pos)
 		
-		print("Pathfinding - Final path: ", path)
-		print("=== END PATHFINDING DEBUG ===")
 		return path
 
 
@@ -1471,16 +1291,12 @@ func _check_player_proximity_fallback() -> void:
 	
 	# Only print debug info occasionally to avoid spam
 	if randf() < 0.01:  # 1% chance per frame
-		print("=== SQUIRREL FALLBACK PROXIMITY CHECK ===")
-		print("Squirrel: ", name, " at grid position: ", grid_position)
-		print("Player moved from: ", previous_player_grid_pos, " to: ", current_player_pos)
-		print("Tile distance to player: ", tile_distance)
-		print("Vision tile range: ", vision_tile_range)
-		print("=== END FALLBACK CHECK ===")
+		# Removed debug print
+		pass
 	
 	# Check if player moved within vision range
 	if tile_distance <= vision_tile_range:
-		print("✓ FALLBACK: Player moved within Squirrel vision range - taking 1 damage")
+		# Removed debug print
 		last_player_movement_damage_time = current_time
 		take_damage(1, false, player.global_position if player else Vector2.ZERO)
 	
@@ -1613,7 +1429,6 @@ func _setup_player_reference_retry() -> void:
 
 func _retry_find_player_reference() -> void:
 	"""Retry finding the player reference after a delay"""
-	print("=== SQUIRREL RETRYING PLAYER REFERENCE SEARCH ===")
 	
 	# Remove the retry timer
 	var retry_timer = get_node_or_null("PlayerReferenceRetryTimer")
@@ -1678,7 +1493,7 @@ func _retry_find_player_reference() -> void:
 		# Try one more time with a longer delay
 		_setup_player_reference_final_retry()
 	else:
-		print("✗ Course reference still not found on retry")
+		print("✗ CRITICAL: Course reference still not found on retry")
 		_setup_player_reference_final_retry()
 	
 	print("=== END PLAYER REFERENCE RETRY ===")
@@ -1696,7 +1511,6 @@ func _setup_player_reference_final_retry() -> void:
 
 func _final_retry_find_player_reference() -> void:
 	"""Final retry to find player reference"""
-	print("=== SQUIRREL FINAL PLAYER REFERENCE RETRY ===")
 	
 	# Remove the final retry timer
 	var final_retry_timer = get_node_or_null("PlayerReferenceFinalRetryTimer")
@@ -1842,13 +1656,11 @@ func _play_grass_footstep() -> void:
 	"""Play grass footstep sound"""
 	if footsteps_grass_sound and footsteps_grass_sound.stream:
 		footsteps_grass_sound.play()
-		print("✓ Squirrel played grass footstep sound")
 
 func _play_snow_footstep() -> void:
 	"""Play snow footstep sound (for ice and sand)"""
 	if footsteps_snow_sound and footsteps_snow_sound.stream:
 		footsteps_snow_sound.play()
-		print("✓ Squirrel played snow footstep sound")
 
 func enable_footstep_sounds() -> void:
 	"""Enable footstep sound effects"""

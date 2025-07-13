@@ -62,8 +62,8 @@ func build_map_from_layout(layout: Array) -> void:
 					push_warning("⚠️ Tile missing 'grid_position'. Type: %s" % tile.get_class())
 				obstacle_layer.add_child(tile)
 				obstacle_map[pos] = tile
-			else:
-				print("ℹ️ Skipping unmapped tile code '%s' at (%d,%d)" % [tile_code, x, y])
+			elif not tile_scene_map.has(code):
+				pass
 	for y in layout.size():
 		for x in layout[y].size():
 			var code: String = layout[y][x]
@@ -88,7 +88,7 @@ func build_map_from_layout(layout: Array) -> void:
 				if object.has_method("blocks") and object.blocks():
 					obstacle_map[pos] = object
 			elif not tile_scene_map.has(code):
-				print("ℹ️ Skipping unmapped code '%s' at (%d,%d)" % [code, x, y]) 
+				pass
 
 # --- Clear all existing objects from the map ---
 func clear_existing_objects() -> void:
@@ -252,18 +252,6 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 	if num_zombies == -1:
 		num_zombies = npc_counts.zombies
 	
-	print("=== DIFFICULTY TIER SPAWNING ===")
-	print("Global turn: ", Global.global_turn_count)
-	print("Difficulty tier: ", Global.get_difficulty_tier())
-	print("NPC counts: ", npc_counts)
-	print("Gang members to spawn: ", num_gang_members)
-	print("Police to spawn: ", num_police)
-	print("Zombies to spawn: ", num_zombies)
-	print("Oil drums to spawn: ", num_oil_drums)
-	print("Current hole: ", current_hole)
-	print("Current hole + 1: ", current_hole + 1)
-	print("=== END DIFFICULTY TIER SPAWNING ===")
-	
 	randomize()
 	random_seed_value = current_hole * 1000 + randi()
 	seed(random_seed_value)
@@ -274,7 +262,6 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 		# This puts the shop entrance at (2,4) with blocked tiles around it
 		positions.shop = Vector2i(2, 4)
 		placed_objects.append(positions.shop)
-		print("✓ Shop forced to position (2,4) for hole 1 testing")
 	
 	# Get valid positions for trees and other objects
 	var valid_positions: Array = []
@@ -308,8 +295,6 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 		valid_positions.remove_at(tree_index)
 	
 	# Place Squirrels around trees (5 tiles radius, based on difficulty tier)
-	print("=== PLACING SQUIRRELS AROUND TREES ===")
-	print("Tree positions:", positions.trees)
 	var squirrels_placed = 0
 	var max_squirrels = npc_counts.squirrels
 	
@@ -342,7 +327,6 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 			var distance = max(abs(squirrel_pos.x - placed_pos.x), abs(squirrel_pos.y - placed_pos.y))
 			if distance < 3:  # Minimum spacing between squirrels and other objects
 				valid = false
-				print("  Rejected squirrel position:", squirrel_pos, "too close to:", placed_pos, "distance:", distance)
 				break
 		
 		if valid:
@@ -370,8 +354,6 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 			boulders_placed += 1
 		valid_positions.remove_at(boulder_index)
 	
-	print("✓ Placed", boulders_placed, "boulders on remaining base tiles")
-	
 	# Place Bushes on remaining base tiles (after boulders)
 	var num_bushes = 6  # Place 6 bushes per hole
 	var bushes_placed = 0
@@ -389,9 +371,6 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 			placed_objects.append(bush_pos)
 			bushes_placed += 1
 		valid_positions.remove_at(bush_index)
-	
-	print("✓ Placed", bushes_placed, "bushes on remaining base tiles")
-	print("Bush positions:", positions.bushes)
 	
 	# Place Grass ONLY on base tiles that are adjacent to rough tiles (transition zones)
 	# PERFORMANCE: Adjust this number based on desired density vs performance
@@ -420,8 +399,6 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 		if is_adjacent_to_rough:
 			rough_adjacent_positions.append(pos)
 	
-	print("✓ Found", rough_adjacent_positions.size(), "base tiles adjacent to rough")
-	
 	# Place grass ONLY on rough-adjacent tiles
 	var grass_placed = 0
 	var positions_to_check = rough_adjacent_positions.duplicate()  # Only rough-adjacent tiles
@@ -441,28 +418,12 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 			grass_placed += 1
 		positions_to_check.remove_at(grass_index)
 	
-	print("✓ Placed", grass_placed, "grass patches on remaining base tiles")
-	print("Grass positions:", positions.grass)
-	
 	# Place GangMembers on green tiles
 	var green_positions: Array = []
-	var tile_type_counts = {}
 	for y in layout.size():
 		for x in layout[y].size():
-			var tile_type = layout[y][x]
-			if tile_type not in tile_type_counts:
-				tile_type_counts[tile_type] = 0
-			tile_type_counts[tile_type] += 1
-			
-			if tile_type == "G":
+			if layout[y][x] == "G":
 				green_positions.append(Vector2i(x, y))
-	
-	print("=== GANG MEMBER PLACEMENT DEBUG ===")
-	print("Tile type counts in layout:", tile_type_counts)
-	print("Green positions found:", green_positions.size())
-	print("Gang members to place:", num_gang_members)
-	print("Green positions:", green_positions)
-	
 	var gang_members_placed = 0
 	while gang_members_placed < num_gang_members and green_positions.size() > 0:
 		var gang_index = randi() % green_positions.size()
@@ -472,21 +433,12 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 		gang_members_placed += 1
 		green_positions.remove_at(gang_index)
 	
-	print("Gang members actually placed:", gang_members_placed)
-	print("=== END GANG MEMBER DEBUG ===")
-	
 	# Place Police on rough tiles (R)
 	var rough_positions: Array = []
 	for y in layout.size():
 		for x in layout[y].size():
 			if layout[y][x] == "R":
 				rough_positions.append(Vector2i(x, y))
-	
-	print("=== POLICE PLACEMENT DEBUG ===")
-	print("Rough positions found:", rough_positions.size())
-	print("Police to place:", num_police)
-	print("Rough positions:", rough_positions)
-	
 	var police_placed = 0
 	while police_placed < num_police and rough_positions.size() > 0:
 		var police_index = randi() % rough_positions.size()
@@ -496,21 +448,12 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 		police_placed += 1
 		rough_positions.remove_at(police_index)
 	
-	print("Police actually placed:", police_placed)
-	print("=== END POLICE DEBUG ===")
-	
 	# Place Zombies on sand tiles (S)
 	var sand_positions: Array = []
 	for y in layout.size():
 		for x in layout[y].size():
 			if layout[y][x] == "S":
 				sand_positions.append(Vector2i(x, y))
-	
-	print("=== ZOMBIE PLACEMENT DEBUG ===")
-	print("Sand positions found:", sand_positions.size())
-	print("Zombies to place:", num_zombies)
-	print("Sand positions:", sand_positions)
-	
 	var zombies_placed = 0
 	while zombies_placed < num_zombies and sand_positions.size() > 0:
 		var zombie_index = randi() % sand_positions.size()
@@ -520,20 +463,10 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 		zombies_placed += 1
 		sand_positions.remove_at(zombie_index)
 	
-	print("Zombies actually placed:", zombies_placed)
-	print("✓ Placed", zombies_placed, "zombies on sand tiles")
-	print("=== END ZOMBIE DEBUG ===")
-	
 	# Place Wraith on green tiles for holes 9 and 18 (boss encounters)
+	var wraith_green_positions = green_positions.duplicate()
 	var num_wraiths = npc_counts.wraiths if "wraiths" in npc_counts else 0
 	if num_wraiths > 0:
-		print("=== WRAITH BOSS PLACEMENT FOR HOLE", current_hole + 1, "===")
-		print("Wraiths to place:", num_wraiths)
-		
-		# Use the same green positions that were found for gang members
-		var wraith_green_positions = green_positions.duplicate()
-		print("Green positions available for Wraith:", wraith_green_positions.size())
-		
 		var wraiths_placed = 0
 		while wraiths_placed < num_wraiths and wraith_green_positions.size() > 0:
 			var wraith_index = randi() % wraith_green_positions.size()
@@ -542,12 +475,6 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 			placed_objects.append(wraith_pos)
 			wraiths_placed += 1
 			wraith_green_positions.remove_at(wraith_index)
-		
-		print("Wraiths actually placed:", wraiths_placed)
-		print("✓ Placed", wraiths_placed, "Wraith(s) on green tiles for boss encounter")
-		print("=== END WRAITH BOSS DEBUG ===")
-	else:
-		print("=== NO WRAITH FOR HOLE", current_hole + 1, "(not a boss hole) ===")
 	
 	# Place Oil Drums on fairway tiles
 	var fairway_positions: Array = []
@@ -555,7 +482,6 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 		for x in layout[y].size():
 			if layout[y][x] == "F":
 				fairway_positions.append(Vector2i(x, y))
-	
 	var oil_drums_placed = 0
 	while oil_drums_placed < num_oil_drums and fairway_positions.size() > 0:
 		var oil_index = randi() % fairway_positions.size()
@@ -578,18 +504,12 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 	
 	# Place SuitCase on fairway tiles (every 6 holes)
 	if should_place_suitcase():
-		print("=== PLACING SUITCASE FOR HOLE", current_hole + 1, "===")
 		var suitcase_fairway_positions = get_valid_fairway_positions(layout)
 		
 		if suitcase_fairway_positions.size() > 0:
 			var suitcase_index = randi() % suitcase_fairway_positions.size()
 			positions.suitcase = suitcase_fairway_positions[suitcase_index]
 			placed_objects.append(positions.suitcase)
-			print("✓ SuitCase placed at grid position:", positions.suitcase)
-		else:
-			print("✗ No valid fairway position found for SuitCase placement.")
-	else:
-		print("=== NO SUITCASE FOR HOLE", current_hole + 1, "(not a multiple of 6) ===")
 	
 	# Place Stone Walls around map edges (only top and bottom, every other tile to prevent overlap)
 	var edge_positions: Array = []
@@ -601,20 +521,14 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 		# Top edge
 		if layout[0][x] != "W":  # Don't place on water
 			edge_positions.append(Vector2i(x, 0))
-		# (Bottom edge removed)
 	
 	# Add stone walls to edge positions
 	for wall_pos in edge_positions:
 		positions.stone_walls.append(wall_pos)
 		placed_objects.append(wall_pos)
 	
-	print("✓ Placed", positions.stone_walls.size(), "stone walls around map edges")
-	
 	# Place Bonfires every other hole (hole 2, 4, 6, 8, etc.)
 	if (current_hole + 1) % 2 == 0:  # Even holes (2, 4, 6, 8, etc.)
-		print("=== PLACING BONFIRE FOR HOLE", current_hole + 1, "===")
-		
-		# Find valid bonfire positions (base tiles 2+ away from rough)
 		var bonfire_candidate_positions: Array = []
 		for y in layout.size():
 			for x in layout[y].size():
@@ -622,34 +536,20 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 				if is_valid_position_for_bonfire(pos, layout):
 					bonfire_candidate_positions.append(pos)
 		
-		print("Found", bonfire_candidate_positions.size(), "valid bonfire positions")
-		print("Valid bonfire positions:", bonfire_candidate_positions)
-		
-		# Place 1 bonfire per eligible hole
 		if bonfire_candidate_positions.size() > 0:
 			var bonfire_index = randi() % bonfire_candidate_positions.size()
 			var bonfire_pos = bonfire_candidate_positions[bonfire_index]
-			print("Selected bonfire position index:", bonfire_index, "position:", bonfire_pos)
 			
-			# Check spacing from other placed objects (allow adjacent placement)
 			var valid = true
 			for placed_pos in placed_objects:
 				var distance = max(abs(bonfire_pos.x - placed_pos.x), abs(bonfire_pos.y - placed_pos.y))
 				if distance < 1:  # Allow adjacent placement (minimum 1 tile away)
 					valid = false
-					print("  Rejected bonfire position:", bonfire_pos, "too close to:", placed_pos, "distance:", distance)
 					break
 			
 			if valid:
 				positions.bonfires.append(bonfire_pos)
 				placed_objects.append(bonfire_pos)
-				print("✓ Bonfire placed at position:", bonfire_pos)
-			else:
-				print("✗ No valid bonfire position found with proper spacing")
-		else:
-			print("✗ No valid bonfire positions found")
-	else:
-		print("=== NO BONFIRE FOR HOLE", current_hole + 1, "(odd hole) ===")
 	
 	return positions
 
@@ -657,7 +557,6 @@ func build_map_from_layout_with_randomization(layout: Array, hole_index: int = -
 	# Update current_hole if hole_index is provided
 	if hole_index >= 0:
 		current_hole = hole_index
-		print("BuildMap: Updated current_hole to:", current_hole)
 	
 	randomize()
 	clear_existing_objects()
@@ -702,7 +601,7 @@ func build_map_from_layout_base(layout: Array, place_pin: bool = true) -> void:
 				obstacle_layer.add_child(tile)
 				obstacle_map[pos] = tile
 			else:
-				print("ℹ️ Skipping unmapped tile code '%s' at (%d,%d)" % [tile_code, x, y])
+				pass
 	if place_pin:
 		randomize()
 		random_seed_value = current_hole * 1000 + randi()
@@ -819,13 +718,11 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 			obstacle_map[tree_pos] = tree
 	
 	# Place Boulders
-	print("=== PLACING BOULDERS ===")
 	for boulder_pos in object_positions.boulders:
 		var scene: PackedScene = object_scene_map["BOULDER"]
 		if scene == null:
 			push_error("🚫 Boulder scene is null")
 			continue
-		print("✓ Boulder scene loaded successfully")
 		var boulder: Node2D = scene.instantiate() as Node2D
 		if boulder == null:
 			push_error("❌ Boulder instantiation failed at (%d,%d)" % [boulder_pos.x, boulder_pos.y])
@@ -842,10 +739,8 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		
 		ysort_objects.append({"node": boulder, "grid_pos": boulder_pos})
 		obstacle_layer.add_child(boulder)
-	print("=== END PLACING BOULDERS ===")
 	
 	# Place Bushes
-	print("=== PLACING BUSHES ===")
 	
 	# Get BushManager for random bush variations
 	var bush_manager = get_node_or_null("/root/BushManager")
@@ -861,15 +756,14 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		if scene == null:
 			push_error("🚫 Bush scene is null")
 			continue
-		print("✓ Bush scene loaded successfully")
 		var bush: Node2D = scene.instantiate() as Node2D
 		if bush == null:
 			push_error("❌ Bush instantiation failed at (%d,%d)" % [bush_pos.x, bush_pos.y])
 			continue
 		if bush.get_script():
-			print("✓ Bush script path:", bush.get_script().resource_path)
+			pass
 		else:
-			print("✗ Bush script is null!")
+			push_error("❌ Bush script is null!")
 		
 		# Store bush data for later application (after adding to scene tree)
 		var bush_data = bush_manager.get_random_bush_data()
@@ -893,14 +787,8 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		if bush_data:
 			# Use call_deferred to ensure the bush is fully in the scene tree
 			bush.call_deferred("set_bush_data", bush_data)
-			print("✓ Deferred bush variety application:", bush_data.name)
 		else:
-			print("✗ No bush data available")
-		
-		print("✓ Bush placed at grid position:", bush_pos, "world position:", world_pos)
-		print("✓ Bush name:", bush.name)
-		print("✓ Bush grid_position property:", bush.get_meta("grid_position") if bush.get_meta("grid_position") != null else "null")
-	print("=== END PLACING BUSHES ===")
+			push_error("❌ No bush data available")
 	
 	# Place Grass
 	
@@ -943,7 +831,7 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		if grass_data:
 			# Use call_deferred to ensure the grass is fully in the scene tree
 			grass.call_deferred("set_grass_data", grass_data)
-		
+	
 	if object_positions.shop != Vector2i.ZERO:
 		var scene: PackedScene = object_scene_map["SHOP"]
 		if scene == null:
@@ -965,7 +853,6 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 				ysort_objects.append({"node": shop, "grid_pos": object_positions.shop})
 				obstacle_layer.add_child(shop)
 				shop_grid_pos = object_positions.shop
-				print("✓ Shop placed at grid position:", shop_grid_pos)
 				
 				# Place InvisibleBlockers around the shop entrance
 				# 1 blocked tile to the left of entrance
@@ -993,22 +880,17 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 					
 					obstacle_layer.add_child(blocker)
 					obstacle_map[blocker_pos] = blocker
-					print("✓ InvisibleBlocker placed at grid position:", blocker_pos)
 	
 	# Place GangMembers
-	print("=== PLACING GANG MEMBERS ===")
-	print("Gang member positions:", object_positions.gang_members)
 	for gang_pos in object_positions.gang_members:
 		var scene: PackedScene = object_scene_map["GANG"]
 		if scene == null:
 			push_error("🚫 GangMember scene is null")
 			continue
-		print("✓ GangMember scene loaded successfully")
 		var gang_member: Node2D = scene.instantiate() as Node2D
 		if gang_member == null:
 			push_error("❌ GangMember instantiation failed at (%d,%d)" % [gang_pos.x, gang_pos.y])
 			continue
-		print("✓ GangMember instantiated successfully")
 		var world_pos: Vector2 = Vector2(gang_pos.x, gang_pos.y) * cell_size
 		gang_member.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
 		# Let the global Y-sort system handle z_index
@@ -1029,12 +911,8 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		
 		ysort_objects.append({"node": gang_member, "grid_pos": gang_pos})
 		obstacle_layer.add_child(gang_member)
-		print("✓ GangMember placed at grid position:", gang_pos)
-	print("=== END PLACING GANG MEMBERS ===")
 	
 	# Place Police
-	print("=== PLACING POLICE ===")
-	print("Police positions:", object_positions.police)
 	for police_pos in object_positions.police:
 		var scene: PackedScene = object_scene_map["POLICE"]
 		if scene == null:
@@ -1062,22 +940,17 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		
 		ysort_objects.append({"node": police, "grid_pos": police_pos})
 		obstacle_layer.add_child(police)
-		print("✓ Police placed at grid position:", police_pos)
 	
 	# Place Zombies
-	print("=== PLACING ZOMBIES ===")
-	print("Zombie positions:", object_positions.zombies)
 	for zombie_pos in object_positions.zombies:
 		var scene: PackedScene = object_scene_map["ZOMBIE"]
 		if scene == null:
 			push_error("🚫 ZombieGolfer scene is null")
 			continue
-		print("✓ ZombieGolfer scene loaded successfully")
 		var zombie: Node2D = scene.instantiate() as Node2D
 		if zombie == null:
 			push_error("❌ ZombieGolfer instantiation failed at (%d,%d)" % [zombie_pos.x, zombie_pos.y])
 			continue
-		print("✓ ZombieGolfer instantiated successfully")
 		var world_pos: Vector2 = Vector2(zombie_pos.x, zombie_pos.y) * cell_size
 		zombie.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
 		# Let the global Y-sort system handle z_index
@@ -1098,23 +971,17 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		
 		ysort_objects.append({"node": zombie, "grid_pos": zombie_pos})
 		obstacle_layer.add_child(zombie)
-		print("✓ ZombieGolfer placed at grid position:", zombie_pos)
-	print("=== END PLACING ZOMBIES ===")
 	
 	# Place Wraiths (Boss encounters)
-	print("=== PLACING WRAITHS ===")
-	print("Wraith positions:", object_positions.wraiths)
 	for wraith_pos in object_positions.wraiths:
 		var scene: PackedScene = object_scene_map["WRAITH"]
 		if scene == null:
 			push_error("🚫 Wraith scene is null")
 			continue
-		print("✓ Wraith scene loaded successfully")
 		var wraith: Node2D = scene.instantiate() as Node2D
 		if wraith == null:
 			push_error("❌ Wraith instantiation failed at (%d,%d)" % [wraith_pos.x, wraith_pos.y])
 			continue
-		print("✓ Wraith instantiated successfully")
 		var world_pos: Vector2 = Vector2(wraith_pos.x, wraith_pos.y) * cell_size
 		wraith.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
 		# Let the global Y-sort system handle z_index
@@ -1133,23 +1000,17 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		
 		ysort_objects.append({"node": wraith, "grid_pos": wraith_pos})
 		obstacle_layer.add_child(wraith)
-		print("✓ Wraith placed at grid position:", wraith_pos)
-	print("=== END PLACING WRAITHS ===")
 	
 	# Place Oil Drums
-	print("=== PLACING OIL DRUMS ===")
-	print("Oil drum positions:", object_positions.oil_drums)
 	for oil_pos in object_positions.oil_drums:
 		var scene: PackedScene = object_scene_map["OIL"]
 		if scene == null:
 			push_error("🚫 Oil Drum scene is null")
 			continue
-		print("✓ Oil Drum scene loaded successfully")
 		var oil_drum: Node2D = scene.instantiate() as Node2D
 		if oil_drum == null:
 			push_error("❌ Oil Drum instantiation failed at (%d,%d)" % [oil_pos.x, oil_pos.y])
 			continue
-		print("✓ Oil Drum instantiated successfully")
 		var world_pos: Vector2 = Vector2(oil_pos.x, oil_pos.y) * cell_size
 		oil_drum.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
 		
@@ -1162,10 +1023,8 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		
 		ysort_objects.append({"node": oil_drum, "grid_pos": oil_pos})
 		obstacle_layer.add_child(oil_drum)
-	print("=== END PLACING OIL DRUMS ===")
 	
 	# Place Stone Walls
-	print("=== PLACING STONE WALLS ===")
 	for wall_pos in object_positions.stone_walls:
 		var scene: PackedScene = object_scene_map["WALL"]
 		if scene == null:
@@ -1190,60 +1049,46 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		obstacle_layer.add_child(stone_wall)
 		if stone_wall.has_method("blocks") and stone_wall.blocks():
 			obstacle_map[wall_pos] = stone_wall
-	print("=== END PLACING STONE WALLS ===")
 	
 	# Place Squirrels
 	if "SQUIRREL" in object_scene_map:
-		print("Squirrel scene:", object_scene_map["SQUIRREL"])
-	
-	for squirrel_pos in object_positions.squirrels:
-		var scene: PackedScene = object_scene_map["SQUIRREL"]
-		if scene == null:
-			push_error("🚫 Squirrel scene is null")
-			continue
-		print("✓ Squirrel scene loaded successfully")
-		var squirrel: Node2D = scene.instantiate() as Node2D
-		if squirrel == null:
-			push_error("❌ Squirrel instantiation failed at (%d,%d)" % [squirrel_pos.x, squirrel_pos.y])
-			continue
-		print("✓ Squirrel instantiated successfully")
-		var world_pos: Vector2 = Vector2(squirrel_pos.x, squirrel_pos.y) * cell_size
-		squirrel.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
-		
-		# Set the grid_position property
-		squirrel.set_meta("grid_position", squirrel_pos)
-		print("✓ Set squirrel grid_position to:", squirrel_pos)
-		
-		# Setup the Squirrel
-		if squirrel.has_method("setup"):
-			squirrel.setup(squirrel_pos, cell_size)
-		
-		# Add squirrel to groups for smart optimization
-		squirrel.add_to_group("squirrels")
-		squirrel.add_to_group("collision_objects")
-		squirrel.add_to_group("npcs")
-		
-		ysort_objects.append({"node": squirrel, "grid_pos": squirrel_pos})
-		obstacle_layer.add_child(squirrel)
-		print("✓ Squirrel placed at grid position:", squirrel_pos, "world position:", world_pos)
-		print("✓ Squirrel name:", squirrel.name)
-		print("✓ Squirrel grid_position property:", squirrel.get_meta("grid_position") if squirrel.get_meta("grid_position") != null else "null")
-	print("=== END PLACING SQUIRRELS ===")
+		for squirrel_pos in object_positions.squirrels:
+			var scene: PackedScene = object_scene_map["SQUIRREL"]
+			if scene == null:
+				push_error("🚫 Squirrel scene is null")
+				continue
+			var squirrel: Node2D = scene.instantiate() as Node2D
+			if squirrel == null:
+				push_error("❌ Squirrel instantiation failed at (%d,%d)" % [squirrel_pos.x, squirrel_pos.y])
+				continue
+			var world_pos: Vector2 = Vector2(squirrel_pos.x, squirrel_pos.y) * cell_size
+			squirrel.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
+			
+			# Set the grid_position property
+			squirrel.set_meta("grid_position", squirrel_pos)
+			
+			# Setup the Squirrel
+			if squirrel.has_method("setup"):
+				squirrel.setup(squirrel_pos, cell_size)
+			
+			# Add squirrel to groups for smart optimization
+			squirrel.add_to_group("squirrels")
+			squirrel.add_to_group("collision_objects")
+			squirrel.add_to_group("npcs")
+			
+			ysort_objects.append({"node": squirrel, "grid_pos": squirrel_pos})
+			obstacle_layer.add_child(squirrel)
 	
 	# Place Bonfires
-	print("=== PLACING BONFIRES ===")
-	print("Bonfire positions:", object_positions.bonfires)
 	for bonfire_pos in object_positions.bonfires:
 		var scene: PackedScene = object_scene_map["BONFIRE"]
 		if scene == null:
 			push_error("🚫 Bonfire scene is null")
 			continue
-		print("✓ Bonfire scene loaded successfully")
 		var bonfire: Node2D = scene.instantiate() as Node2D
 		if bonfire == null:
 			push_error("❌ Bonfire instantiation failed at (%d,%d)" % [bonfire_pos.x, bonfire_pos.y])
 			continue
-		print("✓ Bonfire instantiated successfully")
 		var world_pos: Vector2 = Vector2(bonfire_pos.x, bonfire_pos.y) * cell_size
 		bonfire.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
 		
@@ -1256,8 +1101,6 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		
 		ysort_objects.append({"node": bonfire, "grid_pos": bonfire_pos})
 		obstacle_layer.add_child(bonfire)
-		print("✓ Bonfire placed at grid position:", bonfire_pos, "world position:", world_pos)
-	print("=== END PLACING BONFIRES ===")
 	
 	# Place SuitCase
 	if object_positions.suitcase != Vector2i.ZERO:
@@ -1286,8 +1129,6 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 				if suitcase.has_signal("suitcase_reached"):
 					if get_parent() and get_parent().has_method("_on_suitcase_reached"):
 						suitcase.suitcase_reached.connect(Callable(get_parent(), "_on_suitcase_reached"))
-				
-				print("✓ SuitCase placed at grid position:", suitcase_grid_pos)
 	
 	update_all_ysort_z_indices() 
 

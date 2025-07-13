@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ElementData" load_steps=3 format=3 uid="uid://cik28dqk2h40t"]
+
+[ext_resource type="Script" uid="uid://dk64kh6fkqud7" path="res://Elements/ElementData.gd" id="1_cju6h"]
+[ext_resource type="Texture2D" uid="uid://qaeecn585pwg" path="res://Elements/Electric.png" id="2_h4b1p"]
+
+[resource]
+script = ExtResource("1_cju6h")
+name = "Electric"
+texture = ExtResource("2_h4b1p")
+color = Color(1, 1, 1, 1)
+metadata/_custom_type_script = "uid://dk64kh6fkqud7"

@@ -47,25 +47,14 @@ func _ready():
 	# Start inactive
 	set_bonfire_active(false)
 	
-	# Debug output
-	print("=== BONFIRE READY DEBUG ===")
-	print("Bonfire name:", name)
-	print("Bonfire position:", global_position)
-	print("Bonfire z_index:", z_index)
-	print("Bonfire active:", is_active)
-	var base_sprite = get_node_or_null("BonfireBaseSprite")
-	print("Base sprite visible:", base_sprite.visible if base_sprite else "null")
-	print("Flame sprite visible:", bonfire_flame.visible)
-	print("=== END BONFIRE READY DEBUG ===")
+	# Start inactive
+	set_bonfire_active(false)
 
 func _find_map_manager():
 	"""Find the map manager in the scene"""
 	var course = get_tree().current_scene
 	if course and course.has_node("MapManager"):
 		map_manager = course.get_node("MapManager")
-		print("Bonfire: Found MapManager")
-	else:
-		print("Bonfire: MapManager not found")
 
 func setup_flame_animation():
 	# Load flame textures
@@ -79,8 +68,6 @@ func setup_flame_animation():
 	if flame_frames.size() > 0:
 		bonfire_flame.texture = flame_frames[0]
 		bonfire_flame.visible = false  # Start hidden (inactive)
-	else:
-		print("✗ Bonfire flame frames failed to load")
 
 func setup_collision_detection():
 	# Connect collision signals
@@ -121,7 +108,6 @@ func _check_for_nearby_fire():
 	
 	# Check if bonfire's own tile is on fire
 	if _is_tile_on_fire(bonfire_tile):
-		print("Bonfire: Own tile caught fire - activating!")
 		set_bonfire_active(true)
 		return
 	
@@ -140,7 +126,6 @@ func _check_for_nearby_fire():
 	for direction in adjacent_positions:
 		var check_tile = bonfire_tile + direction
 		if _is_tile_on_fire(check_tile):
-			print("Bonfire: Adjacent tile caught fire - activating!")
 			set_bonfire_active(true)
 			return
 
@@ -164,7 +149,6 @@ func set_bonfire_active(active: bool):
 	if active:
 		# Activate bonfire
 		bonfire_flame.visible = true
-		print("Bonfire: Activated!")
 		
 		# Play activation sound
 		var bonfire_sound = get_node_or_null("BonfireOn")
@@ -173,7 +157,6 @@ func set_bonfire_active(active: bool):
 	else:
 		# Deactivate bonfire
 		bonfire_flame.visible = false
-		print("Bonfire: Deactivated!")
 
 func _on_body_entered(body: Node2D):
 	if body.has_method("get_ball_height") and body.has_method("get_ball_velocity"):
@@ -310,18 +293,14 @@ func show_lighter_dialog():
 		ui_layer.add_child(lighter_dialog)
 	else:
 		get_tree().current_scene.add_child(lighter_dialog)
-	
-	print("Bonfire: Lighter dialog shown")
 
 func _on_lighter_yes():
 	"""Player chose to light the bonfire"""
-	print("Bonfire: Player chose to light the bonfire")
 	set_bonfire_active(true)
 	_close_lighter_dialog()
 
 func _on_lighter_no():
 	"""Player chose not to light the bonfire"""
-	print("Bonfire: Player chose not to light the bonfire")
 	_close_lighter_dialog()
 
 func _close_lighter_dialog():

@@ -418,13 +418,9 @@ func _trigger_coin_explosion() -> void:
 	"""Trigger a coin explosion when the ZombieGolfer dies"""
 	# Use the static method from CoinExplosionManager
 	CoinExplosionManager.trigger_coin_explosion(global_position)
-	print("✓ Triggered coin explosion for ZombieGolfer at:", global_position)
 
 func setup(zombie_type_param: String, pos: Vector2i, cell_size_param: int = 48) -> void:
 	"""Setup the ZombieGolfer with specific parameters"""
-	print("=== ZOMBIEGOLFER SETUP DEBUG ===")
-	print("Setup called with grid position:", pos)
-	print("Cell size parameter:", cell_size_param)
 	
 	zombie_type = zombie_type_param
 	grid_position = pos
@@ -433,8 +429,6 @@ func setup(zombie_type_param: String, pos: Vector2i, cell_size_param: int = 48) 
 	# Set position based on grid position
 	var world_pos = Vector2(grid_position.x, grid_position.y) * cell_size + Vector2(cell_size / 2, cell_size / 2)
 	position = world_pos
-	print("Calculated world position:", world_pos)
-	print("Final position set to:", position)
 	
 	# Load appropriate sprite based on type
 	_load_sprite_for_type(zombie_type)
@@ -444,13 +438,6 @@ func setup(zombie_type_param: String, pos: Vector2i, cell_size_param: int = 48) 
 	
 	# Update Y-sorting
 	update_z_index_for_ysort()
-	
-	print("ZombieGolfer setup: ", zombie_type, " at ", pos)
-	print("=== END SETUP DEBUG ===")
-	
-	# Debug visual height
-	if sprite:
-		Global.debug_visual_height(sprite, "ZombieGolfer")
 
 func _load_sprite_for_type(type: String) -> void:
 	"""Load the appropriate sprite texture based on zombie type"""
@@ -505,8 +492,6 @@ func take_damage(damage: int, is_headshot: bool = false) -> void:
 	if health_bar:
 		health_bar.set_health(current_health, max_health)
 	
-	print("ZombieGolfer took damage:", final_damage, "Current health:", current_health)
-	
 	if current_health <= 0:
 		die()
 
@@ -515,7 +500,6 @@ func die() -> void:
 	if is_dead:
 		return
 	
-	print("=== ZOMBIEGOLFER DEATH ===")
 	is_dead = true
 	is_alive = false
 	current_health = 0
@@ -542,8 +526,6 @@ func die() -> void:
 	
 	# Switch to dead sprite
 	_change_to_dead_sprite()
-	
-	print("ZombieGolfer died")
 
 func _change_to_dead_sprite() -> void:
 	"""Change the sprite to the dead version"""
@@ -557,9 +539,6 @@ func _change_to_dead_sprite() -> void:
 		dead_sprite.visible = true
 		# Apply the same facing direction to the dead sprite
 		_update_dead_sprite_facing()
-		print("✓ ZombieGolfer switched to dead sprite")
-	else:
-		print("✗ ERROR: Dead sprite not found")
 	
 	# Update Y-sorting for dead state
 	update_z_index_for_ysort()
@@ -576,19 +555,16 @@ func _update_dead_sprite_facing() -> void:
 
 func _switch_to_dead_collision() -> void:
 	"""Switch to the dead collision system"""
-	print("=== SWITCHING TO DEAD COLLISION SYSTEM ===")
 	
 	# Disable normal collision areas
 	if base_collision_area:
 		base_collision_area.monitoring = false
 		base_collision_area.monitorable = false
-		print("✓ Disabled base collision area")
 	
 	var hitbox = get_node_or_null("HitBox")
 	if hitbox:
 		hitbox.monitoring = false
 		hitbox.monitorable = false
-		print("✓ Disabled HitBox")
 	
 	# Enable dead collision area
 	var dead_collision_area = get_node_or_null("Dead/BaseCollisionArea")
@@ -604,11 +580,6 @@ func _switch_to_dead_collision() -> void:
 			dead_collision_area.connect("area_entered", _on_base_area_entered)
 		if not dead_collision_area.is_connected("area_exited", _on_area_exited):
 			dead_collision_area.connect("area_exited", _on_area_exited)
-		print("✓ Enabled dead collision area")
-	else:
-		print("✗ ERROR: Dead/BaseCollisionArea not found!")
-	
-	print("=== DEAD COLLISION SYSTEM ACTIVATED ===")
 
 func get_grid_position() -> Vector2i:
 	"""Get the grid position of the ZombieGolfer"""
@@ -817,14 +788,9 @@ func _move_to_position(target_pos: Vector2i) -> void:
 	
 	# Update world position
 	var target_world_pos = Vector2(target_pos.x, target_pos.y) * cell_size + Vector2(cell_size / 2, cell_size / 2)
-	print("Calculated world position:", target_world_pos)
-	print("Current world position:", global_position)
 	
 	# Animated movement using tween
 	_animate_movement_to_position(target_world_pos)
-	
-	print("ZombieGolfer moving from ", old_pos, " to ", target_pos, " with direction: ", movement_direction)
-	print("=== END MOVE DEBUG ===")
 
 func _animate_movement_to_position(target_world_pos: Vector2) -> void:
 	"""Animate the ZombieGolfer's movement to the target position using a tween"""
@@ -857,8 +823,6 @@ func _animate_movement_to_position(target_world_pos: Vector2) -> void:
 	
 	# When movement completes
 	movement_tween.tween_callback(_on_movement_complete)
-	
-	print("Started movement animation to position: ", target_world_pos)
 
 func _on_movement_complete() -> void:
 	"""Called when movement animation completes"""
@@ -868,23 +832,14 @@ func _on_movement_complete() -> void:
 	# Update Y-sorting
 	update_z_index_for_ysort()
 	
-	print("ZombieGolfer movement complete")
-	
 	# Check if we should attack the player after movement
 	if current_state == State.CHASE and player:
 		var player_pos = player.grid_pos
 		var distance_to_player = _calculate_distance(grid_position, player_pos)
 		
-		print("Post-movement attack check - Distance to player:", distance_to_player, "Attack range:", attack_range, "Has attacked:", has_attacked_this_turn)
-		
 		if distance_to_player <= attack_range and not has_attacked_this_turn:
-			print("ZombieGolfer is now in attack range after movement - attacking!")
 			_attack_player()
 			return  # Attack method handles turn completion
-		elif distance_to_player <= attack_range and has_attacked_this_turn:
-			print("ZombieGolfer is in attack range but already attacked this turn")
-		else:
-			print("ZombieGolfer is not in attack range after movement")
 	
 	# Check if we can complete the turn now
 	_check_turn_completion()
@@ -892,11 +847,9 @@ func _on_movement_complete() -> void:
 func _attack_player() -> void:
 	"""Attack the player"""
 	if has_attacked_this_turn:
-		print("ZombieGolfer already attacked this turn, skipping...")
 		return
 	
 	has_attacked_this_turn = true
-	print("ZombieGolfer attacking player!")
 	
 	# Face the player
 	if player:
@@ -913,9 +866,6 @@ func _attack_player() -> void:
 		if player.has_method("take_damage"):
 			var attack_damage = 25  # Zombie attack damage
 			player.take_damage(attack_damage)
-			print("ZombieGolfer dealt ", attack_damage, " damage to player")
-		else:
-			print("Player doesn't have take_damage method")
 	
 	# Play zombie attack sound when attacking
 	_play_zombie_attack_sound()
@@ -925,13 +875,11 @@ func _attack_player() -> void:
 
 func _on_turn_started(npc: Node) -> void:
 	"""Called when an NPC turn starts"""
-	if npc == self:
-		print("ZombieGolfer turn started")
+	# Turn started
 
 func _on_turn_ended(npc: Node) -> void:
 	"""Called when an NPC turn ends"""
-	if npc == self:
-		print("ZombieGolfer turn ended")
+	# Turn ended
 
 # State Machine Classes
 class StateMachine:
@@ -969,33 +917,25 @@ class BaseState extends Node:
 
 class PatrolState extends BaseState:
 	func enter() -> void:
-		print("ZombieGolfer entering patrol state")
+		pass
 	
 	func update() -> void:
-		print("PatrolState update called")
 		# Random movement up to movement_range spaces away
 		var move_distance = randi_range(1, zombie.movement_range)
-		print("Patrol move distance: ", move_distance)
 		var target_pos = _get_random_patrol_position(move_distance)
-		print("Patrol target position: ", target_pos)
 		
 		if target_pos != zombie.grid_position:
-			print("Moving to new position")
 			zombie._move_to_position(target_pos)
 		else:
-			print("Staying in same position")
 			# Face the last movement direction when not moving
 			zombie.facing_direction = zombie.last_movement_direction
 			zombie._update_sprite_facing()
 			# Complete turn immediately since no movement is needed
-			print("Patrol state calling _check_turn_completion()")
 			zombie._check_turn_completion()
 	
 	func _get_random_patrol_position(max_distance: int) -> Vector2i:
 		var attempts = 0
 		var max_attempts = 20  # Increased attempts since we're more restrictive
-		
-		print("Generating random patrol position from ", zombie.grid_position, " with max distance: ", max_distance)
 		
 		while attempts < max_attempts:
 			# Generate a random direction that respects the movement range
@@ -1019,43 +959,34 @@ class PatrolState extends BaseState:
 					random_direction = cardinal_directions[randi() % cardinal_directions.size()] * randi_range(1, max_distance)
 			
 			var target_pos = zombie.grid_position + random_direction
-			print("Attempt ", attempts, ": Generated position ", target_pos, " from direction ", random_direction, " (distance: ", abs(random_direction.x) + abs(random_direction.y), ")")
 			
 			if zombie._is_valid_position(target_pos):
-				print("✓ Found valid patrol position: ", target_pos)
 				return target_pos
 			
 			attempts += 1
 		
-		print("No valid random position found, trying adjacent positions")
 		# If no valid position found, try adjacent positions
 		var adjacent = zombie._get_valid_adjacent_positions()
 		if adjacent.size() > 0:
 			var chosen_pos = adjacent[randi() % adjacent.size()]
-			print("✓ Using adjacent position: ", chosen_pos)
 			return chosen_pos
 		
-		print("No valid positions found, staying in current position: ", zombie.grid_position)
 		return zombie.grid_position
 
 class ChaseState extends BaseState:
 	func enter() -> void:
-		print("ZombieGolfer entering chase state")
+		pass
 	
 	func update() -> void:
-		print("ChaseState update called")
 		if not zombie.player:
-			print("No player found for chase")
 			zombie._check_turn_completion()
 			return
 		
 		# If already moving, don't do anything - wait for movement to complete
 		if zombie.is_moving:
-			print("ZombieGolfer is already moving, waiting for movement to complete...")
 			return
 		
 		var player_pos = zombie.player.grid_pos
-		print("Player position: ", player_pos)
 		var distance_to_player = zombie._calculate_distance(zombie.grid_position, player_pos)
 		
 		# Always face the player when in chase mode
@@ -1064,25 +995,20 @@ class ChaseState extends BaseState:
 		if distance_to_player <= zombie.attack_range:
 			# Attack the player (only if we haven't already attacked this turn)
 			if not zombie.has_attacked_this_turn:
-				print("ZombieGolfer attacking player!")
 				zombie._attack_player()
 				# Attack method now handles turn completion
 			else:
-				print("ZombieGolfer already attacked this turn, completing turn")
 				zombie._check_turn_completion()
 		else:
 			# Try to move towards player using full movement range
 			var path = _get_path_to_player(player_pos)
-			print("Chase path: ", path)
 			
 			if path.size() > 1:
 				# Calculate how far we can move within our movement range
 				var max_movement = min(zombie.movement_range, path.size() - 1)
 				var target_pos = path[max_movement]
-				print("Moving towards player to: ", target_pos, " (using ", max_movement, " of ", zombie.movement_range, " movement range)")
 				zombie._move_to_position(target_pos)
 			else:
-				print("No path found to player, staying in chase state")
 				# Stay in chase state but complete turn
 				zombie._check_turn_completion()
 
@@ -1093,8 +1019,6 @@ class ChaseState extends BaseState:
 		var max_steps = zombie.movement_range
 		var steps = 0
 		
-		print("Pathfinding - Starting from ", current_pos, " to ", player_pos, " with max steps: ", max_steps)
-		
 		while current_pos != player_pos and steps < max_steps:
 			var direction = (player_pos - current_pos)
 			# Normalize the direction vector for Vector2i
@@ -1104,14 +1028,10 @@ class ChaseState extends BaseState:
 				direction.y = 1 if direction.y > 0 else -1
 			var next_pos = current_pos + direction
 			
-			print("Pathfinding step ", steps, " - Direction: ", direction, ", Next pos: ", next_pos)
-			
 			if zombie._is_valid_position(next_pos):
 				current_pos = next_pos
 				path.append(current_pos)
-				print("Pathfinding - Valid position, moving to: ", current_pos)
 			else:
-				print("Pathfinding - Invalid position, trying adjacent positions")
 				# Try to find an alternative path
 				var adjacent = zombie._get_valid_adjacent_positions()
 				if adjacent.size() > 0:
@@ -1127,19 +1047,16 @@ class ChaseState extends BaseState:
 					
 					current_pos = best_pos
 					path.append(current_pos)
-					print("Pathfinding - Using adjacent position: ", current_pos)
 				else:
-					print("Pathfinding - No valid adjacent positions found")
 					break
 			
 			steps += 1
 		
-		print("Pathfinding - Final path: ", path)
 		return path
 
 class DeadState extends BaseState:
 	func enter() -> void:
-		print("ZombieGolfer entering dead state")
+		pass
 	
 	func update() -> void:
 		# Do nothing when dead
@@ -1161,22 +1078,18 @@ func _is_valid_position(pos: Vector2i) -> bool:
 	"""Check if a position is valid for movement"""
 	# Basic bounds checking - ensure position is within reasonable grid bounds (same as GangMember)
 	if pos.x < 0 or pos.y < 0 or pos.x > 100 or pos.y > 100:
-		print("Position ", pos, " is out of bounds (max 100x100)")
 		return false
 	
 	# Check if position is occupied by the player
 	if player and player.grid_pos == pos:
-		print("Position ", pos, " is occupied by player")
 		return false
 	
 	# Check if position is not occupied by obstacles
 	if course and course.has_method("get_obstacle_at_position"):
 		var obstacle = course.get_obstacle_at_position(pos)
 		if obstacle:
-			print("Position ", pos, " is blocked by obstacle: ", obstacle.name)
 			return false
 	
-	print("Position ", pos, " is valid for movement")
 	return true
 
 func _calculate_distance(pos1: Vector2i, pos2: Vector2i) -> int:

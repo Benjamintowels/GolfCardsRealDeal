@@ -113,7 +113,6 @@ func _ready():
 	
 	# Connect to WorldTurnManager
 	course = _find_course_script()
-	print("Wraith course reference: ", course.name if course else "None")
 	
 	# Try different paths to find WorldTurnManager
 	var world_turn_manager = null
@@ -122,19 +121,14 @@ func _ready():
 	for path in possible_paths:
 		if course and course.has_node(path):
 			world_turn_manager = course.get_node(path)
-			print("Found WorldTurnManager at path: ", path)
 			break
 	
 	if world_turn_manager:
-		print("Found WorldTurnManager: ", world_turn_manager.name)
 		# Register with WorldTurnManager
 		world_turn_manager.register_npc(self)
 		# Connect to turn signals
 		world_turn_manager.npc_turn_started.connect(_on_turn_started)
 		world_turn_manager.npc_turn_ended.connect(_on_turn_ended)
-		print("✓ Wraith registered with WorldTurnManager and connected to signals")
-	else:
-		print("✗ ERROR: Could not connect to WorldTurnManager")
 	
 	# Initialize state machine
 	state_machine = StateMachine.new()
@@ -165,12 +159,6 @@ func _setup_entities_manager():
 	"""Setup the entities manager reference"""
 	if course:
 		entities_manager = course.get_node_or_null("Entities")
-		if entities_manager:
-			print("✓ Wraith found entities manager")
-		else:
-			print("✗ Wraith could not find entities manager")
-	else:
-		print("✗ Wraith could not find course for entities manager setup")
 
 func _setup_ice_references():
 	"""Setup references to ice sprite and collision areas"""
@@ -184,27 +172,11 @@ func _setup_ice_references():
 	if ice_sprite:
 		original_modulate = ice_sprite.modulate
 		ice_sprite.visible = false
-		print("✓ Ice sprite reference found")
-	else:
-		print("✗ ERROR: WraithIce sprite not found!")
 	
 	if ice_collision_area:
 		# Immediately disable the ice collision area to prevent early collisions
 		ice_collision_area.monitoring = false
 		ice_collision_area.monitorable = false
-		print("✓ Ice collision area reference found and disabled")
-	else:
-		print("✗ ERROR: WraithIce/BodyArea2D not found!")
-	
-	if ice_top_height_marker:
-		print("✓ Ice top height marker reference found (WraithIce/IceTopHeight)")
-	else:
-		print("✗ ERROR: WraithIce/IceTopHeight marker not found!")
-	
-	if ice_ysort_point:
-		print("✓ Ice Y-sort point reference found (WraithIce/IceYSortPoint)")
-	else:
-		print("✗ ERROR: WraithIce/IceYSortPoint marker not found!")
 
 func _setup_base_collision():
 	"""Setup the base collision area for ball collisions"""
@@ -217,11 +189,6 @@ func _setup_base_collision():
 		# Connect to area_entered and area_exited signals for collision detection
 		base_collision_area.connect("area_entered", _on_base_area_entered)
 		base_collision_area.connect("area_exited", _on_area_exited)
-		print("✓ Wraith base collision area setup complete")
-		print("  - Base collision area monitoring:", base_collision_area.monitoring)
-		print("  - Base collision area monitorable:", base_collision_area.monitorable)
-	else:
-		print("✗ ERROR: BodyArea2D not found!")
 	
 	# Setup HitBox for gun collision detection
 	var hitbox = get_node_or_null("HitBox")
@@ -230,9 +197,6 @@ func _setup_base_collision():
 		hitbox.collision_layer = 2
 		# Set collision mask to 0 (gun doesn't need to detect this)
 		hitbox.collision_mask = 0
-		print("✓ Wraith HitBox setup complete for gun collision (layer 2)")
-	else:
-		print("✗ ERROR: HitBox not found!")
 	
 	# Setup ice collision area (initially disabled, will be enabled when frozen)
 	if ice_collision_area:
@@ -243,11 +207,6 @@ func _setup_base_collision():
 		# Initially disabled - will be enabled when frozen
 		ice_collision_area.monitoring = false
 		ice_collision_area.monitorable = false
-		print("✓ Wraith ice collision area setup complete (initially disabled)")
-		print("  - Ice collision area monitoring:", ice_collision_area.monitoring)
-		print("  - Ice collision area monitorable:", ice_collision_area.monitorable)
-	else:
-		print("✗ ERROR: Ice collision area not found!")
 
 func _create_health_bar():
 	"""Create and setup the health bar"""
@@ -280,10 +239,7 @@ func _find_player_reference():
 			# Search for player in the scene tree
 			player = get_tree().get_first_node_in_group("player")
 	
-	if player:
-		print("✓ Wraith found player reference: ", player.name)
-	else:
-		print("✗ Wraith could not find player reference")
+	# Player reference found or not found
 
 func _exit_tree():
 	# Stop death animation if running
@@ -304,10 +260,6 @@ func _find_course_script() -> Node:
 
 func _on_base_area_entered(area: Area2D):
 	"""Handle ball entering the Wraith's base collision area"""
-	print("=== WRAITH BASE AREA ENTERED ===")
-	print("Area name:", area.name)
-	print("Area parent:", area.get_parent().name if area.get_parent() else "None")
-	print("Area path:", area.get_path())
 	
 	# Check if this is a ball or projectile
 	var ball = area.get_parent()
@@ -366,15 +318,12 @@ func _handle_knife_area_collision(knife: Node2D, knife_height: float, wraith_hei
 	print("Handling knife Wraith area collision")
 	
 	if knife_height > wraith_height:
-		print("✓ Knife is above Wraith - allowing entry and setting ground level")
 		_allow_projectile_entry(knife, wraith_height)
 	else:
-		print("✗ Knife is below Wraith height - reflecting")
 		_reflect_projectile(knife)
 
 func _allow_projectile_entry(projectile: Node2D, wraith_height: float):
 	"""Allow projectile to enter Wraith area and set ground level"""
-	print("=== ALLOWING PROJECTILE ENTRY (WRAITH) ===")
 	
 	# Get projectile height for freeze effect logic
 	var projectile_height = 0.0
@@ -388,7 +337,6 @@ func _allow_projectile_entry(projectile: Node2D, wraith_height: float):
 		if projectile.has_method("get_element"):
 			var projectile_element = projectile.get_element()
 			if projectile_element and projectile_element.name == "Ice":
-				print("Ice element detected on projectile landing (roof bounce)! Applying freeze effect")
 				apply_freeze_effect(3)  # Freeze for 3 turns
 	
 	# Set the projectile's ground level to the Wraith height
@@ -398,14 +346,12 @@ func _allow_projectile_entry(projectile: Node2D, wraith_height: float):
 		# Fallback: directly set ground level if method doesn't exist
 		if "current_ground_level" in projectile:
 			projectile.current_ground_level = wraith_height
-			print("✓ Set projectile ground level to Wraith height:", wraith_height)
 	
 	# The projectile will now land on the Wraith's head instead of passing through
 	# When it exits the area, _on_area_exited will reset the ground level
 
 func _reflect_projectile(projectile: Node2D):
 	"""Reflect projectile off the Wraith"""
-	print("=== REFLECTING PROJECTILE ===")
 	
 	# Get projectile height for freeze effect logic
 	var projectile_height = 0.0
@@ -421,7 +367,6 @@ func _reflect_projectile(projectile: Node2D):
 		if projectile.has_method("get_element"):
 			var projectile_element = projectile.get_element()
 			if projectile_element and projectile_element.name == "Ice":
-				print("Ice element detected on projectile reflection (wall bounce)! Applying freeze effect")
 				apply_freeze_effect(3)  # Freeze for 3 turns
 	
 	# Play collision sound for Wraith collision
@@ -433,8 +378,6 @@ func _reflect_projectile(projectile: Node2D):
 		projectile_velocity = projectile.get_velocity()
 	elif "velocity" in projectile:
 		projectile_velocity = projectile.velocity
-	
-	print("Reflecting projectile with velocity:", projectile_velocity)
 	
 	var projectile_pos = projectile.global_position
 	var wraith_center = global_position
@@ -452,8 +395,6 @@ func _reflect_projectile(projectile: Node2D):
 	var random_angle = randf_range(-0.1, 0.1)
 	reflected_velocity = reflected_velocity.rotated(random_angle)
 	
-	print("Reflected velocity:", reflected_velocity)
-	
 	# Apply the reflected velocity to the projectile
 	if projectile.has_method("set_velocity"):
 		projectile.set_velocity(reflected_velocity)
@@ -462,17 +403,14 @@ func _reflect_projectile(projectile: Node2D):
 
 func _handle_ball_collision(ball: Node2D) -> void:
 	"""Handle ball/knife collisions - check height to determine if ball/knife should pass through"""
-	print("Handling ball/knife collision - checking ball/knife height")
 	
 	# Handle collision directly (bypass Entities system to avoid cooldown issues)
 	# Use enhanced height collision detection with TopHeight markers
 	if Global.is_object_above_obstacle(ball, self):
 		# Ball/knife is above Wraith entirely - let it pass through
-		print("Ball/knife is above Wraith entirely - passing through")
 		return
 	else:
 		# Ball/knife is within or below Wraith height - handle collision
-		print("Ball/knife is within Wraith height - handling collision")
 		
 		# Check if this is a throwing knife
 		if ball.has_method("is_throwing_knife") and ball.is_throwing_knife():
@@ -484,7 +422,6 @@ func _handle_ball_collision(ball: Node2D) -> void:
 
 func _handle_knife_collision(knife: Node2D) -> void:
 	"""Handle knife collision with Wraith"""
-	print("Handling knife collision with Wraith")
 	
 	# Play collision sound effect
 	_play_collision_sound()
@@ -493,7 +430,6 @@ func _handle_knife_collision(knife: Node2D) -> void:
 	if knife.has_method("get_element"):
 		var knife_element = knife.get_element()
 		if knife_element and knife_element.name == "Ice":
-			print("Ice element detected on knife! Applying freeze effect")
 			apply_freeze_effect(3)  # Freeze for 3 turns
 	
 	# Let the knife handle its own collision logic
@@ -506,7 +442,6 @@ func _handle_knife_collision(knife: Node2D) -> void:
 
 func _handle_regular_ball_collision(ball: Node2D) -> void:
 	"""Handle regular ball collision with Wraith"""
-	print("Handling regular ball collision with Wraith")
 	
 	# Play collision sound effect
 	_play_collision_sound()
@@ -523,7 +458,6 @@ func _apply_knife_reflection(knife: Node2D) -> void:
 	if knife.has_method("get_element"):
 		var knife_element = knife.get_element()
 		if knife_element and knife_element.name == "Ice":
-			print("Ice element detected on knife reflection! Applying freeze effect")
 			apply_freeze_effect(3)  # Freeze for 3 turns
 	
 	# Get the knife's current velocity
@@ -532,8 +466,6 @@ func _apply_knife_reflection(knife: Node2D) -> void:
 		knife_velocity = knife.get_velocity()
 	elif "velocity" in knife:
 		knife_velocity = knife.velocity
-	
-	print("Applying knife reflection with velocity:", knife_velocity)
 	
 	var knife_pos = knife.global_position
 	var wraith_center = global_position
@@ -550,8 +482,6 @@ func _apply_knife_reflection(knife: Node2D) -> void:
 	# Add a small amount of randomness to prevent infinite loops
 	var random_angle = randf_range(-0.1, 0.1)
 	reflected_velocity = reflected_velocity.rotated(random_angle)
-	
-	print("Reflected knife velocity:", reflected_velocity)
 	
 	# Apply the reflected velocity to the knife
 	if knife.has_method("set_velocity"):
@@ -639,7 +569,6 @@ func _apply_ball_collision_effect(ball: Node2D) -> void:
 	if ball.has_method("get_element"):
 		var ball_element = ball.get_element()
 		if ball_element and ball_element.name == "Ice":
-			print("Ice element detected! Applying freeze effect")
 			apply_freeze_effect(3)  # Freeze for 3 turns
 	
 	# Check if this damage will kill the Wraith
@@ -649,14 +578,12 @@ func _apply_ball_collision_effect(ball: Node2D) -> void:
 	if will_kill:
 		# Calculate overkill damage (negative health value)
 		overkill_damage = damage - current_health
-		print("Damage will kill Wraith! Overkill damage:", overkill_damage)
 		
 		# Apply damage to the Wraith (this will set health to negative)
 		take_damage(damage, is_headshot)
 		
 		# Apply velocity dampening based on overkill damage
 		var dampened_velocity = _calculate_kill_dampening(ball_velocity, overkill_damage)
-		print("Ball passed through with dampened velocity:", dampened_velocity)
 		
 		# Apply the dampened velocity to the ball (no reflection)
 		if ball.has_method("set_velocity"):
@@ -683,8 +610,6 @@ func _apply_ball_collision_effect(ball: Node2D) -> void:
 		var random_angle = randf_range(-0.1, 0.1)
 		reflected_velocity = reflected_velocity.rotated(random_angle)
 		
-		print("Reflected velocity:", reflected_velocity)
-		
 		# Apply the reflected velocity to the ball
 		if ball.has_method("set_velocity"):
 			ball.set_velocity(reflected_velocity)
@@ -709,15 +634,6 @@ func _calculate_velocity_damage(velocity_magnitude: float) -> int:
 	# Return as integer
 	var final_damage = int(damage)
 	
-	# Debug output
-	print("=== VELOCITY DAMAGE CALCULATION ===")
-	print("Raw velocity magnitude:", velocity_magnitude)
-	print("Clamped velocity:", clamped_velocity)
-	print("Damage percentage:", damage_percentage)
-	print("Calculated damage:", damage)
-	print("Final damage (int):", final_damage)
-	print("=== END VELOCITY DAMAGE CALCULATION ===")
-	
 	return final_damage
 
 func _calculate_kill_dampening(ball_velocity: Vector2, overkill_damage: int) -> Vector2:
@@ -739,16 +655,6 @@ func _calculate_kill_dampening(ball_velocity: Vector2, overkill_damage: int) -> 
 	var dampening_factor = 0.2 + (dampening_percentage * 0.6)  # 0.2 to 0.8 range
 	var dampened_velocity = ball_velocity * dampening_factor
 	
-	# Debug output
-	print("=== KILL DAMPENING CALCULATION ===")
-	print("Overkill damage:", overkill_damage)
-	print("Clamped overkill:", clamped_overkill)
-	print("Dampening percentage:", dampening_percentage)
-	print("Dampening factor:", dampening_factor)
-	print("Original velocity magnitude:", ball_velocity.length())
-	print("Dampened velocity magnitude:", dampened_velocity.length())
-	print("=== END KILL DAMPENING CALCULATION ===")
-	
 	return dampened_velocity
 
 func take_damage(damage: int, is_headshot: bool = false):
@@ -756,24 +662,16 @@ func take_damage(damage: int, is_headshot: bool = false):
 	if is_dead or is_frozen:
 		return
 	
-	print("=== WRAITH TAKING DAMAGE ===")
-	print("Damage: ", damage)
-	print("Is headshot: ", is_headshot)
-	print("Current health: ", current_health)
-	
 	current_health -= damage
 	
 	# Play hurt sound
 	if wraith_hurt_sound and wraith_hurt_sound.stream:
 		wraith_hurt_sound.play()
-		print("✓ Wraith hurt sound played")
 	
 	# Update health bar (but don't show negative values to player)
 	var display_health = max(0, current_health)
 	if health_bar:
 		health_bar.set_health(display_health, max_health)
-	
-	print("New health: ", current_health)
 	
 	# Check for death
 	if current_health <= 0:
@@ -809,7 +707,6 @@ func die():
 	if is_dying:
 		return  # Prevent multiple death animations
 	
-	print("=== WRAITH DEATH ===")
 	is_dying = true
 	is_dead = true
 	is_alive = false
@@ -944,52 +841,40 @@ func _trigger_coin_explosion():
 	"""Trigger a coin explosion when the Wraith dies"""
 	# Use the static method from CoinExplosionManager
 	CoinExplosionManager.trigger_coin_explosion(global_position)
-	print("✓ Triggered coin explosion for Wraith at:", global_position)
 
 # Turn management functions
 func take_turn() -> void:
 	"""Called by WorldTurnManager when it's this NPC's turn"""
-	print("Wraith taking turn: ", name)
 	
 	# Skip turn if dead, frozen, or dying
 	if is_dead:
-		print("Wraith is dead, skipping turn")
 		call_deferred("_check_turn_completion")
 		return
 	
 	if is_frozen:
-		print("Wraith is frozen, skipping turn")
 		call_deferred("_check_turn_completion")
 		return
 	
 	if is_dying:
-		print("Wraith is dying, skipping turn")
 		call_deferred("_check_turn_completion")
 		return
 	
 	# Try to get player reference if we don't have one
 	if not player and course:
-		print("Attempting to get player reference from course...")
 		if course.has_method("get_player_reference"):
 			player = course.get_player_reference()
-			print("Got player reference during turn: ", player.name if player else "None")
 		else:
 			# Try direct access as fallback
 			if "player_node" in course:
 				player = course.player_node
-				print("Got player reference via direct access: ", player.name if player else "None")
-			else:
-				print("Course does not have player_node property")
 		
 		# Final fallback: search scene tree for player
 		if not player:
-			print("Trying final fallback - searching scene tree for player...")
 			var scene_tree = get_tree()
 			var all_nodes = scene_tree.get_nodes_in_group("")
 			for node in all_nodes:
 				if node.name == "Player":
 					player = node
-					print("Found player in final fallback: ", player.name)
 					break
 	
 	# Check if player is in vision range and switch states accordingly
@@ -1004,35 +889,25 @@ func take_turn() -> void:
 func _check_player_vision() -> void:
 	"""Check if player is within vision range and switch to chase if needed"""
 	if not player:
-		print("No player reference found for vision check")
 		return
 	
 	var player_pos = player.grid_pos
 	var distance = grid_position.distance_to(player_pos)
 	
-	print("Vision check - Player at ", player_pos, ", distance: ", distance, ", vision range: ", vision_range)
-	
 	if distance <= vision_range:
 		if current_state != "chase":
-			print("Player detected! Switching to chase state")
 			current_state = "chase"
 			state_machine.set_state("chase")
-		else:
-			print("Already in chase state, player still in range")
 		
 		# Face the player when in chase mode
 		_face_player()
 	else:
 		if current_state != "patrol":
-			print("Player out of range, returning to patrol")
 			current_state = "patrol"
 			state_machine.set_state("patrol")
-		else:
-			print("Already in patrol state, player still out of range")
 
 func _on_turn_started():
 	"""Called when NPC turn starts"""
-	print("=== WRAITH TURN STARTED ===")
 	turn_in_progress = true
 	turn_finished = false
 	
@@ -1045,7 +920,6 @@ func _on_turn_started():
 
 func _on_turn_ended():
 	"""Called when NPC turn ends"""
-	print("=== WRAITH TURN ENDED ===")
 	turn_in_progress = false
 	turn_finished = false
 
@@ -1053,13 +927,11 @@ func _check_turn_completion():
 	"""Check if turn is complete and signal completion"""
 	# Don't complete turn if dying (wait for death animation)
 	if is_dying:
-		print("Wraith is dying, skipping turn completion")
 		return
 	
 	if turn_in_progress and not turn_finished:
 		turn_finished = true
 		turn_completed.emit()
-		print("✓ Wraith turn completed")
 
 # Grid position management
 func setup(wraith_type_param: String, pos: Vector2i, cell_size_param: int = 48) -> void:
@@ -1079,12 +951,6 @@ func setup(wraith_type_param: String, pos: Vector2i, cell_size_param: int = 48) 
 	
 	# Update Y-sorting
 	update_z_index_for_ysort()
-	
-	print("Wraith setup: ", wraith_type, " at ", pos)
-	
-	# Debug visual height
-	if sprite:
-		Global.debug_visual_height(sprite, "Wraith")
 
 func _load_sprite_for_type(type: String) -> void:
 	"""Load the appropriate sprite texture based on wraith type"""

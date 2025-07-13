@@ -783,51 +783,16 @@ func force_advance_to_next_npc() -> void:
 
 func debug_together_mode_status() -> void:
 	"""Debug method to show together mode status"""
-	print("=== TOGETHER MODE DEBUG STATUS ===")
-	print("Together mode enabled: ", together_mode_enabled)
-	print("Turn duration: ", together_mode_turn_duration, " seconds")
-	print("Cascade delay: ", together_mode_cascade_delay, " seconds")
-	print("Registered NPCs: ", registered_npcs.size())
-	
-	if together_mode_enabled:
-		print("Next world turn will use cascade execution")
-	else:
-		print("Next world turn will use sequential execution")
-	print("=== END TOGETHER MODE DEBUG ===")
+	# Debug functionality removed for production
 
 func debug_priority_groups() -> void:
 	"""Debug method to show how NPCs would be grouped by priority in together mode"""
-	print("=== PRIORITY GROUPS DEBUG ===")
-	
-	var priority_groups: Dictionary = {}
-	for npc in registered_npcs:
-		if not is_instance_valid(npc):
-			continue
-		
-		var priority = get_npc_priority(npc)
-		if not priority_groups.has(priority):
-			priority_groups[priority] = []
-		priority_groups[priority].append(npc)
-	
-	var sorted_priorities = priority_groups.keys()
-	sorted_priorities.sort()
-	sorted_priorities.reverse()
-	
-	print("NPCs grouped by priority (for together mode cascade):")
-	for priority in sorted_priorities:
-		var npcs_in_priority = priority_groups[priority]
-		print("  Priority ", priority, " (", npcs_in_priority.size(), " NPCs):")
-		for npc in npcs_in_priority:
-			print("    - ", npc.name)
-	
-	print("=== END PRIORITY GROUPS DEBUG ===")
+	# Debug functionality removed for production
 
 func _process(delta: float) -> void:
 	"""Process function for cleanup and maintenance"""
-	# Track registered_npcs size changes for debugging
+	# Track registered_npcs size changes
 	if registered_npcs.size() != _last_registered_npcs_size:
-		print("DEBUG: registered_npcs size changed from", _last_registered_npcs_size, "to", registered_npcs.size())
-		print("DEBUG: Call stack at time of change:", _debug_call_stack)
 		_last_registered_npcs_size = registered_npcs.size()
 	
 	# Periodic cleanup of old data

@@ -738,54 +738,41 @@ func _process(delta):
 
 func _find_player_reference() -> void:
 	"""Find the player reference using multiple methods"""
-	print("=== PLAYER FINDING DEBUG ===")
 	
 	# Method 1: Try to get player from course method (most reliable)
 	if course and course.has_method("get_player_reference"):
 		player = course.get_player_reference()
 		if player:
-			print("Found player from course get_player_reference: ", player.name)
 			return
-		else:
-			print("course.get_player_reference returned null")
 	
 	# Method 2: Try to find player in course
 	if course and course.has_node("Player"):
 		player = course.get_node("Player")
-		print("Found player in course: ", player.name if player else "None")
 		if player:
 			return
 	
 	# Method 3: Try to get player from course_1.gd script method
 	if course and course.has_method("get_player_node"):
 		player = course.get_player_node()
-		print("Found player from course script: ", player.name if player else "None")
 		if player:
 			return
 	
 	# Method 4: Try to find player in scene tree by name
 	var scene_tree = get_tree()
 	var all_nodes = scene_tree.get_nodes_in_group("")
-	print("Searching ", all_nodes.size(), " nodes in scene tree...")
 	
 	for node in all_nodes:
 		if node.name == "Player":
 			player = node
-			print("Found player in scene tree: ", player.name)
 			return
 	
 	# Method 5: Try to find by script type
 	for node in all_nodes:
 		if node.get_script():
 			var script_path = node.get_script().resource_path
-			print("Node ", node.name, " has script: ", script_path)
 			if script_path.ends_with("Player.gd"):
 				player = node
-				print("Found player by script: ", player.name)
 				return
-	
-	print("ERROR: Could not find player reference!")
-	print("=== END PLAYER FINDING DEBUG ===")
 
 func _exit_tree():
 	# Unregister from Entities manager when destroyed
@@ -809,12 +796,6 @@ func setup(member_type: String, pos: Vector2i, cell_size_param: int = 48) -> voi
 	
 	# Update Y-sorting
 	update_z_index_for_ysort()
-	
-	print("GangMember setup: ", member_type, " at ", pos)
-	
-	# Debug visual height
-	if sprite:
-		Global.debug_visual_height(sprite, "GangMember")
 
 func _load_sprite_for_type(type: String) -> void:
 	"""Load the appropriate sprite texture based on gang member type"""
@@ -843,50 +824,36 @@ func _load_sprite_for_type(type: String) -> void:
 
 func take_turn() -> void:
 	"""Called by Entities manager when it's this NPC's turn"""
-	print("GangMember taking turn: ", name)
 	
 	# Skip turn if dead, ragdolling, or frozen
 	if is_dead:
-		print("GangMember is dead, skipping turn")
 		call_deferred("_complete_turn")
 		return
 	
 	if is_ragdolling:
-		print("GangMember is ragdolling, skipping turn")
 		call_deferred("_complete_turn")
 		return
 	
 	if is_frozen:
-		print("GangMember is frozen, skipping turn")
 		call_deferred("_complete_turn")
 		return
 	
 	# Try to get player reference if we don't have one
 	if not player and course:
-		print("Attempting to get player reference from course...")
-		print("Course during turn: ", course.name if course else "None")
-		print("Course script during turn: ", course.get_script().resource_path if course and course.get_script() else "None")
 		if course.has_method("get_player_reference"):
 			player = course.get_player_reference()
-			print("Got player reference during turn: ", player.name if player else "None")
 		else:
-			print("Course does not have get_player_reference method")
 			# Try direct access as fallback
 			if "player_node" in course:
 				player = course.player_node
-				print("Got player reference via direct access: ", player.name if player else "None")
-			else:
-				print("Course does not have player_node property")
 		
 		# Final fallback: search scene tree for player
 		if not player:
-			print("Trying final fallback - searching scene tree for player...")
 			var scene_tree = get_tree()
 			var all_nodes = scene_tree.get_nodes_in_group("")
 			for node in all_nodes:
 				if node.name == "Player":
 					player = node
-					print("Found player in final fallback: ", player.name)
 					break
 	
 	# Check if player is in vision range
@@ -901,36 +868,26 @@ func take_turn() -> void:
 func _check_player_vision() -> void:
 	"""Check if player is within vision range and switch to chase if needed"""
 	if not player:
-		print("No player reference found for vision check")
 		return
 	
 	var player_pos = player.grid_pos
 	var distance = grid_position.distance_to(player_pos)
 	
-	print("Vision check - Player at ", player_pos, ", distance: ", distance, ", vision range: ", vision_range)
-	
 	if distance <= vision_range:
 		if current_state != State.CHASE:
-			print("Player detected! Switching to chase state")
 			current_state = State.CHASE
 			state_machine.set_state("chase")
-		else:
-			print("Already in chase state, player still in range")
 		
 		# Face the player when in chase mode
 		_face_player()
 	else:
 		if current_state != State.PATROL:
-			print("Player out of range, returning to patrol")
 			current_state = State.PATROL
 			state_machine.set_state("patrol")
-		else:
-			print("Already in patrol state, player still out of range")
 
 func _on_turn_started(npc: Node) -> void:
 	"""Called when an NPC's turn starts"""
-	if npc == self:
-		print("GangMember turn started: ", name)
+	# Turn started
 
 func _on_turn_ended(npc: Node) -> void:
 	"""Called when an NPC's turn ends"""
