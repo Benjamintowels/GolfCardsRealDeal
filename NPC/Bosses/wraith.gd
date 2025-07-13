@@ -1,20 +1,18 @@
-extends CharacterBody2D
+extends Node2D
 
 # Wraith Boss NPC - handles Wraith-specific functions
 # Integrates with the Entities system for turn management
 
+# Coin explosion system
+const CoinExplosionManager = preload("res://CoinExplosionManager.gd")
+
 signal turn_completed
-signal boss_defeated
 
 @onready var sprite: Sprite2D = $WraithSprite
 @onready var animation_player: AnimationPlayer = $AnimationPlayer
 
-var grid_position: Vector2i
-var cell_size: int = 48
-var entities_manager: Node
-
 # Wraith specific properties
-var boss_type: String = "wraith"
+var wraith_type: String = "default"
 var movement_range: int = 10  # Can move up to 10 tiles on the green
 var vision_range: int = 15
 var current_action: String = "idle"
@@ -22,16 +20,16 @@ var current_action: String = "idle"
 # Movement animation properties
 var is_moving: bool = false
 var movement_tween: Tween
-var movement_duration: float = 0.4  # Slightly slower than GangMember for boss feel
-var movement_start_position: Vector2
+var movement_duration: float = 0.3  # Duration of movement animation in seconds
+var movement_start_position: Vector2  # Track where movement started
 
 # Facing direction properties
 var facing_direction: Vector2i = Vector2i(1, 0)  # Start facing right
-var last_movement_direction: Vector2i = Vector2i(1, 0)
+var last_movement_direction: Vector2i = Vector2i(1, 0)  # Track last movement direction
 
 # Health and damage properties
-var max_health: int = 200  # Boss health
-var current_health: int = 200
+var max_health: int = 250
+var current_health: int = 250
 var is_alive: bool = true
 var is_dead: bool = false
 
@@ -48,46 +46,47 @@ var ice_top_height_marker: Marker2D
 var ice_ysort_point: Node2D
 
 # Collision and height properties
-var dead_height: float = 50.0
+var dead_height: float = 150.0  # Lower height when dead (laying down)
 var base_collision_area: Area2D
 
-# Headshot mechanics (same as GangMember)
-const HEADSHOT_MIN_HEIGHT = 150.0
-const HEADSHOT_MAX_HEIGHT = 200.0
-const HEADSHOT_MULTIPLIER = 1.5
+# Headshot mechanics
+var headshot_height: float = 80.0  # Height above ground for headshot detection
+var headshot_multiplier: float = 2.0  # Damage multiplier for headshots
 
-func _is_headshot(ball_height: float) -> bool:
-	"""Check if a ball/knife hit is a headshot based on height"""
-	return ball_height >= HEADSHOT_MIN_HEIGHT and ball_height <= HEADSHOT_MAX_HEIGHT
+# Grid system
+var grid_position: Vector2i
+var cell_size: int = 48
+var entities_manager: Node
 
-func get_headshot_info() -> Dictionary:
-	"""Get information about the headshot system for debugging and UI"""
-	return {
-		"min_height": HEADSHOT_MIN_HEIGHT,
-		"max_height": HEADSHOT_MAX_HEIGHT,
-		"multiplier": HEADSHOT_MULTIPLIER,
-		"total_height": Global.get_object_height_from_marker(self),
-		"headshot_range": HEADSHOT_MAX_HEIGHT - HEADSHOT_MIN_HEIGHT
-	}
+# State machine
+var state_machine: StateMachine
+var current_state: String = "patrol"
 
-# Health bar
-var health_bar: HealthBar
-var health_bar_container: Control
+# Player reference
+var player: Node = null
+var course: Node = null
 
-# State Machine
-enum State {PATROL, CHASE, DEAD}
-var current_state: State = State.PATROL
-var state_machine: Node
+# Turn management
+var turn_in_progress: bool = false
+var turn_finished: bool = false
 
-# References
-var player: Node
-var course: Node
+# Ragdoll system
+var is_ragdolling: bool = false
+var ragdoll_landing_position: Vector2i
+
+# Audio references
+@onready var wraith_hurt_sound: AudioStreamPlayer2D = $WraithHurt
+
+# Death animation properties
+var death_animation_tween: Tween
+var death_animation_duration: float = 1.5  # Duration of death animation
+var is_dying: bool = false
 
 func _ready():
 	# Add to groups for smart optimization and roof bounce system
 	add_to_group("collision_objects")
 	add_to_group("NPC")
-	add_to_group("Boss")  # Special boss group
+	add_to_group("bosses")
 	
 	# Get references to ice sprite and collision areas
 	_setup_ice_references()
@@ -96,6 +95,7 @@ func _ready():
 	course = _find_course_script()
 	print("Wraith course reference: ", course.name if course else "None")
 	
+	# Try different paths to find WorldTurnManager
 	var world_turn_manager = null
 	var possible_paths = ["WorldTurnManager", "NPC/WorldTurnManager", "NPC/world_turn_manager"]
 	
@@ -107,19 +107,21 @@ func _ready():
 	
 	if world_turn_manager:
 		print("Found WorldTurnManager: ", world_turn_manager.name)
+		# Register with WorldTurnManager
 		world_turn_manager.register_npc(self)
+		# Connect to turn signals
 		world_turn_manager.npc_turn_started.connect(_on_turn_started)
 		world_turn_manager.npc_turn_ended.connect(_on_turn_ended)
-		print("✓ Wraith registered with WorldTurnManager")
+		print("✓ Wraith registered with WorldTurnManager and connected to signals")
 	else:
-		print("✗ ERROR: Could not register with WorldTurnManager")
+		print("✗ ERROR: Could not connect to WorldTurnManager")
 	
-	# Initialize state machine (will be implemented in next chunk)
-	# state_machine = StateMachine.new()
-	# state_machine.add_state("patrol", PatrolState.new(self))
-	# state_machine.add_state("chase", ChaseState.new(self))
-	# state_machine.add_state("dead", DeadState.new(self))
-	# state_machine.set_state("patrol")
+	# Initialize state machine
+	state_machine = StateMachine.new()
+	state_machine.add_state("patrol", PatrolState.new(self))
+	state_machine.add_state("chase", ChaseState.new(self))
+	state_machine.add_state("dead", DeadState.new(self))
+	state_machine.set_state("patrol")
 	
 	# Setup base collision area
 	_setup_base_collision()
@@ -127,44 +129,66 @@ func _ready():
 	# Create health bar
 	_create_health_bar()
 	
-	# Defer player finding until after scene is fully loaded with a longer delay
-	call_deferred("_delayed_find_player")
+	# Defer player finding until after scene is fully loaded
+	call_deferred("_find_player_reference")
 	
 	# Initialize freeze effect system
 	_setup_freeze_system()
+	
+	# Setup entities manager reference
+	_setup_entities_manager()
+	
+	# Initial Y-sort update
+	call_deferred("update_z_index_for_ysort")
 
-func _setup_ice_references() -> void:
+func _setup_entities_manager():
+	"""Setup the entities manager reference"""
+	if course:
+		entities_manager = course.get_node_or_null("Entities")
+		if entities_manager:
+			print("✓ Wraith found entities manager")
+		else:
+			print("✗ Wraith could not find entities manager")
+	else:
+		print("✗ Wraith could not find course for entities manager setup")
+
+func _setup_ice_references():
 	"""Setup references to ice sprite and collision areas"""
 	ice_sprite = get_node_or_null("WraithIce")
-	ice_collision_area = get_node_or_null("WraithIce/BaseArea2D")
-	ice_top_height_marker = get_node_or_null("WraithIce/TopHeight")
-	ice_ysort_point = get_node_or_null("WraithIce/YSortPoint")
+	ice_collision_area = get_node_or_null("WraithIce/WraithIceBodyArea2D")
+	
+	# Use the ice-specific markers for proper Y-sorting and height detection
+	ice_top_height_marker = get_node_or_null("WraithIce/IceTopHeight")
+	ice_ysort_point = get_node_or_null("WraithIce/IceYSortPoint")
 	
 	if ice_sprite:
-		print("✓ WraithIce sprite reference found")
+		original_modulate = ice_sprite.modulate
+		ice_sprite.visible = false
+		print("✓ Ice sprite reference found")
 	else:
 		print("✗ ERROR: WraithIce sprite not found!")
 	
 	if ice_collision_area:
-		print("✓ WraithIce collision area reference found")
+		# Immediately disable the ice collision area to prevent early collisions
+		ice_collision_area.monitoring = false
+		ice_collision_area.monitorable = false
+		print("✓ Ice collision area reference found and disabled")
 	else:
-		print("✗ ERROR: WraithIce/BaseArea2D not found!")
-
-func _find_course_script() -> Node:
-	"""Find the course_1.gd script by searching up the scene tree"""
-	var current_node = self
-	while current_node:
-		if current_node.get_script() and current_node.get_script().resource_path.ends_with("course_1.gd"):
-			print("Found course_1.gd script at: ", current_node.name)
-			return current_node
-		current_node = current_node.get_parent()
+		print("✗ ERROR: WraithIce/WraithIceBodyArea2D not found!")
 	
-	print("ERROR: Could not find course_1.gd script in scene tree!")
-	return null
+	if ice_top_height_marker:
+		print("✓ Ice top height marker reference found (WraithIce/IceTopHeight)")
+	else:
+		print("✗ ERROR: WraithIce/IceTopHeight marker not found!")
+	
+	if ice_ysort_point:
+		print("✓ Ice Y-sort point reference found (WraithIce/IceYSortPoint)")
+	else:
+		print("✗ ERROR: WraithIce/IceYSortPoint marker not found!")
 
-func _setup_base_collision() -> void:
-	"""Setup the base collision area for ball detection"""
-	base_collision_area = get_node_or_null("WraithBaseArea2D")
+func _setup_base_collision():
+	"""Setup the base collision area for ball collisions"""
+	base_collision_area = get_node_or_null("WraithBodyArea2D")
 	if base_collision_area:
 		# Set collision layer to 1 so golf balls can detect it
 		base_collision_area.collision_layer = 1
@@ -174,8 +198,10 @@ func _setup_base_collision() -> void:
 		base_collision_area.connect("area_entered", _on_base_area_entered)
 		base_collision_area.connect("area_exited", _on_area_exited)
 		print("✓ Wraith base collision area setup complete")
+		print("  - Base collision area monitoring:", base_collision_area.monitoring)
+		print("  - Base collision area monitorable:", base_collision_area.monitorable)
 	else:
-		print("✗ ERROR: WraithBaseArea2D not found!")
+		print("✗ ERROR: WraithBodyArea2D not found!")
 	
 	# Setup HitBox for gun collision detection
 	var hitbox = get_node_or_null("HitBox")
@@ -187,125 +213,91 @@ func _setup_base_collision() -> void:
 		print("✓ Wraith HitBox setup complete for gun collision (layer 2)")
 	else:
 		print("✗ ERROR: HitBox not found!")
-
-func _create_health_bar() -> void:
-	"""Create and setup the health bar"""
-	# Create container for health bar
-	health_bar_container = Control.new()
-	health_bar_container.name = "HealthBarContainer"
-	health_bar_container.custom_minimum_size = Vector2(80, 40)  # Larger for boss
-	health_bar_container.size = Vector2(80, 40)
-	health_bar_container.position = Vector2(-40, -80)  # Position above the wraith
-	health_bar_container.scale = Vector2(0.5, 0.5)  # Larger scale for boss
-	add_child(health_bar_container)
 	
-	# Create health bar
-	var health_bar_scene = preload("res://HealthBar.tscn")
-	health_bar = health_bar_scene.instantiate()
-	health_bar_container.add_child(health_bar)
-	
-	# Set initial health
-	health_bar.set_health(current_health, max_health)
-
-func _find_player_reference() -> void:
-	"""Find the player reference for AI behavior"""
-	# Try multiple methods to find the player
-	player = null
-	
-	# Method 1: Look for player in the "player" group
-	player = get_tree().get_first_node_in_group("player")
-	if player:
-		print("✓ Wraith found player reference via group: Player")
-		return
-	
-	# Method 2: Look for a node named "Player"
-	player = get_tree().get_first_node_in_group("Player")
-	if player:
-		print("✓ Wraith found player reference via group: Player")
-		return
-	
-	# Method 3: Search for player by name
-	var player_node = get_tree().get_first_node_in_group("Player")
-	if player_node:
-		player = player_node
-		print("✓ Wraith found player reference by name: Player")
-		return
-	
-	# Method 4: Try to get player from course
-	var course = _find_course_script()
-	if course and course.has_method("get_player_reference"):
-		player = course.get_player_reference()
-		if player:
-			print("✓ Wraith found player reference via course: Player")
-			return
-	
-	# Method 5: Search the entire scene tree for a node with "Player" in the name
-	var all_nodes = get_tree().get_nodes_in_group("")
-	for node in all_nodes:
-		if "Player" in node.name:
-			player = node
-			print("✓ Wraith found player reference by searching scene tree: Player")
-			return
-	
-	# If still not found, try again after a delay
-	print("✗ Wraith could not find player reference, will retry...")
-	call_deferred("_retry_find_player")
-
-func _delayed_find_player() -> void:
-	"""Find player reference with a longer delay to ensure player is ready"""
-	await get_tree().create_timer(2.0).timeout
-	_find_player_reference()
-
-func _retry_find_player() -> void:
-	"""Retry finding the player reference after a delay"""
-	await get_tree().create_timer(1.0).timeout
-	_find_player_reference()
-
-func _setup_freeze_system() -> void:
-	"""Setup the freeze effect system"""
-	original_modulate = sprite.modulate if sprite else Color.WHITE
-	freeze_sound = preload("res://Sounds/Icy.mp3")
-
-func _on_turn_started() -> void:
-	"""Handle turn start for the Wraith"""
-	if is_dead or is_frozen:
-		_process_freeze_turn()
-		return
-	
-	# Simple random movement within 10 tiles
-	var move_distance = randi_range(1, movement_range)
-	var target_pos = _get_random_position(move_distance)
-	
-	if target_pos != grid_position:
-		_move_to_position(target_pos)
+	# Setup ice collision area (initially disabled, will be enabled when frozen)
+	if ice_collision_area:
+		# Set collision layer to 1 so golf balls can detect it
+		ice_collision_area.collision_layer = 1
+		# Set collision mask to 1 so it can detect golf balls on layer 1
+		ice_collision_area.collision_mask = 1
+		# Initially disabled - will be enabled when frozen
+		ice_collision_area.monitoring = false
+		ice_collision_area.monitorable = false
+		print("✓ Wraith ice collision area setup complete (initially disabled)")
+		print("  - Ice collision area monitoring:", ice_collision_area.monitoring)
+		print("  - Ice collision area monitorable:", ice_collision_area.monitorable)
 	else:
-		# Face random direction when not moving
-		var random_direction = Vector2i(
-			randi_range(-1, 1),
-			randi_range(-1, 1)
-		)
-		if random_direction != Vector2i.ZERO:
-			facing_direction = random_direction
-			_update_sprite_facing()
-		_check_turn_completion()
+		print("✗ ERROR: Ice collision area not found!")
 
-func _on_turn_ended() -> void:
-	"""Handle turn end for the Wraith"""
-	turn_completed.emit()
+func _create_health_bar():
+	"""Create a health bar for the Wraith"""
+	var health_bar_scene = preload("res://HealthBar.tscn")
+	var health_bar = health_bar_scene.instantiate()
+	health_bar.name = "WraithHealthBar"
+	add_child(health_bar)
+	
+	# Position health bar above the Wraith
+	health_bar.position = Vector2(0, -100)
+	
+	# Setup health bar
+	if health_bar.has_method("setup"):
+		health_bar.setup(max_health, current_health)
 
-func _on_base_area_entered(area: Area2D) -> void:
-	"""Handle collisions with the base collision area"""
-	var projectile = area.get_parent()
-	if projectile and (projectile.name == "GolfBall" or projectile.name == "GhostBall" or projectile.has_method("is_throwing_knife")):
-		_handle_area_collision(projectile)
+func _find_player_reference():
+	"""Find the player reference after scene is loaded"""
+	# Try to find player in the course
+	if course:
+		player = course.get_node_or_null("Player")
+		if not player:
+			# Try alternative paths
+			player = course.get_node_or_null("player_node")
+		if not player:
+			# Search for player in the scene tree
+			player = get_tree().get_first_node_in_group("player")
+	
+	if player:
+		print("✓ Wraith found player reference: ", player.name)
+	else:
+		print("✗ Wraith could not find player reference")
 
-func _on_area_exited(area: Area2D) -> void:
+func _exit_tree():
+	# Stop death animation if running
+	stop_death_animation()
+	
+	# Unregister from Entities manager when destroyed
+	if entities_manager:
+		entities_manager.unregister_npc(self)
+
+func _find_course_script() -> Node:
+	"""Find the course script by searching up the scene tree"""
+	var current = self
+	while current:
+		if current.has_method("_on_hole_in_one") or current.has_method("build_map_from_layout_with_randomization"):
+			return current
+		current = current.get_parent()
+	return null
+
+func _on_base_area_entered(area: Area2D):
+	"""Handle ball entering the Wraith's base collision area"""
+	print("=== WRAITH BASE AREA ENTERED ===")
+	print("Area name:", area.name)
+	print("Area parent:", area.get_parent().name if area.get_parent() else "None")
+	print("Area path:", area.get_path())
+	
+	# Check if this is a ball or projectile
+	var ball = area.get_parent()
+	if ball and (ball.name == "GolfBall" or ball.has_method("get_height")):
+		_handle_area_collision(ball)
+
+func _on_area_exited(area: Area2D):
 	"""Handle when projectile exits the Wraith area - reset ground level"""
 	var projectile = area.get_parent()
 	if projectile and projectile.has_method("get_height"):
+		# Reset the projectile's ground level to normal (0.0)
 		if projectile.has_method("_reset_ground_level"):
 			projectile._reset_ground_level()
 		else:
+			# Fallback: directly reset ground level if method doesn't exist
 			if "current_ground_level" in projectile:
 				projectile.current_ground_level = 0.0
 
@@ -323,7 +315,7 @@ func _handle_area_collision(projectile: Node2D):
 	
 	# Get projectile and Wraith heights
 	var projectile_height = projectile.get_height()
-	var wraith_height = Global.get_object_height_from_marker(self)
+	var wraith_height = get_height()
 	
 	print("Projectile height:", projectile_height)
 	print("Wraith height:", wraith_height)
@@ -341,6 +333,7 @@ func _handle_area_collision(projectile: Node2D):
 		_allow_projectile_entry(projectile, wraith_height)
 	else:
 		print("✗ Projectile is below Wraith height - dealing damage and reflecting")
+		# Deal damage first, then reflect
 		_handle_ball_collision(projectile)
 
 func _handle_knife_area_collision(knife: Node2D, knife_height: float, wraith_height: float):
@@ -364,21 +357,26 @@ func _allow_projectile_entry(projectile: Node2D, wraith_height: float):
 		projectile_height = projectile.get_height()
 	
 	# Only apply freeze effect if projectile is above Wraith height
+	# This handles the case where ball bounces off roof and lands on Wraith's head
 	if projectile_height > wraith_height:
-		# Check for ice element and apply freeze effect
+		# Check for ice element and apply freeze effect (for roof bounces landing on head)
 		if projectile.has_method("get_element"):
 			var projectile_element = projectile.get_element()
 			if projectile_element and projectile_element.name == "Ice":
-				print("Ice element detected on projectile landing! Applying freeze effect")
-				freeze()
+				print("Ice element detected on projectile landing (roof bounce)! Applying freeze effect")
+				apply_freeze_effect(3)  # Freeze for 3 turns
 	
 	# Set the projectile's ground level to the Wraith height
 	if projectile.has_method("_set_ground_level"):
 		projectile._set_ground_level(wraith_height)
 	else:
+		# Fallback: directly set ground level if method doesn't exist
 		if "current_ground_level" in projectile:
 			projectile.current_ground_level = wraith_height
 			print("✓ Set projectile ground level to Wraith height:", wraith_height)
+	
+	# The projectile will now land on the Wraith's head instead of passing through
+	# When it exits the area, _on_area_exited will reset the ground level
 
 func _reflect_projectile(projectile: Node2D):
 	"""Reflect projectile off the Wraith"""
@@ -389,19 +387,17 @@ func _reflect_projectile(projectile: Node2D):
 	if projectile.has_method("get_height"):
 		projectile_height = projectile.get_height()
 	
-	var wraith_height = Global.get_object_height_from_marker(self)
+	var wraith_height = get_height()
 	
-	# Only apply freeze effect if projectile is below Wraith height
+	# Only apply freeze effect if projectile is below Wraith height (wall bounces)
+	# This handles the case where ball hits Wraith's body and reflects
 	if projectile_height < wraith_height:
-		# Check for ice element and apply freeze effect
+		# Check for ice element and apply freeze effect (for wall bounces)
 		if projectile.has_method("get_element"):
 			var projectile_element = projectile.get_element()
 			if projectile_element and projectile_element.name == "Ice":
-				print("Ice element detected on projectile reflection! Applying freeze effect")
-				freeze()
-	
-	# Play collision sound for Wraith collision
-	_play_collision_sound()
+				print("Ice element detected on projectile reflection (wall bounce)! Applying freeze effect")
+				apply_freeze_effect(3)  # Freeze for 3 turns
 	
 	# Get the projectile's current velocity
 	var projectile_velocity = Vector2.ZERO
@@ -440,318 +436,1174 @@ func _handle_ball_collision(ball: Node2D) -> void:
 	"""Handle ball/knife collisions - check height to determine if ball/knife should pass through"""
 	print("Handling ball/knife collision - checking ball/knife height")
 	
-	# Use the Entities system for collision handling
+	# Use the Entities system for collision handling (includes moving NPC push system)
 	if entities_manager and entities_manager.has_method("handle_npc_ball_collision"):
 		entities_manager.handle_npc_ball_collision(self, ball)
 		return
 	
-	# Fallback to original collision logic
+	# Fallback to original collision logic if Entities system is not available
+	# Use enhanced height collision detection with TopHeight markers
 	if Global.is_object_above_obstacle(ball, self):
+		# Ball/knife is above Wraith entirely - let it pass through
 		print("Ball/knife is above Wraith entirely - passing through")
 		return
 	else:
+		# Ball/knife is within or below Wraith height - handle collision
 		print("Ball/knife is within Wraith height - handling collision")
 		
 		# Check if this is a throwing knife
 		if ball.has_method("is_throwing_knife") and ball.is_throwing_knife():
+			# Handle knife collision with Wraith
 			_handle_knife_collision(ball)
 		else:
+			# Handle regular ball collision
 			_handle_regular_ball_collision(ball)
 
 func _handle_knife_collision(knife: Node2D) -> void:
 	"""Handle knife collision with Wraith"""
 	print("Handling knife collision with Wraith")
 	
-	# Play collision sound effect
-	_play_collision_sound()
-	
 	# Check for ice element and apply freeze effect
 	if knife.has_method("get_element"):
 		var knife_element = knife.get_element()
 		if knife_element and knife_element.name == "Ice":
 			print("Ice element detected on knife! Applying freeze effect")
-			freeze()
+			apply_freeze_effect(3)  # Freeze for 3 turns
 	
 	# Let the knife handle its own collision logic
+	# The knife will determine if it should bounce or stick based on which side hits
 	if knife.has_method("_handle_npc_collision"):
 		knife._handle_npc_collision(self)
 	else:
+		# Fallback: just reflect the knife
 		_apply_knife_reflection(knife)
 
+func _handle_regular_ball_collision(ball: Node2D) -> void:
+	"""Handle regular ball collision with Wraith"""
+	print("Handling regular ball collision with Wraith")
+	
+	# Apply collision effect to the ball
+	_apply_ball_collision_effect(ball)
+
 func _apply_knife_reflection(knife: Node2D) -> void:
-	"""Apply reflection to knife when it hits the Wraith"""
+	"""Apply reflection effect to a knife (fallback method)"""
+	# Check for ice element and apply freeze effect
+	if knife.has_method("get_element"):
+		var knife_element = knife.get_element()
+		if knife_element and knife_element.name == "Ice":
+			print("Ice element detected on knife reflection! Applying freeze effect")
+			apply_freeze_effect(3)  # Freeze for 3 turns
+	
+	# Get the knife's current velocity
 	var knife_velocity = Vector2.ZERO
 	if knife.has_method("get_velocity"):
 		knife_velocity = knife.get_velocity()
 	elif "velocity" in knife:
 		knife_velocity = knife.velocity
 	
+	print("Applying knife reflection with velocity:", knife_velocity)
+	
 	var knife_pos = knife.global_position
 	var wraith_center = global_position
 	
-	# Calculate reflection direction
+	# Calculate the direction from Wraith center to knife
 	var to_knife_direction = (knife_pos - wraith_center).normalized()
+	
+	# Simple reflection: reflect the velocity across the Wraith center
 	var reflected_velocity = knife_velocity - 2 * knife_velocity.dot(to_knife_direction) * to_knife_direction
 	
-	# Apply reflected velocity
+	# Reduce speed slightly to prevent infinite bouncing
+	reflected_velocity *= 0.8
+	
+	# Add a small amount of randomness to prevent infinite loops
+	var random_angle = randf_range(-0.1, 0.1)
+	reflected_velocity = reflected_velocity.rotated(random_angle)
+	
+	print("Reflected knife velocity:", reflected_velocity)
+	
+	# Apply the reflected velocity to the knife
 	if knife.has_method("set_velocity"):
 		knife.set_velocity(reflected_velocity)
 	elif "velocity" in knife:
 		knife.velocity = reflected_velocity
 
-func _handle_regular_ball_collision(ball: Node2D) -> void:
-	"""Handle regular ball collision with Wraith"""
-	print("Handling regular ball collision with Wraith")
+func _apply_ball_collision_effect(ball: Node2D) -> void:
+	"""Apply collision effect to the ball (bounce, damage, etc.)"""
+	# Check if this is a ghost ball (shouldn't deal damage)
+	var is_ghost_ball = false
+	if ball.has_method("is_ghost"):
+		is_ghost_ball = ball.is_ghost
+	elif "is_ghost" in ball:
+		is_ghost_ball = ball.is_ghost
+	elif ball.name == "GhostBall":
+		is_ghost_ball = true
 	
-	# Play collision sound
-	_play_collision_sound()
+	if is_ghost_ball:
+		print("Ghost ball detected - no damage dealt, just reflection")
+		# Ghost balls only reflect, no damage
+		var ball_velocity = Vector2.ZERO
+		if ball.has_method("get_velocity"):
+			ball_velocity = ball.get_velocity()
+		elif "velocity" in ball:
+			ball_velocity = ball.velocity
+		
+		var ball_pos = ball.global_position
+		var wraith_center = global_position
+		
+		# Calculate the direction from Wraith center to ball
+		var to_ball_direction = (ball_pos - wraith_center).normalized()
+		
+		# Simple reflection: reflect the velocity across the Wraith center
+		var reflected_velocity = ball_velocity - 2 * ball_velocity.dot(to_ball_direction) * to_ball_direction
+		
+		# Reduce speed slightly to prevent infinite bouncing
+		reflected_velocity *= 0.8
+		
+		# Add a small amount of randomness to prevent infinite loops
+		var random_angle = randf_range(-0.1, 0.1)
+		reflected_velocity = reflected_velocity.rotated(random_angle)
+		
+		print("Ghost ball reflected velocity:", reflected_velocity)
+		
+		# Apply the reflected velocity to the ball
+		if ball.has_method("set_velocity"):
+			ball.set_velocity(reflected_velocity)
+		elif "velocity" in ball:
+			ball.velocity = reflected_velocity
+		return
+	
+	# Get the ball's current velocity
+	var ball_velocity = Vector2.ZERO
+	if ball.has_method("get_velocity"):
+		ball_velocity = ball.get_velocity()
+	elif "velocity" in ball:
+		ball_velocity = ball.velocity
+	
+	print("Applying collision effect to ball with velocity:", ball_velocity)
+	
+	# Get ball height for headshot detection
+	var ball_height = 0.0
+	if ball.has_method("get_height"):
+		ball_height = ball.get_height()
+	elif "z" in ball:
+		ball_height = ball.z
+	
+	# Check if this is a headshot
+	var is_headshot = ball_height > get_height() + headshot_height
+	var damage_multiplier = headshot_multiplier if is_headshot else 1.0
+	
+	# Calculate base damage based on ball velocity
+	var base_damage = _calculate_velocity_damage(ball_velocity.length())
+	
+	# Apply headshot multiplier if applicable
+	var damage = int(base_damage * damage_multiplier)
+	
+	if is_headshot:
+		print("HEADSHOT! Ball height:", ball_height, "Base damage:", base_damage, "Final damage:", damage)
+	else:
+		print("Body shot. Ball height:", ball_height, "Damage:", damage)
 	
 	# Check for ice element and apply freeze effect
 	if ball.has_method("get_element"):
 		var ball_element = ball.get_element()
 		if ball_element and ball_element.name == "Ice":
-			print("Ice element detected on ball! Applying freeze effect")
-			freeze()
+			print("Ice element detected! Applying freeze effect")
+			apply_freeze_effect(3)  # Freeze for 3 turns
 	
-	# Deal damage to the Wraith
-	take_damage(10)  # Base damage from ball collision
+	# Check if this damage will kill the Wraith
+	var will_kill = damage >= current_health
+	var overkill_damage = 0
 	
-	# Reflect the ball
-	_reflect_projectile(ball)
+	if will_kill:
+		# Calculate overkill damage (negative health value)
+		overkill_damage = damage - current_health
+		print("Damage will kill Wraith! Overkill damage:", overkill_damage)
+		
+		# Apply damage to the Wraith (this will set health to negative)
+		take_damage(damage)
+		
+		# Apply velocity dampening based on overkill damage
+		var dampened_velocity = _calculate_kill_dampening(ball_velocity, overkill_damage)
+		print("Ball passed through with dampened velocity:", dampened_velocity)
+		
+		# Apply the dampened velocity to the ball (no reflection)
+		if ball.has_method("set_velocity"):
+			ball.set_velocity(dampened_velocity)
+		elif "velocity" in ball:
+			ball.velocity = dampened_velocity
+	else:
+		# Normal collision - apply damage and reflect
+		take_damage(damage)
+		
+		var ball_pos = ball.global_position
+		var wraith_center = global_position
+		
+		# Calculate the direction from Wraith center to ball
+		var to_ball_direction = (ball_pos - wraith_center).normalized()
+		
+		# Simple reflection: reflect the velocity across the Wraith center
+		var reflected_velocity = ball_velocity - 2 * ball_velocity.dot(to_ball_direction) * to_ball_direction
+		
+		# Reduce speed slightly to prevent infinite bouncing
+		reflected_velocity *= 0.8
+		
+		# Add a small amount of randomness to prevent infinite loops
+		var random_angle = randf_range(-0.1, 0.1)
+		reflected_velocity = reflected_velocity.rotated(random_angle)
+		
+		print("Reflected velocity:", reflected_velocity)
+		
+		# Apply the reflected velocity to the ball
+		if ball.has_method("set_velocity"):
+			ball.set_velocity(reflected_velocity)
+		elif "velocity" in ball:
+			ball.velocity = reflected_velocity
 
-func _play_collision_sound() -> void:
-	"""Play collision sound for the Wraith"""
-	# Play Wraith hurt sound
-	var wraith_hurt = get_node_or_null("WraithHurt")
-	if wraith_hurt:
-		wraith_hurt.play()
+func _calculate_velocity_damage(velocity_magnitude: float) -> int:
+	"""Calculate damage based on ball velocity magnitude"""
+	# Define velocity ranges for damage scaling
+	const MIN_VELOCITY = 25.0  # Minimum velocity for 1 damage
+	const MAX_VELOCITY = 1200.0  # Maximum velocity for 88 damage
+	
+	# Clamp velocity to our defined range
+	var clamped_velocity = clamp(velocity_magnitude, MIN_VELOCITY, MAX_VELOCITY)
+	
+	# Calculate damage percentage (0.0 to 1.0)
+	var damage_percentage = (clamped_velocity - MIN_VELOCITY) / (MAX_VELOCITY - MIN_VELOCITY)
+	
+	# Scale damage from 1 to 88
+	var damage = 1 + (damage_percentage * 87)
+	
+	# Return as integer
+	var final_damage = int(damage)
+	
+	# Debug output
+	print("=== VELOCITY DAMAGE CALCULATION ===")
+	print("Raw velocity magnitude:", velocity_magnitude)
+	print("Clamped velocity:", clamped_velocity)
+	print("Damage percentage:", damage_percentage)
+	print("Calculated damage:", damage)
+	print("Final damage (int):", final_damage)
+	print("=== END VELOCITY DAMAGE CALCULATION ===")
+	
+	return final_damage
 
-func take_damage(damage: int) -> void:
-	"""Take damage and handle health updates"""
-	if is_dead:
+func _calculate_kill_dampening(ball_velocity: Vector2, overkill_damage: int) -> Vector2:
+	"""Calculate velocity dampening when ball kills an NPC"""
+	# Define dampening ranges
+	const MIN_OVERKILL = 1  # Minimum overkill for maximum dampening
+	const MAX_OVERKILL = 60  # Maximum overkill for minimum dampening
+	
+	# Clamp overkill damage to our defined range
+	var clamped_overkill = clamp(overkill_damage, MIN_OVERKILL, MAX_OVERKILL)
+	
+	# Calculate dampening factor (0.0 = no dampening, 1.0 = maximum dampening)
+	# Higher overkill = less dampening (ball keeps more speed)
+	var dampening_percentage = 1.0 - ((clamped_overkill - MIN_OVERKILL) / (MAX_OVERKILL - MIN_OVERKILL))
+	
+	# Apply dampening factor to velocity
+	# Maximum dampening reduces velocity to 20% of original
+	# Minimum dampening reduces velocity to 80% of original
+	var dampening_factor = 0.2 + (dampening_percentage * 0.6)  # 0.2 to 0.8 range
+	var dampened_velocity = ball_velocity * dampening_factor
+	
+	# Debug output
+	print("=== KILL DAMPENING CALCULATION ===")
+	print("Overkill damage:", overkill_damage)
+	print("Clamped overkill:", clamped_overkill)
+	print("Dampening percentage:", dampening_percentage)
+	print("Dampening factor:", dampening_factor)
+	print("Original velocity magnitude:", ball_velocity.length())
+	print("Dampened velocity magnitude:", dampened_velocity.length())
+	print("=== END KILL DAMPENING CALCULATION ===")
+	
+	return dampened_velocity
+
+func take_damage(damage: int):
+	"""Take damage and handle death"""
+	if is_dead or is_frozen:
 		return
 	
-	# Check for headshot
-	var is_headshot_hit = false
-	if damage > 0:  # Only check headshot for positive damage
-		is_headshot_hit = _is_headshot(damage)
-		if is_headshot_hit:
-			damage = int(damage * HEADSHOT_MULTIPLIER)
-			print("HEADSHOT! Damage multiplied to:", damage)
+	print("=== WRAITH TAKING DAMAGE ===")
+	print("Damage: ", damage)
+	print("Current health: ", current_health)
 	
 	current_health -= damage
-	print("Wraith took damage:", damage, "Current health:", current_health)
 	
 	# Play hurt sound
-	_play_collision_sound()
+	if wraith_hurt_sound and wraith_hurt_sound.stream:
+		wraith_hurt_sound.play()
+		print("✓ Wraith hurt sound played")
 	
 	# Update health bar
-	if health_bar:
-		health_bar.set_health(current_health, max_health)
+	var health_bar = get_node_or_null("WraithHealthBar")
+	if health_bar and health_bar.has_method("update_health"):
+		health_bar.update_health(current_health)
 	
-	# Check if dead
+	print("New health: ", current_health)
+	
+	# Check for death
 	if current_health <= 0:
 		die()
 	else:
 		# Visual feedback for taking damage
 		_flash_damage()
 
-func _flash_damage() -> void:
-	"""Flash the sprite when taking damage"""
+func _flash_damage():
+	"""Flash the sprite to indicate damage taken"""
 	if sprite:
 		var tween = create_tween()
 		tween.tween_property(sprite, "modulate", Color.RED, 0.1)
-		tween.tween_property(sprite, "modulate", original_modulate, 0.1)
+		tween.tween_property(sprite, "modulate", Color.WHITE, 0.1)
 
-func die() -> void:
+func die():
 	"""Handle Wraith death"""
+	if is_dying:
+		return  # Prevent multiple death animations
+	
+	print("=== WRAITH DEATH ===")
+	is_dying = true
+	is_dead = true
+	is_alive = false
+	
+	# Start death animation
+	_start_death_animation()
+	
+	# Change to dead state
+	state_machine.set_state("dead")
+	
+	# Trigger coin explosion
+	_trigger_coin_explosion()
+	
+	# Remove from turn system
+	if course:
+		var world_turn_manager = course.get_node_or_null("WorldTurnManager")
+		if world_turn_manager and world_turn_manager.has_method("remove_npc_from_turn_system"):
+			world_turn_manager.remove_npc_from_turn_system(self)
+	
+	# Hide health bar
+	var health_bar = get_node_or_null("WraithHealthBar")
+	if health_bar:
+		health_bar.visible = false
+	
+	# Remove from collision groups
+	remove_from_group("collision_objects")
+	remove_from_group("NPC")
+	
+	print("✓ Wraith death animation started")
+
+func _start_death_animation():
+	"""Start the Wraith death animation - grow vertically and fade out"""
+	print("=== STARTING WRAITH DEATH ANIMATION ===")
+	
+	# Get the WraithDead sprite
+	var wraith_dead_sprite = get_node_or_null("WraithDead")
+	if not wraith_dead_sprite:
+		print("✗ ERROR: WraithDead sprite not found!")
+		_on_death_animation_complete()
+		return
+	
+	# Stop any existing death animation
+	if death_animation_tween and death_animation_tween.is_valid():
+		death_animation_tween.kill()
+	
+	# Create new death animation tween
+	death_animation_tween = create_tween()
+	death_animation_tween.set_parallel(true)
+	
+	# Show the death sprite on top of current sprite
+	wraith_dead_sprite.visible = true
+	wraith_dead_sprite.modulate = Color.WHITE
+	wraith_dead_sprite.scale = Vector2.ONE
+	
+	# Set initial position to match current sprite position
+	var current_sprite = sprite if sprite and sprite.visible else ice_sprite if is_frozen and ice_sprite and ice_sprite.visible else null
+	if current_sprite:
+		wraith_dead_sprite.position = current_sprite.position
+		# Match the facing direction
+		wraith_dead_sprite.flip_h = current_sprite.flip_h
+	
+	print("Death sprite initial position:", wraith_dead_sprite.position)
+	print("Death sprite initial scale:", wraith_dead_sprite.scale)
+	
+	# Phase 1: Grow vertically quickly (first 40% of animation)
+	var grow_duration = death_animation_duration * 0.4
+	var target_scale = Vector2(1.0, 3.0)  # Grow 3x vertically
+	
+	print("Phase 1 - Growing vertically for", grow_duration, "seconds to scale", target_scale)
+	
+	# Animate vertical growth
+	death_animation_tween.tween_property(wraith_dead_sprite, "scale", target_scale, grow_duration)
+	death_animation_tween.set_trans(Tween.TRANS_QUAD)
+	death_animation_tween.set_ease(Tween.EASE_OUT)
+	
+	# Phase 2: Fade out (remaining 60% of animation)
+	var fade_duration = death_animation_duration * 0.6
+	var fade_start_time = grow_duration
+	
+	print("Phase 2 - Fading out for", fade_duration, "seconds starting at", fade_start_time)
+	
+	# Animate fade out (delayed to start after growth)
+	death_animation_tween.tween_property(wraith_dead_sprite, "modulate:a", 0.0, fade_duration).set_delay(fade_start_time)
+	death_animation_tween.set_trans(Tween.TRANS_QUAD)
+	death_animation_tween.set_ease(Tween.EASE_IN)
+	
+	# Phase 3: Complete animation and cleanup
+	death_animation_tween.tween_callback(_on_death_animation_complete).set_delay(death_animation_duration)
+	
+	print("✓ Death animation sequence started")
+
+func _on_death_animation_complete():
+	"""Called when the death animation is complete"""
+	print("=== WRAITH DEATH ANIMATION COMPLETE ===")
+	
+	# Hide the death sprite
+	var wraith_dead_sprite = get_node_or_null("WraithDead")
+	if wraith_dead_sprite:
+		wraith_dead_sprite.visible = false
+		wraith_dead_sprite.modulate = Color.WHITE
+		wraith_dead_sprite.scale = Vector2.ONE
+	
+	# Hide all other sprites
+	if sprite:
+		sprite.visible = false
+	if ice_sprite:
+		ice_sprite.visible = false
+	
+	# Disable all collision areas
+	if base_collision_area:
+		base_collision_area.monitoring = false
+		base_collision_area.monitorable = false
+	if ice_collision_area:
+		ice_collision_area.monitoring = false
+		ice_collision_area.monitorable = false
+	
+	# Queue free the Wraith (no corpse left behind)
+	queue_free()
+	
+	print("✓ Wraith death animation complete and cleaned up")
+
+func stop_death_animation():
+	"""Stop the death animation if it's currently running"""
+	if is_dying and death_animation_tween and death_animation_tween.is_valid():
+		death_animation_tween.kill()
+		is_dying = false
+		print("✓ Wraith death animation stopped")
+
+func _trigger_coin_explosion():
+	"""Trigger a coin explosion when the Wraith dies"""
+	# Use the static method from CoinExplosionManager
+	CoinExplosionManager.trigger_coin_explosion(global_position)
+	print("✓ Triggered coin explosion for Wraith at:", global_position)
+
+# Turn management functions
+func take_turn() -> void:
+	"""Called by WorldTurnManager when it's this NPC's turn"""
+	print("Wraith taking turn: ", name)
+	
+	# Skip turn if dead, frozen, or dying
+	if is_dead:
+		print("Wraith is dead, skipping turn")
+		call_deferred("_check_turn_completion")
+		return
+	
+	if is_frozen:
+		print("Wraith is frozen, skipping turn")
+		call_deferred("_check_turn_completion")
+		return
+	
+	if is_dying:
+		print("Wraith is dying, skipping turn")
+		call_deferred("_check_turn_completion")
+		return
+	
+	# Try to get player reference if we don't have one
+	if not player and course:
+		print("Attempting to get player reference from course...")
+		if course.has_method("get_player_reference"):
+			player = course.get_player_reference()
+			print("Got player reference during turn: ", player.name if player else "None")
+		else:
+			# Try direct access as fallback
+			if "player_node" in course:
+				player = course.player_node
+				print("Got player reference via direct access: ", player.name if player else "None")
+			else:
+				print("Course does not have player_node property")
+		
+		# Final fallback: search scene tree for player
+		if not player:
+			print("Trying final fallback - searching scene tree for player...")
+			var scene_tree = get_tree()
+			var all_nodes = scene_tree.get_nodes_in_group("")
+			for node in all_nodes:
+				if node.name == "Player":
+					player = node
+					print("Found player in final fallback: ", player.name)
+					break
+	
+	# Check if player is in vision range and switch states accordingly
+	_check_player_vision()
+	
+	# Let the current state handle the turn
+	state_machine.update()
+	
+	# Complete turn after state processing (will wait for movement if needed)
+	_check_turn_completion()
+
+func _check_player_vision() -> void:
+	"""Check if player is within vision range and switch to chase if needed"""
+	if not player:
+		print("No player reference found for vision check")
+		return
+	
+	var player_pos = player.grid_pos
+	var distance = grid_position.distance_to(player_pos)
+	
+	print("Vision check - Player at ", player_pos, ", distance: ", distance, ", vision range: ", vision_range)
+	
+	if distance <= vision_range:
+		if current_state != "chase":
+			print("Player detected! Switching to chase state")
+			current_state = "chase"
+			state_machine.set_state("chase")
+		else:
+			print("Already in chase state, player still in range")
+		
+		# Face the player when in chase mode
+		_face_player()
+	else:
+		if current_state != "patrol":
+			print("Player out of range, returning to patrol")
+			current_state = "patrol"
+			state_machine.set_state("patrol")
+		else:
+			print("Already in patrol state, player still out of range")
+
+func _on_turn_started():
+	"""Called when NPC turn starts"""
+	print("=== WRAITH TURN STARTED ===")
+	turn_in_progress = true
+	turn_finished = false
+	
+	if is_dead or is_frozen or is_dying:
+		_check_turn_completion()
+		return
+	
+	# Update state machine
+	state_machine.update()
+
+func _on_turn_ended():
+	"""Called when NPC turn ends"""
+	print("=== WRAITH TURN ENDED ===")
+	turn_in_progress = false
+	turn_finished = false
+
+func _check_turn_completion():
+	"""Check if turn is complete and signal completion"""
+	# Don't complete turn if dying (wait for death animation)
+	if is_dying:
+		print("Wraith is dying, skipping turn completion")
+		return
+	
+	if turn_in_progress and not turn_finished:
+		turn_finished = true
+		turn_completed.emit()
+		print("✓ Wraith turn completed")
+
+# Grid position management
+func setup(wraith_type_param: String, pos: Vector2i, cell_size_param: int = 48) -> void:
+	"""Setup the Wraith with specific parameters"""
+	wraith_type = wraith_type_param
+	grid_position = pos
+	cell_size = cell_size_param
+	
+	# Set position based on grid position
+	position = Vector2(grid_position.x, grid_position.y) * cell_size + Vector2(cell_size / 2, cell_size / 2)
+	
+	# Load appropriate sprite based on type
+	_load_sprite_for_type(wraith_type)
+	
+	# Initialize sprite facing direction
+	_update_sprite_facing()
+	
+	# Update Y-sorting
+	update_z_index_for_ysort()
+	
+	print("Wraith setup: ", wraith_type, " at ", pos)
+	
+	# Debug visual height
+	if sprite:
+		Global.debug_visual_height(sprite, "Wraith")
+
+func _load_sprite_for_type(type: String) -> void:
+	"""Load the appropriate sprite texture based on wraith type"""
+	var texture_path = "res://NPC/Bosses/WraithLeftRight.png"  # Default
+	
+	# You can expand this to load different sprites based on type
+	match type:
+		"default":
+			texture_path = "res://NPC/Bosses/WraithLeftRight.png"
+		"variant1":
+			texture_path = "res://NPC/Bosses/WraithLeftRight.png"  # Same for now
+		"variant2":
+			texture_path = "res://NPC/Bosses/WraithLeftRight.png"  # Same for now
+		_:
+			texture_path = "res://NPC/Bosses/WraithLeftRight.png"
+	
+	var texture = load(texture_path)
+	if texture and sprite:
+		sprite.texture = texture
+		
+		# Scale sprite to fit cell size
+		if texture.get_size().x > 0 and texture.get_size().y > 0:
+			var scale_x = cell_size / texture.get_size().x
+			var scale_y = cell_size / texture.get_size().y
+			sprite.scale = Vector2(scale_x, scale_y)
+
+func get_grid_position() -> Vector2i:
+	"""Get the current grid position"""
+	return grid_position
+
+func set_grid_position(pos: Vector2i) -> void:
+	"""Set the grid position and update world position"""
+	grid_position = pos
+	position = Vector2(pos.x, pos.y) * cell_size + Vector2(cell_size / 2, cell_size / 2)
+
+func _get_valid_adjacent_positions() -> Array[Vector2i]:
+	"""Get valid adjacent positions the Wraith can move to (only on green tiles)"""
+	var valid_positions: Array[Vector2i] = []
+	var directions = [Vector2i(0, -1), Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, 0)]
+	
+	for direction in directions:
+		var new_pos = grid_position + direction
+		if _is_position_valid(new_pos):
+			valid_positions.append(new_pos)
+	
+	return valid_positions
+
+func _is_position_valid(pos: Vector2i) -> bool:
+	"""Check if a position is valid for the Wraith to move to (must be on green)"""
+	# Basic bounds checking
+	if pos.x < 0 or pos.y < 0 or pos.x > 100 or pos.y > 100:
+		return false
+	
+	# Check if position is occupied by the player
+	if player and player.grid_pos == pos:
+		print("Position ", pos, " is occupied by player")
+		return false
+	
+	# Check if position is on a green tile (G)
+	if course and course.has_method("get_tile_type_at_position"):
+		var tile_type = course.get_tile_type_at_position(pos)
+		if tile_type != "G":
+			print("Position ", pos, " is not on green tile (type: ", tile_type, ")")
+			return false
+	
+	return true
+
+func _move_to_position(target_pos: Vector2i) -> void:
+	"""Move the Wraith to a new position with smooth animation"""
+	var old_pos = grid_position
+	grid_position = target_pos
+	
+	# Calculate movement direction and update facing
+	var movement_direction = target_pos - old_pos
+	if movement_direction != Vector2i.ZERO:
+		last_movement_direction = movement_direction
+		# Only update facing direction in patrol mode (not when chasing player)
+		if current_state == "patrol":
+			facing_direction = last_movement_direction
+			_update_sprite_facing()
+	
+	# Update world position
+	var target_world_pos = Vector2(target_pos.x, target_pos.y) * cell_size + Vector2(cell_size / 2, cell_size / 2)
+	
+	# Animated movement using tween
+	_animate_movement_to_position(target_world_pos)
+	
+	print("Wraith moving from ", old_pos, " to ", target_pos, " with direction: ", movement_direction)
+	
+	# Check if we moved to the same tile as the player (only if we weren't already there)
+	if player and "grid_pos" in player and player.grid_pos == target_pos and old_pos != target_pos:
+		print("Wraith collided with player! Dealing damage and pushing back...")
+		var approach_direction = target_pos - old_pos
+		_handle_player_collision(approach_direction)
+
+func _animate_movement_to_position(target_pos: Vector2):
+	"""Animate movement to the target position"""
+	if movement_tween:
+		movement_tween.kill()
+	
+	movement_tween = create_tween()
+	movement_start_position = position
+	
+	is_moving = true
+	movement_tween.tween_property(self, "position", target_pos, movement_duration)
+	# Update Y-sorting during movement for smooth visual updates
+	movement_tween.tween_callback(update_z_index_for_ysort)
+	movement_tween.tween_callback(_on_movement_complete)
+
+func _on_movement_complete():
+	"""Called when movement animation is complete"""
+	is_moving = false
+	update_z_index_for_ysort()
+	_check_turn_completion()
+
+func _handle_player_collision(approach_direction: Vector2i):
+	"""Handle collision with the player"""
+	print("=== WRAITH PLAYER COLLISION ===")
+	
+	if not player or not "grid_pos" in player:
+		print("✗ No valid player reference for collision")
+		return
+	
+	# Deal damage to player (Wraith deals more damage than GangMember)
+	var damage = 25  # Wraith deals 25 damage
+	if player.has_method("take_damage"):
+		player.take_damage(damage)
+		print("✓ Dealt ", damage, " damage to player")
+	
+	# Push player back
+	var pushback_pos = _find_nearest_available_adjacent_tile(player.grid_pos, approach_direction)
+	if pushback_pos != player.grid_pos:
+		print("Pushing player from ", player.grid_pos, " to ", pushback_pos)
+		
+		# Use animated pushback if the player supports it
+		if player.has_method("push_back"):
+			player.push_back(pushback_pos)
+			print("Applied animated pushback to player")
+		else:
+			# Fallback to instant position change
+			player.set_grid_position(pushback_pos)
+			print("Applied instant pushback to player (no animation support)")
+		
+		print("Player grid position updated to: ", player.grid_pos)
+	else:
+		print("No available adjacent tile found for pushback")
+
+func _find_nearest_available_adjacent_tile(player_pos: Vector2i, approach_direction: Vector2i = Vector2i.ZERO) -> Vector2i:
+	"""Find the nearest available adjacent tile to push the player to based on Wraith's approach direction"""
+	# Use the passed approach direction
+	var wraith_approach_direction = approach_direction
+	print("Wraith approach direction: ", wraith_approach_direction)
+	
+	# The pushback direction is the same as the approach direction (player gets pushed in the direction Wraith came from)
+	var pushback_direction = wraith_approach_direction
+	print("Pushback direction: ", pushback_direction)
+	
+	# Try the primary pushback direction first
+	var primary_pushback_pos = player_pos + pushback_direction
+	print("Checking primary pushback position: ", primary_pushback_pos)
+	if _is_position_valid_for_player(primary_pushback_pos):
+		print("Found valid primary pushback position: ", primary_pushback_pos)
+		return primary_pushback_pos
+	
+	# If primary direction is blocked, try perpendicular directions
+	var perpendicular_directions = _get_perpendicular_directions(pushback_direction)
+	for direction in perpendicular_directions:
+		var adjacent_pos = player_pos + direction
+		print("Checking perpendicular position: ", adjacent_pos, " (direction: ", direction, ")")
+		if _is_position_valid_for_player(adjacent_pos):
+			print("Found valid perpendicular pushback position: ", adjacent_pos)
+			return adjacent_pos
+	
+	# If perpendicular directions are blocked, try any available adjacent tile
+	var all_directions = [Vector2i(0, -1), Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, 0)]  # Up, Right, Down, Left
+	for direction in all_directions:
+		var adjacent_pos = player_pos + direction
+		if _is_position_valid_for_player(adjacent_pos):
+			print("Found valid adjacent pushback position: ", adjacent_pos)
+			return adjacent_pos
+	
+	# If no valid position found, return player's current position (no pushback)
+	print("No valid pushback position found, player stays in place")
+	return player_pos
+
+func _get_perpendicular_directions(direction: Vector2i) -> Array[Vector2i]:
+	"""Get perpendicular directions to the given direction"""
+	var perpendicular: Array[Vector2i] = []
+	
+	if direction.x != 0:  # Horizontal movement
+		perpendicular.append(Vector2i(0, 1))   # Up
+		perpendicular.append(Vector2i(0, -1))  # Down
+	elif direction.y != 0:  # Vertical movement
+		perpendicular.append(Vector2i(1, 0))   # Right
+		perpendicular.append(Vector2i(-1, 0))  # Left
+	
+	return perpendicular
+
+func _is_position_valid_for_player(pos: Vector2i) -> bool:
+	"""Check if a position is valid for the player to move to"""
+	# Basic bounds checking
+	if pos.x < 0 or pos.y < 0 or pos.x > 100 or pos.y > 100:
+		print("Position ", pos, " is out of bounds")
+		return false
+	
+	# Check if the position is occupied by an obstacle
+	if course and "obstacle_map" in course:
+		var obstacle = course.obstacle_map.get(pos)
+		if obstacle and obstacle.has_method("blocks") and obstacle.blocks():
+			print("Position ", pos, " is blocked by obstacle: ", obstacle.name)
+			return false
+	
+	# Check if the position is occupied by another NPC
+	if course:
+		var entities = course.get_node_or_null("Entities")
+		if entities and entities.has_method("get_npcs"):
+			var npcs = entities.get_npcs()
+			for npc in npcs:
+				if npc != self and npc.has_method("get_grid_position"):
+					if npc.get_grid_position() == pos:
+						print("Position ", pos, " is occupied by NPC: ", npc.name)
+						return false
+	
+	print("Position ", pos, " is valid for player pushback")
+	return true
+
+func _update_sprite_facing() -> void:
+	"""Update the sprite facing direction based on facing_direction"""
+	if not sprite:
+		return
+	
+	# Flip sprite horizontally based on facing direction
+	# If facing left (negative x), flip the sprite
+	if facing_direction.x < 0:
+		sprite.flip_h = true
+	elif facing_direction.x > 0:
+		sprite.flip_h = false
+	
+	# Update ice sprite if it's visible
+	if is_frozen and ice_sprite and ice_sprite.visible:
+		_update_ice_sprite_facing()
+	
+	print("Updated sprite facing - Direction: ", facing_direction, ", Flip H: ", sprite.flip_h)
+
+func _update_ice_sprite_facing() -> void:
+	"""Update the ice sprite facing direction"""
+	if not ice_sprite:
+		return
+	
+	if facing_direction.x < 0:
+		ice_sprite.flip_h = true
+	elif facing_direction.x > 0:
+		ice_sprite.flip_h = false
+
+func _setup_freeze_system():
+	"""Setup the freeze effect system"""
+	if ice_sprite:
+		ice_sprite.visible = false
+
+func apply_freeze_effect(turns: int):
+	"""Apply freeze effect to the Wraith"""
 	if is_dead:
 		return
 	
-	is_dead = true
-	is_alive = false
-	current_health = 0
+	print("=== WRAITH FREEZE EFFECT ===")
+	print("Freeze turns: ", turns)
 	
-	print("Wraith has been defeated!")
-	
-	# Update health bar
-	if health_bar:
-		health_bar.set_health(current_health, max_health)
-	
-	# Visual feedback for death
-	if sprite:
-		sprite.modulate = Color(0.5, 0.5, 0.5, 0.8)  # Gray out
-	
-	# Play death sound if available
-	var death_sound = get_node_or_null("DeathSound")
-	if death_sound:
-		death_sound.play()
-	
-	# Emit boss defeated signal
-	boss_defeated.emit()
-
-func freeze() -> void:
-	"""Apply freeze effect to the Wraith"""
-	if is_frozen or is_dead:
-		return
-	
-	print("Wraith is frozen!")
 	is_frozen = true
-	freeze_turns_remaining = 2  # Freeze for 2 turns
+	freeze_turns_remaining = turns
 	
 	# Show ice sprite
 	if ice_sprite:
 		ice_sprite.visible = true
+		ice_sprite.modulate = Color.CYAN
+	
+	# Hide main sprite
+	if sprite:
 		sprite.visible = false
 	
-	# Play freeze sound
-	if freeze_sound:
-		var audio_player = AudioStreamPlayer2D.new()
-		audio_player.stream = freeze_sound
-		audio_player.volume_db = -10
-		add_child(audio_player)
-		audio_player.play()
-		audio_player.finished.connect(func(): audio_player.queue_free())
+	# Switch collision areas
+	if base_collision_area:
+		base_collision_area.monitoring = false
+		base_collision_area.monitorable = false
+		print("✓ Disabled normal collision area")
 	
-	# Visual freeze effect
-	if sprite:
-		sprite.modulate = Color(0.7, 0.9, 1.0, 0.8)  # Light blue tint
+	if ice_collision_area:
+		ice_collision_area.monitoring = true
+		ice_collision_area.monitorable = true
+		# Connect to area_entered and area_exited signals for collision detection
+		if not ice_collision_area.is_connected("area_entered", _on_base_area_entered):
+			ice_collision_area.connect("area_entered", _on_base_area_entered)
+		if not ice_collision_area.is_connected("area_exited", _on_area_exited):
+			ice_collision_area.connect("area_exited", _on_area_exited)
+		print("✓ Enabled ice collision area")
+	
+	print("✓ Wraith frozen for ", turns, " turns")
 
-func unfreeze() -> void:
+func remove_freeze_effect():
 	"""Remove freeze effect from the Wraith"""
 	if not is_frozen:
 		return
 	
-	print("Wraith is unfrozen!")
+	print("=== WRAITH FREEZE REMOVED ===")
+	
 	is_frozen = false
 	freeze_turns_remaining = 0
 	
 	# Hide ice sprite
 	if ice_sprite:
 		ice_sprite.visible = false
+		ice_sprite.modulate = original_modulate
+	
+	# Show main sprite
+	if sprite:
 		sprite.visible = true
 	
-	# Reset visual effects
-	if sprite:
-		sprite.modulate = original_modulate
+	# Switch collision areas back
+	if ice_collision_area:
+		ice_collision_area.monitoring = false
+		ice_collision_area.monitorable = false
+		print("✓ Disabled ice collision area")
+	
+	if base_collision_area:
+		base_collision_area.monitoring = true
+		base_collision_area.monitorable = true
+		print("✓ Enabled normal collision area")
+	
+	print("✓ Wraith freeze effect removed")
 
-func _process_freeze_turn() -> void:
-	"""Process freeze effect for the current turn"""
-	if is_frozen and freeze_turns_remaining > 0:
-		freeze_turns_remaining -= 1
-		print("Wraith freeze turns remaining:", freeze_turns_remaining)
+func update_freeze_turn():
+	"""Update freeze effect for the current turn"""
+	if not is_frozen:
+		return
+	
+	freeze_turns_remaining -= 1
+	print("Wraith freeze turns remaining: ", freeze_turns_remaining)
+	
+	if freeze_turns_remaining <= 0:
+		remove_freeze_effect()
+
+func update_z_index_for_ysort() -> void:
+	"""Update Wraith Y-sort using the simple global system"""
+	# Use the global Y-sort system for characters
+	Global.update_object_y_sort(self, "characters")
+
+func get_y_sort_point() -> float:
+	# Use ice Y-sort point when frozen
+	if is_frozen and ice_ysort_point:
+		return ice_ysort_point.global_position.y
+	else:
+		var ysort_point_node = get_node_or_null("YSortPoint")
+		if ysort_point_node:
+			return ysort_point_node.global_position.y
+		else:
+			return global_position.y
+
+func get_base_collision_shape() -> Dictionary:
+	"""Get the base collision shape dimensions for this Wraith"""
+	return {
+		"width": 10.0,
+		"height": 6.5,
+		"offset": Vector2(0, 25)  # Offset from Wraith center to base
+	}
+
+func handle_ball_collision(ball: Node2D) -> void:
+	"""Handle collision with a ball - called by Entities system"""
+	_handle_ball_collision(ball)
+
+# Height method for collision detection
+func get_height() -> float:
+	"""Get the height of this Wraith for collision detection"""
+	# Use ice height marker when frozen
+	if is_frozen and ice_top_height_marker:
+		return ice_top_height_marker.global_position.y
+	else:
+		return Global.get_object_height_from_marker(self)
+
+# State Machine Classes
+class StateMachine:
+	var states: Dictionary = {}
+	var current_state: String = ""
+	
+	func add_state(state_name: String, state: Node) -> void:
+		states[state_name] = state
+	
+	func set_state(state_name: String) -> void:
+		if state_name in states:
+			if current_state != "" and current_state in states:
+				states[current_state].exit()
+			current_state = state_name
+			states[current_state].enter()
+	
+	func update() -> void:
+		if current_state != "" and current_state in states:
+			print("StateMachine updating state: ", current_state)
+			states[current_state].update()
+		else:
+			print("StateMachine: No current state or state not found")
+
+# Base State Class
+class BaseState extends Node:
+	var wraith: Node
+	
+	func _init(w: Node):
+		wraith = w
+	
+	func enter() -> void:
+		pass
+	
+	func update() -> void:
+		pass
+	
+	func exit() -> void:
+		pass
+
+# Patrol State - Wraith moves randomly on the green
+class PatrolState extends BaseState:
+	func enter() -> void:
+		print("Wraith entering patrol state")
+	
+	func update() -> void:
+		print("PatrolState update called")
+		# Random movement up to 10 spaces away (but only on green tiles)
+		var move_distance = randi_range(1, min(wraith.movement_range, 5))  # Limit to 5 for patrol
+		print("Patrol move distance: ", move_distance)
+		var target_pos = _get_random_patrol_position(move_distance)
+		print("Patrol target position: ", target_pos)
 		
-		if freeze_turns_remaining <= 0:
-			unfreeze()
+		if target_pos != wraith.grid_position:
+			print("Moving to new position")
+			wraith._move_to_position(target_pos)
+		else:
+			print("Staying in same position")
+			# Face the last movement direction when not moving
+			wraith.facing_direction = wraith.last_movement_direction
+			wraith._update_sprite_facing()
+			# Complete turn immediately since no movement is needed
+			print("Patrol state calling _check_turn_completion()")
+			wraith._check_turn_completion()
+	
+	func _get_random_patrol_position(max_distance: int) -> Vector2i:
+		var attempts = 0
+		var max_attempts = 20
+		
+		while attempts < max_attempts:
+			var random_direction = Vector2i(
+				randi_range(-max_distance, max_distance),
+				randi_range(-max_distance, max_distance)
+			)
+			
+			var target_pos = wraith.grid_position + random_direction
+			
+			if wraith._is_position_valid(target_pos):
+				return target_pos
+			
+			attempts += 1
+		
+		# If no valid position found, try adjacent positions
+		var adjacent = wraith._get_valid_adjacent_positions()
+		if adjacent.size() > 0:
+			return adjacent[randi() % adjacent.size()]
+		
+		return wraith.grid_position
 
-# Movement and AI functions
-func _move_to_position(target_grid_pos: Vector2i) -> void:
-	"""Move the Wraith to a target grid position"""
-	if is_moving or is_dead or is_frozen:
-		return
+# Chase State - Wraith chases the player
+class ChaseState extends BaseState:
+	func enter() -> void:
+		print("Wraith entering chase state")
 	
-	print("Wraith moving to grid position:", target_grid_pos)
+	func update() -> void:
+		print("ChaseState update called")
+		if not wraith.player:
+			print("No player found for chase")
+			return
+		
+		var player_pos = wraith.player.grid_pos
+		print("Player position: ", player_pos)
+		var path = _get_path_to_player(player_pos)
+		print("Chase path: ", path)
+		
+		if path.size() > 1:
+			var next_pos = path[1]  # First step towards player
+			print("Moving towards player to: ", next_pos)
+			wraith._move_to_position(next_pos)
+		else:
+			print("No path found to player")
+			# Complete turn immediately since no movement is needed
+			wraith._check_turn_completion()
+		
+		# Always face the player when in chase mode
+		wraith._face_player()
 	
-	# Calculate world position
-	var target_world_pos = Vector2(target_grid_pos.x * cell_size, target_grid_pos.y * cell_size)
-	
-	# Update facing direction based on movement
-	var direction = target_grid_pos - grid_position
-	if direction != Vector2i.ZERO:
-		last_movement_direction = direction
-		facing_direction = direction
-		_update_sprite_facing()
-	
-	# Start movement animation
-	is_moving = true
-	movement_start_position = global_position
-	
-	# Create tween for smooth movement
-	movement_tween = create_tween()
-	movement_tween.tween_property(self, "global_position", target_world_pos, movement_duration)
-	movement_tween.tween_callback(_on_movement_complete)
-	
-	# Update grid position
-	grid_position = target_grid_pos
+	func _get_path_to_player(player_pos: Vector2i) -> Array[Vector2i]:
+		"""Get path to player using simple pathfinding"""
+		# Simple pathfinding - move towards player
+		var path: Array[Vector2i] = [wraith.grid_position]
+		var current_pos = wraith.grid_position
+		var max_steps = wraith.movement_range
+		var steps = 0
+		
+		print("Pathfinding - Starting from ", current_pos, " to ", player_pos, " with max steps: ", max_steps)
+		
+		while current_pos != player_pos and steps < max_steps:
+			var direction = (player_pos - current_pos)
+			# Normalize the direction vector for Vector2i
+			if direction.x != 0:
+				direction.x = 1 if direction.x > 0 else -1
+			if direction.y != 0:
+				direction.y = 1 if direction.y > 0 else -1
+			var next_pos = current_pos + direction
+			
+			print("Pathfinding step ", steps, " - Direction: ", direction, ", Next pos: ", next_pos)
+			
+			if wraith._is_position_valid(next_pos):
+				current_pos = next_pos
+				path.append(current_pos)
+				print("Pathfinding - Valid position, moving to: ", current_pos)
+			else:
+				print("Pathfinding - Invalid position, trying adjacent positions")
+				# Try to find an alternative path
+				var adjacent = wraith._get_valid_adjacent_positions()
+				if adjacent.size() > 0:
+					# Find the adjacent position closest to player
+					var best_pos = adjacent[0]
+					var best_distance = (best_pos - player_pos).length()
+					
+					for pos in adjacent:
+						var distance = (pos - player_pos).length()
+						if distance < best_distance:
+							best_distance = distance
+							best_pos = pos
+					
+					current_pos = best_pos
+					path.append(current_pos)
+					print("Pathfinding - Using adjacent position: ", current_pos)
+				else:
+					print("Pathfinding - No valid adjacent positions found")
+					break
+			
+			steps += 1
+		
+		print("Pathfinding - Final path: ", path)
+		return path
 
-func _on_movement_complete() -> void:
-	"""Handle completion of movement"""
-	is_moving = false
-	print("Wraith movement complete")
-	_check_turn_completion()
-
-func _update_sprite_facing() -> void:
-	"""Update sprite facing direction"""
-	if not sprite:
-		return
+# Dead State
+class DeadState extends BaseState:
+	func enter() -> void:
+		print("Wraith entering dead state")
 	
-	# Flip sprite based on facing direction
-	if facing_direction.x < 0:
-		sprite.flip_h = true
-	elif facing_direction.x > 0:
-		sprite.flip_h = false
-
-func _is_position_valid(pos: Vector2i) -> bool:
-	"""Check if a grid position is valid for the Wraith to move to"""
-	# For now, assume all positions on the green are valid
-	# This can be enhanced later with proper green boundary detection
-	return true
-
-func _get_valid_adjacent_positions() -> Array[Vector2i]:
-	"""Get valid adjacent positions for the Wraith"""
-	var adjacent: Array[Vector2i] = []
-	var directions = [Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 0), Vector2i(-1, 0)]
+	func update() -> void:
+		print("DeadState update called")
+		# Complete turn immediately when dead
+		wraith._check_turn_completion()
 	
-	for direction in directions:
-		var pos = grid_position + direction
-		if _is_position_valid(pos):
-			adjacent.append(pos)
-	
-	return adjacent
+	func exit() -> void:
+		print("Wraith exiting dead state")
 
-func _check_turn_completion() -> void:
-	"""Check if the Wraith's turn is complete"""
-	if not is_moving:
-		print("Wraith turn complete")
-		turn_completed.emit()
-
-func _face_player() -> void:
+# Helper function to face player
+func _face_player():
 	"""Make the Wraith face the player"""
 	if not player:
 		return
 	
-	var player_pos = player.global_position
-	var direction = (player_pos - global_position).normalized()
-	
-	# Convert to grid direction
-	var grid_direction = Vector2i(
-		1 if direction.x > 0 else (-1 if direction.x < 0 else 0),
-		1 if direction.y > 0 else (-1 if direction.y < 0 else 0)
-	)
-	
-	if grid_direction != Vector2i.ZERO:
-		facing_direction = grid_direction
+	var direction_to_player = player.grid_pos - grid_position
+	if direction_to_player != Vector2i.ZERO:
+		# Normalize to get facing direction
+		if abs(direction_to_player.x) > abs(direction_to_player.y):
+			facing_direction = Vector2i(1 if direction_to_player.x > 0 else -1, 0)
+		else:
+			facing_direction = Vector2i(0, 1 if direction_to_player.y > 0 else -1)
+		
 		_update_sprite_facing()
-
-
-
-func _get_random_position(max_distance: int) -> Vector2i:
-	"""Get a random position within the movement range"""
-	var attempts = 0
-	var max_attempts = 10
-	
-	while attempts < max_attempts:
-		var random_direction = Vector2i(
-			randi_range(-max_distance, max_distance),
-			randi_range(-max_distance, max_distance)
-		)
-		
-		var target_pos = grid_position + random_direction
-		
-		if _is_position_valid(target_pos):
-			return target_pos
-		
-		attempts += 1
-	
-	# If no valid position found, stay in place
-	return grid_position

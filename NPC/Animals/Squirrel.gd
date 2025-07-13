@@ -511,8 +511,6 @@ func _on_player_moved_to_tile(new_grid_pos: Vector2i) -> void:
 		print("✓ Player moved within Squirrel vision range - taking 1 damage")
 		last_player_movement_damage_time = current_time
 		take_damage(1, false, player.global_position if player else Vector2.ZERO)
-	else:
-		print("✗ Player moved outside Squirrel vision range - no damage")
 	
 	# Update previous player position
 	previous_player_grid_pos = new_grid_pos
@@ -521,13 +519,6 @@ func _on_player_moved_to_tile(new_grid_pos: Vector2i) -> void:
 func _on_vision_area_entered(area: Area2D) -> void:
 	"""Called when the player enters the vision area"""
 	
-	# Check if this is the player
-	if area.get_parent() and area.get_parent().name == "Player":
-		print("✓ Player entered Squirrel vision area")
-		# The player movement signal will handle the damage, this is just for detection
-	else:
-		print("✗ Non-player entered vision area: ", area.get_parent().name if area.get_parent() else "None")
-	print("=== END VISION AREA ENTERED ===")
 
 func _on_vision_area_exited(area: Area2D) -> void:
 	"""Called when the player exits the vision area"""

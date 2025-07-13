@@ -1370,7 +1370,6 @@ class AttackState extends BaseState:
 		print("Police entering attack state")
 	
 	func update() -> void:
-		print("=== ATTACK STATE UPDATE ===")
 		if not police.player:
 			print("No player found for attack")
 			return

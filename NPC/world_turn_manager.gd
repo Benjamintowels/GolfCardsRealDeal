@@ -14,11 +14,13 @@ signal all_npcs_turn_completed
 var is_world_turn_active: bool = false
 var current_npc_index: int = -1
 var npcs_in_turn_order: Array[Node] = []
-var turn_sequence_complete: bool = false
+var turn_sequence_complete: bool = true  # Start as true to allow first turn
 
 # NPC registration and management
 var registered_npcs: Array[Node] = []
 var npc_priority_cache: Dictionary = {}  # Cache NPC priorities for performance
+var _last_registered_npcs_size: int = 0  # Track size changes for debugging
+var _debug_call_stack: Array[String] = []  # Track function calls for debugging
 
 # Turn completion tracking
 var npcs_completed_this_turn: Array[Node] = []
@@ -64,6 +66,9 @@ func _ready():
 	
 	# Setup signal connections
 	_setup_signal_connections()
+	
+	# Initialize tracking variables
+	_last_registered_npcs_size = 0
 	
 	print("WorldTurnManager ready")
 
@@ -116,6 +121,7 @@ func register_npc(npc: Node) -> void:
 	print("NPC: ", npc.name if npc else "None")
 	print("NPC valid: ", is_instance_valid(npc) if npc else "N/A")
 	print("Already registered: ", npc in registered_npcs if npc else "N/A")
+	print("Current registered_npcs size: ", registered_npcs.size())
 	
 	if npc and npc not in registered_npcs:
 		registered_npcs.append(npc)
@@ -145,8 +151,17 @@ func _on_player_turn_ended() -> void:
 
 func start_world_turn() -> void:
 	"""Start the world turn sequence for all active NPCs"""
+	_debug_call_stack.append("start_world_turn")
+	
 	if is_world_turn_active:
 		print("World turn already active, ignoring start request")
+		_debug_call_stack.pop_back()
+		return
+	
+	# Additional guard to prevent multiple calls during the same frame
+	if not turn_sequence_complete:
+		print("World turn sequence already in progress, ignoring start request")
+		_debug_call_stack.pop_back()
 		return
 	
 	print("=== STARTING WORLD TURN SEQUENCE ===")
@@ -176,6 +191,8 @@ func start_world_turn() -> void:
 	
 	# Start processing NPC turns
 	_process_next_npc_turn()
+	
+	_debug_call_stack.pop_back()
 
 func _get_active_npcs_for_turn() -> Array[Node]:
 	"""Get all NPCs that should take a turn this world turn"""
@@ -183,6 +200,7 @@ func _get_active_npcs_for_turn() -> Array[Node]:
 	
 	print("=== CHECKING NPCs FOR WORLD TURN ===")
 	print("Total registered NPCs: ", registered_npcs.size())
+	print("DEBUG: registered_npcs array size at start of _get_active_npcs_for_turn: ", registered_npcs.size())
 	
 	for npc in registered_npcs:
 		if not is_instance_valid(npc):
@@ -195,6 +213,11 @@ func _get_active_npcs_for_turn() -> Array[Node]:
 		if not _is_npc_alive(npc):
 			print("  - NPC is dead, skipping")
 			continue
+		
+		# Debug: Check if NPC has required methods
+		var has_grid_position = npc.has_method("get_grid_position")
+		var has_take_turn = npc.has_method("take_turn")
+		print("  - NPC methods - get_grid_position:", has_grid_position, "take_turn:", has_take_turn)
 		
 		# Check if NPC is frozen and won't thaw this turn
 		if _is_npc_frozen_and_wont_thaw(npc):
@@ -283,12 +306,19 @@ func _should_squirrel_take_turn(npc: Node) -> bool:
 
 func _is_npc_in_player_vision(npc: Node) -> bool:
 	"""Check if an NPC is within the player's vision range"""
-	if not course_reference or not npc.has_method("get_grid_position"):
+	if not course_reference:
+		print("    VISION: No course reference")
+		return false
+	
+	if not npc.has_method("get_grid_position"):
+		print("    VISION: NPC missing get_grid_position method")
 		return false
 	
 	var player_pos = course_reference.player_grid_pos
 	var npc_pos = npc.get_grid_position()
 	var distance = player_pos.distance_to(npc_pos)
+	
+	print("    VISION: Player pos:", player_pos, "NPC pos:", npc_pos, "Distance:", distance, "Max range:", MAX_VISION_RANGE)
 	
 	return distance <= MAX_VISION_RANGE
 
@@ -489,11 +519,28 @@ func _execute_npc_turn_task(task: Dictionary) -> void:
 		task.completed = true
 		return
 	
+	print("  Starting turn for: ", npc.name)
+	
 	# Take the NPC's turn
 	npc.take_turn()
 	
-	# Mark as completed after a short delay
-	await get_tree().create_timer(0.5).timeout
+	# Wait for the NPC's turn to actually complete
+	# Most NPCs emit a signal when their turn is done, or we can wait for a reasonable duration
+	var turn_start_time = Time.get_ticks_msec() / 1000.0
+	var max_turn_duration = 3.0  # Maximum 3 seconds for an NPC turn
+	
+	# Wait for either the NPC to signal completion or timeout
+	while Time.get_ticks_msec() / 1000.0 - turn_start_time < max_turn_duration:
+		# Check if NPC has completed their turn (many NPCs have a turn_completed flag)
+		if npc.has_method("is_turn_completed") and npc.is_turn_completed():
+			break
+		elif "turn_completed" in npc and npc.turn_completed:
+			break
+		elif npc.has_method("get_turn_state") and npc.get_turn_state() == "completed":
+			break
+		
+		# Small delay to avoid busy waiting
+		await get_tree().create_timer(0.1).timeout
 	
 	# Mark task as completed
 	task.completed = true
@@ -777,6 +824,12 @@ func debug_priority_groups() -> void:
 
 func _process(delta: float) -> void:
 	"""Process function for cleanup and maintenance"""
+	# Track registered_npcs size changes for debugging
+	if registered_npcs.size() != _last_registered_npcs_size:
+		print("DEBUG: registered_npcs size changed from", _last_registered_npcs_size, "to", registered_npcs.size())
+		print("DEBUG: Call stack at time of change:", _debug_call_stack)
+		_last_registered_npcs_size = registered_npcs.size()
+	
 	# Periodic cleanup of old data
 	var current_time = Time.get_ticks_msec() / 1000.0
 	if current_time - last_turn_cleanup_time > TURN_CLEANUP_INTERVAL:
@@ -785,17 +838,37 @@ func _process(delta: float) -> void:
 
 func _cleanup_old_data() -> void:
 	"""Clean up old data to prevent memory leaks"""
+	_debug_call_stack.append("_cleanup_old_data")
+	
+	# Don't clean up during active world turns to prevent NPCs from disappearing
+	if is_world_turn_active:
+		print("=== CLEANUP: Skipped during active world turn ===")
+		_debug_call_stack.pop_back()
+		return
+	
+	print("=== CLEANUP: Starting NPC registration cleanup ===")
+	print("NPCs before cleanup:", registered_npcs.size())
+	print("CLEANUP: registered_npcs array size:", registered_npcs.size())
+	
 	# Remove invalid NPCs from registration
 	var valid_npcs: Array[Node] = []
 	for npc in registered_npcs:
 		if is_instance_valid(npc):
 			valid_npcs.append(npc)
 		else:
-			print("Removing invalid NPC from registration")
+			print("CLEANUP: Removing invalid NPC from registration:", npc.name if npc else "None")
 	
 	if valid_npcs.size() != registered_npcs.size():
+		var removed_count = registered_npcs.size() - valid_npcs.size()
+		print("CLEANUP: About to reassign registered_npcs array. Old size:", registered_npcs.size(), "New size:", valid_npcs.size())
 		registered_npcs = valid_npcs
-		print("Cleaned up NPC registration: ", registered_npcs.size(), " valid NPCs")
+		print("CLEANUP: Removed", removed_count, "invalid NPCs. Valid NPCs remaining:", registered_npcs.size())
+		
+		# Debug: List remaining NPCs
+		for npc in registered_npcs:
+			print("CLEANUP: Remaining NPC:", npc.name, "Valid:", is_instance_valid(npc))
+	else:
+		print("CLEANUP: No invalid NPCs found")
 	
 	# Clean up priority cache for invalid NPCs
 	var valid_cache_keys: Array = []
@@ -805,4 +878,9 @@ func _cleanup_old_data() -> void:
 	
 	if valid_cache_keys.size() != npc_priority_cache.size():
 		npc_priority_cache.clear()
-		print("Cleared NPC priority cache")
+		print("CLEANUP: Cleared NPC priority cache")
+	
+	print("=== CLEANUP: Finished NPC registration cleanup ===")
+	print("CLEANUP: registered_npcs array size after cleanup:", registered_npcs.size())
+	
+	_debug_call_stack.pop_back()

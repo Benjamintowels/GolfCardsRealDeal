@@ -45,7 +45,7 @@ func _ready():
 
 # Returns the Y-sorting reference point (base of pin)
 func get_y_sort_point() -> float:
-	var ysort_point_node = get_node_or_null("YsortPoint")
+	var ysort_point_node = get_node_or_null("YSortPoint")
 	if ysort_point_node:
 		return ysort_point_node.global_position.y
 	else:

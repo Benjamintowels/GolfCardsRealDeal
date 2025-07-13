@@ -1,6 +1,6 @@
-[gd_scene load_steps=2 format=3 uid="uid://bma58o1jtuesi"]
+[gd_scene load_steps=2 format=3 uid="uid://bb4oodppsenhl"]
 
-[ext_resource type="Script" uid="uid://dx0o1l5475fyl" path="res://NPC/Bosses/boss_manager.gd" id="1_boss"]
+[ext_resource type="Script" uid="uid://dx0o1l5475fyl" path="res://NPC/Bosses/boss_manager.gd" id="1_w1ggn"]
 
-[node name="BossManager" type="Node"]
-script = ExtResource("1_boss")
+[node name="BossManager" type="Node2D"]
+script = ExtResource("1_w1ggn")

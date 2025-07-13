@@ -1607,11 +1607,45 @@ func handle_ball_collision(ball: Node2D) -> void:
 
 # Returns the Y-sorting reference point (base of character's feet)
 func get_y_sort_point() -> float:
-	var ysort_point_node = get_node_or_null("YsortPoint")
-	if ysort_point_node:
-		return ysort_point_node.global_position.y
+	# Try to find Sprite2D/YSortPoint in character scene
+	var sprite = get_node_or_null("Sprite2D")
+	if sprite:
+		var ysort_point = sprite.get_node_or_null("YSortPoint")
+		if ysort_point:
+			return ysort_point.global_position.y
+		else:
+			# Sprite2D found but no YSortPoint child
+			pass
 	else:
-		return global_position.y
+		# No Sprite2D found
+		pass
+	
+	# Search for character scene nodes (BennyChar, LaylaChar, etc.)
+	for child in get_children():
+		if child.name.ends_with("Char") or child.name.ends_with("Char.tscn"):
+			# This is likely a character scene
+			var char_sprite = child.get_node_or_null("Sprite2D")
+			if char_sprite:
+				var char_ysort_point = char_sprite.get_node_or_null("YSortPoint")
+				if char_ysort_point:
+					return char_ysort_point.global_position.y
+				else:
+					# Character scene found but no YSortPoint in Sprite2D
+					pass
+			else:
+				# Character scene found but no Sprite2D
+				pass
+		elif child.name == "YSortPoint":
+			# Direct YSortPoint child
+			return child.global_position.y
+		elif child.has_method("get_node_or_null"):
+			# Search deeper for YSortPoint
+			var nested = child.get_node_or_null("YSortPoint")
+			if nested:
+				return nested.global_position.y
+	
+	# Final fallback: use global_position.y with character offset
+	return global_position.y + 37.0  # Character offset for Y-sorting
 
 func set_ball_launch_position(launch_pos: Vector2) -> void:
 	"""Set the ball launch position for collision delay calculation"""

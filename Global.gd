@@ -229,7 +229,7 @@ func update_all_objects_y_sort(ysort_objects: Array):
 			object_type = "objects"
 		elif node.name == "Bonfire" or (node.get_script() and "bonfire.gd" in str(node.get_script().get_path())):
 			object_type = "objects"
-		elif "Player" in node.name or "GangMember" in node.name or "Police" in node.name:
+		elif "Player" in node.name or "GangMember" in node.name or "Police" in node.name or "Wraith" in node.name:
 			object_type = "characters"
 		elif node.is_in_group("grass_elements") or (node.get_script() and "summer_grass.gd" in str(node.get_script().get_path())):
 			object_type = "objects"  # Grass uses same offset as other objects
@@ -550,12 +550,13 @@ func get_hole_base_npc_counts(hole_index: int) -> Dictionary:
 		hole_number = 1
 	
 	match hole_number:
-		1:  # Hole 1 - just squirrels
+		1:  # Hole 1 - squirrels and 1 Wraith boss
 			return {
 				"squirrels": 5,
 				"zombies": 0,
 				"gang_members": 0,
-				"police": 0
+				"police": 0,
+				"wraiths": 1
 			}
 		2:  # Hole 2 - 2 zombies and squirrels
 			return {
@@ -606,12 +607,13 @@ func get_hole_base_npc_counts(hole_index: int) -> Dictionary:
 				"gang_members": 2,
 				"police": 2
 			}
-		9:  # Hole 9 - 3 police, 3 gang members, lots of zombies, and squirrels
+		9:  # Hole 9 - 3 police, 3 gang members, lots of zombies, squirrels, and 1 Wraith boss
 			return {
 				"squirrels": 5,
 				"zombies": 4,
 				"gang_members": 3,
-				"police": 3
+				"police": 3,
+				"wraiths": 1
 			}
 		_:  # Back 9 holes (10-18) - use the same pattern but with higher base difficulty
 			# For holes 10-18, we use the same pattern as 1-9 but with increased base counts
@@ -619,12 +621,18 @@ func get_hole_base_npc_counts(hole_index: int) -> Dictionary:
 			var back_9_base_counts = get_hole_base_npc_counts(back_9_hole - 1)  # Get base for 1-9
 			
 			# Increase base counts for back 9 (more challenging)
-			return {
+			var result = {
 				"squirrels": back_9_base_counts.squirrels + 2,  # +2 more squirrels
 				"zombies": back_9_base_counts.zombies + 1,      # +1 more zombie
 				"gang_members": back_9_base_counts.gang_members + 1,  # +1 more gang member
 				"police": back_9_base_counts.police + 1        # +1 more police
 			}
+			
+			# Add Wraith for hole 18 (which corresponds to hole 9 pattern)
+			if hole_number == 18:
+				result["wraiths"] = 1
+			
+			return result
 
 func amplify_npc_counts_by_tier(base_counts: Dictionary, tier: int) -> Dictionary:
 	"""Amplify base NPC counts based on difficulty tier"""
@@ -648,6 +656,11 @@ func amplify_npc_counts_by_tier(base_counts: Dictionary, tier: int) -> Dictionar
 	
 	# Add more squirrels every tier
 	amplified.squirrels += tier
+	
+	# Wraith count is not amplified by tier (bosses stay at base count)
+	# Ensure wraiths key exists
+	if not "wraiths" in amplified:
+		amplified["wraiths"] = 0
 	
 	return amplified
 
@@ -723,6 +736,71 @@ func get_tier_probabilities() -> Dictionary:
 				"tier_2": tier_2_prob,
 				"tier_3": tier_3_prob
 			}
+
+func get_score_based_tier_probabilities(hole_score: int, hole_par: int) -> Dictionary:
+	"""Get tier probabilities based on hole score performance"""
+	var score_vs_par = hole_score - hole_par
+	
+	# Base probabilities from current tier
+	var base_probabilities = get_tier_probabilities()
+	
+	# Score-based modifiers
+	var tier_1_modifier = 0.0
+	var tier_2_modifier = 0.0
+	var tier_3_modifier = 0.0
+	
+	# Adjust probabilities based on score vs par
+	match score_vs_par:
+		-3, -4, -5:  # Double Eagle, Triple Eagle, etc.
+			tier_1_modifier = -0.30  # Reduce tier 1 by 30%
+			tier_2_modifier = 0.15   # Increase tier 2 by 15%
+			tier_3_modifier = 0.15   # Increase tier 3 by 15%
+		-2:  # Eagle
+			tier_1_modifier = -0.25  # Reduce tier 1 by 25%
+			tier_2_modifier = 0.15   # Increase tier 2 by 15%
+			tier_3_modifier = 0.10   # Increase tier 3 by 10%
+		-1:  # Birdie
+			tier_1_modifier = -0.15  # Reduce tier 1 by 15%
+			tier_2_modifier = 0.10   # Increase tier 2 by 10%
+			tier_3_modifier = 0.05   # Increase tier 3 by 5%
+		0:   # Par
+			# No modification - use base probabilities
+			pass
+		1:   # Bogey
+			tier_1_modifier = 0.05   # Increase tier 1 by 5%
+			tier_2_modifier = -0.05  # Reduce tier 2 by 5%
+			tier_3_modifier = 0.0    # No change to tier 3
+		2:   # Double Bogey
+			tier_1_modifier = 0.10   # Increase tier 1 by 10%
+			tier_2_modifier = -0.10  # Reduce tier 2 by 10%
+			tier_3_modifier = 0.0    # No change to tier 3
+		_:   # Triple Bogey or worse
+			tier_1_modifier = 0.15   # Increase tier 1 by 15%
+			tier_2_modifier = -0.15  # Reduce tier 2 by 15%
+			tier_3_modifier = 0.0    # No change to tier 3
+	
+	# Apply modifiers
+	var adjusted_tier_1 = base_probabilities["tier_1"] + tier_1_modifier
+	var adjusted_tier_2 = base_probabilities["tier_2"] + tier_2_modifier
+	var adjusted_tier_3 = base_probabilities["tier_3"] + tier_3_modifier
+	
+	# Ensure probabilities stay within valid range (0.0 to 1.0)
+	adjusted_tier_1 = clamp(adjusted_tier_1, 0.0, 1.0)
+	adjusted_tier_2 = clamp(adjusted_tier_2, 0.0, 1.0)
+	adjusted_tier_3 = clamp(adjusted_tier_3, 0.0, 1.0)
+	
+	# Normalize to ensure they sum to 1.0
+	var total = adjusted_tier_1 + adjusted_tier_2 + adjusted_tier_3
+	if total > 0:
+		adjusted_tier_1 /= total
+		adjusted_tier_2 /= total
+		adjusted_tier_3 /= total
+	
+	return {
+		"tier_1": adjusted_tier_1,
+		"tier_2": adjusted_tier_2,
+		"tier_3": adjusted_tier_3
+	}
 
 func clear_shop_state():
 	"""Clear global state to prevent dictionary conflicts when returning from shop"""

@@ -1,9 +1,10 @@
-[gd_scene load_steps=8 format=3 uid="uid://bma58o1jtuesi"]
+[gd_scene load_steps=9 format=3 uid="uid://bma58o1jtuesi"]
 
 [ext_resource type="Texture2D" uid="uid://ct36oo327rhnp" path="res://NPC/Bosses/WraithLeftRight.png" id="1_6vppk"]
 [ext_resource type="Script" uid="uid://dgm3b4a0lj108" path="res://NPC/Bosses/wraith.gd" id="1_gsrvw"]
 [ext_resource type="Texture2D" uid="uid://guwsr2mmyedw" path="res://NPC/Bosses/WraithIce.png" id="2_oehis"]
 [ext_resource type="AudioStream" uid="uid://d2h88cbofxus" path="res://Sounds/Wraith.mp3" id="4_uk5am"]
+[ext_resource type="Texture2D" uid="uid://c0orbx33yy6tu" path="res://Weapons/DarkEnergy.png" id="5_k0toi"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_6vppk"]
 radius = 32.2581
@@ -15,20 +16,25 @@ height = 88.0
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_gsrvw"]
 size = Vector2(114, 43)
 
-[node name="Wraith" type="CharacterBody2D"]
+[node name="Wraith" type="Node2D"]
 script = ExtResource("1_gsrvw")
 
 [node name="WraithSprite" type="Sprite2D" parent="."]
 texture_filter = 1
-position = Vector2(0, -66)
+position = Vector2(0.5, -62.5)
 texture = ExtResource("1_6vppk")
 
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+
 [node name="YSortPoint" type="Marker2D" parent="."]
-position = Vector2(0, -7)
 
-[node name="WraithBaseArea2D" type="Area2D" parent="."]
+[node name="TopHeight" type="Marker2D" parent="."]
+position = Vector2(1, -131)
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="WraithBaseArea2D"]
+[node name="WraithBodyArea2D" type="Area2D" parent="."]
+position = Vector2(0.5, 3.5)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="WraithBodyArea2D"]
 position = Vector2(4.76837e-07, -17)
 scale = Vector2(1.55, 1.088)
 shape = SubResource("CircleShape2D_6vppk")
@@ -48,22 +54,24 @@ texture_filter = 1
 position = Vector2(0, -68)
 texture = ExtResource("2_oehis")
 
-[node name="BaseArea2D" type="Area2D" parent="WraithIce"]
+[node name="WraithIceBodyArea2D" type="Area2D" parent="WraithIce"]
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="WraithIce/BaseArea2D"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="WraithIce/WraithIceBodyArea2D"]
 position = Vector2(0, 51)
 shape = SubResource("RectangleShape2D_gsrvw")
 
-[node name="TopHeight" type="Marker2D" parent="WraithIce"]
-position = Vector2(0, -52)
+[node name="IceYSortPoint" type="Marker2D" parent="WraithIce"]
+position = Vector2(0, 65)
 
-[node name="YSortPoint" type="Node2D" parent="WraithIce"]
-position = Vector2(0, 38.85)
+[node name="IceTopHeight" type="Marker2D" parent="WraithIce"]
+position = Vector2(0, -73)
 
 [node name="WraithHurt" type="AudioStreamPlayer2D" parent="."]
+position = Vector2(0, -46)
 stream = ExtResource("4_uk5am")
 
-[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
-
-[node name="TopHeight" type="Marker2D" parent="."]
-position = Vector2(0, -94)
+[node name="WraithDeadSprite" type="Sprite2D" parent="."]
+visible = false
+texture_filter = 1
+position = Vector2(0, -58)
+texture = ExtResource("5_k0toi")

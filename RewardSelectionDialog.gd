@@ -17,6 +17,16 @@ var left_reward_type: String
 var middle_reward_type: String
 var right_reward_type: String
 
+# Score-based reward variables
+var hole_score: int = 0
+var hole_par: int = 3
+var use_score_based_rewards: bool = false
+
+# Hole-in-one reward selection
+var is_hole_in_one: bool = false
+var selected_rewards: Array = []
+var max_rewards_to_select: int = 1
+
 # Base cards for rewards (level 1)
 var base_cards: Array[CardData] = [
 	preload("res://Cards/Move1.tres"),
@@ -197,7 +207,12 @@ func initialize_bag_upgrades():
 
 func get_tiered_cards() -> Array[CardData]:
 	"""Get cards filtered by current tier probabilities"""
-	var probabilities = Global.get_tier_probabilities()
+	var probabilities: Dictionary
+	if use_score_based_rewards:
+		probabilities = Global.get_score_based_tier_probabilities(hole_score, hole_par)
+	else:
+		probabilities = Global.get_tier_probabilities()
+	
 	var tier_1_cards: Array[CardData] = []
 	var tier_2_cards: Array[CardData] = []
 	var tier_3_cards: Array[CardData] = []
@@ -268,7 +283,12 @@ func get_tiered_cards() -> Array[CardData]:
 
 func get_tiered_equipment() -> Array[EquipmentData]:
 	"""Get equipment filtered by current tier probabilities"""
-	var probabilities = Global.get_tier_probabilities()
+	var probabilities: Dictionary
+	if use_score_based_rewards:
+		probabilities = Global.get_score_based_tier_probabilities(hole_score, hole_par)
+	else:
+		probabilities = Global.get_tier_probabilities()
+	
 	var tier_1_equipment: Array[EquipmentData] = []
 	var tier_2_equipment: Array[EquipmentData] = []
 	var tier_3_equipment: Array[EquipmentData] = []
@@ -340,7 +360,12 @@ func get_action_cards() -> Array[CardData]:
 func get_tiered_club_cards() -> Array[CardData]:
 	"""Get club cards filtered by current tier probabilities"""
 	var club_cards = get_club_cards()
-	var probabilities = Global.get_tier_probabilities()
+	var probabilities: Dictionary
+	if use_score_based_rewards:
+		probabilities = Global.get_score_based_tier_probabilities(hole_score, hole_par)
+	else:
+		probabilities = Global.get_tier_probabilities()
+	
 	var tier_1_cards: Array[CardData] = []
 	var tier_2_cards: Array[CardData] = []
 	var tier_3_cards: Array[CardData] = []
@@ -417,7 +442,12 @@ func create_looty_reward() -> Resource:
 func get_tiered_action_cards() -> Array[CardData]:
 	"""Get action cards filtered by current tier probabilities"""
 	var action_cards = get_action_cards()
-	var probabilities = Global.get_tier_probabilities()
+	var probabilities: Dictionary
+	if use_score_based_rewards:
+		probabilities = Global.get_score_based_tier_probabilities(hole_score, hole_par)
+	else:
+		probabilities = Global.get_tier_probabilities()
+	
 	var tier_1_cards: Array[CardData] = []
 	var tier_2_cards: Array[CardData] = []
 	var tier_3_cards: Array[CardData] = []
@@ -510,6 +540,55 @@ func show_reward_selection():
 	
 	# Show the dialog
 	visible = true
+
+func show_score_based_reward_selection(score: int, par: int, hole_in_one: bool = false):
+	"""Show reward selection with score-based tier probabilities and hole-in-one support"""
+	# Set score-based reward parameters
+	hole_score = score
+	hole_par = par
+	use_score_based_rewards = true
+	is_hole_in_one = hole_in_one
+	selected_rewards.clear()
+	if is_hole_in_one:
+		max_rewards_to_select = 2
+	else:
+		max_rewards_to_select = 1
+	
+	# Initialize bag upgrades before generating rewards
+	initialize_bag_upgrades()
+	
+	# Generate three specific rewards (club card, equipment, action card)
+	var rewards = generate_three_slot_rewards()
+	
+	# Set up the left reward (club card)
+	left_reward_data = rewards[0]
+	left_reward_type = rewards[1]
+	setup_reward_button(left_reward_button, left_reward_data, left_reward_type)
+	
+	# Set up the middle reward (equipment)
+	middle_reward_data = rewards[2]
+	middle_reward_type = rewards[3]
+	setup_reward_button(middle_reward_button, middle_reward_data, middle_reward_type)
+	
+	# Set up the right reward (action card)
+	right_reward_data = rewards[4]
+	right_reward_type = rewards[5]
+	setup_reward_button(right_reward_button, right_reward_data, right_reward_type)
+	
+	# Add Advance button
+	add_advance_button()
+	
+	# Show the dialog
+	visible = true
+	
+	# Print score-based reward info for debugging
+	var score_vs_par = score - par
+	var probabilities = Global.get_score_based_tier_probabilities(score, par)
+	print("=== SCORE-BASED REWARDS ===")
+	print("Hole Score:", score, "Par:", par, "Score vs Par:", score_vs_par)
+	print("Tier Probabilities:", probabilities)
+	print("Hole in One:", is_hole_in_one)
+	print("=== END SCORE-BASED REWARDS ===")
 
 func add_advance_button():
 	"""Add an Advance button to the reward dialog"""
@@ -916,7 +995,7 @@ func _on_right_reward_selected():
 	handle_reward_selection(right_reward_data, right_reward_type)
 
 func handle_reward_selection(reward_data: Resource, reward_type: String):
-	"""Handle reward selection with bag slot checking"""
+	"""Handle reward selection with bag slot checking and hole-in-one support"""
 	# Play reward sound
 	var reward_sound = get_node_or_null("RewardSound")
 	if reward_sound:
@@ -926,7 +1005,6 @@ func handle_reward_selection(reward_data: Resource, reward_type: String):
 	if reward_type == "looty":
 		# Clear all reward buttons
 		clear_reward_buttons()
-		
 		# Add $Looty directly
 		add_reward_to_inventory(reward_data, reward_type)
 		reward_selected.emit(reward_data, reward_type)
@@ -937,10 +1015,28 @@ func handle_reward_selection(reward_data: Resource, reward_type: String):
 	var slots_available = check_bag_slots(reward_data, reward_type)
 	
 	if slots_available:
-		# Clear all reward buttons
+		# For hole-in-one, allow selecting two rewards
+		if is_hole_in_one:
+			selected_rewards.append({"data": reward_data, "type": reward_type})
+			# Disable the selected button
+			if reward_data == left_reward_data:
+				left_reward_button.disabled = true
+			elif reward_data == middle_reward_data:
+				middle_reward_button.disabled = true
+			elif reward_data == right_reward_data:
+				right_reward_button.disabled = true
+			# If two rewards selected, emit both and close
+			if selected_rewards.size() >= max_rewards_to_select:
+				for sel in selected_rewards:
+					add_reward_to_inventory(sel["data"], sel["type"])
+					reward_selected.emit(sel["data"], sel["type"])
+				visible = false
+			else:
+				# Show a message or highlight to prompt for second pick (optional)
+				print("Select one more reward for your HOLE IN ONE!")
+			return
+		# If not hole-in-one, normal flow:
 		clear_reward_buttons()
-		
-		# Add reward directly since slots are available
 		add_reward_to_inventory(reward_data, reward_type)
 		reward_selected.emit(reward_data, reward_type)
 		visible = false

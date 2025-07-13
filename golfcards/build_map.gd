@@ -236,7 +236,8 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 		"zombies": [],
 		"squirrels": [],
 		"bonfires": [],
-		"suitcase": Vector2i.ZERO
+		"suitcase": Vector2i.ZERO,
+		"wraiths": []
 	}
 	
 	# Use difficulty tier spawning if parameters are -1 (default)
@@ -522,6 +523,31 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 	print("Zombies actually placed:", zombies_placed)
 	print("✓ Placed", zombies_placed, "zombies on sand tiles")
 	print("=== END ZOMBIE DEBUG ===")
+	
+	# Place Wraith on green tiles for holes 9 and 18 (boss encounters)
+	var num_wraiths = npc_counts.wraiths if "wraiths" in npc_counts else 0
+	if num_wraiths > 0:
+		print("=== WRAITH BOSS PLACEMENT FOR HOLE", current_hole + 1, "===")
+		print("Wraiths to place:", num_wraiths)
+		
+		# Use the same green positions that were found for gang members
+		var wraith_green_positions = green_positions.duplicate()
+		print("Green positions available for Wraith:", wraith_green_positions.size())
+		
+		var wraiths_placed = 0
+		while wraiths_placed < num_wraiths and wraith_green_positions.size() > 0:
+			var wraith_index = randi() % wraith_green_positions.size()
+			var wraith_pos = wraith_green_positions[wraith_index]
+			positions.wraiths.append(wraith_pos)
+			placed_objects.append(wraith_pos)
+			wraiths_placed += 1
+			wraith_green_positions.remove_at(wraith_index)
+		
+		print("Wraiths actually placed:", wraiths_placed)
+		print("✓ Placed", wraiths_placed, "Wraith(s) on green tiles for boss encounter")
+		print("=== END WRAITH BOSS DEBUG ===")
+	else:
+		print("=== NO WRAITH FOR HOLE", current_hole + 1, "(not a boss hole) ===")
 	
 	# Place Oil Drums on fairway tiles
 	var fairway_positions: Array = []
@@ -1074,6 +1100,41 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		obstacle_layer.add_child(zombie)
 		print("✓ ZombieGolfer placed at grid position:", zombie_pos)
 	print("=== END PLACING ZOMBIES ===")
+	
+	# Place Wraiths (Boss encounters)
+	print("=== PLACING WRAITHS ===")
+	print("Wraith positions:", object_positions.wraiths)
+	for wraith_pos in object_positions.wraiths:
+		var scene: PackedScene = object_scene_map["WRAITH"]
+		if scene == null:
+			push_error("🚫 Wraith scene is null")
+			continue
+		print("✓ Wraith scene loaded successfully")
+		var wraith: Node2D = scene.instantiate() as Node2D
+		if wraith == null:
+			push_error("❌ Wraith instantiation failed at (%d,%d)" % [wraith_pos.x, wraith_pos.y])
+			continue
+		print("✓ Wraith instantiated successfully")
+		var world_pos: Vector2 = Vector2(wraith_pos.x, wraith_pos.y) * cell_size
+		wraith.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
+		# Let the global Y-sort system handle z_index
+		if wraith.has_meta("grid_position") or "grid_position" in wraith:
+			wraith.set("grid_position", wraith_pos)
+		else:
+			push_warning("⚠️ Wraith missing 'grid_position'. Type: %s" % wraith.get_class())
+		
+		# Setup the Wraith with default type
+		if wraith.has_method("setup"):
+			wraith.setup("default", wraith_pos, cell_size)
+		
+		# Add wraith to groups for smart optimization
+		wraith.add_to_group("bosses")
+		wraith.add_to_group("collision_objects")
+		
+		ysort_objects.append({"node": wraith, "grid_pos": wraith_pos})
+		obstacle_layer.add_child(wraith)
+		print("✓ Wraith placed at grid position:", wraith_pos)
+	print("=== END PLACING WRAITHS ===")
 	
 	# Place Oil Drums
 	print("=== PLACING OIL DRUMS ===")
