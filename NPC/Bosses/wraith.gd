@@ -50,8 +50,24 @@ var dead_height: float = 150.0  # Lower height when dead (laying down)
 var base_collision_area: Area2D
 
 # Headshot mechanics
-var headshot_height: float = 80.0  # Height above ground for headshot detection
-var headshot_multiplier: float = 2.0  # Damage multiplier for headshots
+const HEADSHOT_MIN_HEIGHT = 150.0  # Minimum height for headshot (150-200 range)
+const HEADSHOT_MAX_HEIGHT = 200.0  # Maximum height for headshot (150-200 range)
+const HEADSHOT_MULTIPLIER = 1.5    # Damage multiplier for headshots
+
+func _is_headshot(ball_height: float) -> bool:
+	"""Check if a ball/knife hit is a headshot based on height"""
+	# Headshot occurs when the ball/knife hits in the head region (150-200 height)
+	return ball_height >= HEADSHOT_MIN_HEIGHT and ball_height <= HEADSHOT_MAX_HEIGHT
+
+func get_headshot_info() -> Dictionary:
+	"""Get information about the headshot system for debugging and UI"""
+	return {
+		"min_height": HEADSHOT_MIN_HEIGHT,
+		"max_height": HEADSHOT_MAX_HEIGHT,
+		"multiplier": HEADSHOT_MULTIPLIER,
+		"total_height": Global.get_object_height_from_marker(self),
+		"headshot_range": HEADSHOT_MAX_HEIGHT - HEADSHOT_MIN_HEIGHT
+	}
 
 # Grid system
 var grid_position: Vector2i
@@ -155,7 +171,7 @@ func _setup_entities_manager():
 func _setup_ice_references():
 	"""Setup references to ice sprite and collision areas"""
 	ice_sprite = get_node_or_null("WraithIce")
-	ice_collision_area = get_node_or_null("WraithIce/WraithIceBodyArea2D")
+	ice_collision_area = get_node_or_null("WraithIce/BodyArea2D")
 	
 	# Use the ice-specific markers for proper Y-sorting and height detection
 	ice_top_height_marker = get_node_or_null("WraithIce/IceTopHeight")
@@ -174,7 +190,7 @@ func _setup_ice_references():
 		ice_collision_area.monitorable = false
 		print("✓ Ice collision area reference found and disabled")
 	else:
-		print("✗ ERROR: WraithIce/WraithIceBodyArea2D not found!")
+		print("✗ ERROR: WraithIce/BodyArea2D not found!")
 	
 	if ice_top_height_marker:
 		print("✓ Ice top height marker reference found (WraithIce/IceTopHeight)")
@@ -188,7 +204,7 @@ func _setup_ice_references():
 
 func _setup_base_collision():
 	"""Setup the base collision area for ball collisions"""
-	base_collision_area = get_node_or_null("WraithBodyArea2D")
+	base_collision_area = get_node_or_null("BodyArea2D")
 	if base_collision_area:
 		# Set collision layer to 1 so golf balls can detect it
 		base_collision_area.collision_layer = 1
@@ -201,7 +217,7 @@ func _setup_base_collision():
 		print("  - Base collision area monitoring:", base_collision_area.monitoring)
 		print("  - Base collision area monitorable:", base_collision_area.monitorable)
 	else:
-		print("✗ ERROR: WraithBodyArea2D not found!")
+		print("✗ ERROR: BodyArea2D not found!")
 	
 	# Setup HitBox for gun collision detection
 	var hitbox = get_node_or_null("HitBox")
@@ -399,6 +415,9 @@ func _reflect_projectile(projectile: Node2D):
 				print("Ice element detected on projectile reflection (wall bounce)! Applying freeze effect")
 				apply_freeze_effect(3)  # Freeze for 3 turns
 	
+	# Play collision sound for Wraith collision
+	_play_collision_sound()
+	
 	# Get the projectile's current velocity
 	var projectile_velocity = Vector2.ZERO
 	if projectile.has_method("get_velocity"):
@@ -436,12 +455,7 @@ func _handle_ball_collision(ball: Node2D) -> void:
 	"""Handle ball/knife collisions - check height to determine if ball/knife should pass through"""
 	print("Handling ball/knife collision - checking ball/knife height")
 	
-	# Use the Entities system for collision handling (includes moving NPC push system)
-	if entities_manager and entities_manager.has_method("handle_npc_ball_collision"):
-		entities_manager.handle_npc_ball_collision(self, ball)
-		return
-	
-	# Fallback to original collision logic if Entities system is not available
+	# Handle collision directly (bypass Entities system to avoid cooldown issues)
 	# Use enhanced height collision detection with TopHeight markers
 	if Global.is_object_above_obstacle(ball, self):
 		# Ball/knife is above Wraith entirely - let it pass through
@@ -463,6 +477,9 @@ func _handle_knife_collision(knife: Node2D) -> void:
 	"""Handle knife collision with Wraith"""
 	print("Handling knife collision with Wraith")
 	
+	# Play collision sound effect
+	_play_collision_sound()
+	
 	# Check for ice element and apply freeze effect
 	if knife.has_method("get_element"):
 		var knife_element = knife.get_element()
@@ -482,11 +499,17 @@ func _handle_regular_ball_collision(ball: Node2D) -> void:
 	"""Handle regular ball collision with Wraith"""
 	print("Handling regular ball collision with Wraith")
 	
+	# Play collision sound effect
+	_play_collision_sound()
+	
 	# Apply collision effect to the ball
 	_apply_ball_collision_effect(ball)
 
 func _apply_knife_reflection(knife: Node2D) -> void:
 	"""Apply reflection effect to a knife (fallback method)"""
+	# Play collision sound effect
+	_play_collision_sound()
+	
 	# Check for ice element and apply freeze effect
 	if knife.has_method("get_element"):
 		var knife_element = knife.get_element()
@@ -589,8 +612,8 @@ func _apply_ball_collision_effect(ball: Node2D) -> void:
 		ball_height = ball.z
 	
 	# Check if this is a headshot
-	var is_headshot = ball_height > get_height() + headshot_height
-	var damage_multiplier = headshot_multiplier if is_headshot else 1.0
+	var is_headshot = _is_headshot(ball_height)
+	var damage_multiplier = HEADSHOT_MULTIPLIER if is_headshot else 1.0
 	
 	# Calculate base damage based on ball velocity
 	var base_damage = _calculate_velocity_damage(ball_velocity.length())
@@ -620,7 +643,7 @@ func _apply_ball_collision_effect(ball: Node2D) -> void:
 		print("Damage will kill Wraith! Overkill damage:", overkill_damage)
 		
 		# Apply damage to the Wraith (this will set health to negative)
-		take_damage(damage)
+		take_damage(damage, is_headshot)
 		
 		# Apply velocity dampening based on overkill damage
 		var dampened_velocity = _calculate_kill_dampening(ball_velocity, overkill_damage)
@@ -633,7 +656,7 @@ func _apply_ball_collision_effect(ball: Node2D) -> void:
 			ball.velocity = dampened_velocity
 	else:
 		# Normal collision - apply damage and reflect
-		take_damage(damage)
+		take_damage(damage, is_headshot)
 		
 		var ball_pos = ball.global_position
 		var wraith_center = global_position
@@ -719,13 +742,14 @@ func _calculate_kill_dampening(ball_velocity: Vector2, overkill_damage: int) -> 
 	
 	return dampened_velocity
 
-func take_damage(damage: int):
+func take_damage(damage: int, is_headshot: bool = false):
 	"""Take damage and handle death"""
 	if is_dead or is_frozen:
 		return
 	
 	print("=== WRAITH TAKING DAMAGE ===")
 	print("Damage: ", damage)
+	print("Is headshot: ", is_headshot)
 	print("Current health: ", current_health)
 	
 	current_health -= damage
@@ -747,7 +771,10 @@ func take_damage(damage: int):
 		die()
 	else:
 		# Visual feedback for taking damage
-		_flash_damage()
+		if is_headshot:
+			flash_headshot()
+		else:
+			_flash_damage()
 
 func _flash_damage():
 	"""Flash the sprite to indicate damage taken"""
@@ -755,6 +782,18 @@ func _flash_damage():
 		var tween = create_tween()
 		tween.tween_property(sprite, "modulate", Color.RED, 0.1)
 		tween.tween_property(sprite, "modulate", Color.WHITE, 0.1)
+
+func flash_headshot() -> void:
+	"""Flash the Wraith with a special headshot effect"""
+	if not sprite:
+		return
+	
+	var original_modulate = sprite.modulate
+	var tween = create_tween()
+	# Flash with a bright gold color for headshots
+	tween.tween_property(sprite, "modulate", Color(1, 0.84, 0, 1), 0.15)  # Bright gold
+	tween.tween_property(sprite, "modulate", Color(1, 0.65, 0, 1), 0.1)   # Deeper gold
+	tween.tween_property(sprite, "modulate", original_modulate, 0.2)
 
 func die():
 	"""Handle Wraith death"""
@@ -765,6 +804,9 @@ func die():
 	is_dying = true
 	is_dead = true
 	is_alive = false
+	
+	# Play death sound
+	_play_death_sound()
 	
 	# Start death animation
 	_start_death_animation()
@@ -1402,6 +1444,44 @@ func get_base_collision_shape() -> Dictionary:
 func handle_ball_collision(ball: Node2D) -> void:
 	"""Handle collision with a ball - called by Entities system"""
 	_handle_ball_collision(ball)
+
+func _play_collision_sound() -> void:
+	"""Play a sound effect when colliding with the player"""
+	# Try to find an audio player in the course
+	if course:
+		var audio_players = course.get_tree().get_nodes_in_group("audio_players")
+		if audio_players.size() > 0:
+			var audio_player = audio_players[0]
+			if audio_player.has_method("play"):
+				audio_player.play()
+				return
+		
+		# Try to find Push sound specifically
+		var push_sound = course.get_node_or_null("Push")
+		if push_sound and push_sound is AudioStreamPlayer2D:
+			push_sound.play()
+			return
+	
+	# Fallback: create a temporary audio player
+	var temp_audio = AudioStreamPlayer2D.new()
+	var sound_file = load("res://Sounds/Push.mp3")
+	if sound_file:
+		temp_audio.stream = sound_file
+		temp_audio.volume_db = -10.0  # Slightly quieter
+		add_child(temp_audio)
+		temp_audio.play()
+		# Remove the audio player after it finishes
+		temp_audio.finished.connect(func(): temp_audio.queue_free())
+
+func _play_death_sound() -> void:
+	"""Play the death sound when the Wraith dies"""
+	# Use the existing WraithHurt audio player on the Wraith
+	var death_audio = get_node_or_null("WraithHurt")
+	if death_audio:
+		death_audio.volume_db = 0.0  # Set to full volume
+		death_audio.play()
+	else:
+		pass
 
 # Height method for collision detection
 func get_height() -> float:
