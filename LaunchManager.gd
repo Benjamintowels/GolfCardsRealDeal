@@ -11,6 +11,7 @@ var launch_height := 0.0
 var launch_direction := Vector2.ZERO
 var is_charging := false
 var is_charging_height := false
+var is_selecting_height := false  # New state for height selection phase
 var is_knife_mode := false  # Track if we're launching a knife instead of a ball
 var is_grenade_mode := false  # Track if we're launching a grenade instead of a ball
 var is_spear_mode := false  # Track if we're launching a spear instead of a ball
@@ -24,6 +25,7 @@ const MIN_LAUNCH_HEIGHT := 0.0   # Allow for ground-level shots (was 144.0)
 const HEIGHT_CHARGE_RATE := 600.0  # Adjusted for pixel perfect system (was 1000.0)
 const HEIGHT_SWEET_SPOT_MIN := 0.3 # 30% of max height - lower sweet spot for better arc
 const HEIGHT_SWEET_SPOT_MAX := 0.5 # 50% of max height - narrower sweet spot
+const HEIGHT_SELECTION_SENSITIVITY := 2.0  # How sensitive mouse movement is for height selection
 
 # Charge time variables
 var charge_time := 0.0  # Time spent charging (in seconds)
@@ -91,7 +93,7 @@ func _process(delta: float):
 				var current_power = scaled_min_power + (time_percent * (scaled_max_power - scaled_min_power))
 				value_label.text = str(int(current_power))
 	
-	if is_charging_height:
+	elif is_charging_height:
 		# Check if this club has a fixed height
 		var fixed_height = club_data.get(selected_club, {}).get("fixed_height", -1.0)
 		if fixed_height >= 0.0:
@@ -114,13 +116,29 @@ func _process(delta: float):
 				meter_fill.position.y = 330 - meter_fill.size.y
 			if value_label:
 				value_label.text = str(int(launch_height))
+	
+	elif is_selecting_height:
+		# Update height meter display during height selection phase
+		if height_meter:
+			var meter_fill = height_meter.get_node_or_null("MeterFill")
+			var value_label = height_meter.get_node_or_null("HeightValue")
+			var height_percentage = launch_height / MAX_LAUNCH_HEIGHT
+			height_percentage = clamp(height_percentage, 0.0, 1.0)
+			
+			if meter_fill:
+				# Update the height of the meter fill
+				var max_height = 300.0  # Height of the meter background
+				meter_fill.size.y = height_percentage * max_height
+				# Keep the position at the bottom
+				meter_fill.position.y = 330 - meter_fill.size.y
+			if value_label:
+				value_label.text = str(int(launch_height))
 
 func enter_launch_phase() -> void:
 	"""Enter the launch phase for taking a shot"""
 	emit_signal("launch_phase_entered")
 	charge_time = 0.0
 	original_aim_mouse_pos = camera.get_global_mouse_position()
-	show_power_meter()
 	
 	# Set max_charge_time based on club and distance
 	max_charge_time = 1.0  # Default charge time (reduced from 3.0)
@@ -142,15 +160,22 @@ func enter_launch_phase() -> void:
 		# This club has a fixed height (like GrenadeLauncherClubCard)
 		launch_height = fixed_height
 		# Don't show height meter since height is fixed
+		# Start with power charging immediately for fixed height clubs
+		show_power_meter()
+		var scaled_min_power = power_meter.get_meta("scaled_min_power", MIN_LAUNCH_POWER)
+		launch_power = scaled_min_power
 	else:
 		if not is_putting:
+			# Start with height selection phase
 			show_height_meter()
-			launch_height = 0.0  # Start at ground level for low shots (was MIN_LAUNCH_HEIGHT)
+			launch_height = 0.0  # Start at ground level for low shots
+			is_selecting_height = true
 		else:
+			# Putters start with power charging immediately
 			launch_height = 0.0
-	
-	var scaled_min_power = power_meter.get_meta("scaled_min_power", MIN_LAUNCH_POWER)
-	launch_power = scaled_min_power
+			show_power_meter()
+			var scaled_min_power = power_meter.get_meta("scaled_min_power", MIN_LAUNCH_POWER)
+			launch_power = scaled_min_power
 	
 	if chosen_landing_spot != Vector2.ZERO:
 		var sprite = player_node.get_node_or_null("Sprite2D")
@@ -174,6 +199,7 @@ func exit_launch_phase() -> void:
 	hide_height_meter()
 	is_charging = false
 	is_charging_height = false
+	is_selecting_height = false  # Reset height selection state
 	is_knife_mode = false  # Reset knife mode
 	is_grenade_mode = false  # Reset grenade mode
 	is_spear_mode = false  # Reset spear mode
@@ -706,6 +732,9 @@ func show_power_meter():
 		max_power_for_bar = club_max
 		print("LaunchManager: show_power_meter - calculated power_for_target:", power_for_target, " max_power_for_bar:", max_power_for_bar)
 	
+	# Set initial launch power
+	launch_power = MIN_LAUNCH_POWER
+	
 	power_meter = Control.new()
 	power_meter.name = "PowerMeter"
 	power_meter.size = Vector2(350, 80)
@@ -794,6 +823,15 @@ func show_height_meter():
 	ui_layer.add_child(height_meter)
 	height_meter.z_index = 200
 	
+	# Add instruction text for height selection
+	var instruction_label := Label.new()
+	instruction_label.text = "Move mouse up/down\nto set height\nClick to confirm"
+	instruction_label.add_theme_font_size_override("font_size", 12)
+	instruction_label.add_theme_color_override("font_color", Color.YELLOW)
+	instruction_label.position = Vector2(-120, 150)  # Position to the left of the meter
+	instruction_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	height_meter.add_child(instruction_label)
+	
 	var background := ColorRect.new()
 	background.color = Color(0, 0, 0, 0.7)
 	background.size = height_meter.size
@@ -856,7 +894,19 @@ func handle_input(event: InputEvent) -> bool:
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			if event.pressed:
-				if not is_charging and not is_charging_height:
+				if is_selecting_height:
+					# Height selection phase: left click confirms height and starts power charging
+					is_selecting_height = false
+					hide_height_meter()
+					show_power_meter()
+					is_charging = true
+					charge_time = 0.0
+					current_charge_mouse_pos = camera.get_global_mouse_position()
+					emit_signal("charging_state_changed", is_charging, is_charging_height)
+					print("LaunchManager: Height selection confirmed. Starting power charging.")
+					return true
+				elif not is_charging and not is_charging_height:
+					# Start power charging (for putters or fixed height clubs)
 					is_charging = true
 					charge_time = 0.0
 					current_charge_mouse_pos = camera.get_global_mouse_position()
@@ -865,26 +915,19 @@ func handle_input(event: InputEvent) -> bool:
 			else:
 				if is_charging:
 					is_charging = false
-					var is_putting = club_data.get(selected_club, {}).get("is_putter", false)
-					print("LaunchManager: Power charging finished. is_putting:", is_putting, " selected_club:", selected_club, " is_grenade_mode:", is_grenade_mode)
-					if not is_putting:
-						print("LaunchManager: Transitioning to height charging")
-						is_charging_height = true
-						launch_height = 0.0
+					print("LaunchManager: Power charging finished. Launching projectile.")
+					# Calculate final power and launch the projectile
+					var final_power = calculate_final_power()
+					launch_direction = calculate_launch_direction()
+					if is_knife_mode:
+						launch_throwing_knife(launch_direction, final_power, launch_height)
+					elif is_grenade_mode:
+						launch_grenade(launch_direction, final_power, launch_height)
+					elif is_spear_mode:
+						launch_spear(launch_direction, final_power, launch_height)
 					else:
-						print("LaunchManager: Launching immediately (putter)")
-						# Calculate final power and launch the projectile
-						var final_power = calculate_final_power()
-						launch_direction = calculate_launch_direction()
-						if is_knife_mode:
-							launch_throwing_knife(launch_direction, final_power, launch_height)
-						elif is_grenade_mode:
-							launch_grenade(launch_direction, final_power, launch_height)
-						elif is_spear_mode:
-							launch_spear(launch_direction, final_power, launch_height)
-						else:
-							launch_golf_ball(launch_direction, final_power, launch_height)
-						hide_power_meter()
+						launch_golf_ball(launch_direction, final_power, launch_height)
+					hide_power_meter()
 					emit_signal("charging_state_changed", is_charging, is_charging_height)
 					return true
 				elif is_charging_height:
@@ -914,13 +957,20 @@ func handle_input(event: InputEvent) -> bool:
 			# Cancel launch phase
 			is_charging = false
 			is_charging_height = false
+			is_selecting_height = false
 			hide_power_meter()
 			hide_height_meter()
 			emit_signal("charging_state_changed", is_charging, is_charging_height)
 			return true
 	
 	elif event is InputEventMouseMotion:
-		if is_charging or is_charging_height:
+		if is_selecting_height:
+			# Handle height selection with mouse up/down movement
+			var mouse_delta = event.relative
+			var height_change = -mouse_delta.y * HEIGHT_SELECTION_SENSITIVITY  # Negative because up = higher height
+			launch_height = clamp(launch_height + height_change, MIN_LAUNCH_HEIGHT, MAX_LAUNCH_HEIGHT)
+			return true
+		elif is_charging or is_charging_height:
 			current_charge_mouse_pos = camera.get_global_mouse_position()
 			return true
 	

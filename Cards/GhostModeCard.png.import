@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dtiyoeqre1vfp"
-path="res://.godot/imported/PutterHelp.png-40ab8a316ece1cd8e76431c8fe8baf9f.ctex"
+uid="uid://c4b4vm5dh8afs"
+path="res://.godot/imported/GhostModeCard.png-4742ed19fc48fa4719d73474e2c7cb4b.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Equipment/PutterHelp.png"
-dest_files=["res://.godot/imported/PutterHelp.png-40ab8a316ece1cd8e76431c8fe8baf9f.ctex"]
+source_file="res://Cards/GhostModeCard.png"
+dest_files=["res://.godot/imported/GhostModeCard.png-4742ed19fc48fa4719d73474e2c7cb4b.ctex"]
 
 [params]
 

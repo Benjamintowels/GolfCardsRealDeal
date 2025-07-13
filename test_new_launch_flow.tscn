@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://bcwuvh0ikfof"]
+
+[ext_resource type="Script" path="res://test_new_launch_flow.gd" id="1_0x0x0"]
+
+[node name="TestNewLaunchFlow" type="Node2D"]
+script = ExtResource("1_0x0x0") 
