@@ -504,6 +504,9 @@ func die() -> void:
 	is_alive = false
 	current_health = 0
 	
+	# Give death reward
+	Global.give_npc_death_reward("ZombieGolfer")
+	
 	# Play death sound
 	_play_collision_sound()
 	

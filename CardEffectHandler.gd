@@ -49,6 +49,9 @@ func handle_card_effect(card: CardData) -> bool:
 	elif card.effect_type == "Arrange":
 		handle_arrange_effect(card)
 		return true
+	elif card.effect_type == "AnimalHelp":
+		handle_animal_help_effect(card)
+		return true
 	
 	return false
 
@@ -820,6 +823,117 @@ func _on_arrange_card_selected(selected_card: CardData):
 		course.create_movement_buttons()
 	
 	print("Arrange effect completed - card added to hand")
+
+func handle_animal_help_effect(card: CardData):
+	"""Handle AnimalHelp effect - spawn RedJay to help with ball movement"""
+	print("CardEffectHandler: Handling AnimalHelp card:", card.name)
+	
+	if card.name == "CallofthewildCard":
+		_handle_call_of_the_wild_effect(card)
+	else:
+		print("Unknown AnimalHelp card:", card.name)
+	
+	# Handle card discard - could be from hand or bag pile
+	if course.deck_manager.hand.has(card):
+		course.deck_manager.discard(card)
+		course.card_stack_display.animate_card_discard(card.name)
+		course.update_deck_display()
+	else:
+		# Card is from bag pile during club selection - just animate discard
+		course.card_stack_display.animate_card_discard(card.name)
+		print("AnimalHelp card used from bag pile")
+	
+	# Remove only the specific card button, not the entire hand
+	remove_specific_card_button(card)
+	
+	print("AnimalHelp effect activated")
+
+func _handle_call_of_the_wild_effect(card: CardData):
+	"""Handle the specific Call of the Wild card effect"""
+	print("Activating Call of the Wild effect!")
+	
+	# Get the ball position
+	var ball_position = get_ball_position()
+	if ball_position == Vector2.ZERO:
+		print("Warning: No ball found for Call of the Wild effect")
+		return
+	
+	# Get the pin position
+	var pin_position = course.find_pin_position()
+	if pin_position == Vector2.ZERO:
+		print("Warning: No pin found for Call of the Wild effect")
+		return
+	
+	# Find the actual ball node
+	var ball_node = _find_ball_node()
+	if not ball_node:
+		print("Warning: Could not find ball node for Call of the Wild effect")
+		return
+	
+	# Create RedJay effect
+	_create_red_jay_effect(ball_node, pin_position)
+
+func _find_ball_node() -> Node2D:
+	"""Find the actual ball node in the scene"""
+	# Check if there's a ball in the launch manager
+	if course.launch_manager and course.launch_manager.golf_ball and is_instance_valid(course.launch_manager.golf_ball):
+		return course.launch_manager.golf_ball
+	
+	# Fallback: look for any ball in the scene
+	var balls = course.get_tree().get_nodes_in_group("balls")
+	for ball in balls:
+		if is_instance_valid(ball):
+			return ball
+	
+	return null
+
+func _create_red_jay_effect(ball_node: Node2D, pin_position: Vector2):
+	"""Create and start the RedJay effect"""
+	# Load RedJay scene
+	var red_jay_scene = load("res://NPC/Animals/RedJay.tscn")
+	if not red_jay_scene:
+		print("Error: Failed to load RedJay scene")
+		return
+	
+	var red_jay = red_jay_scene.instantiate()
+	if not red_jay:
+		print("Error: Failed to instantiate RedJay")
+		return
+	
+	# Position RedJay at a random position off screen
+	var spawn_position = _get_random_off_screen_position(ball_node.global_position)
+	red_jay.global_position = spawn_position
+	
+	# Add to scene
+	course.add_child(red_jay)
+	
+	# Start the RedJay effect
+	if red_jay.has_method("start_red_jay_effect"):
+		red_jay.start_red_jay_effect(ball_node, pin_position)
+		print("RedJay effect created at position:", spawn_position)
+	else:
+		print("Error: RedJay does not have start_red_jay_effect method")
+		red_jay.queue_free()
+
+func _get_random_off_screen_position(ball_position: Vector2) -> Vector2:
+	"""Get a random position off screen for RedJay to spawn"""
+	var screen_size = get_viewport().get_visible_rect().size
+	var margin = 100.0  # Distance off screen
+	
+	# Choose a random side (0=top, 1=right, 2=bottom, 3=left)
+	var side = randi() % 4
+	
+	match side:
+		0:  # Top
+			return Vector2(randf_range(-margin, screen_size.x + margin), -margin)
+		1:  # Right
+			return Vector2(screen_size.x + margin, randf_range(-margin, screen_size.y + margin))
+		2:  # Bottom
+			return Vector2(randf_range(-margin, screen_size.x + margin), screen_size.y + margin)
+		3:  # Left
+			return Vector2(-margin, randf_range(-margin, screen_size.y + margin))
+	
+	return Vector2.ZERO
 
 func _on_arrange_dialog_closed():
 	"""Handle when the arrange dialog is closed"""

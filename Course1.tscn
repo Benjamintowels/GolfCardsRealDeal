@@ -129,6 +129,12 @@ grow_vertical = 1
 offset_right = 40.0
 offset_bottom = 23.0
 
+[node name="DeckImage" type="TextureRect" parent="UILayer"]
+offset_left = 20.0
+offset_top = 169.0
+offset_right = 60.0
+offset_bottom = 209.0
+
 [node name="CharacterImage" type="TextureRect" parent="UILayer"]
 z_index = 6
 texture_filter = 1

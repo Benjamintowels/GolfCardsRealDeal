@@ -141,6 +141,7 @@ func load_shop_items():
 		preload("res://Cards/CoffeeCard.tres"),
 		preload("res://Cards/BlockB.tres"),
 		preload("res://Cards/CaddyCard.tres"),
+		preload("res://Cards/CallofthewildCard.tres"),
 		
 		# Movement cards
 		preload("res://Cards/Move1.tres"),

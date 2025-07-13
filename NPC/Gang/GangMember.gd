@@ -1814,6 +1814,9 @@ func die() -> void:
 	is_dead = true
 	print("GangMember has died!")
 	
+	# Give death reward
+	Global.give_npc_death_reward("GangMember")
+	
 	# Play death groan sound
 	print("Calling _play_death_sound()")
 	_play_death_sound()

@@ -762,3 +762,27 @@ func reset_looty_to_starting() -> void:
 	"""Reset $Looty to starting amount (for new games)"""
 	current_looty = 50
 	print("Reset $Looty to starting amount: %d" % current_looty)
+
+func give_npc_death_reward(npc_type: String) -> int:
+	"""Give $Looty reward for killing an NPC based on type"""
+	var reward_amount = 0
+	
+	match npc_type.to_lower():
+		"zombie", "zombiegolfer":
+			reward_amount = 10
+		"gangmember", "gang_member":
+			reward_amount = 25
+		"police":
+			reward_amount = 50
+		"squirrel":
+			reward_amount = 0  # Squirrels give no reward
+		_:
+			reward_amount = 0  # Default no reward for unknown types
+	
+	if reward_amount > 0:
+		add_looty(reward_amount)
+		print("Killed %s! Rewarded %d $Looty. New balance: %d $Looty" % [npc_type, reward_amount, current_looty])
+	else:
+		print("Killed %s! No reward given." % npc_type)
+	
+	return reward_amount

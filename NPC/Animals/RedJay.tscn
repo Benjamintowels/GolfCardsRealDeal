@@ -1,0 +1,13 @@
+[gd_scene load_steps=3 format=3 uid="uid://cmx70lwc5ia8j"]
+
+[ext_resource type="Script" uid="uid://cd5w1hric5tnh" path="res://NPC/Animals/red_jay.gd" id="1_1yjp2"]
+[ext_resource type="AudioStream" uid="uid://ja7bsebeay6" path="res://Sounds/BirdSwoop.mp3" id="2_rsbv8"]
+
+[node name="RedJay" type="Node2D"]
+script = ExtResource("1_1yjp2")
+
+[node name="RedJaySprite" type="AnimatedSprite2D" parent="."]
+texture_filter = 1
+
+[node name="Swoop" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("2_rsbv8")

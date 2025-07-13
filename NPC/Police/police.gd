@@ -861,6 +861,9 @@ func die() -> void:
 	is_dead = true
 	is_alive = false
 	
+	# Give death reward
+	Global.give_npc_death_reward("Police")
+	
 	# Play death sound
 	if death_groan_sound:
 		death_groan_sound.play()

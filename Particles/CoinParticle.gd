@@ -3,7 +3,7 @@ extends Node2D
 var stall_time := 0.05
 var drop_speed := 200.0
 var is_dropping := false
-var fade_time := 0.3
+var fade_time := 2.0  # Increased from 0.3 to 2.0 seconds for longer visibility
 var fade_timer := 0.0
 var sprite: Sprite2D = null
 

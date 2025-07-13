@@ -22,7 +22,8 @@ var starter_deck: Array[CardData] = [
 	preload("res://Cards/GrenadeLauncherClubCard.tres"),        # Grenade Launcher Club Card
 	preload("res://Cards/SpearCard.tres"),     # SpearCard
 	preload("res://Cards/GrenadeLauncherWeaponCard.tres"),      # Grenade Launcher Weapon Card (for testing)
-	preload("res://Cards/GrenadeLauncherWeaponCard.tres")       # Grenade Launcher Weapon Card (for testing)
+	preload("res://Cards/GrenadeLauncherWeaponCard.tres"),      # Grenade Launcher Weapon Card (for testing)
+	preload("res://Cards/CallofthewildCard.tres")               # Call of the Wild card (for testing)
 ]
 
 func _ready():

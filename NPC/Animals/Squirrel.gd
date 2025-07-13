@@ -906,6 +906,9 @@ func die() -> void:
 	is_dead = true
 	is_alive = false
 	
+	# Give death reward (Squirrels give 0 $Looty)
+	Global.give_npc_death_reward("Squirrel")
+	
 	# Hide health bar
 	if health_bar_container:
 		health_bar_container.visible = false
