@@ -434,8 +434,8 @@ func _process(delta):
 	if ballhop_cooldown > 0.0:
 		ballhop_cooldown -= delta
 	
-	# Comprehensive water collision check for all ball states (including putters)
-	if map_manager != null and not ice_club_active:
+	# Comprehensive water collision check for balls on the ground (including putters)
+	if map_manager != null and not ice_club_active and z <= current_ground_level:
 		var tile_x = int(floor(position.x / cell_size))
 		var tile_y = int(floor(position.y / cell_size))
 		var tile_type = map_manager.get_tile_type(tile_x, tile_y)
@@ -1504,7 +1504,8 @@ func _play_roof_bounce_sound(object_type: String) -> void:
 
 func check_out_of_bounds_collision() -> void:
 	"""
-	Check if the ball has collided with an out-of-bounds tile at any height and reflect it.
+	Check if the ball has collided with an out-of-bounds tile at any height.
+	Grid boundaries are reflected, water tiles cause out-of-bounds.
 	"""
 	if map_manager == null:
 		return
@@ -1528,8 +1529,13 @@ func check_out_of_bounds_collision() -> void:
 				pass  # Ice Club effect: Ball passes through water tile
 				# Continue normal physics - don't stop the ball
 			else:
-				# Ball hit water tile
-				_reflect_from_out_of_bounds(tile_pos)
+				# Ball hit water tile - treat as out of bounds (don't reflect)
+				velocity = Vector2.ZERO
+				vz = 0.0
+				landed_flag = true
+				remove_landing_highlight()  # Remove highlight if it exists
+				reset_shot_effects()
+				out_of_bounds.emit()
 				return
 
 func _reflect_from_out_of_bounds(tile_pos: Vector2i) -> void:
@@ -1565,11 +1571,12 @@ func _reflect_from_out_of_bounds(tile_pos: Vector2i) -> void:
 		# Move ball back into bounds
 		position.y = (map_manager.grid_height - 1) * cell_size
 	else:
-		# Hit water tile - reflect away from tile center
+		# This should never be reached for water tiles since we handle them separately
+		# This is a fallback for any other out-of-bounds tiles
 		var tile_center = Vector2(tile_pos.x * cell_size + cell_size / 2, tile_pos.y * cell_size + cell_size / 2)
 		var to_ball_direction = (global_position - tile_center).normalized()
 		reflected_velocity = ball_velocity - 2 * ball_velocity.dot(to_ball_direction) * to_ball_direction
-		# Move ball slightly away from the water tile
+		# Move ball slightly away from the tile
 		position += to_ball_direction * cell_size * 0.5
 	
 	# Reduce speed slightly to prevent infinite bouncing
