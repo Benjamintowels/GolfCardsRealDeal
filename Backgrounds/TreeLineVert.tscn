@@ -1,0 +1,14 @@
+[gd_scene load_steps=3 format=3 uid="uid://d1x61tl3uuf3w"]
+
+[ext_resource type="Script" uid="uid://c2nqvw6jp56fn" path="res://Backgrounds/tree_line_vert.gd" id="1_krybp"]
+[ext_resource type="Texture2D" uid="uid://5lkhxqm8l8l1" path="res://Backgrounds/TreeLineVert.png" id="1_nhxsh"]
+
+[node name="TreeLineVert" type="Node2D"]
+script = ExtResource("1_krybp")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+z_index = 3935
+texture_filter = 1
+position = Vector2(-143.655, -52.53)
+scale = Vector2(0.945, 0.945)
+texture = ExtResource("1_nhxsh")

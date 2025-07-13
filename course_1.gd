@@ -4366,6 +4366,9 @@ func build_map_from_layout_with_saved_positions(layout: Array) -> void:
 	# Place objects at saved positions
 	build_map.place_objects_at_positions(object_positions, layout)
 	
+	# Place TreeLineVert borders
+	build_map.place_treeline_vert_borders(layout)
+	
 	# Sync shop grid position with build_map
 	shop_grid_pos = build_map.shop_grid_pos
 	

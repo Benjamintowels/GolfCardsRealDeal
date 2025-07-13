@@ -89,6 +89,9 @@ func build_map_from_layout(layout: Array) -> void:
 					obstacle_map[pos] = object
 			elif not tile_scene_map.has(code):
 				pass
+	
+	# Place TreeLineVert borders
+	place_treeline_vert_borders(layout)
 
 # --- Clear all existing objects from the map ---
 func clear_existing_objects() -> void:
@@ -553,6 +556,47 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 	
 	return positions
 
+func place_treeline_vert_borders(layout: Array) -> void:
+	"""Place TreeLineVert scenes on the left and right borders of the map"""
+	# Load the TreeLineVert scene
+	var treeline_scene = load("res://Backgrounds/TreeLineVert.tscn")
+	if not treeline_scene:
+		push_error("🚫 TreeLineVert scene not found")
+		return
+	
+	# Calculate map dimensions
+	var layout_width = layout[0].size()
+	var layout_height = layout.size()
+	var map_width = layout_width * cell_size
+	var map_height = layout_height * cell_size
+	
+	# Create left border TreeLineVert
+	var left_treeline = treeline_scene.instantiate() as Node2D
+	if not left_treeline:
+		push_error("❌ Failed to instantiate left TreeLineVert scene")
+		return
+	
+	left_treeline.z_index = 5  # Higher z-index to appear in front of map tiles (-5)
+	left_treeline.position = Vector2(-cell_size, map_height / 2)  # Left edge, centered vertically
+	
+	# Add to obstacle layer
+	obstacle_layer.add_child(left_treeline)
+	
+	# Create right border TreeLineVert
+	var right_treeline = treeline_scene.instantiate() as Node2D
+	if not right_treeline:
+		push_error("❌ Failed to instantiate right TreeLineVert scene")
+		return
+	
+	right_treeline.z_index = 5  # Higher z-index to appear in front of map tiles (-5)
+	right_treeline.position = Vector2(map_width + cell_size, map_height / 2)  # Right edge, centered vertically
+	
+	# Add to obstacle layer
+	obstacle_layer.add_child(right_treeline)
+	
+	print("✓ TreeLineVert borders placed - Left at (-48, ", map_height / 2, "), Right at (", map_width + cell_size, ", ", map_height / 2, ")")
+	print("✓ Using TreeLineVert.tscn scene file for better alignment control")
+
 func build_map_from_layout_with_randomization(layout: Array, hole_index: int = -1) -> void:
 	# Update current_hole if hole_index is provided
 	if hole_index >= 0:
@@ -564,6 +608,8 @@ func build_map_from_layout_with_randomization(layout: Array, hole_index: int = -
 	# Use difficulty tier spawning (-1 means use difficulty tier calculation)
 	var object_positions = get_random_positions_for_objects(layout, 8, true, -1, -1, -1, -1)
 	place_objects_at_positions(object_positions, layout)
+	# Place TreeLineVert borders
+	place_treeline_vert_borders(layout)
 	# position_camera_on_pin()  # This should be called from the main scene if needed
 
 func build_map_from_layout_base(layout: Array, place_pin: bool = true) -> void:
