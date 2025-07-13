@@ -503,6 +503,13 @@ func _ready() -> void:
 	equipment_manager.name = "EquipmentManager"
 	add_child(equipment_manager)
 	
+	# Add BossManager
+	var boss_manager_scene = preload("res://NPC/Bosses/BossManager.tscn")
+	var boss_manager = boss_manager_scene.instantiate()
+	boss_manager.name = "BossManager"
+	add_child(boss_manager)
+	print("✓ BossManager added to course")
+	
 	# Add starter equipment - Watch for together mode
 	var watch_equipment = preload("res://Equipment/Watch.tres")
 	equipment_manager.add_equipment(watch_equipment)
@@ -770,6 +777,11 @@ func adjust_background_positioning() -> void:
 	var entities = get_node_or_null("Entities")
 	if entities:
 		entities.re_register_all_npcs()
+	
+	# Check for boss encounters on initial hole
+	var boss_manager = get_node_or_null("BossManager")
+	if boss_manager and boss_manager.has_method("on_hole_changed"):
+		boss_manager.on_hole_changed(current_hole)
 	
 	# Initialize player mouse facing system
 	if player_node and player_node.has_method("set_camera_reference"):
@@ -3326,6 +3338,11 @@ func reset_for_next_hole():
 	var entities = get_node_or_null("Entities")
 	if entities:
 		entities.re_register_all_npcs()
+	
+	# Check for boss encounters on this hole
+	var boss_manager = get_node_or_null("BossManager")
+	if boss_manager and boss_manager.has_method("on_hole_changed"):
+		boss_manager.on_hole_changed(current_hole)
 
 func show_course_complete_dialog():
 	var dialog = AcceptDialog.new()
@@ -4041,6 +4058,11 @@ func load_hole_10():
 	var entities = get_node_or_null("Entities")
 	if entities:
 		entities.re_register_all_npcs()
+	
+	# Check for boss encounters on hole 10
+	var boss_manager = get_node_or_null("BossManager")
+	if boss_manager and boss_manager.has_method("on_hole_changed"):
+		boss_manager.on_hole_changed(current_hole)
 	
 	print("=== HOLE 10 LOADED AND READY ===")
 
