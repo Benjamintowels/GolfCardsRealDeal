@@ -160,32 +160,42 @@ var club_max_distances = {
 	"GrenadeLauncherClubCard": 2000.0  # Grenade launcher range (much higher velocity!)
 }
 
-# New club data with min distances and trailoff stats
+# New club data with min distances, trailoff stats, and height ranges
 var club_data = {
 	"Driver": {
 		"max_distance": 1200.0,
 		"min_distance": 800.0,    # Smallest gap (400)
-		"trailoff_forgiveness": 0.3  # Less forgiving (lower = more severe undercharge penalty)
+		"trailoff_forgiveness": 0.3,  # Less forgiving (lower = more severe undercharge penalty)
+		"min_height": 10.0,       # Low min height for driver
+		"max_height": 120.0       # Low max height for driver
 	},
 	"Hybrid": {
 		"max_distance": 1050.0,
 		"min_distance": 200.0,    # Biggest gap (850)
-		"trailoff_forgiveness": 0.8  # Most forgiving (higher = less severe undercharge penalty)
+		"trailoff_forgiveness": 0.8,  # Most forgiving (higher = less severe undercharge penalty)
+		"min_height": 15.0,       # Medium min height
+		"max_height": 200.0       # Medium max height
 	},
 	"Wood": {
 		"max_distance": 800.0,
 		"min_distance": 300.0,    # Medium gap (500)
-		"trailoff_forgiveness": 0.6  # Medium forgiving
+		"trailoff_forgiveness": 0.6,  # Medium forgiving
+		"min_height": 18.0,       # Medium-high min height
+		"max_height": 280.0       # Medium-high max height
 	},
 	"Iron": {
 		"max_distance": 600.0,
 		"min_distance": 250.0,    # Medium gap (350)
-		"trailoff_forgiveness": 0.5  # Medium forgiving
+		"trailoff_forgiveness": 0.5,  # Medium forgiving
+		"min_height": 19.0,       # High min height
+		"max_height": 320.0       # High max height
 	},
 	"Wooden": {
 		"max_distance": 350.0,
 		"min_distance": 150.0,    # Small gap (200)
-		"trailoff_forgiveness": 0.4  # Less forgiving
+		"trailoff_forgiveness": 0.4,  # Less forgiving
+		"min_height": 19.5,       # Very high min height
+		"max_height": 360.0       # Very high max height
 	},
 	"Putter": {
 		"max_distance": 200.0,
@@ -196,17 +206,23 @@ var club_data = {
 	"PitchingWedge": {
 		"max_distance": 200.0,
 		"min_distance": 100.0,    # Same as old Putter settings
-		"trailoff_forgiveness": 0.2  # Same as old Putter settings
+		"trailoff_forgiveness": 0.2,  # Same as old Putter settings
+		"min_height": 20.0,       # Highest min height for pitching wedge
+		"max_height": 400.0       # Highest max height for pitching wedge
 	},
 	"Fire Club": {
 		"max_distance": 900.0,
 		"min_distance": 400.0,    # Medium gap (500)
-		"trailoff_forgiveness": 0.5  # Medium forgiving
+		"trailoff_forgiveness": 0.5,  # Medium forgiving
+		"min_height": 18.0,       # Medium-high min height
+		"max_height": 280.0       # Medium-high max height
 	},
 	"Ice Club": {
 		"max_distance": 900.0,
 		"min_distance": 400.0,    # Medium gap (500)
-		"trailoff_forgiveness": 0.5  # Medium forgiving
+		"trailoff_forgiveness": 0.5,  # Medium forgiving
+		"min_height": 18.0,       # Medium-high min height
+		"max_height": 280.0       # Medium-high max height
 	},
 	"GrenadeLauncherClubCard": {
 		"max_distance": 2000.0,   # Much higher velocity - 3.3x more than before!
@@ -218,7 +234,9 @@ var club_data = {
 	"ShotgunCard": {
 		"max_distance": 350.0,
 		"min_distance": 50.0,     # Very short range weapon
-		"trailoff_forgiveness": 0.8  # Forgiving for weapon
+		"trailoff_forgiveness": 0.8,  # Forgiving for weapon
+		"min_height": 15.0,       # Medium min height
+		"max_height": 200.0       # Medium max height
 	}
 }
 
@@ -486,6 +504,11 @@ func _ready() -> void:
 	var watch_equipment = preload("res://Equipment/Watch.tres")
 	equipment_manager.add_equipment(watch_equipment)
 	print("Course: Added Watch equipment to starter loadout for together mode")
+	
+	# Add lighter to starter loadout
+	var lighter_equipment = preload("res://Equipment/Lighter.tres")
+	equipment_manager.add_equipment(lighter_equipment)
+	print("Course: Added Lighter equipment to starter loadout")
 	
 	# Player starts with level 1 backpack (handled by bag system)
 	print("Course: Player starts with level 1 backpack for their character")

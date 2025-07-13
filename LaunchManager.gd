@@ -100,12 +100,22 @@ func _process(delta: float):
 			# Don't charge height for clubs with fixed height
 			launch_height = fixed_height
 		else:
-			launch_height = min(launch_height + HEIGHT_CHARGE_RATE * delta, MAX_LAUNCH_HEIGHT)
+			# Get club-specific max height
+			var club_max_height = club_data.get(selected_club, {}).get("max_height", MAX_LAUNCH_HEIGHT)
+			launch_height = min(launch_height + HEIGHT_CHARGE_RATE * delta, club_max_height)
 		
 		if height_meter:
 			var meter_fill = height_meter.get_node_or_null("MeterFill")
 			var value_label = height_meter.get_node_or_null("HeightValue")
-			var height_percentage = launch_height / MAX_LAUNCH_HEIGHT  # Simplified calculation for 0.0 to MAX_LAUNCH_HEIGHT range
+			
+			# Get club-specific height range
+			var club_min_height = club_data.get(selected_club, {}).get("min_height", 0.0)
+			var club_max_height = club_data.get(selected_club, {}).get("max_height", MAX_LAUNCH_HEIGHT)
+			
+			# Calculate height percentage based on club's range
+			var height_percentage = 0.0
+			if club_max_height > club_min_height:
+				height_percentage = (launch_height - club_min_height) / (club_max_height - club_min_height)
 			height_percentage = clamp(height_percentage, 0.0, 1.0)
 			
 			if meter_fill:
@@ -122,7 +132,15 @@ func _process(delta: float):
 		if height_meter:
 			var meter_fill = height_meter.get_node_or_null("MeterFill")
 			var value_label = height_meter.get_node_or_null("HeightValue")
-			var height_percentage = launch_height / MAX_LAUNCH_HEIGHT
+			
+			# Get club-specific height range
+			var club_min_height = club_data.get(selected_club, {}).get("min_height", 0.0)
+			var club_max_height = club_data.get(selected_club, {}).get("max_height", MAX_LAUNCH_HEIGHT)
+			
+			# Calculate height percentage based on club's range
+			var height_percentage = 0.0
+			if club_max_height > club_min_height:
+				height_percentage = (launch_height - club_min_height) / (club_max_height - club_min_height)
 			height_percentage = clamp(height_percentage, 0.0, 1.0)
 			
 			if meter_fill:
@@ -168,7 +186,9 @@ func enter_launch_phase() -> void:
 		if not is_putting:
 			# Start with height selection phase
 			show_height_meter()
-			launch_height = 0.0  # Start at ground level for low shots
+			# Start at club's min height instead of 0
+			var club_min_height = club_data.get(selected_club, {}).get("min_height", 0.0)
+			launch_height = club_min_height
 			is_selecting_height = true
 		else:
 			# Putters start with power charging immediately
@@ -227,7 +247,9 @@ func enter_knife_mode() -> void:
 			"max_distance": max_distance,
 			"min_distance": 200.0,
 			"trailoff_forgiveness": 0.8,
-			"is_putter": false
+			"is_putter": false,
+			"min_height": 15.0,       # Medium min height for knives
+			"max_height": 200.0       # Medium max height for knives
 		}
 	}
 	
@@ -269,7 +291,9 @@ func enter_spear_mode() -> void:
 			"max_distance": max_distance,
 			"min_distance": 250.0,
 			"trailoff_forgiveness": 0.8,
-			"is_putter": false
+			"is_putter": false,
+			"min_height": 18.0,       # Medium-high min height for spears
+			"max_height": 280.0       # Medium-high max height for spears
 		}
 	}
 	
@@ -348,7 +372,9 @@ func enter_grenade_mode() -> void:
 				"max_distance": max_distance,
 				"min_distance": 200.0,
 				"trailoff_forgiveness": 0.8,
-				"is_putter": false
+				"is_putter": false,
+				"min_height": 20.0,       # High min height for grenades
+				"max_height": 300.0       # High max height for grenades
 			}
 		}
 	
@@ -816,6 +842,10 @@ func show_height_meter():
 	if height_meter:
 		height_meter.queue_free()
 	
+	# Get club-specific height range
+	var club_min_height = club_data.get(selected_club, {}).get("min_height", 0.0)
+	var club_max_height = club_data.get(selected_club, {}).get("max_height", MAX_LAUNCH_HEIGHT)
+	
 	height_meter = Control.new()
 	height_meter.name = "HeightMeter"
 	height_meter.size = Vector2(80, 350)
@@ -869,13 +899,30 @@ func show_height_meter():
 	height_meter.add_child(meter_fill)
 	
 	var value_label := Label.new()
-	value_label.text = "0"
+	value_label.text = str(int(club_min_height))
 	value_label.add_theme_font_size_override("font_size", 14)
 	value_label.add_theme_color_override("font_color", Color.WHITE)
 	value_label.position = Vector2(10, 340)
 	value_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	value_label.name = "HeightValue"
 	height_meter.add_child(value_label)
+	
+	# Add min and max labels
+	var min_label := Label.new()
+	min_label.text = str(int(club_min_height))
+	min_label.add_theme_font_size_override("font_size", 10)
+	min_label.add_theme_color_override("font_color", Color.LIGHT_GRAY)
+	min_label.position = Vector2(-15, 330)  # Position to the left of the meter
+	min_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	height_meter.add_child(min_label)
+	
+	var max_label := Label.new()
+	max_label.text = str(int(club_max_height))
+	max_label.add_theme_font_size_override("font_size", 10)
+	max_label.add_theme_color_override("font_color", Color.LIGHT_GRAY)
+	max_label.position = Vector2(-15, 30)  # Position to the left of the meter at top
+	max_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	height_meter.add_child(max_label)
 
 func hide_height_meter():
 	if height_meter:
@@ -968,7 +1015,13 @@ func handle_input(event: InputEvent) -> bool:
 			# Handle height selection with mouse up/down movement
 			var mouse_delta = event.relative
 			var height_change = -mouse_delta.y * HEIGHT_SELECTION_SENSITIVITY  # Negative because up = higher height
-			launch_height = clamp(launch_height + height_change, MIN_LAUNCH_HEIGHT, MAX_LAUNCH_HEIGHT)
+			
+			# Get club-specific height range
+			var club_min_height = club_data.get(selected_club, {}).get("min_height", 0.0)
+			var club_max_height = club_data.get(selected_club, {}).get("max_height", MAX_LAUNCH_HEIGHT)
+			
+			# Clamp height to club's specific range
+			launch_height = clamp(launch_height + height_change, club_min_height, club_max_height)
 			return true
 		elif is_charging or is_charging_height:
 			current_charge_mouse_pos = camera.get_global_mouse_position()
@@ -1075,7 +1128,8 @@ func calculate_final_power() -> float:
 			actual_power = time_percent * MAX_LAUNCH_POWER
 	
 	# Apply height resistance
-	var height_percentage = launch_height / MAX_LAUNCH_HEIGHT  # Simplified calculation for 0.0 to MAX_LAUNCH_HEIGHT range
+	var club_max_height = club_data.get(selected_club, {}).get("max_height", MAX_LAUNCH_HEIGHT)
+	var height_percentage = launch_height / club_max_height  # Use club-specific max height
 	height_percentage = clamp(height_percentage, 0.0, 1.0)
 	var height_resistance_multiplier = 1.0
 	if height_percentage > HEIGHT_SWEET_SPOT_MAX:

@@ -549,6 +549,13 @@ func has_drone() -> bool:
 			return true
 	return false
 
+func has_lighter() -> bool:
+	"""Check if the player has Lighter equipment equipped"""
+	for equipment in equipped_equipment:
+		if equipment.name == "Lighter":
+			return true
+	return false
+
 func is_drone_zoom_enabled() -> bool:
 	"""Check if drone zoom is currently enabled"""
 	return drone_zoom_enabled 
