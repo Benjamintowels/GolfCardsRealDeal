@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://lcyg7275w3f4"
-path="res://.godot/imported/FlashLight.png-9f8937a3d07e596379c4fd787a43653b.ctex"
+uid="uid://ckv24gkq3jhj4"
+path="res://.godot/imported/BrassKnuckles.png-5c77243f0802001381aa3935433b7171.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Equipment/FlashLight.png"
-dest_files=["res://.godot/imported/FlashLight.png-9f8937a3d07e596379c4fd787a43653b.ctex"]
+source_file="res://Equipment/BrassKnuckles.png"
+dest_files=["res://.godot/imported/BrassKnuckles.png-5c77243f0802001381aa3935433b7171.ctex"]
 
 [params]
 

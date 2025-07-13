@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="EquipmentData" load_steps=3 format=3 uid="uid://q6u0t2ngau5f"]
+
+[ext_resource type="Script" uid="uid://cf85ta7k8ivt1" path="res://Equipment/EquipmentData.gd" id="1_np4o2"]
+[ext_resource type="Texture2D" uid="uid://cfacek8nya8kr" path="res://Equipment/ComputerChip.png" id="1_qlulx"]
+
+[resource]
+script = ExtResource("1_np4o2")
+name = "ComputerChip"
+image = ExtResource("1_qlulx")
+description = "ball always reflects towards pin"
+buff_type = ""
+buff_value = 0
+price = 100
+default_tier = 1
+is_clothing = false
+clothing_slot = ""
+clothing_scene_path = ""
+display_image = ExtResource("1_qlulx")
+metadata/_custom_type_script = "uid://cf85ta7k8ivt1"

@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://lcyg7275w3f4"
-path="res://.godot/imported/FlashLight.png-9f8937a3d07e596379c4fd787a43653b.ctex"
+uid="uid://cail511sho2tk"
+path="res://.godot/imported/Axe.png-3c413a9892616f74cc1929e513e89b16.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Equipment/FlashLight.png"
-dest_files=["res://.godot/imported/FlashLight.png-9f8937a3d07e596379c4fd787a43653b.ctex"]
+source_file="res://Weapons/Axe.png"
+dest_files=["res://.godot/imported/Axe.png-3c413a9892616f74cc1929e513e89b16.ctex"]
 
 [params]
 
@@ -32,4 +32,3 @@ process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
 detect_3d/compress_to=1
-filter/filter=0

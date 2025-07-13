@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="EquipmentData" load_steps=3 format=3 uid="uid://cv0j5ga5y3uhn"]
+
+[ext_resource type="Script" uid="uid://cf85ta7k8ivt1" path="res://Equipment/EquipmentData.gd" id="1_e4v51"]
+[ext_resource type="Texture2D" uid="uid://4phsnxxtvcrb" path="res://Equipment/FireExtinguisher.png" id="1_u8jfn"]
+
+[resource]
+script = ExtResource("1_e4v51")
+name = "FireExtinguisher"
+image = ExtResource("1_u8jfn")
+description = "Immune to Fire, FireTiles end on contact"
+buff_type = ""
+buff_value = 0
+price = 100
+default_tier = 1
+is_clothing = false
+clothing_slot = ""
+clothing_scene_path = ""
+display_image = ExtResource("1_u8jfn")
+metadata/_custom_type_script = "uid://cf85ta7k8ivt1"

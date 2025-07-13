@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="EquipmentData" load_steps=3 format=3 uid="uid://c1d2e3f4g5h6i7j"]
+
+[ext_resource type="Texture2D" uid="uid://d2e3f4g5h6i7j8k" path="res://Equipment/Khukri.png" id="1_khukri"]
+[ext_resource type="Script" uid="uid://cf85ta7k8ivt1" path="res://Equipment/EquipmentData.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+name = "Khukri"
+image = ExtResource("1_khukri")
+description = "Curved blade for precise cutting"
+buff_type = ""
+buff_value = 0
+price = 100
+default_tier = 1
+is_clothing = false
+clothing_slot = ""
+clothing_scene_path = ""
+display_image = ExtResource("1_khukri")
+metadata/_custom_type_script = "uid://cf85ta7k8ivt1" 

@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="EquipmentData" load_steps=3 format=3 uid="uid://c1rkia3bi8yfd"]
+
+[ext_resource type="Script" uid="uid://cf85ta7k8ivt1" path="res://Equipment/EquipmentData.gd" id="1_21nw5"]
+[ext_resource type="Texture2D" uid="uid://obwow6ml2oo0" path="res://Equipment/Lighter.png" id="1_y3er8"]
+
+[resource]
+script = ExtResource("1_21nw5")
+name = "Lighter"
+image = ExtResource("1_y3er8")
+description = "Flames spread x2 as far"
+buff_type = ""
+buff_value = 0
+price = 100
+default_tier = 1
+is_clothing = false
+clothing_slot = ""
+clothing_scene_path = ""
+display_image = ExtResource("1_y3er8")
+metadata/_custom_type_script = "uid://cf85ta7k8ivt1"

@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="EquipmentData" load_steps=3 format=3 uid="uid://catn7be84gmwb"]
+
+[ext_resource type="Texture2D" uid="uid://ckv24gkq3jhj4" path="res://Equipment/BrassKnuckles.png" id="1_h0tso"]
+[ext_resource type="Script" uid="uid://cf85ta7k8ivt1" path="res://Equipment/EquipmentData.gd" id="1_vd07e"]
+
+[resource]
+script = ExtResource("1_vd07e")
+name = "BrassKnuckles"
+image = ExtResource("1_h0tso")
+description = "Doubles your Melee Attack Damage"
+buff_type = ""
+buff_value = 0
+price = 100
+default_tier = 1
+is_clothing = false
+clothing_slot = ""
+clothing_scene_path = ""
+display_image = ExtResource("1_h0tso")
+metadata/_custom_type_script = "uid://cf85ta7k8ivt1"

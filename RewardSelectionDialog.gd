@@ -77,7 +77,15 @@ var available_equipment: Array[EquipmentData] = [
 	preload("res://Equipment/SoundBowl.tres"),
 	preload("res://Equipment/Sword.tres"),
 	preload("res://Equipment/Watch.tres"),
-	preload("res://Equipment/SML.tres")
+	preload("res://Equipment/SML.tres"),
+	# Latest new equipment
+	preload("res://Equipment/Sledgehammer.tres"),
+	preload("res://Equipment/Lighter.tres"),
+	preload("res://Equipment/FireExtinguisher.tres"),
+	preload("res://Equipment/ComputerChip.tres"),
+	preload("res://Equipment/BrassKnuckles.tres"),
+	preload("res://Equipment/JesusSandles.tres"),
+	preload("res://Equipment/Khukri.tres")
 ]
 
 # Available bag upgrades for rewards (will be populated dynamically)

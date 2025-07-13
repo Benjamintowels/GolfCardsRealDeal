@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://lcyg7275w3f4"
-path="res://.godot/imported/FlashLight.png-9f8937a3d07e596379c4fd787a43653b.ctex"
+uid="uid://cfacek8nya8kr"
+path="res://.godot/imported/ComputerChip.png-c67b25acb8ad2908521a398d95283a4c.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Equipment/FlashLight.png"
-dest_files=["res://.godot/imported/FlashLight.png-9f8937a3d07e596379c4fd787a43653b.ctex"]
+source_file="res://Equipment/ComputerChip.png"
+dest_files=["res://.godot/imported/ComputerChip.png-c67b25acb8ad2908521a398d95283a4c.ctex"]
 
 [params]
 
