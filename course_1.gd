@@ -232,6 +232,7 @@ var ysort_objects := [] # Array of {node: Node2D, grid_pos: Vector2i}
 # Shop interaction variables
 var shop_dialog: Control = null
 var shop_overlay: Control = null
+var mid_game_shop_overlay: Control = null
 
 # Smart Performance Optimizer
 var smart_optimizer: Node
@@ -670,6 +671,10 @@ func adjust_background_positioning() -> void:
 	# Debug bag state after setup
 	if bag and bag.has_method("debug_bag_state"):
 		bag.debug_bag_state()
+	
+	# Connect to currency changes to update display
+	# Note: We'll update the display manually since Global doesn't have a signal system
+	# The display will be updated in update_deck_display() which is called regularly
 
 	if Global.saved_game_state == "shop_entrance":
 		restore_game_state()
@@ -2427,6 +2432,15 @@ func update_deck_display() -> void:
 	# Show current reward tier
 	hud.get_node("ShotLabel").text += " | Reward Tier: %d" % Global.get_current_reward_tier()
 	
+	# Show $Looty balance
+	var looty_label = hud.get_node_or_null("LootyLabel")
+	if not looty_label:
+		looty_label = Label.new()
+		looty_label.name = "LootyLabel"
+		hud.add_child(looty_label)
+	looty_label.text = "$Looty: %d" % Global.get_looty()
+	looty_label.add_theme_color_override("font_color", Color.GOLD)
+	
 	# Update card stack display with total counts (for backward compatibility)
 	var total_draw_cards = action_draw_remaining + club_draw_count
 	var total_discard_cards = action_discard_count + club_discard_count
@@ -2957,12 +2971,16 @@ func show_hole_completion_dialog():
 		hole_complete_sound.play()
 		print("Playing hole complete sound")
 	
+	# Give $Looty reward for completing the hole
+	var looty_reward = Global.give_hole_completion_reward()
+	
 	round_scores.append(hole_score)
 	var hole_par = GolfCourseLayout.get_hole_par(current_hole)
 	var score_vs_par = hole_score - hole_par
 	var score_text = "Hole %d Complete!\n\n" % (current_hole + 1)
 	score_text += "Hole Score: %d strokes\n" % hole_score
 	score_text += "Par: %d\n" % hole_par
+	score_text += "Reward: %d $Looty\n" % looty_reward
 	if score_vs_par == 0:
 		score_text += "Score: Par ✓\n"
 	elif score_vs_par == 1:
@@ -3067,6 +3085,9 @@ func _on_reward_selected(reward_data: Resource, reward_type: String):
 		var equip_data = reward_data as EquipmentData
 		# TODO: Apply equipment effect
 	
+	# Update HUD to reflect any changes (including $Looty balance)
+	update_deck_display()
+	
 	# Special handling for hole 9 - show front nine completion dialog
 	if current_hole == 8 and not is_back_9_mode:  # Hole 9 (index 8) in front 9 mode
 		show_front_nine_complete_dialog()
@@ -3076,6 +3097,9 @@ func _on_reward_selected(reward_data: Resource, reward_type: String):
 
 func _on_advance_to_next_hole():
 	"""Handle when the advance button is pressed"""
+	
+	# Update HUD to reflect any changes (including $Looty balance)
+	update_deck_display()
 	
 	# Special handling for hole 9 - show front nine completion dialog
 	if current_hole == 8 and not is_back_9_mode:  # Hole 9 (index 8) in front 9 mode
@@ -3199,7 +3223,7 @@ func show_front_nine_complete_dialog():
 	else:
 		score_text += "Final Result: %+d (Under Par) ✓\n" % round_vs_par
 	
-	score_text += "\nClick to continue to the Back 9!"
+	score_text += "\nClick to continue to the Mid-Game Shop!"
 	
 	var dialog = AcceptDialog.new()
 	dialog.title = "Front 9 Complete!"
@@ -3211,8 +3235,8 @@ func show_front_nine_complete_dialog():
 	dialog.popup_centered()
 	dialog.confirmed.connect(func():
 		dialog.queue_free()
-		# Transition to mid-game shop scene
-		FadeManager.fade_to_black(func(): get_tree().change_scene_to_file("res://MidGameShop.tscn"), 0.5)
+		# Show mid-game shop overlay instead of changing scenes
+		show_mid_game_shop_overlay()
 	)
 
 func show_back_nine_complete_dialog():
@@ -3673,6 +3697,23 @@ func _on_shop_overlay_return():
 	"""Handle returning from shop overlay"""
 	print("=== REMOVING SHOP OVERLAY ===")
 	
+	# Check if we're in mid-game shop mode
+	if is_mid_game_shop_mode():
+		# Return to MidGameShop overlay - just remove the shop interior
+		if shop_overlay and is_instance_valid(shop_overlay):
+			shop_overlay.queue_free()
+			shop_overlay = null
+		
+		# Reset the mid-game shop mode flag
+		Global.in_mid_game_shop_mode = false
+		
+		# Show the mid-game shop overlay again
+		show_mid_game_shop_overlay()
+		
+		print("=== RETURNED TO MID-GAME SHOP OVERLAY ===")
+		return
+	
+	# Normal shop return flow
 	# Unpause the game
 	get_tree().paused = false
 	
@@ -3695,11 +3736,135 @@ func _on_shop_overlay_return():
 	# Exit movement mode
 	exit_movement_mode()
 	
+	# Update HUD to reflect any changes (including $Looty balance from shop purchases)
+	update_deck_display()
+	
 	# Debug bag state after returning from shop
 	if bag and bag.has_method("debug_bag_state"):
 		bag.debug_bag_state()
 	
 	print("=== SHOP OVERLAY REMOVED ===")
+
+func is_mid_game_shop_mode() -> bool:
+	"""Check if we're currently in mid-game shop mode"""
+	# Check if we're in mid-game shop mode using the global flag
+	return Global.in_mid_game_shop_mode
+
+func show_mid_game_shop_overlay():
+	"""Show the mid-game shop as an overlay"""
+	print("=== SHOWING MID-GAME SHOP OVERLAY ===")
+	
+	# Create and show the mid-game shop overlay
+	var mid_game_shop_scene = preload("res://MidGameShop.tscn")
+	var mid_game_shop_instance = mid_game_shop_scene.instantiate()
+	$UILayer.add_child(mid_game_shop_instance)
+	mid_game_shop_instance.z_index = 1000
+	
+	# Store reference to the overlay
+	mid_game_shop_overlay = mid_game_shop_instance
+	
+	# Pause the game while shop is open
+	get_tree().paused = true
+	
+	print("=== MID-GAME SHOP OVERLAY SHOWN ===")
+
+func enter_shop():
+	"""Enter the shop from the mid-game shop overlay"""
+	print("=== ENTERING SHOP FROM MID-GAME SHOP ===")
+	
+	# Set a flag to indicate we're in mid-game shop mode
+	Global.in_mid_game_shop_mode = true
+	
+	# Clear the mid-game shop overlay reference since we're entering the actual shop
+	mid_game_shop_overlay = null
+	
+	# Show the shop overlay
+	show_shop_overlay()
+	
+	print("=== ENTERED SHOP FROM MID-GAME SHOP ===")
+
+func continue_to_hole_10():
+	"""Continue the game by loading hole 10"""
+	print("=== CONTINUING TO HOLE 10 ===")
+	
+	# Reset the mid-game shop mode flag
+	Global.in_mid_game_shop_mode = false
+	
+	# Remove the mid-game shop overlay if it exists
+	if mid_game_shop_overlay and is_instance_valid(mid_game_shop_overlay):
+		mid_game_shop_overlay.queue_free()
+		mid_game_shop_overlay = null
+	
+	# Also remove any shop overlay that might be active
+	if shop_overlay and is_instance_valid(shop_overlay):
+		shop_overlay.queue_free()
+		shop_overlay = null
+	
+	# Clear any shop dialog that might be present
+	if shop_dialog:
+		shop_dialog.queue_free()
+		shop_dialog = null
+	
+	# Clear any reward dialog that might be present
+	var existing_reward_dialog = $UILayer.get_node_or_null("RewardSelectionDialog")
+	if existing_reward_dialog:
+		existing_reward_dialog.queue_free()
+	
+	# Clear any suitcase that might be present
+	var existing_suitcase = $UILayer.get_node_or_null("SuitCase")
+	if existing_suitcase:
+		existing_suitcase.queue_free()
+	
+	# Unpause the game
+	get_tree().paused = false
+	
+	# Set back 9 mode and start at hole 10
+	is_back_9_mode = true
+	current_hole = back_9_start_hole  # Start at hole 10 (index 9)
+	
+	# Fade to black and load hole 10
+	FadeManager.fade_to_black(func(): load_hole_10(), 0.5)
+
+func load_hole_10():
+	"""Load hole 10 and continue the game"""
+	print("=== LOADING HOLE 10 ===")
+	
+	# Reset launch manager state for new hole
+	if launch_manager and launch_manager.has_method("set_ball_in_flight"):
+		launch_manager.set_ball_in_flight(false)
+	
+	# Clear any existing balls from the previous hole
+	remove_all_balls()
+	
+	# Load hole 10 layout
+	map_manager.load_map_data(GolfCourseLayout.get_hole_layout(current_hole))
+	build_map.build_map_from_layout_with_randomization(map_manager.level_layout, current_hole)
+	
+	# Sync shop grid position with build_map
+	shop_grid_pos = build_map.shop_grid_pos
+	
+	# Ensure Y-sort objects are properly registered for pin detection
+	update_all_ysort_z_indices()
+	
+	position_camera_on_pin()  # Add camera positioning for hole 10
+	hole_score = 0
+	game_phase = "tee_select"
+	_update_player_mouse_facing_state()
+	chosen_landing_spot = Vector2.ZERO
+	selected_club = ""
+	update_hole_and_score_display()
+	if hud:
+		hud.get_node("ShotLabel").text = "Shots: %d" % hole_score
+	is_placing_player = true
+	highlight_tee_tiles()
+	show_tee_selection_instruction()
+	
+	# After all NPCs are spawned/registered for the new hole
+	var entities = get_node_or_null("Entities")
+	if entities:
+		entities.re_register_all_npcs()
+	
+	print("=== HOLE 10 LOADED AND READY ===")
 
 func _on_shop_enter_no():
 	if shop_dialog:

@@ -397,6 +397,14 @@ func get_tiered_club_cards() -> Array[CardData]:
 	
 	return selected_cards
 
+func create_looty_reward() -> Resource:
+	"""Create a $Looty reward object"""
+	var looty_reward = Resource.new()
+	looty_reward.set_meta("is_looty_reward", true)
+	looty_reward.set_meta("looty_amount", randi_range(10, 30))  # 10-30 $Looty
+	looty_reward.set_meta("name", "$Looty")
+	return looty_reward
+
 func get_tiered_action_cards() -> Array[CardData]:
 	"""Get action cards filtered by current tier probabilities"""
 	var action_cards = get_action_cards()
@@ -578,7 +586,7 @@ func create_card_display(card_data: CardData, count: int) -> Control:
 	return container
 
 func generate_three_slot_rewards() -> Array:
-	"""Generate three specific rewards: club card, equipment, action card"""
+	"""Generate three specific rewards: club card, equipment, action card (or $Looty)"""
 	var rewards = []
 	
 	# Get tiered rewards for each type
@@ -611,19 +619,25 @@ func generate_three_slot_rewards() -> Array:
 			var all_cards = get_tiered_cards()
 			equipment = all_cards[randi() % all_cards.size()]
 	
-	# Slot 3: Action Card (right)
+	# Slot 3: Action Card or $Looty (right) - 30% chance for $Looty
 	var action_card
-	if tiered_action_cards.size() > 0:
-		action_card = tiered_action_cards[randi() % tiered_action_cards.size()]
+	var action_type = "card"
+	if randf() < 0.3:  # 30% chance for $Looty
+		# Create a $Looty reward object
+		action_card = create_looty_reward()
+		action_type = "looty"
 	else:
-		# Fallback to any card if no action cards available
-		var all_cards = get_tiered_cards()
-		action_card = all_cards[randi() % all_cards.size()]
+		# Normal action card
+		if tiered_action_cards.size() > 0:
+			action_card = tiered_action_cards[randi() % tiered_action_cards.size()]
+		else:
+			# Fallback to any card if no action cards available
+			var all_cards = get_tiered_cards()
+			action_card = all_cards[randi() % all_cards.size()]
 	
 	# Determine reward types
 	var club_type = "card"
 	var equipment_type = "equipment"
-	var action_type = "card"
 	
 	# Check if equipment is actually a bag upgrade
 	if equipment is BagData:
@@ -831,6 +845,44 @@ func setup_reward_button(button: Button, reward_data: Resource, reward_type: Str
 		level_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		container.add_child(level_label)
 	
+	elif reward_type == "looty":
+		button.text = ""  # Clear button text since we're using custom display
+		
+		# $Looty symbol (using a simple colored rectangle for now)
+		var looty_icon = ColorRect.new()
+		looty_icon.color = Color.GOLD
+		looty_icon.size = Vector2(60, 60)
+		looty_icon.position = Vector2(20, 10)
+		looty_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		container.add_child(looty_icon)
+		
+		# $Looty text
+		var looty_label = Label.new()
+		looty_label.text = "$Looty"
+		looty_label.add_theme_font_size_override("font_size", 16)
+		looty_label.add_theme_color_override("font_color", Color.GOLD)
+		looty_label.add_theme_constant_override("outline_size", 2)
+		looty_label.add_theme_color_override("font_outline_color", Color.BLACK)
+		looty_label.position = Vector2(25, 25)
+		looty_label.size = Vector2(50, 30)
+		looty_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		looty_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		container.add_child(looty_label)
+		
+		# Amount
+		var amount = reward_data.get_meta("looty_amount", 15)
+		var amount_label = Label.new()
+		amount_label.text = str(amount)
+		amount_label.add_theme_font_size_override("font_size", 14)
+		amount_label.add_theme_color_override("font_color", Color.WHITE)
+		amount_label.add_theme_constant_override("outline_size", 1)
+		amount_label.add_theme_color_override("font_outline_color", Color.BLACK)
+		amount_label.position = Vector2(5, 95)
+		amount_label.size = Vector2(90, 20)
+		amount_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		amount_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		container.add_child(amount_label)
+	
 	# Add hover effect
 	button.mouse_entered.connect(_on_reward_button_hover.bind(button, true))
 	button.mouse_exited.connect(_on_reward_button_hover.bind(button, false))
@@ -860,6 +912,17 @@ func handle_reward_selection(reward_data: Resource, reward_type: String):
 	var reward_sound = get_node_or_null("RewardSound")
 	if reward_sound:
 		reward_sound.play()
+	
+	# Handle $Looty rewards (no slot checking needed)
+	if reward_type == "looty":
+		# Clear all reward buttons
+		clear_reward_buttons()
+		
+		# Add $Looty directly
+		add_reward_to_inventory(reward_data, reward_type)
+		reward_selected.emit(reward_data, reward_type)
+		visible = false
+		return
 	
 	# Check if there are available slots in the bag
 	var slots_available = check_bag_slots(reward_data, reward_type)
@@ -909,6 +972,8 @@ func add_reward_to_inventory(reward_data: Resource, reward_type: String):
 		add_equipment_to_manager(reward_data)
 	elif reward_type == "bag_upgrade":
 		apply_bag_upgrade(reward_data)
+	elif reward_type == "looty":
+		add_looty_reward(reward_data)
 
 func add_card_to_current_deck(card_data: CardData):
 	"""Add a card to the CurrentDeckManager"""
@@ -927,6 +992,12 @@ func apply_bag_upgrade(bag_data: BagData):
 	var bag = get_tree().current_scene.get_node_or_null("UILayer/Bag")
 	if bag:
 		bag.set_bag_level(bag_data.level)
+
+func add_looty_reward(reward_data: Resource):
+	"""Add $Looty reward to player's balance"""
+	var looty_amount = reward_data.get_meta("looty_amount", 15)  # Default to 15 if not set
+	Global.add_looty(looty_amount)
+	print("Added", looty_amount, "$Looty from reward selection")
 
 func _exit_tree():
 	"""Clean up when the dialog is removed"""

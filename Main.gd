@@ -76,8 +76,9 @@ func _on_start_back_9_pressed():
 	print("Selected character: ", selected_character, " - Starting Back 9")
 	print("Global.selected_character set to: ", Global.selected_character)
 	
-	# Change scene to MidGameShop
-	call_deferred("_change_to_mid_game_shop")
+	# Set back 9 mode flag and start normal course
+	Global.starting_back_9 = true
+	call_deferred("_change_scene")
 
 func _change_scene():
 	# Start fade to black first
@@ -87,7 +88,3 @@ func _change_scene():
 	$DoorOpen.play()
 	await $DoorOpen.finished
 	$DoorClose.play()
-
-func _change_to_mid_game_shop():
-	# Use FadeManager for smooth transition to MidGameShop
-	FadeManager.fade_to_black(func(): get_tree().change_scene_to_file("res://MidGameShop.tscn"), 0.5)

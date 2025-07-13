@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://babdrj2431nme"]
+
+[ext_resource type="Script" uid="uid://dngomrktg20xo" path="res://Money/moneymanager.gd" id="1_obokt"]
+
+[node name="MoneyManager" type="Node"]
+script = ExtResource("1_obokt")

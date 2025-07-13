@@ -32,6 +32,9 @@ func _ready():
 	else:
 		print("ShopInterior: ERROR - Return button not found!")
 	
+	# Add currency display to shop
+	add_currency_display()
+	
 	# Connect Golfsmith button
 	var golfsmith_button = $Golfsmith
 	if golfsmith_button:
@@ -449,6 +452,24 @@ func create_shop_item_display(item, container_size: Vector2) -> Control:
 	desc_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	container.add_child(desc_label)
 	
+	# Item price
+	var price_label = Label.new()
+	var item_price = 0
+	if item is CardData:
+		item_price = item.price
+	elif item is EquipmentData:
+		item_price = item.price
+	price_label.text = str(item_price) + " $Looty"
+	price_label.add_theme_font_size_override("font_size", 14)
+	price_label.add_theme_color_override("font_color", Color.GOLD)
+	price_label.add_theme_constant_override("outline_size", 1)
+	price_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	price_label.position = Vector2(10, 240)
+	price_label.size = Vector2(180, 30)
+	price_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	price_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	container.add_child(price_label)
+	
 	# Connect the click event to the container itself
 	container.gui_input.connect(_on_shop_item_clicked.bind(item))
 	
@@ -515,17 +536,36 @@ func _on_shop_item_clicked(event: InputEvent, item):
 		# Determine item type
 		var item_type = "card" if item is CardData else "equipment"
 		
+		# Get item price
+		var item_price = 0
+		if item is CardData:
+			item_price = item.price
+		elif item is EquipmentData:
+			item_price = item.price
+		
+		print("ShopInterior: Item price:", item_price, "$Looty")
+		
+		# Check if player can afford the item
+		if not Global.can_afford(item_price):
+			print("ShopInterior: Player cannot afford", item.name, "- need", item_price, "have", Global.get_looty())
+			play_cant_afford_sound()
+			show_purchase_message("Not enough $Looty! Need " + str(item_price) + " $Looty")
+			return
+		
 		# Check if there are available slots
 		print("ShopInterior: Checking bag slots for", item.name, "type:", item_type)
 		var slots_available = check_bag_slots(item, item_type)
 		print("ShopInterior: Slots available:", slots_available)
 		
 		if slots_available:
-			# Add item directly since slots are available
-			print("ShopInterior: Adding item directly to inventory")
+			# Spend the $Looty and add item to inventory
+			print("ShopInterior: Spending", item_price, "$Looty and adding item to inventory")
+			Global.spend_looty(item_price)
 			add_item_to_inventory(item, item_type)
-			show_purchase_message("Purchased " + item.name + "!")
+			show_purchase_message("Purchased " + item.name + " for " + str(item_price) + " $Looty!")
 			play_cat_happy()
+			# Update currency display
+			update_currency_display()
 			# Remove item from shop only after successful purchase
 			current_shop_items.erase(item)
 			display_shop_items()
@@ -591,7 +631,18 @@ func _on_return_button_pressed():
 	# Clean up any replacement dialogs
 	cleanup_replacement_dialogs()
 	
-	emit_signal("shop_closed")
+	# Check if we're in mid-game shop mode (overlay from MidGameShop)
+	var course = get_tree().current_scene
+	if course and course.has_method("is_mid_game_shop_mode") and course.is_mid_game_shop_mode():
+		# Return to MidGameShop overlay
+		print("ShopInterior: Returning to MidGameShop overlay")
+		# The course will handle removing this shop overlay and showing the MidGameShop again
+		emit_signal("shop_closed")
+	else:
+		# Normal return to course
+		print("ShopInterior: Returning to course")
+		emit_signal("shop_closed")
+	
 	print("ShopInterior: shop_closed signal emitted")
 
 func cleanup_replacement_dialogs():
@@ -621,6 +672,37 @@ func play_cat_happy():
 	var cat_happy = get_node_or_null("CatHappy")
 	if cat_happy and cat_happy.stream:
 		cat_happy.play()
+
+func play_cant_afford_sound():
+	"""Play the CantAfford sound when player cannot afford an item"""
+	var cant_afford = get_node_or_null("CantAfford")
+	if cant_afford and cant_afford.stream:
+		cant_afford.play()
+		print("Playing CantAfford sound")
+	else:
+		print("CantAfford AudioStreamPlayer2D not found or no stream")
+
+func add_currency_display():
+	"""Add a currency display to the shop showing player's $Looty balance"""
+	var currency_label = Label.new()
+	currency_label.name = "CurrencyLabel"
+	currency_label.text = "$Looty: %d" % Global.get_looty()
+	currency_label.add_theme_font_size_override("font_size", 20)
+	currency_label.add_theme_color_override("font_color", Color.GOLD)
+	currency_label.add_theme_constant_override("outline_size", 2)
+	currency_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	currency_label.position = Vector2(20, 20)
+	currency_label.z_index = 1001  # Above other shop elements
+	add_child(currency_label)
+	
+	# Update the display when currency changes
+	update_currency_display()
+
+func update_currency_display():
+	"""Update the currency display with current balance"""
+	var currency_label = get_node_or_null("CurrencyLabel")
+	if currency_label:
+		currency_label.text = "$Looty: %d" % Global.get_looty()
 
 func _on_shop_input(event: InputEvent):
 	"""Debug input handler for the main shop container"""
@@ -788,9 +870,19 @@ func _on_replacement_completed(reward_data: Resource, reward_type: String):
 	"""Called when replacement is completed"""
 	print("ShopInterior: Replacement completed for", reward_data.name if reward_data else "null")
 	
+	# Get item price for purchase message
+	var item_price = 0
+	if reward_data is CardData:
+		item_price = reward_data.price
+	elif reward_data is EquipmentData:
+		item_price = reward_data.price
+	
 	# Show purchase message
-	show_purchase_message("Purchased " + (reward_data.name if reward_data else "item") + "!")
+	show_purchase_message("Purchased " + (reward_data.name if reward_data else "item") + " for " + str(item_price) + " $Looty!")
 	play_cat_happy()
+	
+	# Update currency display
+	update_currency_display()
 	
 	# Remove item from shop
 	if reward_data in current_shop_items:
@@ -813,9 +905,19 @@ func on_replacement_completed(reward_data: Resource, reward_type: String):
 	"""Called when replacement is completed from shop context"""
 	print("ShopInterior: on_replacement_completed called with", reward_data.name if reward_data else "null", "type:", reward_type)
 	
+	# Get item price for purchase message
+	var item_price = 0
+	if reward_data is CardData:
+		item_price = reward_data.price
+	elif reward_data is EquipmentData:
+		item_price = reward_data.price
+	
 	# Show purchase message
-	show_purchase_message("Purchased " + (reward_data.name if reward_data else "item") + "!")
+	show_purchase_message("Purchased " + (reward_data.name if reward_data else "item") + " for " + str(item_price) + " $Looty!")
 	play_cat_happy()
+	
+	# Update currency display
+	update_currency_display()
 	
 	# Remove item from shop
 	if reward_data in current_shop_items:

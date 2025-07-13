@@ -1,7 +1,8 @@
-[gd_scene load_steps=3 format=3 uid="uid://cyy0rquh4r2g5"]
+[gd_scene load_steps=4 format=3 uid="uid://cyy0rquh4r2g5"]
 
 [ext_resource type="Script" uid="uid://dtw7n33nnyewo" path="res://mid_game_shop.gd" id="1_0k8m2"]
 [ext_resource type="Texture2D" uid="uid://dwj1jsqkci76e" path="res://MidGameShop.png" id="2_midshop"]
+[ext_resource type="Texture2D" uid="uid://c1vpbijigd3m6" path="res://UI/WoodenDoor.png" id="3_oubb6"]
 
 [node name="MidGameShop" type="Control"]
 layout_mode = 3
@@ -34,6 +35,7 @@ expand_mode = 1
 stretch_mode = 6
 
 [node name="StartBack9Button" type="Button" parent="."]
+z_index = 10
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -47,3 +49,18 @@ offset_bottom = 305.0
 grow_horizontal = 2
 grow_vertical = 2
 text = "Start Back 9"
+
+[node name="ShopEntrance" type="TextureButton" parent="."]
+z_index = 10
+texture_filter = 1
+layout_mode = 0
+offset_left = 572.0
+offset_top = 354.0
+offset_right = 633.0
+offset_bottom = 455.0
+scale = Vector2(1.9681, 1.8481)
+texture_normal = ExtResource("3_oubb6")
+texture_pressed = ExtResource("3_oubb6")
+texture_hover = ExtResource("3_oubb6")
+texture_disabled = ExtResource("3_oubb6")
+texture_focused = ExtResource("3_oubb6")

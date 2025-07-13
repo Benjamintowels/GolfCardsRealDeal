@@ -8,6 +8,7 @@ class_name CardData
 @export var level: int = 1  # Card level (1 = base, 2 = upgraded)
 @export var max_level: int = 2  # Maximum upgrade level
 @export var upgrade_cost: int = 100  # Cost to upgrade the card
+@export var price: int = 100  # Price to purchase the card in shop
 @export var default_tier: int = 1  # Default tier for reward system (1-3)
 
 # Upgrade effects for different card types

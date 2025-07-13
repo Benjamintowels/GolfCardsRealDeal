@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://test_currency_system"]
+
+[ext_resource type="Script" path="res://test_currency_system.gd" id="1_test_script"]
+
+[node name="CurrencySystemTest" type="Node2D"]
+script = ExtResource("1_test_script") 

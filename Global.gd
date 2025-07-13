@@ -4,6 +4,7 @@ extends Node
 var selected_character = 1  # Default to character 1
 var putt_putt_mode = false  # Flag for putt putt mode (only putters)
 var starting_back_9 = false  # Flag for starting back 9 holes
+var in_mid_game_shop_mode = false  # Flag for mid-game shop mode
 var final_18_hole_score = 0  # Final score for 18-hole game
 var front_9_score = 0  # Score from front 9 holes
 
@@ -21,6 +22,9 @@ var CHARACTER_STATS = {
 
 # Equipment inventory and buffs
 var equipped_items: Array[EquipmentData] = []
+
+# Currency system
+var current_looty: int = 50  # Player's $Looty balance
 
 # Shop state saving variables
 var saved_player_grid_pos := Vector2i.ZERO
@@ -723,3 +727,38 @@ func clear_shop_state():
 	saved_tree_positions.clear()
 	saved_pin_position = Vector2i.ZERO
 	saved_shop_position = Vector2i.ZERO
+
+# Currency system functions
+func get_looty() -> int:
+	"""Get current $Looty balance"""
+	return current_looty
+
+func add_looty(amount: int) -> void:
+	"""Add $Looty to player's balance"""
+	current_looty += amount
+	print("Added %d $Looty. New balance: %d $Looty" % [amount, current_looty])
+
+func spend_looty(amount: int) -> bool:
+	"""Spend $Looty if player has enough. Returns true if successful."""
+	if current_looty >= amount:
+		current_looty -= amount
+		print("Spent %d $Looty. New balance: %d $Looty" % [amount, current_looty])
+		return true
+	else:
+		print("Not enough $Looty! Need %d, have %d" % [amount, current_looty])
+		return false
+
+func can_afford(amount: int) -> bool:
+	"""Check if player can afford the given amount"""
+	return current_looty >= amount
+
+func give_hole_completion_reward() -> int:
+	"""Give random $Looty reward for completing a hole (5-50)"""
+	var reward_amount = randi_range(5, 50)
+	add_looty(reward_amount)
+	return reward_amount
+
+func reset_looty_to_starting() -> void:
+	"""Reset $Looty to starting amount (for new games)"""
+	current_looty = 50
+	print("Reset $Looty to starting amount: %d" % current_looty)

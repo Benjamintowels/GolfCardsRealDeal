@@ -777,6 +777,17 @@ func _on_confirm_replacement(card_to_replace: CardData):
 	var reward_data = pending_reward
 	var reward_type = pending_reward_type
 	
+	# Spend the currency for the item being purchased
+	var item_price = 0
+	if reward_data is CardData:
+		item_price = reward_data.price
+	elif reward_data is EquipmentData:
+		item_price = reward_data.price
+	
+	# Spend the $Looty
+	Global.spend_looty(item_price)
+	print("Bag: Spent", item_price, "$Looty for replacement purchase")
+	
 	# Remove the old card
 	var current_deck_manager = get_tree().current_scene.get_node_or_null("CurrentDeckManager")
 	if current_deck_manager:
@@ -1305,6 +1316,17 @@ func _on_confirm_equipment_replacement(equipment_to_replace: EquipmentData):
 	# Store the reward data before closing inventory (which clears these variables)
 	var reward_data = pending_reward
 	var reward_type = pending_reward_type
+	
+	# Spend the currency for the item being purchased
+	var item_price = 0
+	if reward_data is CardData:
+		item_price = reward_data.price
+	elif reward_data is EquipmentData:
+		item_price = reward_data.price
+	
+	# Spend the $Looty
+	Global.spend_looty(item_price)
+	print("Bag: Spent", item_price, "$Looty for replacement purchase")
 	
 	# Remove the old equipment
 	var equipment_manager = get_tree().current_scene.get_node_or_null("EquipmentManager")

@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3 uid="uid://c8kuewso70dyx"]
+[gd_scene load_steps=10 format=3 uid="uid://c8kuewso70dyx"]
 
 [ext_resource type="Texture2D" uid="uid://6gtabr7liuob" path="res://Shop/ShopInterior.png" id="1_eeho4"]
 [ext_resource type="Script" uid="uid://qri6qfxmvixl" path="res://Shop/ShopInterior.gd" id="2_shop_script"]
@@ -7,6 +7,7 @@
 [ext_resource type="AudioStream" uid="uid://dtmkyo6yyyfqq" path="res://Sounds/CatHappy.mp3" id="4_ko7ju"]
 [ext_resource type="AudioStream" uid="uid://cu8k70hfx4w3g" path="res://Sounds/Golfsmith.mp3" id="5_dw7jg"]
 [ext_resource type="Texture2D" uid="uid://c38xossm3wigh" path="res://Shop/TofSign.png" id="5_ko7ju"]
+[ext_resource type="AudioStream" uid="uid://r7xw6t1gktju" path="res://Sounds/UhUh.mp3" id="6_dckqu"]
 [ext_resource type="Texture2D" uid="uid://lsnkplt6tvcd" path="res://Shop/GolfsmithShopSprite.png" id="7_77fnv"]
 
 [node name="ShopInterior" type="Control"]
@@ -51,6 +52,10 @@ stream = ExtResource("4_ko7ju")
 
 [node name="UpgradeSound" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("5_dw7jg")
+
+[node name="CantAfford" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("6_dckqu")
+volume_db = -2.93
 
 [node name="TextureRect2" type="TextureRect" parent="."]
 layout_mode = 0
