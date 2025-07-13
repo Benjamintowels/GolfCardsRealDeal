@@ -33,6 +33,10 @@ var current_health: int = 250
 var is_alive: bool = true
 var is_dead: bool = false
 
+# Health bar
+var health_bar: HealthBar
+var health_bar_container: Control
+
 # Freeze effect properties
 var is_frozen: bool = false
 var freeze_turns_remaining: int = 0
@@ -246,18 +250,23 @@ func _setup_base_collision():
 		print("✗ ERROR: Ice collision area not found!")
 
 func _create_health_bar():
-	"""Create a health bar for the Wraith"""
+	"""Create and setup the health bar"""
+	# Create container for health bar
+	health_bar_container = Control.new()
+	health_bar_container.name = "HealthBarContainer"
+	health_bar_container.custom_minimum_size = Vector2(60, 30)
+	health_bar_container.size = Vector2(60, 30)
+	health_bar_container.position = Vector2(-30, -144.96)
+	health_bar_container.scale = Vector2(0.35, 0.35)
+	add_child(health_bar_container)
+	
+	# Create health bar
 	var health_bar_scene = preload("res://HealthBar.tscn")
-	var health_bar = health_bar_scene.instantiate()
-	health_bar.name = "WraithHealthBar"
-	add_child(health_bar)
+	health_bar = health_bar_scene.instantiate()
+	health_bar_container.add_child(health_bar)
 	
-	# Position health bar above the Wraith
-	health_bar.position = Vector2(0, -100)
-	
-	# Setup health bar
-	if health_bar.has_method("setup"):
-		health_bar.setup(max_health, current_health)
+	# Set initial health
+	health_bar.set_health(current_health, max_health)
 
 func _find_player_reference():
 	"""Find the player reference after scene is loaded"""
@@ -759,10 +768,10 @@ func take_damage(damage: int, is_headshot: bool = false):
 		wraith_hurt_sound.play()
 		print("✓ Wraith hurt sound played")
 	
-	# Update health bar
-	var health_bar = get_node_or_null("WraithHealthBar")
-	if health_bar and health_bar.has_method("update_health"):
-		health_bar.update_health(current_health)
+	# Update health bar (but don't show negative values to player)
+	var display_health = max(0, current_health)
+	if health_bar:
+		health_bar.set_health(display_health, max_health)
 	
 	print("New health: ", current_health)
 	
@@ -824,9 +833,8 @@ func die():
 			world_turn_manager.remove_npc_from_turn_system(self)
 	
 	# Hide health bar
-	var health_bar = get_node_or_null("WraithHealthBar")
-	if health_bar:
-		health_bar.visible = false
+	if health_bar_container:
+		health_bar_container.visible = false
 	
 	# Remove from collision groups
 	remove_from_group("collision_objects")
@@ -1482,6 +1490,28 @@ func _play_death_sound() -> void:
 		death_audio.play()
 	else:
 		pass
+
+# Health-related utility methods
+func get_health_percentage() -> float:
+	"""Get current health as a percentage"""
+	return float(current_health) / float(max_health)
+
+func is_healthy() -> bool:
+	"""Check if the Wraith is at full health"""
+	return current_health >= max_health
+
+func heal(amount: int) -> void:
+	"""Heal the Wraith"""
+	if not is_alive:
+		return
+	
+	current_health = min(max_health, current_health + amount)
+	print("Wraith healed", amount, "HP. Current health:", current_health, "/", max_health)
+	
+	# Update health bar
+	var display_health = max(0, current_health)
+	if health_bar:
+		health_bar.set_health(display_health, max_health)
 
 # Height method for collision detection
 func get_height() -> float:
