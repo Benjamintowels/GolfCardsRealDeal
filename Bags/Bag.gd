@@ -471,6 +471,7 @@ func show_deck_dialog():
 			print("Bag: Button parent mouse_filter:", button.get_parent().mouse_filter if button.get_parent() else "N/A")
 
 func create_card_display(card_data: CardData, count: int, clickable: bool = false) -> Control:
+	print("Bag: create_card_display called for", card_data.name, "clickable:", clickable)
 	if clickable:
 		# Use TextureButton for clickable cards - this is specifically designed for clickable images
 		var button = TextureButton.new()
@@ -519,8 +520,28 @@ func create_card_display(card_data: CardData, count: int, clickable: bool = fals
 			level_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			level_label.z_index = 10
 			button.add_child(level_label)
-		# Don't scale the button - this makes the clickable area too small
-		# The texture will be automatically scaled to fit the button size
+		
+		# Add hover scaling animation
+		var original_scale = button.scale
+		var hover_scale = original_scale * 1.5  # Scale up by 50% on hover
+		
+		button.mouse_entered.connect(func():
+			print("Bag: Mouse entered button for", card_data.name)
+			# Animate scale up
+			var tween = button.create_tween()
+			tween.tween_property(button, "scale", hover_scale, 0.2)
+			# Bring to front when hovered
+			button.z_index = 200
+		)
+		button.mouse_exited.connect(func():
+			print("Bag: Mouse exited button for", card_data.name)
+			# Animate scale back down
+			var tween = button.create_tween()
+			tween.tween_property(button, "scale", original_scale, 0.2)
+			# Return to original z_index
+			button.z_index = 100
+		)
+		
 		# Add hover effect as a separate overlay
 		var hover_overlay = ColorRect.new()
 		hover_overlay.color = Color(1, 1, 0, 0.3)  # Yellow highlight
@@ -566,6 +587,14 @@ func create_card_display(card_data: CardData, count: int, clickable: bool = fals
 		return button
 	else:
 		print("Bag: Creating regular Control for", card_data.name)
+		# Create a container to hold both the card and the tween
+		var card_container = Control.new()
+		card_container.custom_minimum_size = Vector2(80, 100)
+		card_container.size = Vector2(80, 100)  # Set explicit size
+		card_container.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		card_container.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		card_container.mouse_filter = Control.MOUSE_FILTER_STOP  # Make container mouse filterable
+		
 		# Use CardVisual for consistent upgrade display
 		var card_scene = preload("res://CardVisual.tscn")
 		var card_instance = card_scene.instantiate()
@@ -575,6 +604,8 @@ func create_card_display(card_data: CardData, count: int, clickable: bool = fals
 		card_instance.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		# Scale to specified dimensions
 		card_instance.scale = Vector2(1.236, 1.113)
+		# Set mouse filter to ignore so events pass through to container
+		card_instance.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		
 		# Set the card data to show upgrade indicators
 		if card_instance.has_method("set_card_data") and card_data:
@@ -583,8 +614,32 @@ func create_card_display(card_data: CardData, count: int, clickable: bool = fals
 		else:
 			print("Bag: Failed to set card data for", card_data.name)
 		
+		# Add the card instance to the container
+		card_container.add_child(card_instance)
+		
+		# Add hover scaling animation for non-clickable cards
+		var original_scale = card_instance.scale
+		var hover_scale = original_scale * 1.5  # Scale up by 50% on hover
+		
+		card_container.mouse_entered.connect(func():
+			print("Bag: Mouse entered card container for", card_data.name)
+			# Animate scale up
+			var tween = card_container.create_tween()
+			tween.tween_property(card_instance, "scale", hover_scale, 0.2)
+			# Bring to front when hovered
+			card_container.z_index = 200
+		)
+		card_container.mouse_exited.connect(func():
+			print("Bag: Mouse exited card container for", card_data.name)
+			# Animate scale back down
+			var tween = card_container.create_tween()
+			tween.tween_property(card_instance, "scale", original_scale, 0.2)
+			# Return to original z_index
+			card_container.z_index = 1
+		)
+		
 		print("Bag: CardVisual created - size:", card_instance.size, "scale:", card_instance.scale, "visible:", card_instance.visible)
-		return card_instance
+		return card_container
 
 func _on_card_button_pressed(card_data: CardData):
 	print("Bag: Card button pressed for", card_data.name if card_data else "null")
@@ -1087,11 +1142,8 @@ func create_slot_container() -> Control:
 	container.custom_minimum_size = Vector2(80, 100)
 	container.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	container.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	# Allow mouse events in replacement mode, ignore otherwise
-	if is_replacement_mode:
-		container.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Don't block mouse events for buttons
-	else:
-		container.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Don't block mouse events
+	# Always allow mouse events to pass through to child cards for hover effects
+	container.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Don't block mouse events
 	return container
 
 func is_club_card(card_data: CardData) -> bool:
