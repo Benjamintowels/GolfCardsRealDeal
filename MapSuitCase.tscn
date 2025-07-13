@@ -1,0 +1,11 @@
+[gd_scene load_steps=3 format=3 uid="uid://h0tkqlcak6l0"]
+
+[ext_resource type="Script" uid="uid://d1qomkorru6aw" path="res://MapSuitCase.gd" id="1_script"]
+[ext_resource type="Texture2D" uid="uid://cc3wu044b7ngb" path="res://UI/SuitCaseClosed.png" id="2_q5inc"]
+
+[node name="MapSuitCase" type="Node2D"]
+script = ExtResource("1_script")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+scale = Vector2(0.065, 0.065)
+texture = ExtResource("2_q5inc")

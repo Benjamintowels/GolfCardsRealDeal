@@ -1,0 +1,18 @@
+[gd_scene load_steps=2 format=3 uid="uid://bqx8mta4q65le"]
+
+[ext_resource type="Script" path="res://test_suitcase_system.gd" id="1_script"]
+
+[node name="TestSuitCaseSystem" type="Node2D"]
+script = ExtResource("1_script")
+
+[node name="Label" type="Label" parent="."]
+offset_left = 10.0
+offset_top = 10.0
+offset_right = 400.0
+offset_bottom = 100.0
+text = "SuitCase System Test
+
+Press 1: Test placement logic
+Press 2: Test detection logic  
+Press 3: Test fairway positions
+Press ESC: Quit" 

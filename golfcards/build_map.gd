@@ -16,6 +16,7 @@ var placed_objects: Array = []
 var shop_grid_pos := Vector2i(2, 6)
 var current_hole: int = 0
 var card_effect_handler = null
+var suitcase_grid_pos := Vector2i.ZERO  # Track SuitCase position
 
 func setup(tile_scene_map_: Dictionary, object_scene_map_: Dictionary, object_to_tile_mapping_: Dictionary, cell_size_: int, obstacle_layer_: Node, obstacle_map_: Dictionary, ysort_objects_: Array) -> void:
 	tile_scene_map = tile_scene_map_
@@ -195,6 +196,32 @@ func is_valid_position_for_bonfire(pos: Vector2i, layout: Array) -> bool:
 
 	return true
 
+func should_place_suitcase() -> bool:
+	"""Check if SuitCase should be placed on the current hole (every 6 holes)"""
+	# Place SuitCase on holes 6, 12, 18, etc. (every 6th hole)
+	return (current_hole + 1) % 6 == 0
+
+func get_valid_fairway_positions(layout: Array) -> Array:
+	"""Get all valid fairway positions for SuitCase placement"""
+	var fairway_positions: Array = []
+	
+	for y in layout.size():
+		for x in layout[y].size():
+			var pos = Vector2i(x, y)
+			if layout[y][x] == "F":  # Fairway tile
+				# Check spacing from other placed objects
+				var valid = true
+				for placed_pos in placed_objects:
+					var distance = max(abs(pos.x - placed_pos.x), abs(pos.y - placed_pos.y))
+					if distance < 4:  # Minimum 4 tiles away from other objects
+						valid = false
+						break
+				
+				if valid:
+					fairway_positions.append(pos)
+	
+	return fairway_positions
+
 func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include_shop: bool = true, num_gang_members: int = -1, num_oil_drums: int = -1, num_police: int = -1, num_zombies: int = -1) -> Dictionary:
 	var positions = {
 		"trees": [],
@@ -208,7 +235,8 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 		"police": [],
 		"zombies": [],
 		"squirrels": [],
-		"bonfires": []
+		"bonfires": [],
+		"suitcase": Vector2i.ZERO
 	}
 	
 	# Use difficulty tier spawning if parameters are -1 (default)
@@ -521,6 +549,21 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 			oil_drums_placed += 1
 		
 		fairway_positions.remove_at(oil_index)
+	
+	# Place SuitCase on fairway tiles (every 6 holes)
+	if should_place_suitcase():
+		print("=== PLACING SUITCASE FOR HOLE", current_hole + 1, "===")
+		var suitcase_fairway_positions = get_valid_fairway_positions(layout)
+		
+		if suitcase_fairway_positions.size() > 0:
+			var suitcase_index = randi() % suitcase_fairway_positions.size()
+			positions.suitcase = suitcase_fairway_positions[suitcase_index]
+			placed_objects.append(positions.suitcase)
+			print("✓ SuitCase placed at grid position:", positions.suitcase)
+		else:
+			print("✗ No valid fairway position found for SuitCase placement.")
+	else:
+		print("=== NO SUITCASE FOR HOLE", current_hole + 1, "(not a multiple of 6) ===")
 	
 	# Place Stone Walls around map edges (only top and bottom, every other tile to prevent overlap)
 	var edge_positions: Array = []
@@ -1155,6 +1198,36 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		print("✓ Bonfire placed at grid position:", bonfire_pos, "world position:", world_pos)
 	print("=== END PLACING BONFIRES ===")
 	
+	# Place SuitCase
+	if object_positions.suitcase != Vector2i.ZERO:
+		var scene: PackedScene = object_scene_map["SUITCASE"]
+		if scene == null:
+			push_error("🚫 SuitCase scene is null")
+		else:
+			var suitcase: Node2D = scene.instantiate() as Node2D
+			if suitcase == null:
+				push_error("❌ SuitCase instantiation failed at (%d,%d)" % [object_positions.suitcase.x, object_positions.suitcase.y])
+			else:
+				var world_pos: Vector2 = Vector2(object_positions.suitcase.x, object_positions.suitcase.y) * cell_size
+				suitcase.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
+				if suitcase.has_meta("grid_position") or "grid_position" in suitcase:
+					suitcase.set("grid_position", object_positions.suitcase)
+				
+				# Add suitcase to groups for smart optimization
+				suitcase.add_to_group("interactables")
+				suitcase.add_to_group("collision_objects")
+				
+				ysort_objects.append({"node": suitcase, "grid_pos": object_positions.suitcase})
+				obstacle_layer.add_child(suitcase)
+				suitcase_grid_pos = object_positions.suitcase
+				
+				# Connect to SuitCase signal
+				if suitcase.has_signal("suitcase_reached"):
+					if get_parent() and get_parent().has_method("_on_suitcase_reached"):
+						suitcase.suitcase_reached.connect(Callable(get_parent(), "_on_suitcase_reached"))
+				
+				print("✓ SuitCase placed at grid position:", suitcase_grid_pos)
+	
 	update_all_ysort_z_indices() 
 
 # --- Signal handlers that forward to course_1.gd ---
@@ -1164,6 +1237,10 @@ func _on_pin_flag_hit(ball: Node2D):
 	# Forward the signal to course_1.gd
 	if get_parent() and get_parent().has_method("_on_pin_flag_hit"):
 		get_parent()._on_pin_flag_hit(ball)
+
+func get_suitcase_position() -> Vector2i:
+	"""Get the SuitCase position for the course"""
+	return suitcase_grid_pos
 
 func update_all_ysort_z_indices():
 	"""Update z_index for all objects using the simple global Y-sort system"""

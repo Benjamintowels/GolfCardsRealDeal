@@ -256,6 +256,8 @@ var mid_game_shop_overlay: Control = null
 var smart_optimizer: Node
 var shop_entrance_detected := false
 var shop_grid_pos := Vector2i(2, 4)  # Position of shop from map layout (moved left one tile, with blocked tiles around it)
+var suitcase_grid_pos := Vector2i.ZERO  # Track SuitCase position
+var suitcase_node: Node2D = null  # Reference to the SuitCase node
 
 var has_started := false
 
@@ -286,6 +288,7 @@ var object_scene_map := {
 	"ZOMBIE": preload("res://NPC/Zombies/ZombieGolfer.tscn"),
 	"SQUIRREL": preload("res://NPC/Animals/Squirrel.tscn"),
 	"BONFIRE": preload("res://Interactables/Bonfire.tscn"),
+	"SUITCASE": preload("res://MapSuitCase.tscn"),
 }
 
 var object_to_tile_mapping := {
@@ -743,6 +746,10 @@ func adjust_background_positioning() -> void:
 	# Sync shop grid position with build_map
 	shop_grid_pos = build_map.shop_grid_pos
 	
+	# Sync SuitCase grid position with build_map
+	suitcase_grid_pos = build_map.get_suitcase_position()
+	if suitcase_grid_pos != Vector2i.ZERO:
+		print("SuitCase placed at grid position:", suitcase_grid_pos)
 	
 	# Ensure Y-sort objects are properly registered for pin detection
 	update_all_ysort_z_indices()
@@ -3120,6 +3127,118 @@ func _on_reward_selected(reward_data: Resource, reward_type: String):
 		# Fade to next hole
 		FadeManager.fade_to_black(func(): reset_for_next_hole(), 0.5)
 
+func _on_suitcase_reached():
+	"""Handle when the player reaches a SuitCase"""
+	print("=== SUITCASE REACHED - SHOWING SUITCASE OVERLAY ===")
+	
+	# Clear the SuitCase position to prevent multiple triggers
+	suitcase_grid_pos = Vector2i.ZERO
+	
+	# Exit movement mode
+	exit_movement_mode()
+	
+	# Show the SuitCase overlay
+	show_suitcase_overlay()
+
+func show_suitcase_overlay():
+	"""Show the SuitCase overlay for reward selection"""
+	print("=== SHOWING SUITCASE OVERLAY ===")
+	
+	# Create and show the SuitCase overlay
+	var suitcase_scene = preload("res://UI/SuitCase.tscn")
+	var suitcase = suitcase_scene.instantiate()
+	suitcase.name = "MapSuitCaseOverlay"  # Give it a specific name for cleanup
+	$UILayer.add_child(suitcase)
+	
+	# Connect the suitcase opened signal
+	suitcase.suitcase_opened.connect(_on_map_suitcase_opened)
+
+func _on_map_suitcase_opened():
+	"""Handle when the map SuitCase is opened"""
+	print("=== MAP SUITCASE OPENED - SHOWING REWARDS ===")
+	
+	# Show the reward selection dialog
+	show_suitcase_reward_selection()
+
+func show_suitcase_reward_selection():
+	"""Show reward selection dialog for SuitCase"""
+	# Create and show the reward selection dialog
+	var reward_dialog_scene = preload("res://RewardSelectionDialog.tscn")
+	var reward_dialog = reward_dialog_scene.instantiate()
+	reward_dialog.name = "SuitCaseRewardDialog"  # Give it a specific name for cleanup
+	$UILayer.add_child(reward_dialog)
+	
+	# Connect the reward selected signal
+	reward_dialog.reward_selected.connect(_on_suitcase_reward_selected)
+	
+	# Show the reward selection without the advance button
+	reward_dialog.show_reward_selection()
+	
+	# Remove the advance button for SuitCase rewards
+	var advance_button = reward_dialog.get_node_or_null("RewardContainer/AdvanceButton")
+	if advance_button:
+		advance_button.queue_free()
+
+func _on_suitcase_reward_selected(reward_data: Resource, reward_type: String):
+	"""Handle when a SuitCase reward is selected"""
+	print("=== SUITCASE REWARD SELECTED ===")
+	
+	# Play reward sound
+	var reward_sound = AudioStreamPlayer.new()
+	reward_sound.stream = preload("res://Sounds/Reward.mp3")
+	reward_sound.volume_db = -8.0  # Lower volume by -8 dB
+	add_child(reward_sound)
+	reward_sound.play()
+	
+	# Handle the reward directly without calling _on_reward_selected (which includes hole transition)
+	if reward_type == "card":
+		add_card_to_current_deck(reward_data)
+	elif reward_type == "equipment":
+		add_equipment_to_manager(reward_data)
+	elif reward_type == "bag_upgrade":
+		apply_bag_upgrade(reward_data)
+	elif reward_type == "looty":
+		add_looty_reward(reward_data)
+	
+	# Update HUD to reflect any changes (including $Looty balance)
+	update_deck_display()
+	
+	# Clear the reward dialog and SuitCase overlay
+	var existing_reward_dialog = $UILayer.get_node_or_null("SuitCaseRewardDialog")
+	if existing_reward_dialog:
+		existing_reward_dialog.queue_free()
+	
+	var existing_map_suitcase_overlay = $UILayer.get_node_or_null("MapSuitCaseOverlay")
+	if existing_map_suitcase_overlay:
+		existing_map_suitcase_overlay.queue_free()
+	
+	# Resume gameplay (don't transition to next hole)
+	print("SuitCase reward selection complete - resuming gameplay")
+
+func add_card_to_current_deck(card_data: CardData):
+	"""Add a card to the CurrentDeckManager"""
+	var current_deck_manager = get_node_or_null("CurrentDeckManager")
+	if current_deck_manager:
+		current_deck_manager.add_card_to_deck(card_data)
+
+func add_equipment_to_manager(equipment_data: EquipmentData):
+	"""Add equipment to the EquipmentManager"""
+	var equipment_manager = get_node_or_null("EquipmentManager")
+	if equipment_manager:
+		equipment_manager.add_equipment(equipment_data)
+
+func apply_bag_upgrade(bag_data: BagData):
+	"""Apply a bag upgrade to the current bag"""
+	var bag = get_node_or_null("UILayer/Bag")
+	if bag:
+		bag.set_bag_level(bag_data.level)
+
+func add_looty_reward(reward_data: Resource):
+	"""Add $Looty reward to player's balance"""
+	var looty_amount = reward_data.get_meta("looty_amount", 15)  # Default to 15 if not set
+	Global.add_looty(looty_amount)
+	print("Added", looty_amount, "$Looty from SuitCase reward selection")
+
 func _on_advance_to_next_hole():
 	"""Handle when the advance button is pressed"""
 	
@@ -3141,9 +3260,17 @@ func reset_for_next_hole():
 	if existing_suitcase:
 		existing_suitcase.queue_free()
 	
+	var existing_map_suitcase_overlay = $UILayer.get_node_or_null("MapSuitCaseOverlay")
+	if existing_map_suitcase_overlay:
+		existing_map_suitcase_overlay.queue_free()
+	
 	var existing_reward_dialog = $UILayer.get_node_or_null("RewardSelectionDialog")
 	if existing_reward_dialog:
 		existing_reward_dialog.queue_free()
+	
+	var existing_suitcase_reward_dialog = $UILayer.get_node_or_null("SuitCaseRewardDialog")
+	if existing_suitcase_reward_dialog:
+		existing_suitcase_reward_dialog.queue_free()
 	
 	# Reset launch manager state for new hole
 	if launch_manager and launch_manager.has_method("set_ball_in_flight"):
@@ -3174,6 +3301,11 @@ func reset_for_next_hole():
 	
 	# Sync shop grid position with build_map
 	shop_grid_pos = build_map.shop_grid_pos
+	
+	# Sync SuitCase grid position with build_map
+	suitcase_grid_pos = build_map.get_suitcase_position()
+	if suitcase_grid_pos != Vector2i.ZERO:
+		print("SuitCase placed at grid position:", suitcase_grid_pos)
 	
 	# Ensure Y-sort objects are properly registered for pin detection
 	update_all_ysort_z_indices()
@@ -3598,6 +3730,14 @@ func _on_player_moved_to_tile(new_grid_pos: Vector2i) -> void:
 	# Check for fire damage when player moves to new tile
 	check_player_fire_damage()
 	
+	# Check for SuitCase interaction
+	if suitcase_grid_pos != Vector2i.ZERO and player_grid_pos == suitcase_grid_pos:
+		print("=== SUITCASE REACHED ===")
+		print("Player grid position:", player_grid_pos)
+		print("SuitCase grid position:", suitcase_grid_pos)
+		_on_suitcase_reached()
+		return  # Don't exit movement mode yet
+	
 	if player_grid_pos == shop_grid_pos and not shop_entrance_detected:
 		print("=== SHOP ENTRANCE DETECTED ===")
 		print("Player grid position:", player_grid_pos)
@@ -3840,6 +3980,14 @@ func continue_to_hole_10():
 	if existing_suitcase:
 		existing_suitcase.queue_free()
 	
+	var existing_map_suitcase_overlay = $UILayer.get_node_or_null("MapSuitCaseOverlay")
+	if existing_map_suitcase_overlay:
+		existing_map_suitcase_overlay.queue_free()
+	
+	var existing_suitcase_reward_dialog = $UILayer.get_node_or_null("SuitCaseRewardDialog")
+	if existing_suitcase_reward_dialog:
+		existing_suitcase_reward_dialog.queue_free()
+	
 	# Unpause the game
 	get_tree().paused = false
 	
@@ -3867,6 +4015,11 @@ func load_hole_10():
 	
 	# Sync shop grid position with build_map
 	shop_grid_pos = build_map.shop_grid_pos
+	
+	# Sync SuitCase grid position with build_map
+	suitcase_grid_pos = build_map.get_suitcase_position()
+	if suitcase_grid_pos != Vector2i.ZERO:
+		print("SuitCase placed at grid position:", suitcase_grid_pos)
 	
 	# Ensure Y-sort objects are properly registered for pin detection
 	update_all_ysort_z_indices()
@@ -4215,6 +4368,11 @@ func build_map_from_layout_with_saved_positions(layout: Array) -> void:
 	
 	# Sync shop grid position with build_map
 	shop_grid_pos = build_map.shop_grid_pos
+	
+	# Sync SuitCase grid position with build_map (for saved positions)
+	suitcase_grid_pos = build_map.get_suitcase_position()
+	if suitcase_grid_pos != Vector2i.ZERO:
+		print("SuitCase placed at grid position (saved positions):", suitcase_grid_pos)
 	
 	# Place pin at saved position
 	if Global.saved_pin_position != Vector2i.ZERO:
