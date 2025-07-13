@@ -267,6 +267,7 @@ var object_scene_map := {
 	"GRASS": preload("res://Obstacles/GrassVariations/SummerGrass.tscn"),
 	"ZOMBIE": preload("res://NPC/Zombies/ZombieGolfer.tscn"),
 	"SQUIRREL": preload("res://NPC/Animals/Squirrel.tscn"),
+	"BONFIRE": preload("res://Interactables/Bonfire.tscn"),
 }
 
 var object_to_tile_mapping := {
@@ -282,6 +283,7 @@ var object_to_tile_mapping := {
 	"GRASS": "Base",
 	"ZOMBIE": "S",
 	"SQUIRREL": "Base",
+	"BONFIRE": "Base",
 }
 
 # Add these variables after the existing object_scene_map and object_to_tile_mapping

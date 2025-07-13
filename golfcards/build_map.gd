@@ -117,8 +117,10 @@ func clear_existing_objects() -> void:
 			var is_police = obstacle.name == "Police" or (obstacle.get_script() and "police.gd" in str(obstacle.get_script().get_path()))
 			# Check for zombies by name or script
 			var is_zombie = obstacle.name == "ZombieGolfer" or (obstacle.get_script() and "ZombieGolfer.gd" in str(obstacle.get_script().get_path()))
+			# Check for bonfires by name or script
+			var is_bonfire = obstacle.name == "Bonfire" or (obstacle.get_script() and "bonfire.gd" in str(obstacle.get_script().get_path()))
 			
-			if is_tree or is_shop or is_pin or is_oil_drum or is_stone_wall or is_boulder or is_police or is_zombie:
+			if is_tree or is_shop or is_pin or is_oil_drum or is_stone_wall or is_boulder or is_police or is_zombie or is_bonfire:
 				keys_to_remove.append(pos)
 	for pos in keys_to_remove:
 		obstacle_map.erase(pos)
@@ -161,6 +163,38 @@ func is_valid_position_for_squirrel(pos: Vector2i, layout: Array) -> bool:
 			return false
 	return true
 
+func is_valid_position_for_bonfire(pos: Vector2i, layout: Array) -> bool:
+	if pos.y < 0 or pos.y >= layout.size() or pos.x < 0 or pos.x >= layout[0].size():
+		return false
+	var tile_type = layout[pos.y][pos.x]
+	if tile_type != "Base":
+		return false
+
+	# Require at least one rough tile within 2 tiles
+	var found_rough = false
+	for dy in range(-2, 3):
+		for dx in range(-2, 3):
+			if dx == 0 and dy == 0:
+				continue
+			var check_x = pos.x + dx
+			var check_y = pos.y + dy
+			if check_x >= 0 and check_y >= 0 and check_y < layout.size() and check_x < layout[check_y].size():
+				if layout[check_y][check_x] == "R":
+					found_rough = true
+					break
+		if found_rough:
+			break
+	if not found_rough:
+		return false
+
+	# Require at least 1 tile away from other placed objects (allow adjacent)
+	for placed_pos in placed_objects:
+		var distance = max(abs(pos.x - placed_pos.x), abs(pos.y - placed_pos.y))
+		if distance < 1:
+			return false
+
+	return true
+
 func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include_shop: bool = true, num_gang_members: int = -1, num_oil_drums: int = -1, num_police: int = -1, num_zombies: int = -1) -> Dictionary:
 	var positions = {
 		"trees": [],
@@ -173,7 +207,8 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 		"grass": [],
 		"police": [],
 		"zombies": [],
-		"squirrels": []
+		"squirrels": [],
+		"bonfires": []
 	}
 	
 	# Use difficulty tier spawning if parameters are -1 (default)
@@ -505,6 +540,47 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 		placed_objects.append(wall_pos)
 	
 	print("✓ Placed", positions.stone_walls.size(), "stone walls around map edges")
+	
+	# Place Bonfires every other hole (hole 2, 4, 6, 8, etc.)
+	if (current_hole + 1) % 2 == 0:  # Even holes (2, 4, 6, 8, etc.)
+		print("=== PLACING BONFIRE FOR HOLE", current_hole + 1, "===")
+		
+		# Find valid bonfire positions (base tiles 2+ away from rough)
+		var bonfire_candidate_positions: Array = []
+		for y in layout.size():
+			for x in layout[y].size():
+				var pos = Vector2i(x, y)
+				if is_valid_position_for_bonfire(pos, layout):
+					bonfire_candidate_positions.append(pos)
+		
+		print("Found", bonfire_candidate_positions.size(), "valid bonfire positions")
+		print("Valid bonfire positions:", bonfire_candidate_positions)
+		
+		# Place 1 bonfire per eligible hole
+		if bonfire_candidate_positions.size() > 0:
+			var bonfire_index = randi() % bonfire_candidate_positions.size()
+			var bonfire_pos = bonfire_candidate_positions[bonfire_index]
+			print("Selected bonfire position index:", bonfire_index, "position:", bonfire_pos)
+			
+			# Check spacing from other placed objects (allow adjacent placement)
+			var valid = true
+			for placed_pos in placed_objects:
+				var distance = max(abs(bonfire_pos.x - placed_pos.x), abs(bonfire_pos.y - placed_pos.y))
+				if distance < 1:  # Allow adjacent placement (minimum 1 tile away)
+					valid = false
+					print("  Rejected bonfire position:", bonfire_pos, "too close to:", placed_pos, "distance:", distance)
+					break
+			
+			if valid:
+				positions.bonfires.append(bonfire_pos)
+				placed_objects.append(bonfire_pos)
+				print("✓ Bonfire placed at position:", bonfire_pos)
+			else:
+				print("✗ No valid bonfire position found with proper spacing")
+		else:
+			print("✗ No valid bonfire positions found")
+	else:
+		print("=== NO BONFIRE FOR HOLE", current_hole + 1, "(odd hole) ===")
 	
 	return positions
 
@@ -1049,6 +1125,35 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		print("✓ Squirrel name:", squirrel.name)
 		print("✓ Squirrel grid_position property:", squirrel.get_meta("grid_position") if squirrel.get_meta("grid_position") != null else "null")
 	print("=== END PLACING SQUIRRELS ===")
+	
+	# Place Bonfires
+	print("=== PLACING BONFIRES ===")
+	print("Bonfire positions:", object_positions.bonfires)
+	for bonfire_pos in object_positions.bonfires:
+		var scene: PackedScene = object_scene_map["BONFIRE"]
+		if scene == null:
+			push_error("🚫 Bonfire scene is null")
+			continue
+		print("✓ Bonfire scene loaded successfully")
+		var bonfire: Node2D = scene.instantiate() as Node2D
+		if bonfire == null:
+			push_error("❌ Bonfire instantiation failed at (%d,%d)" % [bonfire_pos.x, bonfire_pos.y])
+			continue
+		print("✓ Bonfire instantiated successfully")
+		var world_pos: Vector2 = Vector2(bonfire_pos.x, bonfire_pos.y) * cell_size
+		bonfire.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
+		
+		# Always set the grid_position property unconditionally
+		bonfire.set_meta("grid_position", bonfire_pos)
+		
+		# Add bonfire to groups for smart optimization
+		bonfire.add_to_group("interactables")
+		bonfire.add_to_group("collision_objects")
+		
+		ysort_objects.append({"node": bonfire, "grid_pos": bonfire_pos})
+		obstacle_layer.add_child(bonfire)
+		print("✓ Bonfire placed at grid position:", bonfire_pos, "world position:", world_pos)
+	print("=== END PLACING BONFIRES ===")
 	
 	update_all_ysort_z_indices() 
 

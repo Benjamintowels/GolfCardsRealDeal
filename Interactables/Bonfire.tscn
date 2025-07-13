@@ -1,0 +1,38 @@
+[gd_scene load_steps=5 format=3 uid="uid://dciqeesmkcon4"]
+
+[ext_resource type="Texture2D" uid="uid://bnk5whhwvo15t" path="res://Interactables/BonfireBase.png" id="1_7gas3"]
+[ext_resource type="Script" uid="uid://dinirimtyeo1l" path="res://Interactables/bonfire.gd" id="1_o2idl"]
+[ext_resource type="AudioStream" uid="uid://icvi7c2ur6mm" path="res://Sounds/FlameOn.mp3" id="3_5i0pr"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_o2idl"]
+radius = 17.0
+
+[node name="Bonfire" type="Node2D"]
+script = ExtResource("1_o2idl")
+
+[node name="BonfireBaseSprite" type="Sprite2D" parent="."]
+texture_filter = 1
+texture = ExtResource("1_7gas3")
+
+[node name="BonfireFlame" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(0, -28.125)
+texture = ExtResource("1_7gas3")
+
+[node name="EmberOrigin" type="Marker2D" parent="."]
+position = Vector2(0, -41)
+
+[node name="TopHeight" type="Marker2D" parent="."]
+position = Vector2(0, -10)
+
+[node name="YsortPoint" type="Marker2D" parent="."]
+position = Vector2(0, -5)
+
+[node name="BonfireArea2D" type="Area2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="BonfireArea2D"]
+scale = Vector2(1.73, 1)
+shape = SubResource("CircleShape2D_o2idl")
+
+[node name="BonfireOn" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("3_5i0pr")

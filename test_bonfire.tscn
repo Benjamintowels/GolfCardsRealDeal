@@ -1,0 +1,15 @@
+[gd_scene load_steps=4 format=3 uid="uid://test_bonfire"]
+
+[ext_resource type="PackedScene" uid="uid://dciqeesmkcon4" path="res://Interactables/Bonfire.tscn" id="1_bonfire"]
+[ext_resource type="Script" path="res://test_bonfire.gd" id="2_test"]
+[ext_resource type="Script" path="res://test_golf_ball.gd" id="3_ball"]
+
+[node name="TestBonfire" type="Node2D"]
+script = ExtResource("2_test")
+
+[node name="Bonfire" parent="." instance=ExtResource("1_bonfire")]
+position = Vector2(400, 300)
+
+[node name="TestBall" type="CharacterBody2D" parent="."]
+position = Vector2(100, 300)
+script = ExtResource("3_ball") 

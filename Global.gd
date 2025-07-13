@@ -227,6 +227,8 @@ func update_all_objects_y_sort(ysort_objects: Array):
 			object_type = "objects"
 		elif node.name == "Shop":
 			object_type = "objects"
+		elif node.name == "Bonfire" or (node.get_script() and "bonfire.gd" in str(node.get_script().get_path())):
+			object_type = "objects"
 		elif "Player" in node.name or "GangMember" in node.name or "Police" in node.name:
 			object_type = "characters"
 		elif node.is_in_group("grass_elements") or (node.get_script() and "summer_grass.gd" in str(node.get_script().get_path())):
@@ -348,6 +350,8 @@ func _get_object_type_from_node(object_node: Node2D) -> String:
 		return "pin"
 	elif "shop" in node_name or "Shop" in script_path or "Shop" in object_node.get_class():
 		return "shop"
+	elif "bonfire" in node_name or "bonfire.gd" in script_path or "Bonfire" in object_node.get_class():
+		return "bonfire"
 	elif "ball" in node_name or "GolfBall" in script_path or "GolfBall" in object_node.get_class():
 		return "golf_ball"
 	elif "knife" in node_name or "ThrowingKnife" in script_path or "ThrowingKnife" in object_node.get_class():
@@ -380,6 +384,8 @@ func _get_standard_height_for_type(object_type: String) -> float:
 			return 150.0
 		"shop":
 			return 120.0
+		"bonfire":
+			return 50.0
 		"golf_ball":
 			return 10.0
 		"throwing_knife":
