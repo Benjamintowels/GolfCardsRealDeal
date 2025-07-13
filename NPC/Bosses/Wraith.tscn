@@ -1,0 +1,35 @@
+[gd_scene load_steps=4 format=3 uid="uid://bma58o1jtuesi"]
+
+[ext_resource type="Texture2D" uid="uid://ct36oo327rhnp" path="res://NPC/Bosses/WraithLeftRight.png" id="1_6vppk"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_6vppk"]
+radius = 32.2581
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_6vppk"]
+radius = 28.0
+height = 88.0
+
+[node name="Wraith" type="Node2D"]
+
+[node name="WraithSprite" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(0, -66)
+texture = ExtResource("1_6vppk")
+
+[node name="YSortPoint" type="Marker2D" parent="."]
+position = Vector2(0, -7)
+
+[node name="WraithBaseArea2D" type="Area2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="WraithBaseArea2D"]
+position = Vector2(4.76837e-07, -17)
+scale = Vector2(1.55, 1.088)
+shape = SubResource("CircleShape2D_6vppk")
+
+[node name="HitBox" type="Area2D" parent="."]
+position = Vector2(9, -7)
+scale = Vector2(1.03998, 1.405)
+
+[node name="HitBoxShape" type="CollisionShape2D" parent="HitBox"]
+position = Vector2(-1, -36)
+shape = SubResource("CapsuleShape2D_6vppk")

@@ -17,6 +17,13 @@ signal turn_completed
 @onready var body_area: Area2D = $BodyArea2D
 @onready var vision_area: Area2D = $VisionArea2D
 
+# Footstep sound system
+@onready var footsteps_grass_sound: AudioStreamPlayer2D = $FootstepsGrass
+@onready var footsteps_snow_sound: AudioStreamPlayer2D = $FootstepsSnow
+var footstep_sound_enabled: bool = true
+var last_footstep_time: float = 0.0
+var footstep_interval: float = 0.3  # Time between footstep sounds during movement
+
 var grid_position: Vector2i
 var cell_size: int = 48
 var entities_manager: Node
@@ -152,6 +159,9 @@ func _ready():
 	
 	# Set initial state based on whether there's a ball detected (after vision is set up)
 	call_deferred("_set_initial_state")
+	
+	# Setup footstep sound system
+	_setup_footstep_sounds()
 
 func _set_initial_state() -> void:
 	"""Set the initial state after vision system is set up"""
@@ -678,6 +688,9 @@ func _move_to_position(target_pos: Vector2i) -> void:
 	
 	print("Squirrel moving from ", grid_position, " to ", target_pos, " with direction: ", direction)
 	print("Started movement animation to position: ", world_pos)
+	
+	# Play footstep sound right before movement starts
+	_play_footstep_sound_before_movement()
 	
 	# Start movement animation
 	is_moving = true
@@ -1768,3 +1781,95 @@ func _final_retry_find_player_reference() -> void:
 		print("✗ CRITICAL: Course reference not found after all retries!")
 	
 	print("=== END FINAL PLAYER REFERENCE RETRY ===") 
+
+# Footstep sound system functions
+func _setup_footstep_sounds() -> void:
+	"""Setup the footstep sound system"""
+	print("✓ Setting up Squirrel footstep sound system")
+	
+	# Find the footstep sound nodes
+	footsteps_grass_sound = get_node_or_null("FootstepsGrass")
+	footsteps_snow_sound = get_node_or_null("FootstepsSnow")
+	
+	if footsteps_grass_sound:
+		print("✓ Squirrel grass footstep sound found")
+	else:
+		print("✗ Squirrel grass footstep sound not found")
+	
+	if footsteps_snow_sound:
+		print("✓ Squirrel snow footstep sound found")
+	else:
+		print("✗ Squirrel snow footstep sound not found")
+
+func _play_footstep_sound_before_movement() -> void:
+	"""Play footstep sound right before movement starts"""
+	if not footstep_sound_enabled:
+		return
+	
+	# Check if enough time has passed since last footstep
+	var current_time = Time.get_ticks_msec() / 1000.0
+	if current_time - last_footstep_time < footstep_interval:
+		return
+	
+	# Play appropriate footstep sound based on terrain
+	if course and course.has_method("get_terrain_type"):
+		var terrain_type = course.get_terrain_type(grid_position)
+		if terrain_type == "snow" or terrain_type == "ice":
+			_play_snow_footstep()
+		else:
+			_play_grass_footstep()
+	else:
+		# Default to grass footstep if terrain detection is not available
+		_play_grass_footstep()
+	
+	# Update the last footstep time to prevent rapid successive sounds
+	last_footstep_time = current_time
+
+func _play_footstep_sounds_during_movement(progress: float) -> void:
+	"""Play footstep sounds during movement animation"""
+	if not footstep_sound_enabled:
+		return
+	
+	var current_time = Time.get_ticks_msec() / 1000.0
+	if current_time - last_footstep_time < footstep_interval:
+		return
+	
+	# Play appropriate footstep sound based on terrain
+	if course and course.has_method("get_terrain_type"):
+		var terrain_type = course.get_terrain_type(grid_position)
+		if terrain_type == "snow" or terrain_type == "ice":
+			_play_snow_footstep()
+		else:
+			_play_grass_footstep()
+	else:
+		# Default to grass footstep if terrain detection is not available
+		_play_grass_footstep()
+	
+	last_footstep_time = current_time
+
+func _play_grass_footstep() -> void:
+	"""Play grass footstep sound"""
+	if footsteps_grass_sound and footsteps_grass_sound.stream:
+		footsteps_grass_sound.play()
+		print("✓ Squirrel played grass footstep sound")
+
+func _play_snow_footstep() -> void:
+	"""Play snow footstep sound (for ice and sand)"""
+	if footsteps_snow_sound and footsteps_snow_sound.stream:
+		footsteps_snow_sound.play()
+		print("✓ Squirrel played snow footstep sound")
+
+func enable_footstep_sounds() -> void:
+	"""Enable footstep sound effects"""
+	footstep_sound_enabled = true
+	print("✓ Squirrel footstep sounds enabled")
+
+func disable_footstep_sounds() -> void:
+	"""Disable footstep sound effects"""
+	footstep_sound_enabled = false
+	print("✓ Squirrel footstep sounds disabled")
+
+func set_footstep_interval(interval: float) -> void:
+	"""Set the interval between footstep sounds during movement"""
+	footstep_interval = max(0.1, interval)  # Minimum 0.1 seconds
+	print("✓ Squirrel footstep interval set to:", footstep_interval, "seconds") 

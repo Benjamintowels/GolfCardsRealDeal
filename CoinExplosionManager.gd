@@ -69,8 +69,8 @@ func _spawn_coin_particle(spawn_position: Vector2) -> void:
 	
 	# Add random offset to spread coins around the spawn point
 	var random_offset = Vector2(
-		randf_range(-explosion_radius * 0.5, explosion_radius * 0.5),
-		randf_range(-explosion_radius * 0.5, explosion_radius * 0.5)
+		randf_range(-explosion_radius * 0.3, explosion_radius * 0.3),
+		randf_range(-explosion_radius * 0.3, explosion_radius * 0.3)
 	)
 	coin_particle.position += random_offset
 	

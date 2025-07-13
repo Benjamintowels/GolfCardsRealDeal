@@ -11,6 +11,13 @@ signal turn_completed
 @onready var sprite: Sprite2D = $Sprite2D
 @onready var animation_player: AnimationPlayer = $AnimationPlayer
 
+# Footstep sound system
+@onready var footsteps_grass_sound: AudioStreamPlayer2D = $FootstepsGrass
+@onready var footsteps_snow_sound: AudioStreamPlayer2D = $FootstepsSnow
+var footstep_sound_enabled: bool = true
+var last_footstep_time: float = 0.0
+var footstep_interval: float = 0.3  # Time between footstep sounds during movement
+
 var grid_position: Vector2i
 var cell_size: int = 48
 var entities_manager: Node
@@ -150,6 +157,9 @@ func _ready():
 	
 	# Initialize freeze effect system
 	_setup_freeze_system()
+	
+	# Setup footstep sound system
+	_setup_footstep_sounds()
 
 func _setup_ice_references() -> void:
 	"""Setup references to ice sprite and collision areas"""
@@ -280,13 +290,14 @@ func _handle_area_collision(projectile: Node2D):
 	
 	# Apply the collision logic:
 	# If projectile height > GangMember height: allow entry and set ground level
-	# If projectile height < GangMember height: reflect
+	# If projectile height < GangMember height: deal damage and reflect
 	if projectile_height > gang_member_height:
 		print("✓ Projectile is above GangMember - allowing entry and setting ground level")
 		_allow_projectile_entry(projectile, gang_member_height)
 	else:
-		print("✗ Projectile is below GangMember height - reflecting")
-		_reflect_projectile(projectile)
+		print("✗ Projectile is below GangMember height - dealing damage and reflecting")
+		# Deal damage first, then reflect
+		_handle_ball_collision(projectile)
 
 func _handle_knife_area_collision(knife: Node2D, knife_height: float, gang_member_height: float):
 	"""Handle knife collision with GangMember area"""
@@ -1014,6 +1025,9 @@ func _move_to_position(target_pos: Vector2i) -> void:
 
 func _animate_movement_to_position(target_world_pos: Vector2) -> void:
 	"""Animate the GangMember's movement to the target position using a tween"""
+	# Play footstep sound right before movement starts
+	_play_footstep_sound_before_movement()
+	
 	# Set moving state
 	is_moving = true
 	
@@ -2328,3 +2342,99 @@ func get_movement_direction() -> Vector2:
 func get_last_movement_direction() -> Vector2i:
 	"""Get the last movement direction as Vector2i"""
 	return last_movement_direction
+
+func _calculate_distance(pos1: Vector2i, pos2: Vector2i) -> int:
+	"""Calculate Manhattan distance between two positions"""
+	return abs(pos1.x - pos2.x) + abs(pos1.y - pos2.y) 
+
+# Footstep sound system functions
+func _setup_footstep_sounds() -> void:
+	"""Setup the footstep sound system"""
+	print("✓ Setting up GangMember footstep sound system")
+	
+	# Find the footstep sound nodes
+	footsteps_grass_sound = get_node_or_null("FootstepsGrass")
+	footsteps_snow_sound = get_node_or_null("FootstepsSnow")
+	
+	if footsteps_grass_sound:
+		print("✓ GangMember grass footstep sound found")
+	else:
+		print("✗ GangMember grass footstep sound not found")
+	
+	if footsteps_snow_sound:
+		print("✓ GangMember snow footstep sound found")
+	else:
+		print("✗ GangMember snow footstep sound not found")
+
+func _play_footstep_sound_before_movement() -> void:
+	"""Play footstep sound right before movement starts"""
+	if not footstep_sound_enabled:
+		return
+	
+	# Check if enough time has passed since last footstep
+	var current_time = Time.get_ticks_msec() / 1000.0
+	if current_time - last_footstep_time < footstep_interval:
+		return
+	
+	# Play appropriate footstep sound based on terrain
+	if course and course.has_method("get_terrain_type"):
+		var terrain_type = course.get_terrain_type(grid_position)
+		if terrain_type == "snow" or terrain_type == "ice":
+			_play_snow_footstep()
+		else:
+			_play_grass_footstep()
+	else:
+		# Default to grass footstep if terrain detection is not available
+		_play_grass_footstep()
+	
+	# Update the last footstep time to prevent rapid successive sounds
+	last_footstep_time = current_time
+
+func _play_footstep_sounds_during_movement(progress: float) -> void:
+	"""Play footstep sounds during movement animation"""
+	if not footstep_sound_enabled:
+		return
+	
+	var current_time = Time.get_ticks_msec() / 1000.0
+	if current_time - last_footstep_time < footstep_interval:
+		return
+	
+	# Play appropriate footstep sound based on terrain
+	if course and course.has_method("get_terrain_type"):
+		var terrain_type = course.get_terrain_type(grid_position)
+		if terrain_type == "snow" or terrain_type == "ice":
+			_play_snow_footstep()
+		else:
+			_play_grass_footstep()
+	else:
+		# Default to grass footstep if terrain detection is not available
+		_play_grass_footstep()
+	
+	last_footstep_time = current_time
+
+func _play_grass_footstep() -> void:
+	"""Play grass footstep sound"""
+	if footsteps_grass_sound and footsteps_grass_sound.stream:
+		footsteps_grass_sound.play()
+		print("✓ GangMember played grass footstep sound")
+
+func _play_snow_footstep() -> void:
+	"""Play snow footstep sound (for ice and sand)"""
+	if footsteps_snow_sound and footsteps_snow_sound.stream:
+		footsteps_snow_sound.play()
+		print("✓ GangMember played snow footstep sound")
+
+func enable_footstep_sounds() -> void:
+	"""Enable footstep sound effects"""
+	footstep_sound_enabled = true
+	print("✓ GangMember footstep sounds enabled")
+
+func disable_footstep_sounds() -> void:
+	"""Disable footstep sound effects"""
+	footstep_sound_enabled = false
+	print("✓ GangMember footstep sounds disabled")
+
+func set_footstep_interval(interval: float) -> void:
+	"""Set the interval between footstep sounds during movement"""
+	footstep_interval = max(0.1, interval)  # Minimum 0.1 seconds
+	print("✓ GangMember footstep interval set to:", footstep_interval, "seconds")

@@ -259,13 +259,14 @@ func _handle_area_collision(projectile: Node2D):
 	
 	# Apply the collision logic:
 	# If projectile height > Police height: allow entry and set ground level
-	# If projectile height < Police height: reflect
+	# If projectile height < Police height: deal damage and reflect
 	if projectile_height > police_height:
 		print("✓ Projectile is above Police - allowing entry and setting ground level")
 		_allow_projectile_entry(projectile, police_height)
 	else:
-		print("✗ Projectile is below Police height - reflecting")
-		_reflect_projectile(projectile)
+		print("✗ Projectile is below Police height - dealing damage and reflecting")
+		# Deal damage first, then reflect
+		_handle_ball_collision(projectile)
 
 func _allow_projectile_entry(projectile: Node2D, police_height: float):
 	"""Allow projectile to enter Police area and set ground level"""
@@ -324,10 +325,63 @@ func _handle_ball_collision(ball: Node2D) -> void:
 		return
 	
 	# Fallback to original collision logic if Entities system is not available
-	# This method is required for the player's jump roof bounce system
-	# The actual collision logic is handled in _handle_area_collision
-	# This method just ensures the Police can be detected by the jump system
-	_handle_area_collision(ball)
+	# Handle regular ball collision with damage
+	_handle_regular_ball_collision(ball)
+
+func _handle_regular_ball_collision(ball: Node2D) -> void:
+	"""Handle regular ball collision with Police"""
+	print("Handling regular ball collision with Police")
+	
+	# Play collision sound effect
+	_play_collision_sound()
+	
+	# Calculate velocity-based damage
+	var ball_velocity = Vector2.ZERO
+	if ball.has_method("get_velocity"):
+		ball_velocity = ball.get_velocity()
+	elif "velocity" in ball:
+		ball_velocity = ball.velocity
+	
+	var damage = _calculate_velocity_damage(ball_velocity.length())
+	print("Ball velocity:", ball_velocity.length(), "Calculated damage:", damage)
+	
+	# Apply damage to Police
+	take_damage(damage, false)
+	
+	# Reflect the ball
+	var reflected_velocity = -ball_velocity * 0.8  # Reverse and reduce speed
+	if ball.has_method("set_velocity"):
+		ball.set_velocity(reflected_velocity)
+	elif "velocity" in ball:
+		ball.velocity = reflected_velocity
+
+func _calculate_velocity_damage(velocity_magnitude: float) -> int:
+	"""Calculate damage based on ball velocity magnitude (same as Entities system)"""
+	# Define velocity ranges for damage scaling
+	const MIN_VELOCITY = 25.0  # Minimum velocity for 1 damage
+	const MAX_VELOCITY = 1200.0  # Maximum velocity for 88 damage
+	
+	# Clamp velocity to our defined range
+	var clamped_velocity = clamp(velocity_magnitude, MIN_VELOCITY, MAX_VELOCITY)
+	
+	# Calculate damage percentage (0.0 to 1.0)
+	var damage_percentage = (clamped_velocity - MIN_VELOCITY) / (MAX_VELOCITY - MIN_VELOCITY)
+	
+	# Scale damage from 1 to 88
+	var damage = 1 + (damage_percentage * 87)
+	
+	# Return as integer
+	var final_damage = int(damage)
+	
+	print("=== VELOCITY DAMAGE CALCULATION ===")
+	print("Raw velocity magnitude:", velocity_magnitude)
+	print("Clamped velocity:", clamped_velocity)
+	print("Damage percentage:", damage_percentage)
+	print("Calculated damage:", damage)
+	print("Final damage (int):", final_damage)
+	print("=== END VELOCITY DAMAGE CALCULATION ===")
+	
+	return final_damage
 
 func _find_player_reference() -> void:
 	"""Find the player reference in the scene"""

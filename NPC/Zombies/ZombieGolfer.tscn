@@ -1,9 +1,12 @@
-[gd_scene load_steps=8 format=3 uid="uid://ut2ifntbow6y"]
+[gd_scene load_steps=11 format=3 uid="uid://ut2ifntbow6y"]
 
 [ext_resource type="Script" uid="uid://6eanyonmjidx" path="res://NPC/Zombies/ZombieGolfer.gd" id="1_script"]
 [ext_resource type="Texture2D" uid="uid://dfma71v35t2db" path="res://NPC/Zombies/ZombieGolfer1.png" id="2_naiuu"]
-[ext_resource type="AudioStream" uid="uid://clorehgdvljmk" path="res://Sounds/DeathGroan.mp3" id="3_xstlo"]
 [ext_resource type="Texture2D" uid="uid://cctmn1vycgaxl" path="res://NPC/Zombies/ZombieGolfer1Dead.png" id="4_16hfg"]
+[ext_resource type="AudioStream" uid="uid://c8py1ofbn6frb" path="res://Sounds/ZombieHurt.mp3" id="4_jn01c"]
+[ext_resource type="AudioStream" uid="uid://bpqfifqqhwedj" path="res://Sounds/ZombieBite.mp3" id="5_mad2c"]
+[ext_resource type="AudioStream" uid="uid://c32w6bjkh8ww2" path="res://Sounds/FootstepsGrass.mp3" id="6_a204i"]
+[ext_resource type="AudioStream" uid="uid://dl2ynh3s1er12" path="res://Sounds/FootstepsSnow.mp3" id="7_tgw40"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_naiuu"]
 radius = 1.30545
@@ -51,8 +54,11 @@ shape = SubResource("CircleShape2D_jn01c")
 position = Vector2(0, -14)
 
 [node name="DeathGroan" type="AudioStreamPlayer2D" parent="."]
-stream = ExtResource("3_xstlo")
+stream = ExtResource("4_jn01c")
 volume_db = 2.93
+
+[node name="ZombieAttack" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("5_mad2c")
 
 [node name="HitBox" type="Area2D" parent="."]
 visible = false
@@ -63,3 +69,9 @@ shape = SubResource("CapsuleShape2D_16hfg")
 
 [node name="TopHeight" type="Marker2D" parent="."]
 position = Vector2(0, -94)
+
+[node name="FootstepsGrass" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("6_a204i")
+
+[node name="FootstepsSnow" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("7_tgw40")

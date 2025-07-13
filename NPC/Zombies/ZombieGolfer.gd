@@ -10,6 +10,14 @@ signal turn_completed
 
 @onready var sprite: Sprite2D = $ZombieGolferSprite
 @onready var animation_player: AnimationPlayer = $AnimationPlayer
+@onready var zombie_attack_sound: AudioStreamPlayer2D = $ZombieAttack
+
+# Footstep sound system
+@onready var footsteps_grass_sound: AudioStreamPlayer2D = $FootstepsGrass
+@onready var footsteps_snow_sound: AudioStreamPlayer2D = $FootstepsSnow
+var footstep_sound_enabled: bool = true
+var last_footstep_time: float = 0.0
+var footstep_interval: float = 0.3  # Time between footstep sounds during movement
 
 var grid_position: Vector2i
 var cell_size: int = 48
@@ -107,6 +115,9 @@ func _ready():
 	
 	# Defer player finding until after scene is fully loaded
 	call_deferred("_find_player_reference")
+	
+	# Setup footstep sound system
+	_setup_footstep_sounds()
 
 func _find_course_script() -> Node:
 	"""Find the course_1.gd script by searching up the scene tree"""
@@ -397,6 +408,11 @@ func _play_collision_sound() -> void:
 	var death_groan = get_node_or_null("DeathGroan")
 	if death_groan and death_groan.stream:
 		death_groan.play()
+
+func _play_zombie_attack_sound() -> void:
+	"""Play zombie attack sound effect"""
+	if zombie_attack_sound and zombie_attack_sound.stream:
+		zombie_attack_sound.play()
 
 func _trigger_coin_explosion() -> void:
 	"""Trigger a coin explosion when the ZombieGolfer dies"""
@@ -812,11 +828,17 @@ func _move_to_position(target_pos: Vector2i) -> void:
 
 func _animate_movement_to_position(target_world_pos: Vector2) -> void:
 	"""Animate the ZombieGolfer's movement to the target position using a tween"""
+	# Play footstep sound right before movement starts
+	_play_footstep_sound_before_movement()
+	
 	# Set moving state
 	is_moving = true
 	
 	# Store the starting position for movement direction calculation
 	movement_start_position = global_position
+	
+	# Play zombie attack sound when starting movement
+	_play_zombie_attack_sound()
 	
 	# Stop any existing movement tween
 	if movement_tween and movement_tween.is_valid():
@@ -895,8 +917,8 @@ func _attack_player() -> void:
 		else:
 			print("Player doesn't have take_damage method")
 	
-	# Play attack sound if available
-	_play_collision_sound()
+	# Play zombie attack sound when attacking
+	_play_zombie_attack_sound()
 	
 	# Complete turn immediately after attack
 	_complete_turn()
@@ -1160,3 +1182,95 @@ func _is_valid_position(pos: Vector2i) -> bool:
 func _calculate_distance(pos1: Vector2i, pos2: Vector2i) -> int:
 	"""Calculate Manhattan distance between two positions"""
 	return abs(pos1.x - pos2.x) + abs(pos1.y - pos2.y) 
+
+# Footstep sound system functions
+func _setup_footstep_sounds() -> void:
+	"""Setup the footstep sound system"""
+	print("✓ Setting up ZombieGolfer footstep sound system")
+	
+	# Find the footstep sound nodes
+	footsteps_grass_sound = get_node_or_null("FootstepsGrass")
+	footsteps_snow_sound = get_node_or_null("FootstepsSnow")
+	
+	if footsteps_grass_sound:
+		print("✓ ZombieGolfer grass footstep sound found")
+	else:
+		print("✗ ZombieGolfer grass footstep sound not found")
+	
+	if footsteps_snow_sound:
+		print("✓ ZombieGolfer snow footstep sound found")
+	else:
+		print("✗ ZombieGolfer snow footstep sound not found")
+
+func _play_footstep_sound_before_movement() -> void:
+	"""Play footstep sound right before movement starts"""
+	if not footstep_sound_enabled:
+		return
+	
+	# Check if enough time has passed since last footstep
+	var current_time = Time.get_ticks_msec() / 1000.0
+	if current_time - last_footstep_time < footstep_interval:
+		return
+	
+	# Play appropriate footstep sound based on terrain
+	if course and course.has_method("get_terrain_type"):
+		var terrain_type = course.get_terrain_type(grid_position)
+		if terrain_type == "snow" or terrain_type == "ice":
+			_play_snow_footstep()
+		else:
+			_play_grass_footstep()
+	else:
+		# Default to grass footstep if terrain detection is not available
+		_play_grass_footstep()
+	
+	# Update the last footstep time to prevent rapid successive sounds
+	last_footstep_time = current_time
+
+func _play_footstep_sounds_during_movement(progress: float) -> void:
+	"""Play footstep sounds during movement animation"""
+	if not footstep_sound_enabled:
+		return
+	
+	var current_time = Time.get_ticks_msec() / 1000.0
+	if current_time - last_footstep_time < footstep_interval:
+		return
+	
+	# Play appropriate footstep sound based on terrain
+	if course and course.has_method("get_terrain_type"):
+		var terrain_type = course.get_terrain_type(grid_position)
+		if terrain_type == "snow" or terrain_type == "ice":
+			_play_snow_footstep()
+		else:
+			_play_grass_footstep()
+	else:
+		# Default to grass footstep if terrain detection is not available
+		_play_grass_footstep()
+	
+	last_footstep_time = current_time
+
+func _play_grass_footstep() -> void:
+	"""Play grass footstep sound"""
+	if footsteps_grass_sound and footsteps_grass_sound.stream:
+		footsteps_grass_sound.play()
+		print("✓ ZombieGolfer played grass footstep sound")
+
+func _play_snow_footstep() -> void:
+	"""Play snow footstep sound (for ice and sand)"""
+	if footsteps_snow_sound and footsteps_snow_sound.stream:
+		footsteps_snow_sound.play()
+		print("✓ ZombieGolfer played snow footstep sound")
+
+func enable_footstep_sounds() -> void:
+	"""Enable footstep sound effects"""
+	footstep_sound_enabled = true
+	print("✓ ZombieGolfer footstep sounds enabled")
+
+func disable_footstep_sounds() -> void:
+	"""Disable footstep sound effects"""
+	footstep_sound_enabled = false
+	print("✓ ZombieGolfer footstep sounds disabled")
+
+func set_footstep_interval(interval: float) -> void:
+	"""Set the interval between footstep sounds during movement"""
+	footstep_interval = max(0.1, interval)  # Minimum 0.1 seconds
+	print("✓ ZombieGolfer footstep interval set to:", footstep_interval, "seconds") 

@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3 uid="uid://db2aw6jhhn5ty"]
+[gd_scene load_steps=11 format=3 uid="uid://db2aw6jhhn5ty"]
 
 [ext_resource type="Script" uid="uid://dqbuoj7esuc2j" path="res://NPC/Animals/Squirrel.gd" id="1_script"]
 [ext_resource type="Texture2D" uid="uid://cj120eti86itj" path="res://NPC/Animals/SquirrelLeftRight.png" id="2_qji2q"]
@@ -6,6 +6,8 @@
 [ext_resource type="Texture2D" uid="uid://dadxu6vd4ov5p" path="res://NPC/Animals/SquirrelDown.png" id="4_ija0g"]
 [ext_resource type="AudioStream" uid="uid://ctapgmya4obws" path="res://Sounds/squirrel.mp3" id="5_ija0g"]
 [ext_resource type="AudioStream" uid="uid://doybi22w4jqpn" path="res://Sounds/squirrelhurt.mp3" id="6_f70dk"]
+[ext_resource type="AudioStream" uid="uid://c32w6bjkh8ww2" path="res://Sounds/FootstepsGrass.mp3" id="7_mnu8m"]
+[ext_resource type="AudioStream" uid="uid://dl2ynh3s1er12" path="res://Sounds/FootstepsSnow.mp3" id="8_ki3tp"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_qji2q"]
 radius = 13.8907
@@ -60,3 +62,9 @@ collision_layer = 0
 [node name="CollisionShape2D" type="CollisionShape2D" parent="VisionArea2D"]
 position = Vector2(0, -10)
 shape = SubResource("CircleShape2D_f70dk")
+
+[node name="FootstepsGrass" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("7_mnu8m")
+
+[node name="FootstepsSnow" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("8_ki3tp")
