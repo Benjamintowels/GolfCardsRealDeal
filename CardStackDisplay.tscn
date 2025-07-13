@@ -8,17 +8,19 @@
 
 [node name="CardStackDisplay" type="Control"]
 layout_mode = 3
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
+anchors_preset = 0
+offset_left = 74.0
+offset_top = 193.0
+offset_right = 110.0
+offset_bottom = 225.0
 script = ExtResource("1_2cvs3")
 
 [node name="StackRoot" type="Control" parent="."]
 anchors_preset = 0
-offset_right = 40.0
-offset_bottom = 40.0
+offset_left = -69.0
+offset_top = -186.0
+offset_right = -29.0
+offset_bottom = -146.0
 
 [node name="DrawStack" type="Control" parent="StackRoot"]
 anchors_preset = 0

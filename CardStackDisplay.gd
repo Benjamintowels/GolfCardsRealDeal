@@ -9,6 +9,30 @@ extends Control
 @onready var card_scene := preload("res://CardVisual.tscn")
 @onready var card_draw_sound: AudioStreamPlayer2D = $CardDraw
 
+func _ready():
+	# Set mouse filter to ignore since this is just a visual display
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	
+	# Set a very low z_index to ensure it doesn't interfere with grid tiles
+	z_index = -1000
+	
+	# Also set StackRoot to ignore mouse to prevent blocking clicks
+	if stack_root:
+		stack_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	
+	# Set all child nodes to ignore mouse to prevent any blocking
+	_set_all_children_mouse_filter_ignore(self)
+	
+	print("CardStackDisplay: Set mouse_filter=IGNORE and z_index=-1000")
+
+func _set_all_children_mouse_filter_ignore(node: Node):
+	"""Recursively set all Control children to ignore mouse"""
+	for child in node.get_children():
+		if child is Control:
+			child.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		# Recursively set children of children
+		_set_all_children_mouse_filter_ignore(child)
+
 
 func update_draw_stack(count: int) -> void:
 	clear_stack(draw_stack)

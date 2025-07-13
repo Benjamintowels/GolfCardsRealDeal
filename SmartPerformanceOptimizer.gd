@@ -166,7 +166,7 @@ func update_essential_systems(course_instance):
 	# Card hand anchor check (one-time setup)
 	if course_instance.card_hand_anchor and course_instance.card_hand_anchor.z_index != 100:
 		course_instance.card_hand_anchor.z_index = 100
-		course_instance.card_hand_anchor.mouse_filter = Control.MOUSE_FILTER_STOP
+		course_instance.card_hand_anchor.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Allow clicks to pass through to prevent blocking tile clicks
 		# Don't disable the course's process function as it's needed for the game loop
 	
 	# Aiming circle update (only during aiming)

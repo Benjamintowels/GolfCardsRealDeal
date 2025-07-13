@@ -3,7 +3,6 @@ extends Control
 @onready var character1_button = $UI/Character1Button
 @onready var character2_button = $UI/Character2Button  
 @onready var character3_button = $UI/Character3Button
-@onready var start_round_button = $UI/StartRoundButton
 @onready var start_putt_putt_button = $UI/StartPuttPutt
 @onready var start_back_9_button = $UI/StartBack9
 @onready var select_sound = $Select
@@ -24,7 +23,6 @@ func _ready():
 	character1_button.pressed.connect(_on_character1_selected)
 	character2_button.pressed.connect(_on_character2_selected)
 	character3_button.pressed.connect(_on_character3_selected)
-	start_round_button.pressed.connect(_on_start_round_pressed)
 	start_putt_putt_button.pressed.connect(_on_start_putt_putt_button_pressed)
 	start_back_9_button.pressed.connect(_on_start_back_9_pressed)
 	

@@ -679,7 +679,7 @@ func adjust_background_positioning() -> void:
 	setup_swing_sounds()
 
 	card_hand_anchor.z_index = 100
-	card_hand_anchor.mouse_filter = Control.MOUSE_FILTER_STOP
+	card_hand_anchor.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Changed to IGNORE to allow clicks to pass through to grid tiles
 	card_hand_anchor.get_parent().move_child(card_hand_anchor, card_hand_anchor.get_parent().get_child_count() - 1)
 
 	hud.z_index = 101
@@ -4521,7 +4521,7 @@ func fix_ui_layers() -> void:
 	"""Fix UI layer z-indices and mouse filtering"""
 	if card_hand_anchor:
 		card_hand_anchor.z_index = 100
-		card_hand_anchor.mouse_filter = Control.MOUSE_FILTER_STOP
+		card_hand_anchor.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Allow clicks to pass through to prevent blocking tile clicks
 	
 	if hud:
 		hud.z_index = 101
