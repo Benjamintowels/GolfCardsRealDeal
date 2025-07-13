@@ -550,13 +550,12 @@ func get_hole_base_npc_counts(hole_index: int) -> Dictionary:
 		hole_number = 1
 	
 	match hole_number:
-		1:  # Hole 1 - squirrels and 1 Wraith boss
+		1:  # Hole 1 - squirrels only (no Wraith boss)
 			return {
 				"squirrels": 5,
 				"zombies": 0,
 				"gang_members": 0,
-				"police": 0,
-				"wraiths": 1
+				"police": 0
 			}
 		2:  # Hole 2 - 2 zombies and squirrels
 			return {

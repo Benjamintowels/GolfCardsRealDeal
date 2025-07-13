@@ -1317,10 +1317,11 @@ func _update_sprite_facing() -> void:
 		return
 	
 	# Flip sprite horizontally based on facing direction
-	# If facing left (negative x), flip the sprite
-	if facing_direction.x < 0:
+	# Since the sprite image faces left by default, we need to invert the logic
+	# If facing right (positive x), flip the sprite to face right
+	if facing_direction.x > 0:
 		sprite.flip_h = true
-	elif facing_direction.x > 0:
+	elif facing_direction.x < 0:
 		sprite.flip_h = false
 	
 	# Update ice sprite if it's visible
@@ -1334,9 +1335,11 @@ func _update_ice_sprite_facing() -> void:
 	if not ice_sprite:
 		return
 	
-	if facing_direction.x < 0:
+	# Since the ice sprite image faces left by default, we need to invert the logic
+	# If facing right (positive x), flip the sprite to face right
+	if facing_direction.x > 0:
 		ice_sprite.flip_h = true
-	elif facing_direction.x > 0:
+	elif facing_direction.x < 0:
 		ice_sprite.flip_h = false
 
 func _setup_freeze_system():
