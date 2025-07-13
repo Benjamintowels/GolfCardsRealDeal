@@ -47,3 +47,5 @@ lifetime = 2.0
 one_shot = true
 explosiveness = 1.0
 process_material = SubResource("ParticleProcessMaterial_1")
+
+[node name="YSortPoint" type="Marker2D" parent="."]

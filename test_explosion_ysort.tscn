@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://test_explosion_ysort"]
+
+[ext_resource type="Script" path="res://test_explosion_ysort.gd" id="1_test"]
+
+[node name="TestExplosionYSort" type="Node2D"]
+script = ExtResource("1_test") 

@@ -1,8 +1,8 @@
-[gd_scene load_steps=11 format=3 uid="uid://wyu3udwngros"]
+[gd_scene load_steps=12 format=3 uid="uid://wyu3udwngros"]
 
 [ext_resource type="Script" uid="uid://ct4bebh7dhisi" path="res://Main.gd" id="1_r0du0"]
-[ext_resource type="Texture2D" uid="uid://dyd3f17eqkoaw" path="res://Titlescreen.png" id="2_lgr22"]
 [ext_resource type="Texture2D" uid="uid://cdk7unpk6hoph" path="res://Character2.png" id="3_fos0i"]
+[ext_resource type="Texture2D" uid="uid://bdmpunqtl77ic" path="res://ClubHouse/ClubHouseStart.png" id="3_wkp8b"]
 [ext_resource type="Texture2D" uid="uid://h7kyn51t7cq" path="res://Character3.png" id="5_lgr22"]
 [ext_resource type="Texture2D" uid="uid://dkotgiaft0sh" path="res://Character1sec.png" id="6_3dxm6"]
 [ext_resource type="Texture2D" uid="uid://cwdlr21pb6ap" path="res://Title.png" id="7_lgr22"]
@@ -10,6 +10,7 @@
 [ext_resource type="AudioStream" uid="uid://uif6unejkcej" path="res://Sounds/Select.mp3" id="8_trn2v"]
 [ext_resource type="AudioStream" uid="uid://c4kj0vmsj7lux" path="res://Sounds/OpenDoor.mp3" id="9_wkp8b"]
 [ext_resource type="AudioStream" uid="uid://d3arwob15mnkt" path="res://Sounds/CloseDoor.mp3" id="10_20pc6"]
+[ext_resource type="Texture2D" uid="uid://c5m7m06j7yols" path="res://ClubHouse/TableWooden.png" id="11_20pc6"]
 
 [node name="Main" type="Control"]
 layout_mode = 3
@@ -22,12 +23,12 @@ script = ExtResource("8_current_deck_manager")
 [node name="TextureRect" type="TextureRect" parent="."]
 texture_filter = 1
 layout_mode = 0
-offset_left = -1.00005
-offset_top = -2.00001
-offset_right = 1535.0
-offset_bottom = 1022.0
+offset_left = -14.0
+offset_top = -71.0
+offset_right = 1522.0
+offset_bottom = 953.0
 scale = Vector2(0.749709, 0.750651)
-texture = ExtResource("2_lgr22")
+texture = ExtResource("3_wkp8b")
 
 [node name="UI" type="CanvasLayer" parent="."]
 
@@ -44,6 +45,12 @@ offset_bottom = 20.0
 grow_horizontal = 2
 grow_vertical = 2
 
+[node name="Table" type="Sprite2D" parent="UI"]
+texture_filter = 1
+position = Vector2(882, 438)
+scale = Vector2(0.285, 0.285)
+texture = ExtResource("11_20pc6")
+
 [node name="Character1Button" type="Button" parent="UI"]
 offset_left = 854.0
 offset_top = 407.0
@@ -53,44 +60,44 @@ toggle_mode = true
 text = "Layla"
 
 [node name="Character2Button" type="Button" parent="UI"]
-offset_left = 546.0
-offset_top = 319.0
-offset_right = 603.0
-offset_bottom = 350.0
+offset_left = 611.0
+offset_top = 344.0
+offset_right = 668.0
+offset_bottom = 375.0
 toggle_mode = true
 text = "Benny"
 
 [node name="Character3Button" type="Button" parent="UI"]
-offset_left = 184.0
-offset_top = 313.0
-offset_right = 233.0
-offset_bottom = 344.0
+offset_left = 164.0
+offset_top = 359.0
+offset_right = 213.0
+offset_bottom = 390.0
 toggle_mode = true
 text = "Clark"
 
 [node name="StartRoundButton" type="Button" parent="UI"]
 texture_filter = 1
-offset_left = 433.0
-offset_top = 499.0
-offset_right = 643.0
-offset_bottom = 542.0
+offset_left = 24.0
+offset_top = 58.0
+offset_right = 234.0
+offset_bottom = 101.0
 text = "Start Round"
 
 [node name="Character2" type="Sprite2D" parent="UI"]
 texture_filter = 1
-position = Vector2(569, 168.185)
+position = Vector2(726, 514)
 scale = Vector2(1.55922, 1.5491)
 texture = ExtResource("3_fos0i")
 
 [node name="Character3" type="Sprite2D" parent="UI"]
 texture_filter = 1
-position = Vector2(212, 168)
+position = Vector2(203, 518)
 scale = Vector2(1.358, 1.376)
 texture = ExtResource("5_lgr22")
 
 [node name="Character1" type="Sprite2D" parent="UI"]
 texture_filter = 1
-position = Vector2(925, 205)
+position = Vector2(1023, 470)
 scale = Vector2(2.055, 1.94)
 texture = ExtResource("6_3dxm6")
 
@@ -102,6 +109,7 @@ offset_bottom = 633.0
 text = "Start Putt Putt"
 
 [node name="StartBack9" type="Button" parent="UI"]
+visible = false
 offset_left = 476.0
 offset_top = 551.0
 offset_right = 597.0
@@ -109,6 +117,7 @@ offset_bottom = 592.0
 text = "Start Back 9"
 
 [node name="ModShotRoom" type="Button" parent="UI"]
+visible = false
 offset_right = 8.0
 offset_bottom = 8.0
 text = "ModShotRoom"

@@ -74,6 +74,12 @@ func update_camera_state(camera_position: Vector2):
 		last_camera_position = camera_position
 		# Mark all static objects for Y-sort update when camera moves
 		add_object_for_ysort_update("camera_moved")
+		
+		# Also update explosions when camera moves
+		var explosions = get_tree().get_nodes_in_group("explosions")
+		for explosion in explosions:
+			if is_instance_valid(explosion):
+				Global.update_object_y_sort(explosion, "objects")
 
 func smart_process(delta: float, course_instance):
 	"""Smart _process function that only runs expensive operations when needed"""
@@ -197,6 +203,12 @@ func update_ysort_systems(course_instance, current_time: float):
 		for grass in grass_elements:
 			if is_instance_valid(grass) and grass.has_method("_update_ysort"):
 				grass._update_ysort()
+	
+	# Update explosions Y-sort when they exist
+	var explosions = get_tree().get_nodes_in_group("explosions")
+	for explosion in explosions:
+		if is_instance_valid(explosion):
+			Global.update_object_y_sort(explosion, "objects")
 	
 	# Update camera position for spatial calculations
 	update_camera_state(course_instance.camera.global_position)

@@ -236,6 +236,23 @@ func update_all_objects_y_sort(ysort_objects: Array):
 		
 		update_object_y_sort(node, object_type)
 
+func update_all_group_objects_y_sort():
+	"""
+	Update Y-sort for all objects in specific groups (explosions, etc.)
+	This handles dynamically created objects that aren't in the ysort_objects array
+	"""
+	# Update explosions
+	var explosions = get_tree().get_nodes_in_group("explosions")
+	for explosion in explosions:
+		if is_instance_valid(explosion):
+			update_object_y_sort(explosion, "objects")
+	
+	# Update other group objects as needed
+	var bonfires = get_tree().get_nodes_in_group("ysort_objects")
+	for bonfire in bonfires:
+		if is_instance_valid(bonfire) and bonfire.has_method("_update_ysort"):
+			bonfire._update_ysort()
+
 # Height System Functions
 func apply_standard_height_visual_effects(sprite: Sprite2D, shadow: Sprite2D, z: float, base_scale: Vector2 = Vector2.ONE) -> void:
 	"""

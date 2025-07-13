@@ -37,11 +37,33 @@ func _ready():
 	explosion_sound = get_node_or_null("ExplosionSound")
 	particle_system = get_node_or_null("FireParticles")
 	
+	# Add to groups for Y-sorting and management
+	add_to_group("explosions")
+	add_to_group("ysort_objects")
+	
 	# Start the explosion animation
 	start_explosion_animation()
 	
 	# Apply explosion radius effects after a short delay
 	call_deferred("_apply_explosion_radius_effects")
+	
+	# Update Y-sort on ready
+	call_deferred("_update_ysort")
+
+func get_y_sort_point() -> float:
+	"""Get the Y-sort reference point for the explosion"""
+	# Use the YSortPoint marker for consistent Y-sorting
+	var ysort_point = get_node_or_null("YSortPoint")
+	if ysort_point:
+		return ysort_point.global_position.y
+	else:
+		# Fallback to global position if no YsortPoint marker
+		return global_position.y
+
+func _update_ysort():
+	"""Update the explosion's z_index for proper Y-sorting"""
+	# Use the global Y-sort system
+	Global.update_object_y_sort(self, "objects")
 
 func start_explosion_animation():
 	"""Start the explosion animation sequence"""
@@ -368,9 +390,8 @@ static func create_explosion_at_position(position: Vector2, parent: Node) -> Nod
 	# Set the position AFTER adding to parent to account for parent's transform
 	explosion.global_position = position
 	
-	# Set the explosion's z_index to be visible above other objects
-	# Use a high positive z_index to ensure it appears on top
-	explosion.z_index = 1000
+	# Let the Y-sort system handle z_index instead of hardcoding it
+	# The explosion will update its Y-sort in _ready()
 	
 	# Trigger fire tile creation for explosions created via static method
 	if explosion.CREATE_FIRE_TILE:

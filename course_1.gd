@@ -4426,6 +4426,8 @@ func update_all_ysort_z_indices():
 	"""Update z_index for all objects using the simple global Y-sort system"""
 	# Use the global Y-sort system for all objects
 	Global.update_all_objects_y_sort(ysort_objects)
+	# Also update dynamically created objects in groups (explosions, etc.)
+	Global.update_all_group_objects_y_sort()
 
 func get_layout_at_position(pos: Vector2i) -> String:
 	"""Get the tile type at a specific grid position"""
