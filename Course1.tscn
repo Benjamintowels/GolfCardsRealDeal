@@ -115,15 +115,6 @@ text = "End Turn"
 
 [node name="CardStackDisplay" parent="UILayer" instance=ExtResource("2_t0oq8")]
 z_index = 15
-anchors_preset = 0
-anchor_right = 0.0
-anchor_bottom = 0.0
-offset_left = 74.0
-offset_top = 193.0
-offset_right = 110.0
-offset_bottom = 225.0
-grow_horizontal = 1
-grow_vertical = 1
 
 [node name="CharacterLabel" type="Label" parent="UILayer"]
 offset_right = 40.0

@@ -1,0 +1,46 @@
+[gd_scene load_steps=4 format=3 uid="uid://c8yay001a2b3"]
+
+[ext_resource type="Script" path="res://test_meditation_system.gd" id="1_test"]
+[ext_resource type="PackedScene" uid="uid://bq8x7y9z1a2b3" path="res://Particles/HealEffect.tscn" id="2_heal"]
+
+[sub_resource type="Button" id="Button_test"]
+text = "Test Meditation"
+
+[node name="TestMeditationSystem" type="Node2D"]
+script = ExtResource("1_test")
+
+[node name="Player" type="Node2D" parent="."]
+position = Vector2(200, 200)
+
+[node name="BennyChar" type="Node2D" parent="Player"]
+
+[node name="Sprite2D" type="Sprite2D" parent="Player/BennyChar"]
+texture_filter = 1
+position = Vector2(0, -44)
+
+[node name="BennyMeditateSprite" type="Sprite2D" parent="Player/BennyChar"]
+visible = false
+texture_filter = 1
+position = Vector2(0, -33)
+
+[node name="Bonfire" type="Node2D" parent="."]
+position = Vector2(300, 200)
+
+[node name="BonfireBaseSprite" type="Sprite2D" parent="Bonfire"]
+texture_filter = 1
+
+[node name="BonfireFlame" type="Sprite2D" parent="Bonfire"]
+texture_filter = 1
+position = Vector2(0, -28.125)
+
+[node name="Meditate" type="AudioStreamPlayer2D" parent="Bonfire"]
+
+[node name="TestButton" type="Button" parent="."]
+offset_left = 10.0
+offset_top = 10.0
+offset_right = 150.0
+offset_bottom = 50.0
+text = "Test Meditation"
+resource = SubResource("Button_test")
+
+[connection signal="pressed" from="TestButton" to="." method="_on_test_meditation_button_pressed"] 

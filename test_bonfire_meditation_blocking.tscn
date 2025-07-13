@@ -1,0 +1,25 @@
+[gd_scene load_steps=2 format=3 uid="uid://test_bonfire_meditation_blocking"]
+
+[ext_resource type="Script" path="res://test_bonfire_meditation_blocking.gd" id="1_test_script"]
+
+[node name="BonfireMeditationBlockingTest" type="Node2D"]
+script = ExtResource("1_test_script")
+
+[node name="Instructions" type="Label" parent="."]
+offset_left = 10.0
+offset_top = 10.0
+offset_right = 590.0
+offset_bottom = 140.0
+text = "BONFIRE MEDITATION & BLOCKING TEST
+
+Press L to light bonfire
+Press M to check meditation status  
+Press B to check movement blocking
+Press P to move player near bonfire
+Press R to remove lighter equipment
+
+Bonfire should:
+- Block movement when placed
+- Trigger meditation when active and player is adjacent
+- Show lighter dialog when player has lighter"
+vertical_alignment = 1 

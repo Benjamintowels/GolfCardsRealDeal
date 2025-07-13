@@ -34,6 +34,7 @@ func _ready():
 	add_to_group("visual_objects")
 	add_to_group("ysort_objects")
 	add_to_group("interactables")
+	add_to_group("obstacles")  # Add to obstacles group for movement blocking
 	
 	setup_flame_animation()
 	setup_collision_detection()
@@ -47,14 +48,26 @@ func _ready():
 	# Start inactive
 	set_bonfire_active(false)
 	
-	# Start inactive
-	set_bonfire_active(false)
+	# Add to obstacle map to block movement
+	_add_to_obstacle_map()
 
 func _find_map_manager():
 	"""Find the map manager in the scene"""
 	var course = get_tree().current_scene
 	if course and course.has_node("MapManager"):
 		map_manager = course.get_node("MapManager")
+
+func _add_to_obstacle_map():
+	"""Add bonfire to obstacle map to block movement"""
+	var course = get_tree().current_scene
+	if course and "obstacle_map" in course:
+		var grid_pos = get_grid_position()
+		course.obstacle_map[grid_pos] = self
+		print("Bonfire: Added to obstacle map at position", grid_pos)
+
+func blocks() -> bool:
+	"""Return true to block movement on this tile"""
+	return true
 
 func setup_flame_animation():
 	# Load flame textures
@@ -70,9 +83,9 @@ func setup_flame_animation():
 		bonfire_flame.visible = false  # Start hidden (inactive)
 
 func setup_collision_detection():
-	# Connect collision signals
-	bonfire_area.body_entered.connect(_on_body_entered)
-	bonfire_area.body_exited.connect(_on_body_exited)
+	# Connect collision signals - use area_entered for Area2D collision detection
+	bonfire_area.area_entered.connect(_on_area_entered)
+	bonfire_area.area_exited.connect(_on_area_exited)
 
 func _process(delta):
 	if is_active:
@@ -80,6 +93,14 @@ func _process(delta):
 	
 	# Check for fire tiles nearby
 	_check_for_nearby_fire()
+	
+	# Check for player meditation when bonfire is active
+	if is_active:
+		_check_for_player_meditation()
+	else:
+		# Debug: Check if bonfire should be active but isn't
+		if map_manager and _check_for_nearby_fire_debug():
+			print("Bonfire: Should be active due to nearby fire but isn't!")
 
 func animate_flame(delta):
 	animation_timer += delta
@@ -139,6 +160,34 @@ func _is_tile_on_fire(tile_pos: Vector2i) -> bool:
 				return true
 	return false
 
+func _check_for_nearby_fire_debug() -> bool:
+	"""Debug version of fire check that returns true if any nearby tiles are on fire"""
+	# Get bonfire's tile position
+	var bonfire_tile = Vector2i(floor(global_position.x / cell_size), floor(global_position.y / cell_size))
+	
+	# Check if bonfire's own tile is on fire
+	if _is_tile_on_fire(bonfire_tile):
+		return true
+	
+	# Check adjacent tiles (8-directional)
+	var adjacent_positions = [
+		Vector2i(0, -1),  # Up
+		Vector2i(1, 0),   # Right
+		Vector2i(0, 1),   # Down
+		Vector2i(-1, 0),  # Left
+		Vector2i(1, -1),  # Up-right
+		Vector2i(1, 1),   # Down-right
+		Vector2i(-1, 1),  # Down-left
+		Vector2i(-1, -1)  # Up-left
+	]
+	
+	for direction in adjacent_positions:
+		var check_tile = bonfire_tile + direction
+		if _is_tile_on_fire(check_tile):
+			return true
+	
+	return false
+
 func set_bonfire_active(active: bool):
 	"""Set the bonfire's active state"""
 	if is_active == active:
@@ -158,13 +207,29 @@ func set_bonfire_active(active: bool):
 		# Deactivate bonfire
 		bonfire_flame.visible = false
 
-func _on_body_entered(body: Node2D):
-	if body.has_method("get_ball_height") and body.has_method("get_ball_velocity"):
-		handle_ball_collision(body)
-	elif body.name == "Player":
-		handle_player_entered(body)
+func _on_area_entered(area: Area2D):
+	print("Bonfire: Area entered bonfire area:", area.name if area else "null")
+	
+	# Get the parent of the area (the actual object)
+	var object = area.get_parent()
+	if not object:
+		print("Bonfire: No parent object found for area")
+		return
+	
+	print("Bonfire: Object name:", object.name if object else "null")
+	print("Bonfire: Object has get_ball_height:", object.has_method("get_ball_height") if object else "N/A")
+	print("Bonfire: Object has get_ball_velocity:", object.has_method("get_ball_velocity") if object else "N/A")
+	
+	if object.has_method("get_ball_height") and object.has_method("get_ball_velocity"):
+		print("Bonfire: Handling ball collision")
+		handle_ball_collision(object)
+	elif object.name == "Player" or (object.has_method("get_grid_position") and object.has_method("take_damage")):
+		print("Bonfire: Handling player collision")
+		handle_player_entered(object)
+	else:
+		print("Bonfire: Unknown object type entered")
 
-func _on_body_exited(body: Node2D):
+func _on_area_exited(area: Area2D):
 	# Handle any cleanup when ball leaves bonfire area
 	pass
 
@@ -188,18 +253,36 @@ func handle_ball_collision(ball: Node2D):
 
 func handle_player_entered(player: Node2D):
 	"""Handle when player enters bonfire area"""
+	print("Bonfire: Player entered bonfire area")
+	print("Bonfire: Player name:", player.name if player else "null")
+	print("Bonfire: Bonfire is_active:", is_active)
+	
 	if is_active:
+		print("Bonfire: Bonfire is already active, no dialog needed")
 		return  # Already active, no need for lighter dialog
 	
+	print("Bonfire: Checking if player has lighter...")
 	# Check if player has lighter equipped
 	if _player_has_lighter():
+		print("Bonfire: Player has lighter! Showing dialog...")
 		show_lighter_dialog()
+	else:
+		print("Bonfire: Player does not have lighter equipped")
 
 func _player_has_lighter() -> bool:
 	"""Check if the player has a Lighter equipped"""
+	print("Bonfire: Checking for equipment manager...")
 	var equipment_manager = get_tree().current_scene.get_node_or_null("EquipmentManager")
-	if equipment_manager and equipment_manager.has_method("has_lighter"):
-		return equipment_manager.has_lighter()
+	if equipment_manager:
+		print("Bonfire: Equipment manager found:", equipment_manager.name)
+		if equipment_manager.has_method("has_lighter"):
+			var has_lighter = equipment_manager.has_lighter()
+			print("Bonfire: Equipment manager has_lighter() returned:", has_lighter)
+			return has_lighter
+		else:
+			print("Bonfire: Equipment manager does not have has_lighter() method")
+	else:
+		print("Bonfire: Equipment manager not found in current scene")
 	return false
 
 func show_lighter_dialog():
@@ -346,6 +429,52 @@ func get_grid_position() -> Vector2i:
 func is_bonfire_active() -> bool:
 	"""Check if the bonfire is currently active"""
 	return is_active
+
+func _check_for_player_meditation():
+	"""Check if player is adjacent to this bonfire and trigger meditation"""
+	# Find the player - try multiple methods
+	var player = get_tree().current_scene.get_node_or_null("Player")
+	if not player:
+		# Try searching recursively through the scene tree
+		player = _find_player_recursive(get_tree().current_scene)
+	
+	if not player or not player.has_method("get_grid_position"):
+		return
+	
+	# Get player's grid position
+	var player_grid_pos = player.get_grid_position()
+	var bonfire_grid_pos = get_grid_position()
+	
+	# Check if player is adjacent (within 1 tile)
+	var distance = abs(player_grid_pos.x - bonfire_grid_pos.x) + abs(player_grid_pos.y - bonfire_grid_pos.y)
+	if distance <= 1 and distance > 0:  # Adjacent but not on the same tile
+		# Check if player is not already meditating
+		if player.has_method("is_currently_meditating") and not player.is_currently_meditating():
+			# Check if player is not moving
+			if player.has_method("is_currently_moving") and not player.is_currently_moving():
+				# Trigger meditation
+				if player.has_method("start_meditation"):
+					player.start_meditation()
+					print("✓ Player meditation triggered by adjacent bonfire at distance", distance)
+					print("✓ Player position:", player_grid_pos, "Bonfire position:", bonfire_grid_pos)
+	else:
+		# Debug: Print distance when not adjacent
+		if player.has_method("is_currently_meditating") and not player.is_currently_meditating():
+			var distance_debug = abs(player_grid_pos.x - bonfire_grid_pos.x) + abs(player_grid_pos.y - bonfire_grid_pos.y)
+			if distance_debug <= 3:  # Only print for nearby positions to avoid spam
+				print("Bonfire: Player distance:", distance_debug, "Player pos:", player_grid_pos, "Bonfire pos:", bonfire_grid_pos)
+
+func _find_player_recursive(node: Node) -> Node2D:
+	"""Recursively search for a Player node in the scene tree"""
+	if node.name == "Player":
+		return node as Node2D
+	
+	for child in node.get_children():
+		var result = _find_player_recursive(child)
+		if result:
+			return result
+	
+	return null
 
 func _update_ysort():
 	"""Update the Bonfire's z_index for proper Y-sorting"""

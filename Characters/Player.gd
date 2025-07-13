@@ -60,6 +60,13 @@ var is_punching: bool = false
 var punchb_duration: float = 0.5  # Duration of the punch animation
 var punchb_tween: Tween
 
+# Meditation system
+var meditate_sprite: Sprite2D = null
+var is_meditating: bool = false
+var meditation_duration: float = 1.0  # Duration of meditation state
+var meditation_tween: Tween
+var heal_amount: int = 75  # Health restored during meditation
+
 # Ragdoll animation properties
 var is_ragdolling: bool = false
 var ragdoll_tween: Tween
@@ -127,6 +134,9 @@ func _ready():
 	
 	# Setup jump animation system
 	_setup_jump_animation()
+	
+	# Setup meditation system
+	_setup_meditation_system()
 	
 	print("[Player.gd] Player ready with health:", current_health, "/", max_health)
 	
@@ -2153,6 +2163,154 @@ func set_footstep_interval(interval: float) -> void:
 	"""Set the interval between footstep sounds during movement"""
 	footstep_interval = max(0.1, interval)  # Minimum 0.1 seconds
 	print("✓ Footstep interval set to:", footstep_interval, "seconds")
+
+# Meditation system methods
+func _setup_meditation_system() -> void:
+	"""Setup the meditation system"""
+	# Find the BennyMeditateSprite using a recursive search
+	meditate_sprite = _find_meditate_sprite_recursive(self)
+	
+	if meditate_sprite:
+		print("✓ Meditation sprite found:", meditate_sprite.name)
+	else:
+		print("⚠ Meditation sprite not found")
+
+func _find_meditate_sprite_recursive(node: Node) -> Sprite2D:
+	"""Recursively search for the BennyMeditateSprite in the node tree"""
+	for child in node.get_children():
+		if child.name == "BennyMeditateSprite" and child is Sprite2D:
+			return child
+		elif child is Node2D:
+			# Recursively search in Node2D children
+			var result = _find_meditate_sprite_recursive(child)
+			if result:
+				return result
+	return null
+
+func start_meditation() -> void:
+	"""Start the meditation state - switch to meditate sprite and heal player"""
+	if is_meditating:
+		print("Player is already meditating")
+		return
+	
+	print("=== STARTING PLAYER MEDITATION ===")
+	
+	is_meditating = true
+	
+	# Get the normal character sprite
+	var normal_sprite = get_character_sprite()
+	if not normal_sprite or not meditate_sprite:
+		print("⚠ Normal sprite or meditate sprite not found")
+		return
+	
+	# Update the meditate sprite facing before showing it
+	update_animation_facing(meditate_sprite)
+	
+	# Hide the normal sprite and show the meditate sprite
+	normal_sprite.visible = false
+	meditate_sprite.visible = true
+	
+	# Heal the player
+	heal_player(heal_amount)
+	
+	# Play meditation sound
+	_play_meditation_sound()
+	
+	# Create heal effect particles
+	_create_heal_effect()
+	
+	# Start the meditation timer
+	if meditation_tween and meditation_tween.is_valid():
+		meditation_tween.kill()
+	
+	meditation_tween = create_tween()
+	meditation_tween.tween_callback(_on_meditation_complete).set_delay(meditation_duration)
+	
+	print("✓ Meditation started - healing", heal_amount, "health")
+
+func _on_meditation_complete() -> void:
+	"""Called when the meditation completes"""
+	print("=== PLAYER MEDITATION COMPLETE ===")
+	
+	# Get the normal character sprite
+	var normal_sprite = get_character_sprite()
+	if normal_sprite and meditate_sprite:
+		# Switch back to normal sprite
+		meditate_sprite.visible = false
+		normal_sprite.visible = true
+	
+	is_meditating = false
+	print("✓ Meditation completed - returned to normal sprite")
+
+func stop_meditation() -> void:
+	"""Stop the meditation if it's currently running"""
+	if is_meditating:
+		# Get the normal character sprite
+		var normal_sprite = get_character_sprite()
+		if normal_sprite and meditate_sprite:
+			# Switch back to normal sprite
+			meditate_sprite.visible = false
+			normal_sprite.visible = true
+		
+		# Stop the tween
+		if meditation_tween and meditation_tween.is_valid():
+			meditation_tween.kill()
+		
+		is_meditating = false
+		print("✓ Meditation stopped")
+
+func is_currently_meditating() -> bool:
+	"""Check if currently in meditation state"""
+	return is_meditating
+
+func heal_player(amount: int) -> void:
+	"""Heal the player by the specified amount"""
+	var old_health = current_health
+	current_health = min(current_health + amount, max_health)
+	var actual_heal = current_health - old_health
+	
+	print("Player healed by", actual_heal, "health. Current health:", current_health, "/", max_health)
+	
+	# Update the course's health bar
+	var course = get_tree().current_scene
+	if course and course.has_method("heal_player"):
+		course.heal_player(actual_heal)
+		print("✓ Updated course health bar with", actual_heal, "healing")
+
+func _play_meditation_sound() -> void:
+	"""Play the meditation sound effect"""
+	# Try to find a bonfire with meditation sound
+	var bonfires = get_tree().get_nodes_in_group("interactables")
+	for bonfire in bonfires:
+		if bonfire.name == "Bonfire" and bonfire.has_node("Meditate"):
+			var meditate_sound = bonfire.get_node("Meditate")
+			if meditate_sound and meditate_sound.stream:
+				meditate_sound.play()
+				print("✓ Playing meditation sound from bonfire")
+				return
+	
+	# Fallback: create a temporary audio player
+	var temp_audio = AudioStreamPlayer2D.new()
+	var sound_file = load("res://Sounds/Meditate.mp3")
+	if sound_file:
+		temp_audio.stream = sound_file
+		temp_audio.volume_db = -5.0  # Slightly quieter
+		add_child(temp_audio)
+		temp_audio.play()
+		# Remove the audio player after it finishes
+		temp_audio.finished.connect(func(): temp_audio.queue_free())
+		print("✓ Playing meditation sound from fallback")
+
+func _create_heal_effect() -> void:
+	"""Create the heal effect particle system"""
+	var heal_effect_scene = load("res://Particles/HealEffect.tscn")
+	if heal_effect_scene:
+		var heal_effect = heal_effect_scene.instantiate()
+		heal_effect.position = global_position
+		get_tree().current_scene.add_child(heal_effect)
+		print("✓ Created heal effect at player position")
+	else:
+		print("⚠ HealEffect scene not found")
 
 func get_grid_position() -> Vector2i:
 	return grid_pos

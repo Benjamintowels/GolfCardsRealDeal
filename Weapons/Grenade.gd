@@ -359,7 +359,7 @@ func create_explosion_effect() -> void:
 			get_tree().current_scene.add_child(explosion)
 
 func deal_explosion_damage() -> void:
-	"""Deal damage to all targets within explosion radius"""
+	"""Deal damage to all targets within explosion radius and create fire tiles"""
 	var course = _find_course_script()
 	if not course:
 		return
@@ -393,6 +393,159 @@ func deal_explosion_damage() -> void:
 					var damage_multiplier = 1.0 - (distance / explosion_radius)
 					var final_damage = int(explosion_damage * damage_multiplier)
 					parent.take_damage(final_damage)
+	
+	# Create fire tiles in explosion radius
+	_create_fire_tiles_in_radius()
+	
+	# Also create a single fire tile at the explosion position (for testing)
+	_create_single_fire_tile_at_explosion()
+
+func _create_fire_tiles_in_radius() -> void:
+	"""Create fire tiles in a radius around the explosion on flammable tiles"""
+	if not map_manager or not map_manager.has_method("get_tile_type"):
+		return
+	
+	# Find the camera container to get its offset
+	var camera_container = _find_camera_container()
+	if not camera_container:
+		return
+	
+	# Calculate explosion radius in tiles (round up to ensure coverage)
+	var explosion_radius_tiles = int(ceil(explosion_radius / cell_size))
+	
+	# Get the center tile position (accounting for camera container offset)
+	var adjusted_position = global_position - camera_container.global_position
+	var center_tile = Vector2i(floor(adjusted_position.x / cell_size), floor(adjusted_position.y / cell_size))
+	
+	# Check tiles in a square area around the explosion
+	for x in range(center_tile.x - explosion_radius_tiles, center_tile.x + explosion_radius_tiles + 1):
+		for y in range(center_tile.y - explosion_radius_tiles, center_tile.y + explosion_radius_tiles + 1):
+			var tile_pos = Vector2i(x, y)
+			
+			# Check if tile is within the circular explosion radius
+			var tile_center = Vector2(tile_pos.x * cell_size + cell_size / 2, tile_pos.y * cell_size + cell_size / 2)
+			var distance = adjusted_position.distance_to(tile_center)
+			if distance > explosion_radius:
+				continue
+			
+			# Check if this tile is already on fire or has been scorched
+			if _is_tile_on_fire_or_scorched(tile_pos):
+				continue
+			
+			# Check if this is a flammable tile type
+			var tile_type = map_manager.get_tile_type(tile_pos.x, tile_pos.y)
+			if not _is_flammable_tile(tile_type):
+				continue
+			
+			# Create fire tile at this position
+			_create_fire_tile(tile_pos)
+
+func _is_tile_on_fire_or_scorched(tile_pos: Vector2i) -> bool:
+	"""Check if a tile is currently on fire or has been scorched"""
+	# Check for existing fire tiles in the scene
+	var fire_tiles = get_tree().get_nodes_in_group("fire_tiles")
+	for fire_tile in fire_tiles:
+		if is_instance_valid(fire_tile) and fire_tile.has_method("get_tile_position"):
+			if fire_tile.get_tile_position() == tile_pos:
+				return true
+	
+	# Check if tile is scorched via map manager
+	if map_manager and map_manager.has_method("is_tile_scorched"):
+		return map_manager.is_tile_scorched(tile_pos.x, tile_pos.y)
+	
+	return false
+
+func _is_flammable_tile(tile_type: String) -> bool:
+	"""Check if a tile type is flammable (can catch fire from grenade explosion)"""
+	return tile_type in ["Base", "G", "R", "F"]  # Base grass, Green, Rough, Fairway
+
+func _create_fire_tile(tile_pos: Vector2i) -> void:
+	"""Create a fire tile at the specified position"""
+	var fire_tile_scene = preload("res://Particles/FireTile.tscn")
+	if not fire_tile_scene:
+		return
+	
+	var fire_tile = fire_tile_scene.instantiate()
+	
+	# Set the tile position
+	fire_tile.set_tile_position(tile_pos)
+	
+	# Find the camera container to add the fire tile to (so it moves with the world)
+	var camera_container = _find_camera_container()
+	
+	if not camera_container:
+		get_tree().current_scene.add_child(fire_tile)
+	else:
+		# Add to camera container so it moves with the world
+		camera_container.add_child(fire_tile)
+	
+	# Position the fire tile at the tile center (relative to its parent)
+	var tile_center = Vector2(tile_pos.x * cell_size + cell_size / 2, tile_pos.y * cell_size + cell_size / 2)
+	
+	if camera_container:
+		# If added to camera container, position relative to camera container
+		# Use the same simple positioning as GolfBall
+		fire_tile.position = tile_center
+	else:
+		# If added to current scene, use global position
+		fire_tile.global_position = tile_center
+	
+	# Add to fire tiles group for easy management
+	fire_tile.add_to_group("fire_tiles")
+	
+	# Connect to completion signal
+	fire_tile.fire_tile_completed.connect(_on_fire_tile_completed)
+
+func _create_single_fire_tile_at_explosion() -> void:
+	"""Create a single fire tile at the explosion position (for testing)"""
+	# Find the camera container to get its offset
+	var camera_container = _find_camera_container()
+	if not camera_container:
+		return
+	
+	# Calculate the tile position from the explosion's world position
+	# Account for the camera container's offset
+	var adjusted_position = global_position - camera_container.global_position
+	var tile_pos = Vector2i(floor(adjusted_position.x / cell_size), floor(adjusted_position.y / cell_size))
+	
+	# Check if this tile is already on fire or has been scorched
+	if _is_tile_on_fire_or_scorched(tile_pos):
+		return
+	
+	# Check if this is a flammable tile type
+	if not map_manager or not map_manager.has_method("get_tile_type"):
+		return
+	
+	var tile_type = map_manager.get_tile_type(tile_pos.x, tile_pos.y)
+	if not _is_flammable_tile(tile_type):
+		return
+	
+	# Create fire tile at this position
+	_create_fire_tile(tile_pos)
+
+func _find_camera_container() -> Node:
+	"""Find the camera container in the scene"""
+	# Method 1: Try to get from course
+	var course = _find_course_script()
+	if course and course.has_node("CameraContainer"):
+		return course.get_node("CameraContainer")
+	
+	# Method 2: Search scene tree for CameraContainer
+	var scene_tree = get_tree()
+	var all_nodes = scene_tree.get_nodes_in_group("")
+	
+	for node in all_nodes:
+		if is_instance_valid(node) and node.name == "CameraContainer":
+			return node
+	
+	return null
+
+func _on_fire_tile_completed(tile_pos: Vector2i) -> void:
+	"""Handle when a fire tile transitions to scorched earth"""
+	# The fire tile will handle its own visual transition
+	# We just need to notify the map manager that this tile is now scorched
+	if map_manager and map_manager.has_method("set_tile_scorched"):
+		map_manager.set_tile_scorched(tile_pos.x, tile_pos.y)
 
 func _find_course_script() -> Node:
 	"""Find the course_1.gd script by searching up the scene tree"""

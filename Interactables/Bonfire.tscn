@@ -1,8 +1,9 @@
-[gd_scene load_steps=5 format=3 uid="uid://dciqeesmkcon4"]
+[gd_scene load_steps=6 format=3 uid="uid://dciqeesmkcon4"]
 
 [ext_resource type="Texture2D" uid="uid://bnk5whhwvo15t" path="res://Interactables/BonfireBase.png" id="1_7gas3"]
 [ext_resource type="Script" uid="uid://dinirimtyeo1l" path="res://Interactables/bonfire.gd" id="1_o2idl"]
 [ext_resource type="AudioStream" uid="uid://icvi7c2ur6mm" path="res://Sounds/FlameOn.mp3" id="3_5i0pr"]
+[ext_resource type="AudioStream" uid="uid://duwk4vvnma6e2" path="res://Sounds/Meditate.mp3" id="4_a00a4"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_o2idl"]
 radius = 17.0
@@ -36,3 +37,6 @@ shape = SubResource("CircleShape2D_o2idl")
 
 [node name="BonfireOn" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("3_5i0pr")
+
+[node name="Meditate" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("4_a00a4")
