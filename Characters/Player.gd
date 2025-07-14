@@ -1313,6 +1313,45 @@ func calculate_valid_movement_tiles():
 	var equipment_mobility = get_equipment_mobility_bonus()
 	var total_range = movement_range + base_mobility + equipment_mobility
 	
+	# Special case for Dash card - show cross pattern (no diagonals)
+	if selected_card and selected_card.name == "Dash":
+		print("Dash card detected - showing cross pattern movement")
+		var cross_positions = []
+		
+		# Add positions in cross pattern: up, down, left, right (no diagonals)
+		for distance in range(1, total_range + 1):
+			# Up
+			var up_pos = Vector2i(grid_pos.x, grid_pos.y - distance)
+			if up_pos.y >= 0:
+				cross_positions.append(up_pos)
+			
+			# Down
+			var down_pos = Vector2i(grid_pos.x, grid_pos.y + distance)
+			if down_pos.y < grid_size.y:
+				cross_positions.append(down_pos)
+			
+			# Left
+			var left_pos = Vector2i(grid_pos.x - distance, grid_pos.y)
+			if left_pos.x >= 0:
+				cross_positions.append(left_pos)
+			
+			# Right
+			var right_pos = Vector2i(grid_pos.x + distance, grid_pos.y)
+			if right_pos.x < grid_size.x:
+				cross_positions.append(right_pos)
+		
+		# Check obstacles for cross positions
+		for pos in cross_positions:
+			if obstacle_map.has(pos):
+				var obstacle = obstacle_map[pos]
+				if obstacle.has_method("blocks") and obstacle.blocks():
+					continue
+			valid_movement_tiles.append(pos)
+		
+		print("Total cross pattern tiles for Dash card:", valid_movement_tiles.size())
+		return
+	
+	# Default movement pattern (diamond shape) for other movement cards
 	for y in grid_size.y:
 		for x in grid_size.x:
 			var pos := Vector2i(x, y)

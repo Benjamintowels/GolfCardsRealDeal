@@ -258,6 +258,9 @@ func show_movement_highlights() -> void:
 	hide_all_movement_highlights()
 	for pos in valid_movement_tiles:
 		grid_tiles[pos.y][pos.x].get_node("MovementHighlight").visible = true
+	
+	# Check if movement tiles are outside screen view and adjust camera zoom if needed
+	check_and_adjust_camera_zoom_for_movement_tiles()
 
 func hide_all_movement_highlights() -> void:
 	for y in grid_size.y:
@@ -385,3 +388,75 @@ func get_equipment_mobility_bonus() -> int:
 	if equipment_manager:
 		return equipment_manager.get_mobility_bonus()
 	return 0
+
+func check_and_adjust_camera_zoom_for_movement_tiles() -> void:
+	"""Check if movement tiles are outside screen view and adjust camera zoom if needed"""
+	if valid_movement_tiles.is_empty():
+		return
+	
+	# Get camera reference
+	var camera = get_tree().current_scene.get_node_or_null("GameCamera")
+	if not camera or not camera.has_method("set_zoom_level"):
+		print("MovementController: Camera not found or missing zoom method")
+		return
+	
+	# Get current viewport size
+	var viewport_size = get_viewport().get_visible_rect().size
+	
+	# Get course reference once for use below
+	var course = get_tree().current_scene
+	
+	# Calculate the bounds of all movement tiles in world coordinates
+	var min_x = INF
+	var max_x = -INF
+	var min_y = INF
+	var max_y = -INF
+	
+	for pos in valid_movement_tiles:
+		# Convert grid position to world position
+		var world_pos = Vector2(pos.x * cell_size + cell_size / 2, pos.y * cell_size + cell_size / 2)
+		# Account for camera offset if available
+		if course and "camera_offset" in course:
+			world_pos += course.camera_offset
+		min_x = min(min_x, world_pos.x)
+		max_x = max(max_x, world_pos.x)
+		min_y = min(min_y, world_pos.y)
+		max_y = max(max_y, world_pos.y)
+	
+	# Add player position to the bounds
+	var player_world_pos = Vector2(player_grid_pos.x * cell_size + cell_size / 2, player_grid_pos.y * cell_size + cell_size / 2)
+	if course and "camera_offset" in course:
+		player_world_pos += course.camera_offset
+	min_x = min(min_x, player_world_pos.x)
+	max_x = max(max_x, player_world_pos.x)
+	min_y = min(min_y, player_world_pos.y)
+	max_y = max(max_y, player_world_pos.y)
+	
+	# Calculate the required area to fit all movement tiles
+	var required_width = max_x - min_x
+	var required_height = max_y - min_y
+	
+	# Add some padding (20% of the required area)
+	var padding_factor = 0.2
+	required_width *= (1.0 + padding_factor)
+	required_height *= (1.0 + padding_factor)
+	
+	# Calculate the zoom level needed to fit everything on screen
+	var zoom_x = required_width / viewport_size.x
+	var zoom_y = required_height / viewport_size.y
+	var required_zoom = max(zoom_x, zoom_y)
+	
+	# Get current camera zoom
+	var current_zoom = camera.get_current_zoom()
+	
+	# Only zoom out if the required zoom is less than current zoom (more zoomed out)
+	if required_zoom < current_zoom:
+		# Clamp to camera's minimum zoom
+		var min_zoom = 0.6  # Default minimum zoom
+		if camera.has_method("current_min_zoom"):
+			min_zoom = camera.current_min_zoom
+		var target_zoom = max(required_zoom, min_zoom)
+		print("MovementController: Adjusting camera zoom from", current_zoom, "to", target_zoom, "to fit movement tiles")
+		camera.set_zoom_level(target_zoom)
+	else:
+		print("MovementController: Current zoom", current_zoom, "is sufficient for movement tiles (required:", required_zoom, ")")

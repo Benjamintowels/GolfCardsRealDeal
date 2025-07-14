@@ -421,10 +421,6 @@ func get_background_info() -> Dictionary:
 	
 	return info
 
-func debug_background_layers() -> void:
-	"""Debug function to print information about all background layers"""
-	
-	var layers = parallax_system.get_layer_info()
 	
 	
 func adjust_layer_position(layer_name: String, new_position: Vector2) -> void:

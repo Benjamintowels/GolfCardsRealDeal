@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="CardData" load_steps=3 format=3 uid="uid://do3p2f6xbtdgc"]
+
+[ext_resource type="Script" uid="uid://b1c024jgv23kk" path="res://Cards/CardData.gd" id="1_8m0m0"]
+[ext_resource type="Texture2D" uid="uid://dnnqyjj6fb3h7" path="res://Cards/Dash.png" id="1_hpm6e"]
+
+[resource]
+script = ExtResource("1_8m0m0")
+name = "Dash"
+effect_type = "Movement"
+effect_strength = 8
+image = ExtResource("1_hpm6e")
+level = 1
+max_level = 2
+upgrade_cost = 100
+price = 100
+default_tier = 1
+movement_bonus = 1
+attack_bonus = 1
+weapon_shots_bonus = 1
+effect_bonus = 1
+metadata/_custom_type_script = "uid://b1c024jgv23kk"

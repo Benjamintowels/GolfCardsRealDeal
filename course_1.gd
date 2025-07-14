@@ -515,10 +515,7 @@ func _ready() -> void:
 	equipment_manager.add_equipment(lighter_equipment)
 	print("Course: Added Lighter equipment to starter loadout")
 	
-	# Add PutterHelp for better putter access
-	var putter_help_equipment = preload("res://Equipment/PutterHelp.tres")
-	equipment_manager.add_equipment(putter_help_equipment)
-	print("Course: Added PutterHelp equipment to starter loadout")
+	# PutterHelp removed from starter loadout
 	
 	# Player starts with level 2 backpack (handled by bag system)
 	print("Course: Player starts with level 2 backpack for their character")
@@ -602,9 +599,7 @@ func _ready() -> void:
 		background_manager.set_theme("course1")
 		print("✓ Background manager initialized with course1 theme")
 		
-		# Debug background layers
-		background_manager.debug_background_layers()
-		
+
 		# Try to adjust positioning if needed
 		call_deferred("adjust_background_positioning")
 	
@@ -627,8 +622,6 @@ func adjust_background_positioning() -> void:
 	print("Grid top position: ", grid_top)
 	print("Grid height: ", grid_height)
 	
-	# First, let's see what sprites we can find
-	background_manager.debug_background_layers()
 	
 	# Set the world grid center for parallax calculations
 	# This should be at the top of your world grid, not the center
@@ -895,7 +888,14 @@ func _input(event: InputEvent) -> void:
 			return  # Return after handling camera panning
 		elif event is InputEventMouseMotion and is_panning:
 			var delta: Vector2 = event.position - pan_start_pos
-			camera.position -= delta
+			var new_position = camera.position - delta
+			
+			# Apply camera limits to prevent panning outside bounds
+			if camera.has_method("limit_left") and camera.has_method("limit_right") and camera.has_method("limit_top") and camera.has_method("limit_bottom"):
+				new_position.x = clamp(new_position.x, camera.limit_left, camera.limit_right)
+				new_position.y = clamp(new_position.y, camera.limit_top, camera.limit_bottom)
+			
+			camera.position = new_position
 			pan_start_pos = event.position
 			return  # Return after handling camera motion
 		
@@ -916,7 +916,14 @@ func _input(event: InputEvent) -> void:
 
 	elif event is InputEventMouseMotion and is_panning:
 		var delta: Vector2 = event.position - pan_start_pos
-		camera.position -= delta
+		var new_position = camera.position - delta
+		
+		# Apply camera limits to prevent panning outside bounds
+		if camera.has_method("limit_left") and camera.has_method("limit_right") and camera.has_method("limit_top") and camera.has_method("limit_bottom"):
+			new_position.x = clamp(new_position.x, camera.limit_left, camera.limit_right)
+			new_position.y = clamp(new_position.y, camera.limit_top, camera.limit_bottom)
+		
+		camera.position = new_position
 		pan_start_pos = event.position
 
 	if player_node:
@@ -3923,10 +3930,7 @@ func _on_shop_overlay_return():
 	# Update HUD to reflect any changes (including $Looty balance from shop purchases)
 	update_deck_display()
 	
-	# Debug bag state after returning from shop
-	if bag and bag.has_method("debug_bag_state"):
-		bag.debug_bag_state()
-	
+
 	print("=== SHOP OVERLAY REMOVED ===")
 
 func is_mid_game_shop_mode() -> bool:
@@ -4959,13 +4963,6 @@ func _update_player_mouse_facing_state() -> void:
 
 
 
-func _on_swing_test_button_pressed() -> void:
-	"""Handle when the swing test button is pressed"""
-	print("=== SWING TEST BUTTON PRESSED ===")
-	if player_node:
-		player_node.manual_test_swing()
-	else:
-		print("✗ No player node found")
 
 # Add camera tween management variables at the top of the class
 var current_camera_tween: Tween = null

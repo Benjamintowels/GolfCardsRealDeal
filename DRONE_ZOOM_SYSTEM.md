@@ -6,8 +6,9 @@ The Drone equipment now provides enhanced camera zoom capabilities instead of mo
 ## How It Works
 
 ### Equipment Effect
-- **Drone Equipped**: Zoom range of 0.5x to 3.0x (generous zoom)
-- **No Drone**: Zoom range of 0.8x to 2.0x (reduced zoom)
+- **Drone Equipped**: Zoom range of 0.6x to 3.0x (generous zoom)
+- **No Drone**: Zoom range of 0.9x to 2.0x (reduced zoom)
+- **Default Starting Zoom**: 1.5x (closer to player)
 
 ### Implementation Details
 
@@ -23,6 +24,7 @@ The Drone equipment now provides enhanced camera zoom capabilities instead of mo
 - Modified `set_zoom_level()` to use dynamic limits instead of static ones
 - Added `set_zoom_limits()` method to change zoom limits at runtime
 - Zoom limits are automatically clamped when changed
+- Default starting zoom is now 1.5x for a closer view
 
 #### Equipment Data
 - Updated `Drone.tres` to use `buff_type = "drone_zoom"` instead of `"mobility"`
@@ -31,9 +33,10 @@ The Drone equipment now provides enhanced camera zoom capabilities instead of mo
 ## Usage
 
 ### In Game
-1. Equip the Drone equipment to enable generous zoom (0.5x - 3.0x)
-2. Unequip the Drone to restrict zoom to reduced levels (0.8x - 2.0x)
+1. Equip the Drone equipment to enable generous zoom (0.6x - 3.0x)
+2. Unequip the Drone to restrict zoom to reduced levels (0.9x - 2.0x)
 3. Zoom limits are automatically applied when equipment changes
+4. Camera starts closer to player at 1.5x zoom by default
 
 ### Testing
 Use the test scene `test_drone_zoom_system.tscn` to verify functionality:
@@ -45,8 +48,9 @@ Use the test scene `test_drone_zoom_system.tscn` to verify functionality:
 ## Technical Notes
 
 ### Zoom Limits
-- **With Drone**: 0.5x (zoomed out) to 3.0x (zoomed in)
-- **Without Drone**: 0.8x (zoomed out) to 2.0x (zoomed in)
+- **With Drone**: 0.6x (zoomed out) to 3.0x (zoomed in)
+- **Without Drone**: 0.9x (zoomed out) to 2.0x (zoomed in)
+- **Default Starting**: 1.5x (closer view)
 
 ### Camera Integration
 - The system automatically finds the `GameCamera` node in the scene

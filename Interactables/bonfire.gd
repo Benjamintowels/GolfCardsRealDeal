@@ -623,39 +623,7 @@ func _update_ysort():
 	# Force update the Ysort using the global system
 	Global.update_object_y_sort(self, "objects")
 
-func debug_bonfire_detection():
-	"""Debug function to test bonfire detection - can be called from console"""
-	print("=== BONFIRE DEBUG DETECTION ===")
-	print("Bonfire position:", global_position)
-	print("Bonfire grid position:", get_grid_position())
-	print("Bonfire is_active:", is_active)
-	
-	# Find player
-	var player = get_tree().current_scene.get_node_or_null("Player")
-	
-	if player:
-		print("Player found:", player.name)
-		print("Player position:", player.global_position)
-		print("Player grid position:", player.get_grid_position())
-		
-		var distance = player.get_grid_position().distance_to(get_grid_position())
-		print("Distance to player:", distance)
-		print("Should detect player:", distance <= 1.5)
-		
-		if is_active:
-			print("Bonfire is active, checking meditation...")
-			_check_for_player_meditation()
-	else:
-		print("No player found!")
-	
-	print("=== END BONFIRE DEBUG ===")
 
-func test_activate_bonfire():
-	"""Test function to manually activate the bonfire - can be called from console"""
-	print("=== TESTING BONFIRE ACTIVATION ===")
-	set_bonfire_active(true)
-	print("Bonfire activated for testing")
-	print("=== END TEST ACTIVATION ===")
 
 func _on_ball_area_entered(area: Area2D):
 	print("=== BONFIRE BALL AREA ENTERED DEBUG ===")

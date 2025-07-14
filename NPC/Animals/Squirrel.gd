@@ -128,9 +128,7 @@ func _ready():
 		world_turn_manager.npc_turn_ended.connect(_on_turn_ended)
 		
 		# Connect turn_completed signal to a debug function
-		turn_completed.connect(_on_turn_completed_debug)
-		if course:
-			var npc_node = course.get_node_or_null("NPC")
+
 	
 	# Initialize state machine
 	state_machine = StateMachine.new()
@@ -557,12 +555,7 @@ func _on_turn_ended(npc: Node) -> void:
 	if npc == self:
 		print("Squirrel turn ended")
 
-func _on_turn_completed_debug() -> void:
-	"""Debug function to confirm turn_completed signal is emitted"""
-	print("=== TURN_COMPLETED SIGNAL EMITTED ===")
-	print("Squirrel: ", name)
-	print("Signal emitted successfully")
-	print("=== END TURN_COMPLETED SIGNAL ===")
+
 
 func take_turn() -> void:
 	"""Take the Squirrel's turn"""
@@ -1344,12 +1337,7 @@ func retry_player_reference() -> void:
 	print("=== END MANUAL PLAYER REFERENCE RETRY ===")
 
 func debug_coordinate_system() -> void:
-	"""Debug function to check coordinate system alignment"""
-	print("=== SQUIRREL COORDINATE SYSTEM DEBUG ===")
-	print("Squirrel name: ", name)
-	print("Global position: ", global_position)
-	print("Position: ", position)
-	print("Grid position: ", grid_position)
+	
 	
 	if course and "camera_offset" in course:
 		var camera_offset = course.camera_offset
@@ -1374,7 +1362,6 @@ func debug_coordinate_system() -> void:
 	
 	print("=== END COORDINATE SYSTEM DEBUG ===")
 
-func debug_ball_detection() -> void:
 	"""Debug function to check ball detection system"""
 	print("=== SQUIRREL BALL DETECTION DEBUG ===")
 	print("Squirrel name: ", name)

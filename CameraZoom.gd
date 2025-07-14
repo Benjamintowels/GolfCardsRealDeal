@@ -1,16 +1,16 @@
 extends Camera2D
 
-@export var min_zoom: float = 0.4
+@export var min_zoom: float = 0.6
 @export var max_zoom: float = 3.0
 @export var zoom_speed: float = 0.1
 @export var zoom_smoothness: float = 5.0
 
-var target_zoom: float = 1.0
+var target_zoom: float = 1.5
 var is_zooming: bool = false
 var zoom_tween: Tween = null
 
 # Dynamic zoom limits for drone equipment
-var current_min_zoom: float = 0.5
+var current_min_zoom: float = 0.6
 var current_max_zoom: float = 3.0
 
 func _ready():
@@ -42,7 +42,7 @@ func set_zoom_level(zoom_level: float):
 	_start_zoom_tween()
 
 func reset_zoom():
-	target_zoom = 1.0
+	target_zoom = 1.5
 	_start_zoom_tween()
 
 func get_current_zoom() -> float:

@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3 uid="uid://ccplraisoursi"]
+[gd_scene load_steps=13 format=3 uid="uid://ccplraisoursi"]
 
 [ext_resource type="Texture2D" uid="uid://cvys8vcc4i6hi" path="res://GolfBall.png" id="1_c77dq"]
 [ext_resource type="Script" uid="uid://bn6hvthphgj16" path="res://GolfBall.gd" id="1_coy0q"]
@@ -9,6 +9,7 @@
 [ext_resource type="AudioStream" uid="uid://cubvv16iyvywp" path="res://Sounds/NiceShot.mp3" id="7_uuxce"]
 [ext_resource type="AudioStream" uid="uid://cqm2ebplq8wlo" path="res://Sounds/BallHop.mp3" id="8_skc11"]
 [ext_resource type="AudioStream" uid="uid://b2hhspkeba64h" path="res://Sounds/Icy.mp3" id="9_icpn2"]
+[ext_resource type="AudioStream" uid="uid://tu47pjuwugnn" path="res://Sounds/Snow.mp3" id="10_7npbr"]
 
 [sub_resource type="CompressedTexture2D" id="CompressedTexture2D_k5viu"]
 load_path = "res://.godot/imported/GolfBall.png-0516230eae0ffabe6c6d009b86188c92.ctex"
@@ -69,3 +70,6 @@ volume_db = -10.254
 [node name="Icy" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("9_icpn2")
 volume_db = -2.197
+
+[node name="RoughSound" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("10_7npbr")

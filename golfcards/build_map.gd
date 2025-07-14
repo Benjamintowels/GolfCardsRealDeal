@@ -557,7 +557,7 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 	return positions
 
 func place_treeline_vert_borders(layout: Array) -> void:
-	"""Place TreeLineVert scenes on the left and right borders of the map"""
+	"""Place TreeLineVert scene on the left border of the map"""
 	# Load the TreeLineVert scene
 	var treeline_scene = load("res://Backgrounds/TreeLineVert.tscn")
 	if not treeline_scene:
@@ -582,19 +582,7 @@ func place_treeline_vert_borders(layout: Array) -> void:
 	# Add to obstacle layer
 	obstacle_layer.add_child(left_treeline)
 	
-	# Create right border TreeLineVert
-	var right_treeline = treeline_scene.instantiate() as Node2D
-	if not right_treeline:
-		push_error("❌ Failed to instantiate right TreeLineVert scene")
-		return
-	
-	right_treeline.z_index = 5  # Higher z-index to appear in front of map tiles (-5)
-	right_treeline.position = Vector2(map_width + cell_size, map_height / 2)  # Right edge, centered vertically
-	
-	# Add to obstacle layer
-	obstacle_layer.add_child(right_treeline)
-	
-	print("✓ TreeLineVert borders placed - Left at (-48, ", map_height / 2, "), Right at (", map_width + cell_size, ", ", map_height / 2, ")")
+	print("✓ TreeLineVert border placed - Left at (-48, ", map_height / 2, ")")
 	print("✓ Using TreeLineVert.tscn scene file for better alignment control")
 
 func build_map_from_layout_with_randomization(layout: Array, hole_index: int = -1) -> void:

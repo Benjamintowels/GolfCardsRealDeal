@@ -6,9 +6,15 @@
 [node name="TreeLineVert" type="Node2D"]
 script = ExtResource("1_krybp")
 
-[node name="Sprite2D" type="Sprite2D" parent="."]
+[node name="TreeLineVertSpriteLeft" type="Sprite2D" parent="."]
 z_index = 3935
 texture_filter = 1
-position = Vector2(-143.655, -52.53)
-scale = Vector2(0.945, 0.945)
+position = Vector2(-458, -865)
+scale = Vector2(0.67, 0.67)
+texture = ExtResource("1_nhxsh")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+z_index = 3110
+texture_filter = 1
+position = Vector2(3291, -655)
 texture = ExtResource("1_nhxsh")

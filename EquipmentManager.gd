@@ -414,12 +414,12 @@ func _update_camera_zoom_limits():
 	if camera and camera.has_method("set_zoom_limits"):
 		if drone_zoom_enabled:
 			# Drone equipped - generous zoom (current settings)
-			camera.set_zoom_limits(0.5, 3.0)
-			print("EquipmentManager: Set camera to drone zoom limits (0.5 - 3.0)")
+			camera.set_zoom_limits(0.6, 3.0)
+			print("EquipmentManager: Set camera to drone zoom limits (0.6 - 3.0)")
 		else:
 			# No drone - reduced zoom
-			camera.set_zoom_limits(0.8, 2.0)
-			print("EquipmentManager: Set camera to reduced zoom limits (0.8 - 2.0)")
+			camera.set_zoom_limits(0.9, 2.0)
+			print("EquipmentManager: Set camera to reduced zoom limits (0.9 - 2.0)")
 	else:
 		print("EquipmentManager: Could not find GameCamera for zoom limit update")
 

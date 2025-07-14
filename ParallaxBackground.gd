@@ -429,14 +429,3 @@ func set_max_parallax_factor(new_factor: float) -> void:
 	"""Set the maximum parallax factor (dramatically reduced effect)"""
 	max_parallax_factor = clamp(new_factor, 0.0, 1.0)
 	print("✓ Set max parallax factor to: ", max_parallax_factor)
-
-func get_parallax_debug_info() -> Dictionary:
-	"""Get detailed debug information about the parallax system"""
-	return {
-		"total_layers": background_layers.size(),
-		"tree_line_index": tree_line_index,
-		"max_parallax_factor": max_parallax_factor,
-		"camera_position": camera.global_position if camera else Vector2.ZERO,
-		"world_grid_center": world_grid_center,
-		"layers": get_layer_info()
-	} 

@@ -363,7 +363,14 @@ func handle_ball_flying_input(event: InputEvent, course_instance):
 			tween.tween_property(course_instance.camera, "position", course_instance.camera_snap_back_pos, 0.6).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	elif event is InputEventMouseMotion and course_instance.is_panning:
 		var delta: Vector2 = event.position - course_instance.pan_start_pos
-		course_instance.camera.position -= delta
+		var new_position = course_instance.camera.position - delta
+		
+		# Apply camera limits to prevent panning outside bounds
+		if course_instance.camera.has_method("limit_left") and course_instance.camera.has_method("limit_right") and course_instance.camera.has_method("limit_top") and course_instance.camera.has_method("limit_bottom"):
+			new_position.x = clamp(new_position.x, course_instance.camera.limit_left, course_instance.camera.limit_right)
+			new_position.y = clamp(new_position.y, course_instance.camera.limit_top, course_instance.camera.limit_bottom)
+		
+		course_instance.camera.position = new_position
 		course_instance.pan_start_pos = event.position
 
 func handle_mouse_input(event: InputEvent, course_instance):
@@ -377,7 +384,14 @@ func handle_mouse_input(event: InputEvent, course_instance):
 			tween.tween_property(course_instance.camera, "position", course_instance.camera_snap_back_pos, 0.6).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	elif event is InputEventMouseMotion and course_instance.is_panning:
 		var delta: Vector2 = event.position - course_instance.pan_start_pos
-		course_instance.camera.position -= delta
+		var new_position = course_instance.camera.position - delta
+		
+		# Apply camera limits to prevent panning outside bounds
+		if course_instance.camera.has_method("limit_left") and course_instance.camera.has_method("limit_right") and course_instance.camera.has_method("limit_top") and course_instance.camera.has_method("limit_bottom"):
+			new_position.x = clamp(new_position.x, course_instance.camera.limit_left, course_instance.camera.limit_right)
+			new_position.y = clamp(new_position.y, course_instance.camera.limit_top, course_instance.camera.limit_bottom)
+		
+		course_instance.camera.position = new_position
 		course_instance.pan_start_pos = event.position
 
 func should_redraw_grid(event: InputEvent) -> bool:

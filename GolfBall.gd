@@ -16,6 +16,7 @@ var shot_start_position: Vector2 = Vector2.ZERO  # Position where the shot was t
 var ball_land_sound: AudioStreamPlayer2D
 var ball_stop_sound: AudioStreamPlayer2D
 var land_on_green_sound: AudioStreamPlayer2D
+var rough_sound: AudioStreamPlayer2D
 
 var velocity := Vector2.ZERO
 var gravity := 720.0  # Increased gravity for more satisfying ball trajectories
@@ -163,6 +164,10 @@ var max_player_collisions: int = 3  # Maximum consecutive player collisions befo
 var ballhop_cooldown: float = 0.0
 var ballhop_cooldown_duration: float = 1.0  # 1 second cooldown
 var ballhop_force: float = 350.0  # Vertical force applied by BallHop (reduced for less intense effect)
+
+# Tile sound system variables
+var current_tile_type: String = ""  # Track current tile type for sound effects
+var last_tile_type: String = ""  # Track previous tile type to detect changes
 
 # Call this to launch the ball
 func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, spin_strength_category: int = 0):
@@ -1040,6 +1045,16 @@ func update_tile_friction() -> void:
 	# Get the tile type at this position
 	var tile_type = map_manager.get_tile_type(tile_pos.x, tile_pos.y)
 	
+	# Track tile changes for sound effects
+	last_tile_type = current_tile_type
+	current_tile_type = tile_type
+	
+	# Check if ball entered a rough tile while rolling
+	if is_rolling and current_tile_type == "R" and last_tile_type != "R":
+		# Ball entered rough tile while rolling - play rough sound
+		if rough_sound and rough_sound.stream:
+			rough_sound.play()
+	
 	# Update friction based on tile type
 	if tile_friction_values.has(tile_type):
 		current_tile_friction = tile_friction_values[tile_type]
@@ -1080,6 +1095,7 @@ func _ready():
 	ball_land_sound = get_node_or_null("BallLand")
 	ball_stop_sound = get_node_or_null("BallStop")
 	land_on_green_sound = get_node_or_null("LandOnGreen")
+	rough_sound = get_node_or_null("RoughSound")
 	
 	# Get references to sprite and shadow
 	sprite = get_node_or_null("Sprite2D")
