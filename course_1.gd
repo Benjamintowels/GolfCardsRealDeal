@@ -16,11 +16,12 @@ signal player_turn_ended
 @onready var card_play_sound: AudioStreamPlayer2D = $CardPlaySound
 @onready var birds_tweeting_sound: AudioStreamPlayer2D = $BirdsTweeting
 @onready var obstacle_layer = $ObstacleLayer
-@onready var end_turn_button: Button = $UILayer/EndTurnButton
+@onready var end_turn_button: Control = $UILayer/EndTurnButton
 @onready var camera := $GameCamera
 @onready var map_manager := $MapManager
 @onready var build_map := $BuildMap
-@onready var draw_cards_button: Button = $UILayer/DrawCards
+@onready var draw_cards_button: Control = $UILayer/DrawCards
+@onready var draw_club_cards_button: Control = $UILayer/DrawClubCards
 @onready var mod_shot_room_button: Button
 @onready var bag: Control = $UILayer/Bag
 @onready var launch_manager = $LaunchManager
@@ -684,7 +685,7 @@ func adjust_background_positioning() -> void:
 
 	card_hand_anchor.z_index = 100
 	hud.z_index             = 101
-	end_turn_button.pressed.connect(_on_end_turn_pressed)
+	end_turn_button.get_node("TextureButton").pressed.connect(_on_end_turn_pressed)
 	end_turn_button.z_index = 102
 	end_turn_button.mouse_filter = Control.MOUSE_FILTER_STOP
 	end_turn_button.get_parent().move_child(end_turn_button, end_turn_button.get_parent().get_child_count() - 1)
@@ -692,7 +693,9 @@ func adjust_background_positioning() -> void:
 	grid_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	draw_cards_button.visible = false
-	draw_cards_button.pressed.connect(_on_draw_cards_pressed)
+	draw_cards_button.get_node("TextureButton").pressed.connect(_on_draw_cards_pressed)
+	draw_club_cards_button.visible = false
+	draw_club_cards_button.get_node("TextureButton").pressed.connect(_on_draw_club_cards_pressed)
 	
 	setup_bag_and_inventory()
 	
@@ -1862,7 +1865,7 @@ func _end_turn_logic() -> void:
 			
 			enter_draw_cards_phase()  # Start with club selection phase
 		else:
-			draw_cards_for_shot(3)
+			draw_cards_for_shot(5)
 			create_movement_buttons()
 			draw_cards_button.visible = false
 	else:
@@ -1881,7 +1884,7 @@ func _start_world_turn_sequence() -> void:
 		
 		# Disable end turn button during world turn
 		if end_turn_button:
-			end_turn_button.disabled = true
+			end_turn_button.get_node("TextureButton").mouse_filter = Control.MOUSE_FILTER_IGNORE
 	else:
 		print("ERROR: WorldTurnManager not found!")
 		# Fallback to old system
@@ -1898,7 +1901,7 @@ func _continue_after_world_turn() -> void:
 		
 		enter_draw_cards_phase()  # Start with club selection phase
 	else:
-		draw_cards_for_shot(3)
+		draw_cards_for_shot(5)
 		create_movement_buttons()
 		draw_cards_button.visible = false
 
@@ -1945,13 +1948,13 @@ func start_npc_turn_sequence() -> void:
 			
 			enter_draw_cards_phase()  # Start with club selection phase
 		else:
-			draw_cards_for_shot(3)
+			draw_cards_for_shot(5)
 			create_movement_buttons()
 			draw_cards_button.visible = false
 		return
 	
 	# Disable end turn button during NPC turn
-	end_turn_button.disabled = true
+	end_turn_button.get_node("TextureButton").mouse_filter = Control.MOUSE_FILTER_IGNORE
 	
 	# Handle all NPC turns with priority-based system
 	print("=== NPC TURN SEQUENCE ===")
@@ -1966,7 +1969,7 @@ func start_npc_turn_sequence() -> void:
 		show_turn_message("Your Turn", 2.0)
 		
 		# Re-enable end turn button
-		end_turn_button.disabled = false
+		end_turn_button.get_node("TextureButton").mouse_filter = Control.MOUSE_FILTER_STOP
 		
 		# Continue with normal turn flow
 		if waiting_for_player_to_reach_ball and player_grid_pos == ball_landing_tile:
@@ -1975,7 +1978,7 @@ func start_npc_turn_sequence() -> void:
 			
 			enter_draw_cards_phase()  # Start with club selection phase
 		else:
-			draw_cards_for_shot(3)
+			draw_cards_for_shot(5)
 			create_movement_buttons()
 			draw_cards_button.visible = false
 		return
@@ -2039,7 +2042,7 @@ func start_npc_turn_sequence() -> void:
 	await transition_camera_to_player()
 	
 	# Re-enable end turn button
-	end_turn_button.disabled = false
+	end_turn_button.get_node("TextureButton").mouse_filter = Control.MOUSE_FILTER_STOP
 	
 	# Continue with normal turn flow
 	if waiting_for_player_to_reach_ball and player_grid_pos == ball_landing_tile:
@@ -2048,7 +2051,7 @@ func start_npc_turn_sequence() -> void:
 		
 		enter_draw_cards_phase()  # Start with club selection phase
 	else:
-		draw_cards_for_shot(3)
+		draw_cards_for_shot(5)
 		create_movement_buttons()
 		draw_cards_button.visible = false
 
@@ -2607,7 +2610,6 @@ func _on_drive_distance_dialog_input(event: InputEvent) -> void:
 		game_phase = "move"
 		_update_player_mouse_facing_state()
 		draw_cards_button.visible = true
-		draw_cards_button.text = "Draw Cards"
 		var dialog_player_sprite = player_node.get_node_or_null("Sprite2D")
 		var dialog_player_size = dialog_player_sprite.texture.get_size() * dialog_player_sprite.scale if dialog_player_sprite and dialog_player_sprite.texture else Vector2(cell_size, cell_size)
 		var player_center: Vector2 = player_node.global_position + dialog_player_size / 2
@@ -2774,7 +2776,7 @@ func hide_aiming_instruction() -> void:
 	if instruction_label:
 		instruction_label.queue_free()
 
-func draw_cards_for_shot(card_count: int = 3) -> void:
+func draw_cards_for_shot(card_count: int = 5) -> void:
 	print("=== DRAWING CARDS FOR SHOT ===")
 	print("Requested card count:", card_count)
 	
@@ -2800,7 +2802,7 @@ func draw_cards_for_next_shot() -> void:
 		var card_draw_sound = card_stack_display.get_node("CardDraw")
 		if card_draw_sound and card_draw_sound.stream:
 			card_draw_sound.play()
-	draw_cards_for_shot(3)  # This now includes character modifiers
+	draw_cards_for_shot(5)  # This now includes character modifiers
 	create_movement_buttons()
 
 func _on_golf_ball_sand_landing():
@@ -3531,10 +3533,18 @@ func _on_draw_cards_pressed() -> void:
 			var card_draw_sound = card_stack_display.get_node("CardDraw")
 			if card_draw_sound and card_draw_sound.stream:
 				card_draw_sound.play()
-		draw_cards_for_shot(3)
+		draw_cards_for_shot(5)
 		create_movement_buttons()
 		draw_cards_button.visible = false
-		print("Drew 3 new cards after ending turn. DrawCards button hidden:", draw_cards_button.visible)
+		print("Drew 5 new cards after ending turn. DrawCards button hidden:", draw_cards_button.visible)
+
+func _on_draw_club_cards_pressed() -> void:
+	print("Draw Club Cards button pressed")
+	if card_stack_display.has_node("CardDraw"):
+		var card_draw_sound = card_stack_display.get_node("CardDraw")
+		if card_draw_sound and card_draw_sound.stream:
+			card_draw_sound.play()
+	draw_club_cards()
 
 func update_spin_indicator():
 	launch_manager.update_spin_indicator()
@@ -3548,9 +3558,7 @@ func enter_draw_cards_phase() -> void:
 	# Clear block at the start of player's turn (after world turn)
 	clear_block()
 	
-	draw_cards_button.visible = true
-	draw_cards_button.text = "Draw Club Cards"
-	
+	draw_club_cards_button.visible = true
 	
 	var sprite = player_node.get_node_or_null("Sprite2D")
 	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
@@ -3701,7 +3709,7 @@ func draw_club_cards() -> void:
 		movement_buttons_container.add_child(btn)
 		movement_buttons.append(btn)
 	
-	draw_cards_button.visible = false
+	draw_club_cards_button.visible = false
 	
 
 func _on_club_card_pressed(club_name: String, club_info: Dictionary, button: TextureButton) -> void:
@@ -3798,8 +3806,7 @@ func show_draw_club_cards_button() -> void:
 	print("Player is on ball tile - showing 'Draw Club Cards' button")
 	
 	# Show the "Draw Club Cards" button
-	draw_cards_button.visible = true
-	draw_cards_button.text = "Draw Club Cards"
+	draw_club_cards_button.visible = true
 	
 	# Exit movement mode but don't automatically enter launch phase
 	movement_controller.exit_movement_mode()

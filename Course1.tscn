@@ -1,4 +1,4 @@
-[gd_scene load_steps=27 format=3 uid="uid://dlq5ygh2wv33m"]
+[gd_scene load_steps=30 format=3 uid="uid://dlq5ygh2wv33m"]
 
 [ext_resource type="Script" uid="uid://d4hrfk75nrm45" path="res://course_1.gd" id="1_pe8tc"]
 [ext_resource type="Texture2D" uid="uid://cpe67sk2vh8me" path="res://EDGE.png" id="2_eymfu"]
@@ -26,6 +26,9 @@
 [ext_resource type="AudioStream" uid="uid://tu47pjuwugnn" path="res://Sounds/Snow.mp3" id="23_6ixtt"]
 [ext_resource type="Script" uid="uid://d3eloiw6y4k1g" path="res://BackgroundManager.gd" id="25_bg_manager"]
 [ext_resource type="Script" uid="uid://co4tpic85friv" path="res://CoinExplosionManager.gd" id="26_coin_explosion"]
+[ext_resource type="PackedScene" uid="uid://cobc2ineqfb8e" path="res://UI/DrawClubCardsButton.tscn" id="27_draw_club_cards"]
+[ext_resource type="PackedScene" uid="uid://be7et5h4g4wmw" path="res://UI/DrawCardsButton.tscn" id="28_draw_cards"]
+[ext_resource type="PackedScene" uid="uid://c73sma1rss70c" path="res://UI/EndTurnButton.tscn" id="29_end_turn"]
 
 [node name="Course1" type="Control"]
 layout_mode = 3
@@ -104,14 +107,11 @@ offset_right = 1142.0
 offset_bottom = 647.0
 text = "End Round"
 
-[node name="EndTurnButton" type="Button" parent="UILayer"]
-texture_filter = 1
+[node name="EndTurnButton" parent="UILayer" instance=ExtResource("29_end_turn")]
 offset_left = 219.0
 offset_top = 416.0
-offset_right = 297.0
-offset_bottom = 447.0
-scale = Vector2(1.39, 1.39)
-text = "End Turn"
+offset_right = 259.0
+offset_bottom = 456.0
 
 [node name="CardStackDisplay" parent="UILayer" instance=ExtResource("2_t0oq8")]
 z_index = 15
@@ -176,23 +176,30 @@ z_index = 400
 custom_minimum_size = Vector2(296.69, 105.645)
 layout_direction = 2
 layout_mode = 0
-offset_left = 58.0
+offset_left = 2218.35
 offset_top = 473.0
-offset_right = 354.69
+offset_right = 2515.04
 offset_bottom = 578.645
 size_flags_horizontal = 15
 size_flags_vertical = 15
 theme_override_constants/separation = 75
 alignment = 1
 
-[node name="DrawCards" type="Button" parent="UILayer"]
+[node name="DrawCards" parent="UILayer" instance=ExtResource("28_draw_cards")]
 z_index = 300
 z_as_relative = false
 offset_left = 20.0
 offset_top = 216.0
-offset_right = 220.0
-offset_bottom = 266.0
-text = "Draw Cards"
+offset_right = 60.0
+offset_bottom = 256.0
+
+[node name="DrawClubCards" parent="UILayer" instance=ExtResource("27_draw_club_cards")]
+z_index = 301
+z_as_relative = false
+offset_left = 80.0
+offset_top = 216.0
+offset_right = 312.0
+offset_bottom = 342.0
 
 [node name="TextureButton" type="TextureButton" parent="UILayer"]
 offset_right = 40.0

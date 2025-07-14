@@ -170,7 +170,7 @@ func draw_from_action_deck(count: int = 3) -> Array[CardData]:
 	emit_signal("deck_updated")
 	return drawn_cards
 
-func draw_action_cards_to_hand(count: int = 3) -> void:
+func draw_action_cards_to_hand(count: int = 5) -> void:
 	"""Draw action cards and add them directly to the hand"""
 
 	

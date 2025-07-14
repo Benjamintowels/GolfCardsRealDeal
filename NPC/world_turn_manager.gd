@@ -29,7 +29,7 @@ var npcs_skipped_this_turn: Array[Node] = []
 # Camera and UI management
 var course_reference: Node = null
 var camera_reference: Node = null
-var end_turn_button: Button = null
+var end_turn_button: Control = null
 
 # Turn message system
 var turn_message_display: Control = null
@@ -679,7 +679,7 @@ func _complete_world_turn() -> void:
 	
 	# Re-enable end turn button
 	if end_turn_button:
-		end_turn_button.disabled = false
+		end_turn_button.get_node("TextureButton").mouse_filter = Control.MOUSE_FILTER_STOP
 	
 	# Emit completion signals
 	all_npcs_turn_completed.emit()
@@ -724,7 +724,7 @@ func _continue_player_turn() -> void:
 		if course_reference.has_method("enter_draw_cards_phase"):
 			course_reference.enter_draw_cards_phase()
 		elif course_reference.has_method("draw_cards_for_shot"):
-			course_reference.draw_cards_for_shot(3)
+			course_reference.draw_cards_for_shot(5)
 
 func _show_turn_message(message: String, duration: float) -> void:
 	"""Show a turn message to the player"""
@@ -781,13 +781,6 @@ func force_advance_to_next_npc() -> void:
 		print("Force advancing to next NPC")
 		_process_next_npc_turn()
 
-func debug_together_mode_status() -> void:
-	"""Debug method to show together mode status"""
-	# Debug functionality removed for production
-
-func debug_priority_groups() -> void:
-	"""Debug method to show how NPCs would be grouped by priority in together mode"""
-	# Debug functionality removed for production
 
 func _process(delta: float) -> void:
 	"""Process function for cleanup and maintenance"""
