@@ -40,8 +40,8 @@ const TURN_CLEANUP_INTERVAL: float = 5.0  # Clean up old data every 5 seconds
 
 # Together Mode - All NPCs execute simultaneously in priority cascade
 var together_mode_enabled: bool = false
-var together_mode_turn_duration: float = 3.0  # Total time for together mode turn
-var together_mode_cascade_delay: float = 0.1  # Delay between NPC activations in cascade
+var together_mode_turn_duration: float = 1.5  # Total time for together mode turn (reduced from 3.0)
+var together_mode_cascade_delay: float = 0.05  # Delay between NPC activations in cascade (reduced from 0.1)
 
 # NPC Priority System (higher number = higher priority/faster)
 const NPC_PRIORITIES = {
@@ -54,8 +54,8 @@ const NPC_PRIORITIES = {
 
 # Turn validation constants
 const MAX_VISION_RANGE: int = 20  # Maximum tiles for player vision
-const MIN_TURN_INTERVAL: float = 0.5  # Minimum time between NPC turns
-const CAMERA_TRANSITION_DURATION: float = 0.5  # Time for camera transitions
+const MIN_TURN_INTERVAL: float = 0.25  # Minimum time between NPC turns (reduced from 0.5)
+const CAMERA_TRANSITION_DURATION: float = 0.25  # Time for camera transitions (reduced from 0.5)
 
 func _ready():
 	"""Initialize the WorldTurnManager"""
@@ -393,7 +393,7 @@ func _process_next_npc_turn() -> void:
 	
 	# Simple, reliable turn completion: wait a fixed time
 	# This prevents NPCs from getting stuck and ensures consistent timing
-	var turn_duration = 2.0  # 2 seconds per turn (enough for movement + animation)
+	var turn_duration = 1.0  # 1 second per turn (reduced from 2.0 for faster transitions)
 	await get_tree().create_timer(turn_duration).timeout
 	
 	# Wait a moment to let player see the result
@@ -418,7 +418,7 @@ func _process_together_mode_turn() -> void:
 	_show_turn_message("World Turn - Together!", 1.5)
 	
 	# Wait a moment for message to display
-	await get_tree().create_timer(0.5).timeout
+	await get_tree().create_timer(0.25).timeout
 	
 	# Group NPCs by priority for cascade effect
 	var priority_groups: Dictionary = {}
@@ -527,7 +527,7 @@ func _execute_npc_turn_task(task: Dictionary) -> void:
 	# Wait for the NPC's turn to actually complete
 	# Most NPCs emit a signal when their turn is done, or we can wait for a reasonable duration
 	var turn_start_time = Time.get_ticks_msec() / 1000.0
-	var max_turn_duration = 3.0  # Maximum 3 seconds for an NPC turn
+	var max_turn_duration = 1.5  # Maximum 1.5 seconds for an NPC turn (reduced from 3.0)
 	
 	# Wait for either the NPC to signal completion or timeout
 	while Time.get_ticks_msec() / 1000.0 - turn_start_time < max_turn_duration:
@@ -540,7 +540,7 @@ func _execute_npc_turn_task(task: Dictionary) -> void:
 			break
 		
 		# Small delay to avoid busy waiting
-		await get_tree().create_timer(0.1).timeout
+		await get_tree().create_timer(0.05).timeout
 	
 	# Mark task as completed
 	task.completed = true
@@ -582,7 +582,7 @@ func _wait_for_all_tasks(tasks: Array) -> void:
 				completed_tasks += 1
 		
 		if completed_tasks < total_tasks:
-			await get_tree().create_timer(0.1).timeout
+			await get_tree().create_timer(0.05).timeout
 
 func toggle_together_mode() -> void:
 	"""Toggle together mode on/off"""
@@ -674,7 +674,7 @@ func _complete_world_turn() -> void:
 	_show_turn_message("Your Turn", 2.0)
 	
 	# Wait for message to display, then transition camera back to player
-	await get_tree().create_timer(1.0).timeout
+	await get_tree().create_timer(0.5).timeout
 	await _transition_camera_to_player()
 	
 	# Re-enable end turn button

@@ -1986,7 +1986,7 @@ func start_npc_turn_sequence() -> void:
 		await transition_camera_to_npc(npc)
 		
 		# Wait a moment for camera transition
-		await get_tree().create_timer(0.5).timeout
+		await get_tree().create_timer(0.25).timeout
 		
 		# Special handling for squirrels: update ball detection before turn
 		var script_path = npc.get_script().resource_path if npc.get_script() else ""
@@ -2007,7 +2007,7 @@ func start_npc_turn_sequence() -> void:
 				# Skip squirrel's turn if it no longer detects a ball
 				if not has_ball:
 					print("Squirrel no longer detects ball, skipping turn")
-					await get_tree().create_timer(0.5).timeout
+					await get_tree().create_timer(0.25).timeout
 					continue
 			print("=== END SQUIRREL BALL DETECTION UPDATE ===")
 		
@@ -2019,7 +2019,7 @@ func start_npc_turn_sequence() -> void:
 		await npc.turn_completed
 		
 		# Wait a moment to let player see the result
-		await get_tree().create_timer(0.5).timeout
+		await get_tree().create_timer(0.25).timeout
 	
 	print("=== END PHASE 2: PLAYER VISION-BASED NPC TURNS ===")
 	print("World Turn phase completed")
@@ -2028,7 +2028,7 @@ func start_npc_turn_sequence() -> void:
 	show_turn_message("Your Turn", 2.0)
 	
 	# Wait for message to display, then transition camera back to player
-	await get_tree().create_timer(1.0).timeout
+	await get_tree().create_timer(0.5).timeout
 	await transition_camera_to_player()
 	
 	# Re-enable end turn button
