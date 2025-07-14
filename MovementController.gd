@@ -316,6 +316,15 @@ func handle_tile_click(x: int, y: int) -> bool:
 	if is_movement_mode and clicked in valid_movement_tiles:
 		player_node.move_to_grid(clicked)
 		card_play_sound.play()
+		
+		# Special handling for EtherDash - don't exit movement mode after first move
+		if selected_card and selected_card.name == "EtherDash":
+			# Update valid movement tiles for next move
+			valid_movement_tiles = player_node.valid_movement_tiles.duplicate()
+			show_movement_highlights()
+			print("EtherDash movement completed - allowing additional moves")
+			return true
+		
 		return true
 	else:
 		print("Invalid movement tile or not in movement mode")

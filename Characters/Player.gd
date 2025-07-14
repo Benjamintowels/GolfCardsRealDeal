@@ -43,6 +43,11 @@ var is_in_launch_mode: bool = false  # Track if we're in launch mode (ball flyin
 # Player facing direction tracking
 var current_facing_direction: Vector2i = Vector2i(1, 0)  # Start facing right (1, 0) = right, (-1, 0) = left
 
+# EtherDash specific variables
+var is_etherdash_mode: bool = false
+var etherdash_moves_remaining: int = 0
+var etherdash_start_position: Vector2i = Vector2i.ZERO
+
 # Swing animation system
 var swing_animation: Node2D = null
 var previous_charging_height: bool = false  # Track previous state to detect changes
@@ -1300,12 +1305,25 @@ func start_movement_mode(card, movement_range_: int):
 	selected_card = card
 	movement_range = movement_range_
 	is_movement_mode = true
+	
+	# Special handling for EtherDash
+	if card and card.name == "EtherDash":
+		is_etherdash_mode = true
+		etherdash_moves_remaining = 2  # Allow 2 moves
+		etherdash_start_position = grid_pos
+		print("EtherDash mode activated - moves remaining:", etherdash_moves_remaining)
+	
 	calculate_valid_movement_tiles()
 
 func end_movement_mode():
 	is_movement_mode = false
 	selected_card = null
 	valid_movement_tiles.clear()
+	
+	# Reset EtherDash state
+	is_etherdash_mode = false
+	etherdash_moves_remaining = 0
+	etherdash_start_position = Vector2i.ZERO
 
 func calculate_valid_movement_tiles():
 	
@@ -1351,6 +1369,45 @@ func calculate_valid_movement_tiles():
 		print("Total cross pattern tiles for Dash card:", valid_movement_tiles.size())
 		return
 	
+	# Special case for EtherDash card - show cross pattern but exclude first 3 tiles
+	if selected_card and selected_card.name == "EtherDash":
+		print("EtherDash card detected - showing cross pattern movement (excluding first 3 tiles)")
+		var cross_positions = []
+		
+		# Add positions in cross pattern: up, down, left, right (no diagonals)
+		# Start from distance 4 to exclude first 3 tiles
+		for distance in range(4, total_range + 1):
+			# Up
+			var up_pos = Vector2i(grid_pos.x, grid_pos.y - distance)
+			if up_pos.y >= 0:
+				cross_positions.append(up_pos)
+			
+			# Down
+			var down_pos = Vector2i(grid_pos.x, grid_pos.y + distance)
+			if down_pos.y < grid_size.y:
+				cross_positions.append(down_pos)
+			
+			# Left
+			var left_pos = Vector2i(grid_pos.x - distance, grid_pos.y)
+			if left_pos.x >= 0:
+				cross_positions.append(left_pos)
+			
+			# Right
+			var right_pos = Vector2i(grid_pos.x + distance, grid_pos.y)
+			if right_pos.x < grid_size.x:
+				cross_positions.append(right_pos)
+		
+		# Check obstacles for cross positions
+		for pos in cross_positions:
+			if obstacle_map.has(pos):
+				var obstacle = obstacle_map[pos]
+				if obstacle.has_method("blocks") and obstacle.blocks():
+					continue
+			valid_movement_tiles.append(pos)
+		
+		print("Total cross pattern tiles for EtherDash card:", valid_movement_tiles.size())
+		return
+	
 	# Default movement pattern (diamond shape) for other movement cards
 	for y in grid_size.y:
 		for x in grid_size.x:
@@ -1371,14 +1428,98 @@ func can_move_to(pos: Vector2i) -> bool:
 func move_to_grid(pos: Vector2i):
 	
 	if can_move_to(pos):
-		set_grid_position(pos)
-		emit_signal("moved_to_tile", pos)
-		print("Signal emitted, ending movement mode")
-		end_movement_mode()
-		print("Movement mode ended")
+		# Special handling for EtherDash
+		if is_etherdash_mode:
+			_handle_etherdash_movement(pos)
+		else:
+			# Normal movement
+			set_grid_position(pos)
+			emit_signal("moved_to_tile", pos)
+			print("Signal emitted, ending movement mode")
+			end_movement_mode()
+			print("Movement mode ended")
 	else:
 		print("Movement is invalid - cannot move to this position")
 	print("=== END PLAYER.GD MOVE_TO_GRID DEBUG ===")
+
+func _handle_etherdash_movement(target_pos: Vector2i):
+	"""Handle EtherDash movement with visual effects and multiple move logic"""
+	print("=== ETHERDASH MOVEMENT ===")
+	print("Moving from", grid_pos, "to", target_pos)
+	print("Moves remaining:", etherdash_moves_remaining)
+	
+	# Create EtherDashCircle effect at starting position
+	_create_etherdash_effect(grid_pos)
+	
+	# Store the target position for after movement
+	var etherdash_target_pos = target_pos
+	
+	# Use very fast movement animation
+	var original_duration = movement_duration
+	movement_duration = 0.1  # Very fast movement
+	
+	# Move to the target position
+	set_grid_position(target_pos)
+	
+	# Create EtherDashCircle effect at destination
+	_create_etherdash_effect(target_pos)
+	
+	# Emit signal for movement completion
+	emit_signal("moved_to_tile", target_pos)
+	
+	# Decrease moves remaining
+	etherdash_moves_remaining -= 1
+	print("EtherDash moves remaining:", etherdash_moves_remaining)
+	
+	# Restore original movement duration
+	movement_duration = original_duration
+	
+	# If no moves remaining, end EtherDash mode
+	if etherdash_moves_remaining <= 0:
+		print("EtherDash complete - ending movement mode")
+		# Signal to the course that EtherDash is complete so it can handle card discarding
+		var course = get_tree().current_scene
+		if course and course.has_method("on_etherdash_complete"):
+			course.on_etherdash_complete()
+		else:
+			# Fallback: just end movement mode
+			end_movement_mode()
+	else:
+		# Recalculate valid movement tiles for next move
+		calculate_valid_movement_tiles()
+		print("EtherDash continuing - recalculated valid tiles")
+
+func _create_etherdash_effect(position: Vector2i):
+	"""Create EtherDashCircle effect at the specified grid position"""
+	var etherdash_scene = preload("res://Particles/EtherDashCircle.tscn")
+	var etherdash_instance = etherdash_scene.instantiate()
+	
+	# Get the course to access camera container
+	var course = get_tree().current_scene
+	if not course:
+		print("ERROR: No course found for EtherDash effect placement")
+		return
+	
+	# Calculate tile center position (relative to camera container)
+	var tile_center = Vector2(position.x * cell_size + cell_size / 2, position.y * cell_size + cell_size / 2)
+	
+	# Add to the camera container (same as other world objects)
+	var camera_container = course.get_node_or_null("CameraContainer")
+	if camera_container:
+		# Position relative to camera container (local coordinates)
+		etherdash_instance.position = tile_center
+		camera_container.add_child(etherdash_instance)
+	else:
+		# Fallback: add to current scene with global position
+		var world_pos = tile_center
+		if course.has_method("get_camera_offset"):
+			world_pos += course.get_camera_offset()
+		elif "camera_offset" in course:
+			world_pos += course.camera_offset
+		etherdash_instance.global_position = world_pos
+		course.add_child(etherdash_instance)
+	
+	print("Created EtherDash effect at position:", position, "tile_center:", tile_center)
 
 func _process(delta):
 	# OPTIMIZED: Only update Y-sort when Player moves

@@ -1,0 +1,28 @@
+[gd_scene load_steps=6 format=3 uid="uid://c0tgjp5kmjllm"]
+
+[ext_resource type="Script" uid="uid://cq8tbuaj81bws" path="res://Particles/EtherDashCircle.gd" id="1_script"]
+[ext_resource type="Texture2D" uid="uid://dnk1bd3n4qdof" path="res://Particles/GoodSummonCircle.png" id="2_vy214"]
+[ext_resource type="Texture2D" uid="uid://c0orbx33yy6tu" path="res://Weapons/DarkEnergy.png" id="3_txx40"]
+[ext_resource type="AudioStream" uid="uid://cfxt741b85o4p" path="res://Sounds/EtherDash.mp3" id="4_jl16y"]
+[ext_resource type="AudioStream" uid="uid://icvi7c2ur6mm" path="res://Sounds/FlameOn.mp3" id="5_lxnjp"]
+
+[node name="EtherDashCircle" type="Node2D"]
+script = ExtResource("1_script")
+
+[node name="CircleSprite" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(-1, -12)
+texture = ExtResource("2_vy214")
+
+[node name="FlameSprite" type="Sprite2D" parent="."]
+visible = false
+texture_filter = 1
+position = Vector2(0, -54)
+texture = ExtResource("3_txx40")
+
+[node name="EtherDash" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("4_jl16y")
+
+[node name="FlameOn" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("5_lxnjp")
+pitch_scale = 0.66

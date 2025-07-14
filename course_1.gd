@@ -1486,6 +1486,15 @@ func _on_tile_mouse_exited(x: int, y: int) -> void:
 	attack_handler.handle_tile_mouse_exited(x, y, is_panning)
 
 func _on_tile_input(event: InputEvent, x: int, y: int) -> void:
+	# Handle right-click for EtherDash cancellation
+	if event is InputEventMouseButton and event.pressed and not is_panning and event.button_index == MOUSE_BUTTON_RIGHT:
+		# Check if we're in EtherDash mode
+		if player_node and player_node.is_etherdash_mode:
+			print("Right-click detected during EtherDash - cancelling EtherDash mode")
+			# Use the same completion method to ensure card is discarded
+			on_etherdash_complete()
+			return
+	
 	if event is InputEventMouseButton and event.pressed and not is_panning and event.button_index == MOUSE_BUTTON_LEFT:
 		var clicked := Vector2i(x, y)
 		
@@ -3799,8 +3808,15 @@ func _on_player_moved_to_tile(new_grid_pos: Vector2i) -> void:
 		# Show the "Draw Club Cards" button instead of automatically entering launch phase
 		show_draw_club_cards_button()
 	else:
-		# Normal movement - exit movement mode
-		exit_movement_mode()
+		# Check if this is EtherDash movement - don't exit movement mode if more moves are available
+		if player_node.is_etherdash_mode and player_node.etherdash_moves_remaining > 0:
+			print("EtherDash movement completed - more moves available, staying in movement mode")
+			# Update movement highlights for next move
+			movement_controller.valid_movement_tiles = player_node.valid_movement_tiles.duplicate()
+			movement_controller.show_movement_highlights()
+		else:
+			# Normal movement - exit movement mode
+			exit_movement_mode()
 
 func show_draw_club_cards_button() -> void:
 	"""Show the 'Draw Club Cards' button when player is on an active ball tile"""
@@ -3893,6 +3909,18 @@ func show_shop_overlay():
 	shop_overlay = shop_instance
 	shop_instance.connect("shop_closed", _on_shop_overlay_return)
 	print("=== SHOP OVERLAY SHOWN ===")
+
+func get_camera_offset() -> Vector2:
+	"""Get the camera offset for positioning world objects"""
+	return camera_offset
+
+func on_etherdash_complete():
+	"""Handle EtherDash completion - ensure card is discarded"""
+	print("Course: EtherDash complete - handling card discard")
+	# Force the movement controller to exit movement mode and discard the card
+	if movement_controller and movement_controller.is_in_movement_mode():
+		movement_controller.exit_movement_mode()
+		print("Course: EtherDash card discarded via movement controller")
 
 func _on_shop_overlay_return():
 	"""Handle returning from shop overlay"""

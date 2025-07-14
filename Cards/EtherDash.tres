@@ -7,7 +7,7 @@
 script = ExtResource("1_wva26")
 name = "EtherDash"
 effect_type = "Movement"
-effect_strength = 1
+effect_strength = 8
 image = ExtResource("1_rmy7u")
 level = 1
 max_level = 2
