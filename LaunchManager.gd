@@ -61,6 +61,7 @@ signal ball_launched(ball: Node2D)
 signal launch_phase_entered
 signal launch_phase_exited
 signal charging_state_changed(charging: bool, charging_height: bool)
+signal height_changed(new_height: float)
 
 # Add this variable to track if this is a tee shot
 
@@ -190,6 +191,8 @@ func enter_launch_phase() -> void:
 			var club_min_height = club_data.get(selected_club, {}).get("min_height", 0.0)
 			launch_height = club_min_height
 			is_selecting_height = true
+			# Emit signal to notify about height selection phase
+			emit_signal("charging_state_changed", is_charging, is_charging_height)
 		else:
 			# Putters start with power charging immediately
 			launch_height = 0.0
@@ -1087,7 +1090,13 @@ func handle_input(event: InputEvent) -> bool:
 			var club_max_height = club_data.get(selected_club, {}).get("max_height", MAX_LAUNCH_HEIGHT)
 			
 			# Clamp height to club's specific range
+			var old_height = launch_height
 			launch_height = clamp(launch_height + height_change, club_min_height, club_max_height)
+			
+			# Emit signal if height actually changed
+			if old_height != launch_height:
+				emit_signal("height_changed", launch_height)
+			
 			return true
 		elif is_charging or is_charging_height:
 			current_charge_mouse_pos = camera.get_global_mouse_position()
@@ -1096,6 +1105,14 @@ func handle_input(event: InputEvent) -> bool:
 	return false
 
 # Spin indicator visibility function removed
+
+func get_selecting_height() -> bool:
+	"""Get the current height selection state"""
+	return is_selecting_height
+
+func get_launch_height() -> float:
+	"""Get the current launch height value"""
+	return launch_height
 
 func calculate_launch_direction() -> Vector2:
 	"""Calculate the launch direction based on the chosen landing spot or mouse position"""

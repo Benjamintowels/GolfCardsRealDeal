@@ -328,13 +328,6 @@ func clear_existing_objects() -> void:
 		child.queue_free()
 		objects_removed += 1
 	
-	print("Removed", objects_removed, "objects from obstacle_layer")
-	
-	# Debug: Show what objects remain in obstacle_layer
-	# print("Remaining objects in obstacle_layer after clearing:")
-	# for child in obstacle_layer.get_children():
-	#     print("  -", child.name, "Type:", child.get_class())
-	
 	# Clear obstacle_map entries for objects (including Pin now)
 	var keys_to_remove: Array[Vector2i] = []
 	for pos in obstacle_map.keys():
@@ -4845,6 +4838,7 @@ func _on_launch_phase_exited():
 
 func _on_charging_state_changed(charging: bool, charging_height: bool) -> void:
 	"""Handle charging state changes from LaunchManager"""
+	# Force update the player state to include is_selecting_height
 	_update_player_mouse_facing_state()
 
 func _on_ball_collision_detected() -> void:
@@ -4978,11 +4972,13 @@ func _update_player_mouse_facing_state() -> void:
 	# Update launch state from LaunchManager
 	var is_charging = false
 	var is_charging_height = false
+	var is_selecting_height = false
 	if launch_manager:
 		is_charging = launch_manager.is_charging
 		is_charging_height = launch_manager.is_charging_height
+		is_selecting_height = launch_manager.is_selecting_height
 	
-	player_node.set_launch_state(is_charging, is_charging_height)
+	player_node.set_launch_state(is_charging, is_charging_height, is_selecting_height)
 	
 	# Update launch mode state
 	var is_in_launch_mode = (game_phase == "ball_flying")
@@ -5014,6 +5010,10 @@ func kill_current_camera_tween() -> void:
 func get_camera_container() -> Control:
 	"""Get the camera container for world-to-grid conversions"""
 	return camera_container
+
+func get_launch_manager() -> LaunchManager:
+	"""Get the launch manager reference"""
+	return launch_manager
 
 func create_camera_tween(target_position: Vector2, duration: float = 0.5, transition: Tween.TransitionType = Tween.TRANS_SINE, ease: Tween.EaseType = Tween.EASE_OUT) -> void:
 	"""Create a camera tween with proper management to prevent conflicts"""

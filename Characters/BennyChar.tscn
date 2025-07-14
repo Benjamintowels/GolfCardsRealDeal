@@ -1,4 +1,4 @@
-[gd_scene load_steps=33 format=3 uid="uid://bc8s6t7wka23s"]
+[gd_scene load_steps=35 format=3 uid="uid://bc8s6t7wka23s"]
 
 [ext_resource type="Texture2D" uid="uid://bu6bwgk8aipl2" path="res://Characters/BennyChar.png" id="1_oukfo"]
 [ext_resource type="Script" uid="uid://d2iiaqe57mea" path="res://Characters/SwingAnimation.gd" id="2_swing"]
@@ -7,6 +7,8 @@
 [ext_resource type="Texture2D" uid="uid://v4jenktcxsee" path="res://Characters/BennyKick.png" id="4_woj5g"]
 [ext_resource type="Texture2D" uid="uid://bxy6rtxgb2fco" path="res://Characters/Block.png" id="6_3tp8o"]
 [ext_resource type="Texture2D" uid="uid://bv35vxn4r6qcl" path="res://Characters/BennyMeditate.png" id="7_423w5"]
+[ext_resource type="Texture2D" uid="uid://jenr44lel6lx" path="res://Characters/BennyArmless.png" id="8_bc1tv"]
+[ext_resource type="Script" uid="uid://bkhq5oyslgb0n" path="res://Characters/BennyArmHeightController.gd" id="9_arm_height_controller"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_oukfo"]
 radius = 7.64385
@@ -277,3 +279,12 @@ visible = false
 texture_filter = 1
 position = Vector2(0, -33)
 texture = ExtResource("7_423w5")
+
+[node name="BennyArmlessSprite" type="Sprite2D" parent="."]
+visible = false
+texture_filter = 1
+position = Vector2(-1, -44)
+texture = ExtResource("8_bc1tv")
+
+[node name="BennyArmHeightController" type="Node2D" parent="."]
+script = ExtResource("9_arm_height_controller")

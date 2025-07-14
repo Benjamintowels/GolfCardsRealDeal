@@ -1,0 +1,12 @@
+[gd_scene load_steps=3 format=3 uid="uid://test_benny_arm_height"]
+
+[ext_resource type="PackedScene" uid="uid://bc8s6t7wka23s" path="res://Characters/BennyChar.tscn" id="1_benny"]
+[ext_resource type="Script" path="res://test_benny_arm_height.gd" id="2_test"]
+
+[node name="TestBennyArmHeight" type="Node2D"]
+script = ExtResource("2_test")
+
+[node name="BennyChar" parent="." instance=ExtResource("1_benny")]
+
+[node name="Camera2D" type="Camera2D" parent="."]
+position = Vector2(400, 300) 

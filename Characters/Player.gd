@@ -52,6 +52,9 @@ var etherdash_start_position: Vector2i = Vector2i.ZERO
 var swing_animation: Node2D = null
 var previous_charging_height: bool = false  # Track previous state to detect changes
 
+# Benny arm height controller
+var benny_arm_height_controller: Node2D = null
+
 # Kick animation system
 var kick_animation: Node2D = null
 var kick_sprite: Sprite2D = null
@@ -137,6 +140,9 @@ func _ready():
 	print("🚨 ABOUT TO CALL _setup_punchb_animation() 🚨")
 	_setup_punchb_animation()
 	print("🚨 FINISHED CALLING _setup_punchb_animation() 🚨")
+	
+	# Setup Benny arm height controller (will be done after character is added)
+	# _setup_benny_arm_height_controller()
 	
 	# Setup footstep sound system
 	_setup_footstep_sounds()
@@ -1633,14 +1639,39 @@ func set_game_phase(phase: String) -> void:
 	"""Set the current game phase for mouse facing logic"""
 	game_phase = phase
 
-func set_launch_state(charging: bool, charging_height: bool) -> void:
+func set_launch_state(charging: bool, charging_height: bool, selecting_height: bool = false) -> void:
 	"""Set the launch charging state for mouse facing logic"""
 	is_charging = charging
 	is_charging_height = charging_height
+	
+	# Update Benny arm height controller if available
+	if benny_arm_height_controller and benny_arm_height_controller.has_method("set_set_height_phase"):
+		# Activate during height selection phase (when not charging but in launch phase)
+		var should_activate = game_phase == "launch" and not charging and not charging_height and selecting_height
+		
+		# Debug output (always show for now to troubleshoot)
+		print("SetHeight phase check:")
+		print("  Game phase:", game_phase)
+		print("  Is charging:", charging)
+		print("  Is charging height:", charging_height)
+		print("  Is selecting height:", selecting_height)
+		print("  Should activate:", should_activate)
+		print("  Controller available:", benny_arm_height_controller != null)
+		
+		benny_arm_height_controller.set_set_height_phase(should_activate)
 
 func set_camera_reference(camera_ref: Camera2D) -> void:
 	"""Set the camera reference for mouse position calculation"""
 	camera = camera_ref
+	
+	# Set up Benny arm height controller after camera is available
+	if benny_arm_height_controller and benny_arm_height_controller.has_method("set_camera_reference"):
+		benny_arm_height_controller.set_camera_reference(camera)
+		print("✓ Camera reference passed to BennyArmHeightController")
+	elif benny_arm_height_controller:
+		print("⚠ BennyArmHeightController found but missing set_camera_reference method")
+	else:
+		print("⚠ No BennyArmHeightController available when setting camera reference")
 
 func disable_collision_shape() -> void:
 	"""Disable the player's collision shape during launch mode"""
@@ -2367,11 +2398,73 @@ func _setup_meditation_system() -> void:
 	
 	print("=== MEDITATION SYSTEM SETUP COMPLETE ===")
 
+func _setup_benny_arm_height_controller() -> void:
+	"""Setup the Benny arm height controller for SetHeight phase visual effects"""
+	print("=== SETTING UP BENNY ARM HEIGHT CONTROLLER ===")
+	
+	# Find the BennyChar node first, then look for the controller within it
+	var benny_char = get_node_or_null("BennyChar")
+	if not benny_char:
+		print("⚠ BennyChar node not found")
+		print("⚠ This will prevent SetHeight phase visual effects from working!")
+		print("=== BENNY ARM HEIGHT CONTROLLER SETUP COMPLETE ===")
+		return
+	
+	# Find the BennyArmHeightController within the BennyChar scene
+	benny_arm_height_controller = benny_char.get_node_or_null("BennyArmHeightController")
+	
+	if benny_arm_height_controller:
+		print("✓ Benny arm height controller found:", benny_arm_height_controller.name)
+		
+		# Set up camera reference if available
+		if camera and benny_arm_height_controller.has_method("set_camera_reference"):
+			benny_arm_height_controller.set_camera_reference(camera)
+		
+		# Set up player reference
+		if benny_arm_height_controller.has_method("set_player_reference"):
+			benny_arm_height_controller.set_player_reference(self)
+		
+		# Set up launch manager reference
+		var course = get_tree().current_scene
+		if course and course.has_method("get_launch_manager"):
+			var launch_manager = course.get_launch_manager()
+			if launch_manager and benny_arm_height_controller.has_method("set_launch_manager_reference"):
+				benny_arm_height_controller.set_launch_manager_reference(launch_manager)
+				print("✓ Launch manager reference passed to BennyArmHeightController")
+		
+		print("✓ Benny arm height controller setup complete")
+	else:
+		print("⚠ Benny arm height controller not found in BennyChar")
+		print("⚠ This will prevent SetHeight phase visual effects from working!")
+	
+	print("=== BENNY ARM HEIGHT CONTROLLER SETUP COMPLETE ===")
+
+func _find_benny_arm_height_controller_recursive(node: Node) -> Node2D:
+	"""Recursively search for the BennyArmHeightController in the node tree"""
+	print("Searching for BennyArmHeightController in node:", node.name, "Type:", node.get_class())
+	for child in node.get_children():
+		print("Checking child:", child.name, "Type:", child.get_class())
+		if child.name == "BennyArmHeightController" and child is Node2D:
+			print("✓ Found BennyArmHeightController:", child.name)
+			return child
+		elif child is Node2D:
+			# Recursively search in Node2D children
+			var result = _find_benny_arm_height_controller_recursive(child)
+			if result:
+				return result
+	print("No BennyArmHeightController found in node:", node.name)
+	return null
+
 func setup_meditation_after_character() -> void:
 	"""Setup the meditation system after the character scene is added"""
 	print("=== SETTING UP MEDITATION SYSTEM AFTER CHARACTER ADDED ===")
 	_setup_meditation_system()
 	print("=== MEDITATION SYSTEM SETUP AFTER CHARACTER COMPLETE ===")
+	
+	# Also set up Benny arm height controller after character is added
+	print("=== SETTING UP BENNY ARM HEIGHT CONTROLLER AFTER CHARACTER ADDED ===")
+	_setup_benny_arm_height_controller()
+	print("=== BENNY ARM HEIGHT CONTROLLER SETUP AFTER CHARACTER COMPLETE ===")
 
 func _find_meditate_sprite_recursive(node: Node) -> Sprite2D:
 	"""Recursively search for the BennyMeditateSprite in the node tree"""

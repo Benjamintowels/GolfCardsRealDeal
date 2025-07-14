@@ -488,20 +488,6 @@ func _process(delta):
 	# Only check for tree collisions when ball is in the air (during launch mode)
 	if z > 0.0:
 		check_nearby_tree_collisions()
-	# Bush collisions are now handled through proper Area2D collision detection
-	# No need for distance-based checking
-	
-	# DEBUG: Check if there are any bushes in the scene
-	if Time.get_ticks_msec() % 1000 < 16:  # Only check every ~1 second to avoid spam
-		var bushes = get_tree().get_nodes_in_group("bushes")
-		if bushes.size() > 0:
-			print("DEBUG: Found", bushes.size(), "bushes in scene")
-			for bush in bushes:
-				var distance = global_position.distance_to(bush.global_position)
-				if distance < 200:  # Only show nearby bushes
-					print("  Bush at", bush.global_position, "distance:", distance)
-		else:
-			print("DEBUG: No bushes found in scene")
 	
 	# Update vertical physics (arc and bounce)
 	if z > 0.0:

@@ -198,38 +198,27 @@ func _get_active_npcs_for_turn() -> Array[Node]:
 	"""Get all NPCs that should take a turn this world turn"""
 	var active_npcs: Array[Node] = []
 	
-	print("=== CHECKING NPCs FOR WORLD TURN ===")
-	print("Total registered NPCs: ", registered_npcs.size())
-	print("DEBUG: registered_npcs array size at start of _get_active_npcs_for_turn: ", registered_npcs.size())
 	
 	for npc in registered_npcs:
 		if not is_instance_valid(npc):
-			print("Skipping invalid NPC")
 			continue
 		
-		print("Checking NPC: ", npc.name)
 		
 		# Check if NPC is alive
 		if not _is_npc_alive(npc):
-			print("  - NPC is dead, skipping")
 			continue
 		
 		# Debug: Check if NPC has required methods
 		var has_grid_position = npc.has_method("get_grid_position")
 		var has_take_turn = npc.has_method("take_turn")
-		print("  - NPC methods - get_grid_position:", has_grid_position, "take_turn:", has_take_turn)
 		
 		# Check if NPC is frozen and won't thaw this turn
 		if _is_npc_frozen_and_wont_thaw(npc):
-			print("  - NPC is frozen and won't thaw this turn, skipping")
 			continue
 		
 		# Check if NPC should take a turn based on type and conditions
 		if _should_npc_take_turn(npc):
 			active_npcs.append(npc)
-			print("  - ✓ NPC will take turn (Priority: ", get_npc_priority(npc), ")")
-		else:
-			print("  - ✗ NPC should not take turn")
 	
 	# Sort NPCs by priority (highest priority first)
 	active_npcs.sort_custom(func(a, b): return get_npc_priority(a) > get_npc_priority(b))
@@ -800,33 +789,20 @@ func _cleanup_old_data() -> void:
 	
 	# Don't clean up during active world turns to prevent NPCs from disappearing
 	if is_world_turn_active:
-		print("=== CLEANUP: Skipped during active world turn ===")
 		_debug_call_stack.pop_back()
 		return
 	
-	print("=== CLEANUP: Starting NPC registration cleanup ===")
-	print("NPCs before cleanup:", registered_npcs.size())
-	print("CLEANUP: registered_npcs array size:", registered_npcs.size())
 	
 	# Remove invalid NPCs from registration
 	var valid_npcs: Array[Node] = []
 	for npc in registered_npcs:
 		if is_instance_valid(npc):
 			valid_npcs.append(npc)
-		else:
-			print("CLEANUP: Removing invalid NPC from registration:", npc.name if npc else "None")
 	
 	if valid_npcs.size() != registered_npcs.size():
 		var removed_count = registered_npcs.size() - valid_npcs.size()
-		print("CLEANUP: About to reassign registered_npcs array. Old size:", registered_npcs.size(), "New size:", valid_npcs.size())
 		registered_npcs = valid_npcs
-		print("CLEANUP: Removed", removed_count, "invalid NPCs. Valid NPCs remaining:", registered_npcs.size())
 		
-		# Debug: List remaining NPCs
-		for npc in registered_npcs:
-			print("CLEANUP: Remaining NPC:", npc.name, "Valid:", is_instance_valid(npc))
-	else:
-		print("CLEANUP: No invalid NPCs found")
 	
 	# Clean up priority cache for invalid NPCs
 	var valid_cache_keys: Array = []
@@ -836,9 +812,5 @@ func _cleanup_old_data() -> void:
 	
 	if valid_cache_keys.size() != npc_priority_cache.size():
 		npc_priority_cache.clear()
-		print("CLEANUP: Cleared NPC priority cache")
-	
-	print("=== CLEANUP: Finished NPC registration cleanup ===")
-	print("CLEANUP: registered_npcs array size after cleanup:", registered_npcs.size())
 	
 	_debug_call_stack.pop_back()
