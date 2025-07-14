@@ -1,0 +1,63 @@
+[gd_scene load_steps=3 format=3 uid="uid://test_power_meter"]
+
+[ext_resource type="Script" path="res://test_power_meter.gd" id="1_script"]
+[ext_resource type="PackedScene" uid="uid://epbwjl2sq5cq" path="res://UI/PowerMeter.tscn" id="2_power_meter"]
+
+[node name="TestPowerMeter" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("1_script")
+
+[node name="PowerMeter" parent="." instance=ExtResource("2_power_meter")]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -100.0
+offset_top = -25.0
+offset_right = 100.0
+offset_bottom = 25.0
+
+[node name="StartButton" type="Button" parent="."]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -100.0
+offset_top = -100.0
+offset_right = -10.0
+offset_bottom = -70.0
+text = "Start Power Meter"
+
+[node name="StopButton" type="Button" parent="."]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = -100.0
+offset_right = 100.0
+offset_bottom = -70.0
+text = "Stop Power Meter"
+
+[node name="ResultLabel" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -150.0
+offset_top = -50.0
+offset_right = 150.0
+offset_bottom = -20.0
+text = "Click Start to test the Power Meter"
+horizontal_alignment = 1 

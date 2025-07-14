@@ -1,4 +1,4 @@
-[gd_scene load_steps=30 format=3 uid="uid://dlq5ygh2wv33m"]
+[gd_scene load_steps=31 format=3 uid="uid://dlq5ygh2wv33m"]
 
 [ext_resource type="Script" uid="uid://d4hrfk75nrm45" path="res://course_1.gd" id="1_pe8tc"]
 [ext_resource type="Texture2D" uid="uid://cpe67sk2vh8me" path="res://EDGE.png" id="2_eymfu"]
@@ -29,6 +29,7 @@
 [ext_resource type="PackedScene" uid="uid://cobc2ineqfb8e" path="res://UI/DrawClubCardsButton.tscn" id="27_draw_club_cards"]
 [ext_resource type="PackedScene" uid="uid://be7et5h4g4wmw" path="res://UI/DrawCardsButton.tscn" id="28_draw_cards"]
 [ext_resource type="PackedScene" uid="uid://c73sma1rss70c" path="res://UI/EndTurnButton.tscn" id="29_end_turn"]
+[ext_resource type="PackedScene" uid="uid://epbwjl2sq5cq" path="res://UI/PowerMeter.tscn" id="30_power_meter"]
 
 [node name="Course1" type="Control"]
 layout_mode = 3
@@ -198,6 +199,13 @@ z_index = 301
 z_as_relative = false
 offset_left = 80.0
 offset_top = 216.0
+
+[node name="PowerMeter" parent="UILayer" instance=ExtResource("30_power_meter")]
+visible = false
+z_index = 4096
+z_as_relative = false
+offset_left = 50.0
+offset_top = 50.0
 offset_right = 312.0
 offset_bottom = 342.0
 

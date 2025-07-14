@@ -1,0 +1,97 @@
+[gd_scene load_steps=3 format=3 uid="uid://epbwjl2sq5cq"]
+
+[ext_resource type="Texture2D" uid="uid://cmtkqhbjjbgft" path="res://UI/PowerMeter.png" id="1_khpu2"]
+[ext_resource type="Script" uid="uid://c4x0mpkk3yrkt" path="res://UI/PowerMeter.gd" id="2_script"]
+
+[node name="PowerMeter" type="Control"]
+layout_mode = 3
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -100.0
+offset_top = -25.0
+offset_right = 100.0
+offset_bottom = 25.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("2_script")
+
+[node name="Background" type="TextureRect" parent="."]
+z_index = 901
+texture_filter = 1
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -185.0
+offset_top = 141.0
+offset_right = -185.0
+offset_bottom = 141.0
+grow_horizontal = 2
+grow_vertical = 2
+scale = Vector2(2.03, 0.48)
+pivot_offset = Vector2(0, -65.735)
+texture = ExtResource("1_khpu2")
+expand_mode = 1
+
+[node name="PowerBarContainer" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -165.0
+offset_top = 151.0
+offset_right = -205.0
+offset_bottom = 131.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="PowerBar" type="ProgressBar" parent="PowerBarContainer"]
+z_index = -475
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -12.245
+offset_right = -12.245
+grow_horizontal = 2
+grow_vertical = 2
+scale = Vector2(2.285, 0.25)
+value = 50.0
+show_percentage = false
+
+[node name="SweetSpotIndicator" type="ColorRect" parent="PowerBarContainer"]
+z_index = -215
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = 217.0
+offset_top = -110.0
+offset_right = 221.0
+offset_bottom = -94.0
+grow_horizontal = 2
+grow_vertical = 2
+scale = Vector2(7.965, 4.06)
+color = Color(0, 1, 0, 0.8)
+
+[node name="PowerLabel" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -242.0
+offset_top = 43.0
+offset_right = -202.0
+offset_bottom = 66.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "50%"
+horizontal_alignment = 1
+vertical_alignment = 1

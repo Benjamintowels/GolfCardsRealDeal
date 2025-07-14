@@ -22,6 +22,7 @@ signal player_turn_ended
 @onready var build_map := $BuildMap
 @onready var draw_cards_button: Control = $UILayer/DrawCards
 @onready var draw_club_cards_button: Control = $UILayer/DrawClubCards
+@onready var power_meter: Control = $UILayer/PowerMeter
 @onready var mod_shot_room_button: Button
 @onready var bag: Control = $UILayer/Bag
 @onready var launch_manager = $LaunchManager
@@ -1610,6 +1611,8 @@ func show_aiming_circle():
 	distance_label.position = Vector2(adjusted_circle_size + 10, adjusted_circle_size / 2 - 10)
 	distance_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	aiming_circle.add_child(distance_label)
+	
+
 	
 	print("Aiming circle created with size:", adjusted_circle_size, "(base:", base_circle_size, "strength modifier:", strength_modifier, ")")
 

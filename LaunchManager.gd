@@ -217,6 +217,14 @@ func exit_launch_phase() -> void:
 	emit_signal("launch_phase_exited")
 	hide_power_meter()
 	hide_height_meter()
+	
+	# Hide the PowerMeter when completely exiting launch phase
+	var course = card_effect_handler.course if card_effect_handler else null
+	if course and course.power_meter and course.power_meter.visible:
+		course.power_meter.visible = false
+		if course.power_meter.has_method("stop_power_meter"):
+			course.power_meter.stop_power_meter()
+	
 	is_charging = false
 	is_charging_height = false
 	is_selecting_height = false  # Reset height selection state
@@ -740,10 +748,53 @@ func launch_spear(launch_direction: Vector2, final_power: float, height: float, 
 	exit_launch_phase()
 
 func show_power_meter():
+	# Check if PowerMeter is already visible from the course (height phase)
+	var course = card_effect_handler.course if card_effect_handler else null
+	if course and course.power_meter and course.power_meter.visible:
+		# Use the existing PowerMeter from the course
+		power_meter = course.power_meter
+		
+		print("LaunchManager: Using existing PowerMeter from course (height phase)")
+		
+		# Configure the PowerMeter for launch phase
+		power_for_target = MIN_LAUNCH_POWER  # Default if no target
+		max_power_for_bar = MAX_LAUNCH_POWER  # Default
+		
+		if chosen_landing_spot != Vector2.ZERO and selected_club in club_data:
+			var sprite = player_node.get_node_or_null("Sprite2D")
+			var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
+			var player_center = player_node.global_position + player_size / 2
+			var distance_to_target = player_center.distance_to(chosen_landing_spot)
+			var club_max = club_data[selected_club]["max_distance"] if selected_club in club_data else MAX_LAUNCH_POWER
+			power_for_target = min(distance_to_target, club_max)
+			max_power_for_bar = club_max
+			print("LaunchManager: show_power_meter - calculated power_for_target:", power_for_target, " max_power_for_bar:", max_power_for_bar)
+		
+		# Set initial launch power
+		launch_power = MIN_LAUNCH_POWER
+		
+		# Configure the PowerMeter for launch phase
+		if power_meter.has_method("set_sweet_spot_position"):
+			# Set sweet spot to specific position X 297.0
+			power_meter.set_sweet_spot_position(297.0)
+		
+		if power_meter.has_method("set_power_increment"):
+			power_meter.set_power_increment(3.0)  # Faster speed for launch phase
+		
+		# Transition from preview mode to normal power meter mode
+		power_meter.start_power_meter()
+		
+		power_meter.set_meta("max_power_for_bar", max_power_for_bar)
+		power_meter.set_meta("power_for_target", power_for_target)
+		power_meter.set_meta("scaled_min_power", MIN_LAUNCH_POWER)
+		
+		return
+	
+	# Fallback: Create new PowerMeter if not already visible
 	if power_meter:
 		power_meter.queue_free()
 	
-	print("LaunchManager: show_power_meter - selected_club:", selected_club, " club_data:", club_data)
+	print("LaunchManager: Creating new PowerMeter - selected_club:", selected_club, " club_data:", club_data)
 	
 	power_for_target = MIN_LAUNCH_POWER  # Default if no target
 	max_power_for_bar = MAX_LAUNCH_POWER  # Default
@@ -761,86 +812,77 @@ func show_power_meter():
 	# Set initial launch power
 	launch_power = MIN_LAUNCH_POWER
 	
-	power_meter = Control.new()
-	power_meter.name = "PowerMeter"
-	power_meter.size = Vector2(350, 80)
+	# Load and instance the PowerMeter scene
+	var power_meter_scene = preload("res://UI/PowerMeter.tscn")
+	power_meter = power_meter_scene.instantiate()
 	power_meter.position = Vector2(396.49, 558.7)  # Center of screen for testing
 	ui_layer.add_child(power_meter)
 	power_meter.z_index = 200
 	
-	var background := ColorRect.new()
-	background.color = Color(0, 0, 0, 0.7)
-	background.size = power_meter.size
-	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	power_meter.add_child(background)
-	
-	var title_label := Label.new()
-	title_label.text = "POWER"
-	title_label.add_theme_font_size_override("font_size", 16)
-	title_label.add_theme_color_override("font_color", Color.WHITE)
-	title_label.position = Vector2(10, 5)
-	title_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	power_meter.add_child(title_label)
-	
-	var meter_bg := ColorRect.new()
-	meter_bg.color = Color(0.3, 0.3, 0.3, 1.0)
-	meter_bg.size = Vector2(300, 30)
-	meter_bg.position = Vector2(10, 30)
-	meter_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	power_meter.add_child(meter_bg)
-	
-	var sweet_spot := ColorRect.new()
-	sweet_spot.color = Color(0, 1, 0, 0.5)
-	sweet_spot.size = Vector2(60, 30)
-	sweet_spot.position = Vector2(10 + 180, 30)  # 60% of 300
-	sweet_spot.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	power_meter.add_child(sweet_spot)
-	
-	var meter_fill := ColorRect.new()
-	meter_fill.color = Color(1, 0, 0, 1.0)
-	meter_fill.size = Vector2(0, 30)  # Start with zero width, will be updated in _process
-	meter_fill.position = Vector2(10, 30)
-	meter_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	meter_fill.name = "MeterFill"
-	power_meter.add_child(meter_fill)
-	
-	var value_label := Label.new()
-	value_label.text = "0"
-	value_label.add_theme_font_size_override("font_size", 14)
-	value_label.add_theme_color_override("font_color", Color.WHITE)
-	value_label.position = Vector2(320, 30)
-	value_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	value_label.name = "PowerValue"
-	power_meter.add_child(value_label)
-	
-	var min_label := Label.new()
-	min_label.text = "MIN"
-	min_label.add_theme_font_size_override("font_size", 12)
-	min_label.add_theme_color_override("font_color", Color.LIGHT_GRAY)
-	min_label.position = Vector2(10, 65)
-	min_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	power_meter.add_child(min_label)
-	
-	var max_label := Label.new()
-	max_label.text = "MAX"
-	max_label.add_theme_font_size_override("font_size", 12)
-	max_label.add_theme_color_override("font_color", Color.LIGHT_GRAY)
-	max_label.position = Vector2(280, 65)
-	max_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	power_meter.add_child(max_label)
+	# Configure the PowerMeter
+	var power_meter_script = power_meter.get_script()
+	if power_meter_script:
+		# Set sweet spot range based on power_for_target
+		var sweet_spot_range = 15.0  # 15% range for sweet spot
+		var sweet_spot_center = (power_for_target / max_power_for_bar) * 100.0
+		var sweet_spot_min = max(0.0, sweet_spot_center - sweet_spot_range / 2.0)
+		var sweet_spot_max = min(100.0, sweet_spot_center + sweet_spot_range / 2.0)
+		
+		power_meter.set_sweet_spot_range(sweet_spot_min, sweet_spot_max)
+		power_meter.set_power_increment(3.0)  # Adjust speed as needed
+		
+		# Connect signals
+		power_meter.power_changed.connect(_on_power_meter_changed)
+		power_meter.sweet_spot_hit.connect(_on_sweet_spot_hit)
+		
+		# Start the power meter
+		power_meter.start_power_meter()
 	
 	power_meter.set_meta("max_power_for_bar", max_power_for_bar)
 	power_meter.set_meta("power_for_target", power_for_target)
 	power_meter.set_meta("scaled_min_power", MIN_LAUNCH_POWER)
 
 func hide_power_meter():
+	# Check if this PowerMeter belongs to the course (aiming phase)
+	var course = card_effect_handler.course if card_effect_handler else null
+	if course and course.power_meter and power_meter == course.power_meter:
+		# Don't hide the course's PowerMeter, just stop it
+		if power_meter.has_method("stop_power_meter"):
+			power_meter.stop_power_meter()
+		power_meter = null
+		return
+	
+	# Hide our own PowerMeter instance
 	if power_meter:
+		# Stop the power meter before removing it
+		if power_meter.has_method("stop_power_meter"):
+			power_meter.stop_power_meter()
 		power_meter.queue_free()
 		power_meter = null
+
+func _on_power_meter_changed(power_value: float):
+	"""Handle power meter value changes"""
+	launch_power = (power_value / 100.0) * max_power_for_bar
+	print("LaunchManager: Power meter changed to ", power_value, "% (", launch_power, " units)")
+
+func _on_sweet_spot_hit():
+	"""Handle sweet spot hit"""
+	print("LaunchManager: Sweet spot hit!")
+	# You can add visual/audio feedback here
 
 func show_height_meter():
 	if height_meter:
 		height_meter.queue_free()
+	
+	# Show the PowerMeter during height selection phase (preview mode)
+	var course = card_effect_handler.course if card_effect_handler else null
+	if course and course.power_meter:
+		course.power_meter.visible = true
+		if course.power_meter.has_method("set_sweet_spot_position"):
+			# Set sweet spot to specific position X 297.0 for preview mode
+			course.power_meter.set_sweet_spot_position(297.0)
+		if course.power_meter.has_method("start_preview_mode"):
+			course.power_meter.start_preview_mode()
 	
 	# Get club-specific height range
 	var club_min_height = club_data.get(selected_club, {}).get("min_height", 0.0)
@@ -928,6 +970,10 @@ func hide_height_meter():
 	if height_meter:
 		height_meter.queue_free()
 		height_meter = null
+	
+	# Don't hide the PowerMeter when transitioning to power phase
+	# The PowerMeter should continue running from height phase to power phase
+	# It will be reconfigured in show_power_meter() but should remain visible
 
 # Spin indicator functions removed
 
@@ -963,8 +1009,14 @@ func handle_input(event: InputEvent) -> bool:
 				if is_charging:
 					is_charging = false
 					print("LaunchManager: Power charging finished. Launching projectile.")
-					# Calculate final power and launch the projectile
-					var final_power = calculate_final_power()
+					# Get power from PowerMeter if available, otherwise use calculated power
+					var final_power = launch_power
+					if power_meter and power_meter.has_method("get_current_power"):
+						var power_percentage = power_meter.get_current_power()
+						final_power = (power_percentage / 100.0) * max_power_for_bar
+					else:
+						final_power = calculate_final_power()
+					
 					launch_direction = calculate_launch_direction()
 					if is_knife_mode:
 						launch_throwing_knife(launch_direction, final_power, launch_height)
@@ -981,8 +1033,14 @@ func handle_input(event: InputEvent) -> bool:
 					is_charging_height = false
 					print("LaunchManager: Height charging finished. Final height:", launch_height, " is_grenade_mode:", is_grenade_mode)
 					# Don't reset launch_height here - keep the charged value
-					# Calculate final power and launch the projectile
-					var final_power = calculate_final_power()
+					# Get power from PowerMeter if available, otherwise use calculated power
+					var final_power = launch_power
+					if power_meter and power_meter.has_method("get_current_power"):
+						var power_percentage = power_meter.get_current_power()
+						final_power = (power_percentage / 100.0) * max_power_for_bar
+					else:
+						final_power = calculate_final_power()
+					
 					launch_direction = calculate_launch_direction()
 					if is_knife_mode:
 						print("LaunchManager: Launching throwing knife")
@@ -1007,6 +1065,14 @@ func handle_input(event: InputEvent) -> bool:
 			is_selecting_height = false
 			hide_power_meter()
 			hide_height_meter()
+			
+			# Hide the PowerMeter when canceling
+			var course = card_effect_handler.course if card_effect_handler else null
+			if course and course.power_meter and course.power_meter.visible:
+				course.power_meter.visible = false
+				if course.power_meter.has_method("stop_power_meter"):
+					course.power_meter.stop_power_meter()
+			
 			emit_signal("charging_state_changed", is_charging, is_charging_height)
 			return true
 	
