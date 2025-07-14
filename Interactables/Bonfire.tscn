@@ -6,7 +6,7 @@
 [ext_resource type="AudioStream" uid="uid://duwk4vvnma6e2" path="res://Sounds/Meditate.mp3" id="4_a00a4"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_o2idl"]
-radius = 17.0
+radius = 44.0
 
 [node name="Bonfire" type="Node2D"]
 script = ExtResource("1_o2idl")
@@ -30,9 +30,14 @@ position = Vector2(0, -10)
 position = Vector2(0, -5)
 
 [node name="BonfireArea2D" type="Area2D" parent="."]
+scale = Vector2(0.676458, 0.331112)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="BonfireArea2D"]
-scale = Vector2(1.73, 1)
+shape = SubResource("CircleShape2D_o2idl")
+
+[node name="DetectArea2D" type="Area2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="DetectArea2D"]
 shape = SubResource("CircleShape2D_o2idl")
 
 [node name="BonfireOn" type="AudioStreamPlayer2D" parent="."]

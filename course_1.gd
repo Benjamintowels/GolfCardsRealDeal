@@ -1072,6 +1072,10 @@ func create_player() -> void:
 			char_instance.scale = char_scale  # Apply the scale
 			char_instance.position = char_offset  # Apply the offset
 			player_node.add_child(char_instance)
+			
+			# Setup meditation system after character scene is added
+			if player_node.has_method("setup_meditation_after_character"):
+				player_node.setup_meditation_after_character()
 
 	var base_mobility = player_stats.get("base_mobility", 0)
 	player_node.setup(grid_size, cell_size, base_mobility, obstacle_map)

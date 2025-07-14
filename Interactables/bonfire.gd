@@ -4,6 +4,7 @@ extends Node2D
 
 @onready var bonfire_flame: Sprite2D = $BonfireFlame
 @onready var bonfire_area: Area2D = $BonfireArea2D
+@onready var detect_area: Area2D = $DetectArea2D
 @onready var top_height_marker: Marker2D = $TopHeight
 @onready var ysort_point: Marker2D = $YsortPoint
 
@@ -29,6 +30,10 @@ var map_manager: Node = null  # Reference to map manager for tile checking
 var lighter_dialog: Control = null
 var lighter_dialog_active: bool = false
 
+# Meditation trigger properties
+var last_meditation_trigger_time: float = 0.0  # Prevent rapid meditation triggers
+var meditation_cooldown: float = 2.0  # Minimum time between meditation triggers
+
 func _ready():
 	# Add to groups for Y-sorting and optimization
 	add_to_group("visual_objects")
@@ -50,6 +55,9 @@ func _ready():
 	
 	# Add to obstacle map to block movement
 	_add_to_obstacle_map()
+	
+	# Connect to player movement signal for meditation checking
+	_connect_to_player_movement()
 
 func _find_map_manager():
 	"""Find the map manager in the scene"""
@@ -64,6 +72,26 @@ func _add_to_obstacle_map():
 		var grid_pos = get_grid_position()
 		course.obstacle_map[grid_pos] = self
 		print("Bonfire: Added to obstacle map at position", grid_pos)
+
+func _connect_to_player_movement():
+	"""Connect to player movement signal for meditation checking"""
+	# Wait a frame to ensure the player is created
+	await get_tree().process_frame
+	
+	# Find the player and connect to their movement signal
+	var player = get_tree().current_scene.get_node_or_null("Player")
+	
+	if player and player.has_signal("moved_to_tile"):
+		player.moved_to_tile.connect(_on_player_moved)
+		print("Bonfire: Connected to player movement signal")
+	else:
+		print("Bonfire: Could not connect to player movement signal")
+
+func _on_player_moved(new_grid_pos: Vector2i):
+	"""Called when the player moves to a new tile"""
+	if is_active:
+		print("Bonfire: Player moved to", new_grid_pos, ", checking for meditation...")
+		_check_for_player_meditation()
 
 func blocks() -> bool:
 	"""Return true to block movement on this tile"""
@@ -83,9 +111,66 @@ func setup_flame_animation():
 		bonfire_flame.visible = false  # Start hidden (inactive)
 
 func setup_collision_detection():
-	# Connect collision signals - use area_entered for Area2D collision detection
-	bonfire_area.area_entered.connect(_on_area_entered)
-	bonfire_area.area_exited.connect(_on_area_exited)
+	# Setup ball collision area (BonfireArea2D)
+	print("=== BONFIRE COLLISION SETUP DEBUG ===")
+	print("Bonfire: Setting up collision detection")
+	print("Bonfire: bonfire_area found:", bonfire_area != null)
+	print("Bonfire: detect_area found:", detect_area != null)
+	
+	# Configure BonfireArea2D for ball collisions
+	if bonfire_area:
+		# Set collision layer to 1 so golf balls can detect it
+		bonfire_area.collision_layer = 1
+		# Set collision mask to 1 so it can detect golf balls on layer 1
+		bonfire_area.collision_mask = 1
+		# Make sure the area is monitoring and monitorable for ball collisions
+		bonfire_area.monitoring = true
+		bonfire_area.monitorable = true
+		
+		print("Bonfire: bonfire_area collision layer:", bonfire_area.collision_layer)
+		print("Bonfire: bonfire_area collision mask:", bonfire_area.collision_mask)
+		print("Bonfire: bonfire_area monitoring:", bonfire_area.monitoring)
+		print("Bonfire: bonfire_area monitorable:", bonfire_area.monitorable)
+		
+		# Connect ball collision signals
+		bonfire_area.area_entered.connect(_on_ball_area_entered)
+		bonfire_area.area_exited.connect(_on_ball_area_exited)
+	
+	# Configure DetectArea2D for player detection
+	if detect_area:
+		# Set collision layer to 0 (we don't want other objects to detect the bonfire)
+		detect_area.collision_layer = 0
+		# Set collision mask to 3 to detect player (layer 1 + layer 2 = 3)
+		detect_area.collision_mask = 3
+		# Make sure the area is monitoring (detecting other areas)
+		detect_area.monitoring = true
+		# Make sure the area is monitorable (can be detected by other areas)
+		detect_area.monitorable = false  # We don't want other objects to detect the bonfire
+		
+		print("Bonfire: detect_area collision layer:", detect_area.collision_layer)
+		print("Bonfire: detect_area collision mask:", detect_area.collision_mask)
+		print("Bonfire: detect_area monitoring:", detect_area.monitoring)
+		print("Bonfire: detect_area monitorable:", detect_area.monitorable)
+		
+		# Connect player detection signals
+		detect_area.area_entered.connect(_on_player_area_entered)
+		detect_area.area_exited.connect(_on_player_area_exited)
+		
+		# Check collision shape
+		var collision_shape = detect_area.get_node_or_null("CollisionShape2D")
+		if collision_shape:
+			print("Bonfire: Detect collision shape found:", collision_shape.name)
+			if collision_shape.shape:
+				print("Bonfire: Detect collision shape type:", collision_shape.shape.get_class())
+				if collision_shape.shape is CircleShape2D:
+					print("Bonfire: Detect circle radius:", collision_shape.shape.radius)
+					print("Bonfire: Detect circle radius with scale:", collision_shape.shape.radius * collision_shape.scale.x)
+				print("Bonfire: Detect collision shape scale:", collision_shape.scale)
+		else:
+			print("Bonfire: No detect collision shape found!")
+	
+	print("Bonfire: Collision signals connected")
+	print("=== END BONFIRE COLLISION SETUP DEBUG ===")
 
 func _process(delta):
 	if is_active:
@@ -94,13 +179,12 @@ func _process(delta):
 	# Check for fire tiles nearby
 	_check_for_nearby_fire()
 	
-	# Check for player meditation when bonfire is active
-	if is_active:
-		_check_for_player_meditation()
-	else:
-		# Debug: Check if bonfire should be active but isn't
-		if map_manager and _check_for_nearby_fire_debug():
-			print("Bonfire: Should be active due to nearby fire but isn't!")
+	# Meditation is now checked event-based (when bonfire becomes active, player enters area, or player moves)
+	# No more timer-based checking for better performance
+	
+	# Debug: Check if bonfire should be active but isn't
+	if not is_active and map_manager and _check_for_nearby_fire_debug():
+		print("Bonfire: Should be active due to nearby fire but isn't!")
 
 func animate_flame(delta):
 	animation_timer += delta
@@ -199,39 +283,33 @@ func set_bonfire_active(active: bool):
 		# Activate bonfire
 		bonfire_flame.visible = true
 		
+		# Reset meditation cooldown so first meditation can trigger immediately
+		last_meditation_trigger_time = 0.0
+		
 		# Play activation sound
 		var bonfire_sound = get_node_or_null("BonfireOn")
 		if bonfire_sound and bonfire_sound.stream:
 			bonfire_sound.play()
+		
+		# Check for meditation immediately when bonfire becomes active
+		# Use deferred call to ensure this happens after the bonfire is fully activated
+		print("Bonfire: Just became active, checking for adjacent player...")
+		call_deferred("_check_for_player_meditation")
+		
+		# Also check if player is already in the area
+		call_deferred("_check_for_player_in_area")
 	else:
 		# Deactivate bonfire
 		bonfire_flame.visible = false
 
-func _on_area_entered(area: Area2D):
-	print("Bonfire: Area entered bonfire area:", area.name if area else "null")
-	
-	# Get the parent of the area (the actual object)
-	var object = area.get_parent()
-	if not object:
-		print("Bonfire: No parent object found for area")
-		return
-	
-	print("Bonfire: Object name:", object.name if object else "null")
-	print("Bonfire: Object has get_ball_height:", object.has_method("get_ball_height") if object else "N/A")
-	print("Bonfire: Object has get_ball_velocity:", object.has_method("get_ball_velocity") if object else "N/A")
-	
-	if object.has_method("get_ball_height") and object.has_method("get_ball_velocity"):
-		print("Bonfire: Handling ball collision")
-		handle_ball_collision(object)
-	elif object.name == "Player":
-		print("Bonfire: Handling player collision")
-		handle_player_entered(object)
-	else:
-		print("Bonfire: Unknown object type entered (ignoring non-player entities)")
-
-func _on_area_exited(area: Area2D):
-	# Handle any cleanup when ball leaves bonfire area
-	pass
+func _find_player_in_hierarchy(node: Node) -> Node:
+	"""Find the Player node in the parent hierarchy"""
+	var current = node
+	while current:
+		if current.name == "Player":
+			return current
+		current = current.get_parent()
+	return null
 
 func handle_ball_collision(ball: Node2D):
 	var ball_height = ball.get_ball_height()
@@ -258,8 +336,31 @@ func handle_player_entered(player: Node2D):
 	print("Bonfire: Bonfire is_active:", is_active)
 	
 	if is_active:
-		print("Bonfire: Bonfire is already active, no dialog needed")
-		return  # Already active, no need for lighter dialog
+		print("Bonfire: Bonfire is active, checking for meditation trigger")
+		# Check if enough time has passed since last meditation trigger
+		var current_time = Time.get_ticks_msec() / 1000.0
+		if current_time - last_meditation_trigger_time >= meditation_cooldown:
+			print("Bonfire: Cooldown passed, checking meditation conditions...")
+			# Check if player should start meditating
+			if player.has_method("is_currently_meditating"):
+				var is_meditating = player.is_currently_meditating()
+				print("Bonfire: Player is_currently_meditating() returned:", is_meditating)
+				if not is_meditating:
+					# Allow meditation even while moving (removed movement check)
+					if player.has_method("start_meditation"):
+						print("Bonfire: All conditions met, starting meditation...")
+						player.start_meditation()
+						last_meditation_trigger_time = current_time
+						print("✓ Player meditation triggered by entering active bonfire area")
+					else:
+						print("Bonfire: Player missing start_meditation() method")
+				else:
+					print("Bonfire: Player is already meditating")
+			else:
+				print("Bonfire: Player missing is_currently_meditating() method")
+		else:
+			print("Bonfire: Meditation trigger on cooldown (", meditation_cooldown - (current_time - last_meditation_trigger_time), "s remaining)")
+		return
 	
 	print("Bonfire: Checking if player has lighter...")
 	# Check if player has lighter equipped
@@ -430,53 +531,185 @@ func is_bonfire_active() -> bool:
 	"""Check if the bonfire is currently active"""
 	return is_active
 
-func _check_for_player_meditation():
-	"""Check if player is adjacent to this bonfire and trigger meditation"""
-	# Find the player - try multiple methods
-	var player = get_tree().current_scene.get_node_or_null("Player")
-	if not player:
-		# Try searching recursively through the scene tree
-		player = _find_player_recursive(get_tree().current_scene)
+func _check_for_player_in_area():
+	"""Check if the player is already in the bonfire's detect area when it becomes active"""
+	if not is_active:
+		return
+		
+	print("Bonfire: Checking if player is already in detect area...")
 	
-	if not player or not player.has_method("get_grid_position"):
+	# Use the DetectArea2D to check for overlapping areas
+	if detect_area:
+		# Get all overlapping areas
+		var overlapping_areas = detect_area.get_overlapping_areas()
+		print("Bonfire: Found", overlapping_areas.size(), "overlapping areas")
+		
+		for area in overlapping_areas:
+			var object = area.get_parent()
+			if not object:
+				continue
+			
+			print("Bonfire: Checking overlapping object:", object.name)
+			
+			# Check if this is the Player (either directly or through parent hierarchy)
+			var player_node = _find_player_in_hierarchy(object)
+			if player_node:
+				print("Bonfire: Player is already in detect area, triggering detection...")
+				# Trigger the area entered logic
+				handle_player_entered(player_node)
+				return
+		
+		print("Bonfire: No player found in detect area")
+	else:
+		print("Bonfire: No detect area found for area check")
+
+func _check_for_player_meditation():
+	"""Check if player is in the bonfire's detect area and trigger meditation"""
+	print("=== BONFIRE MEDITATION CHECK ===")
+	
+	# Check if enough time has passed since last meditation trigger
+	var current_time = Time.get_ticks_msec() / 1000.0
+	if current_time - last_meditation_trigger_time < meditation_cooldown:
+		print("Bonfire: Still on cooldown, skipping meditation check")
+		return  # Still on cooldown
+	
+	print("Bonfire: Cooldown passed, checking for player in detect area...")
+	
+	# Use the DetectArea2D to check for overlapping areas
+	if not detect_area:
+		print("Bonfire: No detect area found!")
 		return
 	
-	# Get player's grid position
-	var player_grid_pos = player.get_grid_position()
-	var bonfire_grid_pos = get_grid_position()
+	var overlapping_areas = detect_area.get_overlapping_areas()
+	print("Bonfire: Found", overlapping_areas.size(), "overlapping areas")
 	
-	# Check if player is adjacent (within 1 tile)
-	var distance = abs(player_grid_pos.x - bonfire_grid_pos.x) + abs(player_grid_pos.y - bonfire_grid_pos.y)
-	if distance <= 1 and distance > 0:  # Adjacent but not on the same tile
-		# Check if player is not already meditating
-		if player.has_method("is_currently_meditating") and not player.is_currently_meditating():
-			# Check if player is not moving
-			if player.has_method("is_currently_moving") and not player.is_currently_moving():
-				# Trigger meditation
-				if player.has_method("start_meditation"):
-					player.start_meditation()
-					print("✓ Player meditation triggered by adjacent bonfire at distance", distance)
-					print("✓ Player position:", player_grid_pos, "Bonfire position:", bonfire_grid_pos)
-	else:
-		# Debug: Print distance when not adjacent
-		if player.has_method("is_currently_meditating") and not player.is_currently_meditating():
-			var distance_debug = abs(player_grid_pos.x - bonfire_grid_pos.x) + abs(player_grid_pos.y - bonfire_grid_pos.y)
-			if distance_debug <= 3:  # Only print for nearby positions to avoid spam
-				print("Bonfire: Player distance:", distance_debug, "Player pos:", player_grid_pos, "Bonfire pos:", bonfire_grid_pos)
+	for area in overlapping_areas:
+		var object = area.get_parent()
+		if not object:
+			continue
+		
+		# Check if this is the Player (either directly or through parent hierarchy)
+		var player_node = _find_player_in_hierarchy(object)
+		if player_node:
+			print("Bonfire: Player found in detect area, checking meditation status...")
+			# Check if player is not already meditating
+			if player_node.has_method("is_currently_meditating"):
+				var is_meditating = player_node.is_currently_meditating()
+				print("Bonfire: Player meditation status:", is_meditating)
+				
+				if not is_meditating:
+					print("Bonfire: Player not meditating, triggering meditation...")
+					# Trigger meditation
+					if player_node.has_method("start_meditation"):
+						print("Bonfire: Calling player.start_meditation()...")
+						player_node.start_meditation()
+						last_meditation_trigger_time = current_time
+						print("✓ Player meditation triggered by bonfire detect area")
+					else:
+						print("Bonfire: Player missing start_meditation method")
+				else:
+					print("Bonfire: Player is already meditating")
+			else:
+				print("Bonfire: Player missing is_currently_meditating method")
+			return
+	
+	print("Bonfire: No player found in detect area")
+	print("=== END BONFIRE MEDITATION CHECK ===")
 
-func _find_player_recursive(node: Node) -> Node2D:
-	"""Recursively search for a Player node in the scene tree"""
-	if node.name == "Player":
-		return node as Node2D
-	
-	for child in node.get_children():
-		var result = _find_player_recursive(child)
-		if result:
-			return result
-	
-	return null
+
 
 func _update_ysort():
 	"""Update the Bonfire's z_index for proper Y-sorting"""
 	# Force update the Ysort using the global system
 	Global.update_object_y_sort(self, "objects")
+
+func debug_bonfire_detection():
+	"""Debug function to test bonfire detection - can be called from console"""
+	print("=== BONFIRE DEBUG DETECTION ===")
+	print("Bonfire position:", global_position)
+	print("Bonfire grid position:", get_grid_position())
+	print("Bonfire is_active:", is_active)
+	
+	# Find player
+	var player = get_tree().current_scene.get_node_or_null("Player")
+	
+	if player:
+		print("Player found:", player.name)
+		print("Player position:", player.global_position)
+		print("Player grid position:", player.get_grid_position())
+		
+		var distance = player.get_grid_position().distance_to(get_grid_position())
+		print("Distance to player:", distance)
+		print("Should detect player:", distance <= 1.5)
+		
+		if is_active:
+			print("Bonfire is active, checking meditation...")
+			_check_for_player_meditation()
+	else:
+		print("No player found!")
+	
+	print("=== END BONFIRE DEBUG ===")
+
+func test_activate_bonfire():
+	"""Test function to manually activate the bonfire - can be called from console"""
+	print("=== TESTING BONFIRE ACTIVATION ===")
+	set_bonfire_active(true)
+	print("Bonfire activated for testing")
+	print("=== END TEST ACTIVATION ===")
+
+func _on_ball_area_entered(area: Area2D):
+	print("=== BONFIRE BALL AREA ENTERED DEBUG ===")
+	print("Bonfire: Ball area entered bonfire area:", area.name if area else "null")
+	print("Bonfire: Area parent name:", area.get_parent().name if area and area.get_parent() else "null")
+	
+	# Get the parent of the area (the actual object)
+	var object = area.get_parent()
+	if not object:
+		print("Bonfire: No parent object found for area")
+		return
+	
+	print("Bonfire: Object name:", object.name if object else "null")
+	print("Bonfire: Object has get_ball_height:", object.has_method("get_ball_height") if object else "N/A")
+	print("Bonfire: Object has get_ball_velocity:", object.has_method("get_ball_velocity") if object else "N/A")
+	
+	# Check if this is a ball collision
+	if object.has_method("get_ball_height") and object.has_method("get_ball_velocity"):
+		print("Bonfire: Handling ball collision")
+		handle_ball_collision(object)
+		return
+	
+	print("Bonfire: Unknown object type entered ball area (ignoring non-ball entities)")
+	print("=== END BONFIRE BALL AREA ENTERED DEBUG ===")
+
+func _on_ball_area_exited(area: Area2D):
+	# Handle any cleanup when ball leaves bonfire area
+	pass
+
+func _on_player_area_entered(area: Area2D):
+	print("=== BONFIRE PLAYER AREA ENTERED DEBUG ===")
+	print("Bonfire: Player area entered detect area:", area.name if area else "null")
+	print("Bonfire: Area parent name:", area.get_parent().name if area and area.get_parent() else "null")
+	
+	# Get the parent of the area (the actual object)
+	var object = area.get_parent()
+	if not object:
+		print("Bonfire: No parent object found for area")
+		return
+	
+	print("Bonfire: Object name:", object.name if object else "null")
+	print("Bonfire: Object is Player:", object.name == "Player")
+	
+	# Check if this is the Player (either directly or through parent hierarchy)
+	var player_node = _find_player_in_hierarchy(object)
+	if player_node:
+		print("Bonfire: Found Player in hierarchy:", player_node.name)
+		print("Bonfire: Handling player detection")
+		handle_player_entered(player_node)
+		return
+	
+	print("Bonfire: Unknown object type entered player area (ignoring non-player entities)")
+	print("=== END BONFIRE PLAYER AREA ENTERED DEBUG ===")
+
+func _on_player_area_exited(area: Area2D):
+	# Handle any cleanup when player leaves bonfire area
+	pass

@@ -1,46 +1,53 @@
-[gd_scene load_steps=4 format=3 uid="uid://c8yay001a2b3"]
+[gd_scene load_steps=8 format=3 uid="uid://bqx8vqxqxqxqx"]
 
 [ext_resource type="Script" path="res://test_meditation_system.gd" id="1_test"]
-[ext_resource type="PackedScene" uid="uid://bq8x7y9z1a2b3" path="res://Particles/HealEffect.tscn" id="2_heal"]
-
-[sub_resource type="Button" id="Button_test"]
-text = "Test Meditation"
+[ext_resource type="PackedScene" uid="uid://dciqeesmkcon4" path="res://Interactables/Bonfire.tscn" id="2_bonfire"]
+[ext_resource type="PackedScene" uid="uid://bc8s6t7wka23s" path="res://Characters/BennyChar.tscn" id="3_benny"]
+[ext_resource type="Script" path="res://Characters/Player.gd" id="4_player"]
 
 [node name="TestMeditationSystem" type="Node2D"]
 script = ExtResource("1_test")
 
-[node name="Player" type="Node2D" parent="."]
-position = Vector2(200, 200)
+[node name="Player" type="CharacterBody2D" parent="."]
+position = Vector2(100, 100)
+script = ExtResource("4_player")
 
-[node name="BennyChar" type="Node2D" parent="Player"]
+[node name="BennyChar" parent="Player" instance=ExtResource("3_benny")]
 
-[node name="Sprite2D" type="Sprite2D" parent="Player/BennyChar"]
-texture_filter = 1
-position = Vector2(0, -44)
+[node name="Bonfire" parent="." instance=ExtResource("2_bonfire")]
+position = Vector2(200, 100)
 
-[node name="BennyMeditateSprite" type="Sprite2D" parent="Player/BennyChar"]
-visible = false
-texture_filter = 1
-position = Vector2(0, -33)
+[node name="UI" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
 
-[node name="Bonfire" type="Node2D" parent="."]
-position = Vector2(300, 200)
-
-[node name="BonfireBaseSprite" type="Sprite2D" parent="Bonfire"]
-texture_filter = 1
-
-[node name="BonfireFlame" type="Sprite2D" parent="Bonfire"]
-texture_filter = 1
-position = Vector2(0, -28.125)
-
-[node name="Meditate" type="AudioStreamPlayer2D" parent="Bonfire"]
-
-[node name="TestButton" type="Button" parent="."]
+[node name="VBoxContainer" type="VBoxContainer" parent="UI"]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
 offset_left = 10.0
-offset_top = 10.0
-offset_right = 150.0
-offset_bottom = 50.0
-text = "Test Meditation"
-resource = SubResource("Button_test")
+offset_top = -150.0
+offset_right = 300.0
+offset_bottom = -10.0
 
-[connection signal="pressed" from="TestButton" to="." method="_on_test_meditation_button_pressed"] 
+[node name="Instructions" type="Label" parent="UI/VBoxContainer"]
+layout_mode = 2
+text = "Meditation System Test:
+- Place player next to bonfire
+- Press L to light bonfire
+- Player should start meditating
+- Press M to check meditation status
+- Press S to stop meditation
+- Press T to manually trigger meditation
+- Press C to check bonfire cooldown"
+
+[node name="TestButton" type="Button" parent="UI/VBoxContainer"]
+layout_mode = 2
+text = "Test Meditation"
+
+[node name="StatusLabel" type="Label" parent="UI/VBoxContainer"]
+layout_mode = 2
+text = "Status: Ready" 

@@ -94,6 +94,10 @@ var ballhop_sound: AudioStreamPlayer2D = null
 const SPRITE_GROUND_Y = -43.72
 
 func _ready():
+	print("=== PLAYER _READY FUNCTION CALLED ===")
+	print("Player name:", name)
+	print("Player scene path:", scene_file_path)
+	
 	# Add to groups for smart optimization and roof bounce system
 	add_to_group("collision_objects")
 	add_to_group("rectangular_obstacles")  # For rolling ball collisions
@@ -135,8 +139,8 @@ func _ready():
 	# Setup jump animation system
 	_setup_jump_animation()
 	
-	# Setup meditation system
-	_setup_meditation_system()
+	# Setup meditation system (will be called after character scene is added)
+	print("=== MEDITATION SYSTEM SETUP WILL BE DEFERRED ===")
 	
 	print("[Player.gd] Player ready with health:", current_health, "/", max_health)
 	
@@ -176,6 +180,8 @@ func _setup_ball_collision() -> void:
 		print("✓ Player base collision area setup complete")
 		print("✓ Player collision layer: ", base_collision_area.collision_layer, " (layers 1 & 2)")
 		print("✓ Player collision mask: ", base_collision_area.collision_mask)
+		print("✓ Player monitoring: ", base_collision_area.monitoring)
+		print("✓ Player monitorable: ", base_collision_area.monitorable)
 	else:
 		print("✗ ERROR: BaseCollisionArea not found!")
 
@@ -2167,56 +2173,96 @@ func set_footstep_interval(interval: float) -> void:
 # Meditation system methods
 func _setup_meditation_system() -> void:
 	"""Setup the meditation system"""
+	print("=== SETTING UP PLAYER MEDITATION SYSTEM ===")
 	# Find the BennyMeditateSprite using a recursive search
 	meditate_sprite = _find_meditate_sprite_recursive(self)
 	
 	if meditate_sprite:
 		print("✓ Meditation sprite found:", meditate_sprite.name)
+		print("✓ Meditation sprite visible:", meditate_sprite.visible)
+		print("✓ Meditation sprite position:", meditate_sprite.position)
 	else:
 		print("⚠ Meditation sprite not found")
+		print("⚠ This will prevent meditation from working!")
+	
+	print("=== MEDITATION SYSTEM SETUP COMPLETE ===")
+
+func setup_meditation_after_character() -> void:
+	"""Setup the meditation system after the character scene is added"""
+	print("=== SETTING UP MEDITATION SYSTEM AFTER CHARACTER ADDED ===")
+	_setup_meditation_system()
+	print("=== MEDITATION SYSTEM SETUP AFTER CHARACTER COMPLETE ===")
 
 func _find_meditate_sprite_recursive(node: Node) -> Sprite2D:
 	"""Recursively search for the BennyMeditateSprite in the node tree"""
+	print("Searching for BennyMeditateSprite in node:", node.name, "Type:", node.get_class())
 	for child in node.get_children():
+		print("Checking child:", child.name, "Type:", child.get_class())
 		if child.name == "BennyMeditateSprite" and child is Sprite2D:
+			print("✓ Found BennyMeditateSprite:", child.name)
 			return child
 		elif child is Node2D:
 			# Recursively search in Node2D children
 			var result = _find_meditate_sprite_recursive(child)
 			if result:
 				return result
+	print("No BennyMeditateSprite found in node:", node.name)
 	return null
 
 func start_meditation() -> void:
 	"""Start the meditation state - switch to meditate sprite and heal player"""
-	if is_meditating:
-		print("Player is already meditating")
-		return
-	
 	print("=== STARTING PLAYER MEDITATION ===")
 	
+	if is_meditating:
+		print("⚠ Player is already meditating, ignoring start request")
+		return
+	
+	print("✓ Setting meditation state to true")
 	is_meditating = true
 	
 	# Get the normal character sprite
 	var normal_sprite = get_character_sprite()
-	if not normal_sprite or not meditate_sprite:
-		print("⚠ Normal sprite or meditate sprite not found")
+	print("✓ Normal sprite found:", normal_sprite != null)
+	if normal_sprite:
+		print("✓ Normal sprite visible:", normal_sprite.visible)
+		print("✓ Normal sprite modulate:", normal_sprite.modulate)
+	
+	print("✓ Meditate sprite found:", meditate_sprite != null)
+	if meditate_sprite:
+		print("✓ Meditate sprite visible:", meditate_sprite.visible)
+		print("✓ Meditate sprite modulate:", meditate_sprite.modulate)
+		print("✓ Meditate sprite position:", meditate_sprite.position)
+	
+	if not normal_sprite:
+		print("⚠ Normal sprite not found!")
+		return
+	if not meditate_sprite:
+		print("⚠ Meditate sprite not found!")
 		return
 	
 	# Update the meditate sprite facing before showing it
+	print("✓ Updating meditation sprite facing")
 	update_animation_facing(meditate_sprite)
 	
 	# Hide the normal sprite and show the meditate sprite
+	print("✓ Hiding normal sprite and showing meditate sprite")
 	normal_sprite.visible = false
 	meditate_sprite.visible = true
 	
+	# Verify the sprite change
+	print("✓ After sprite change - Normal sprite visible:", normal_sprite.visible)
+	print("✓ After sprite change - Meditate sprite visible:", meditate_sprite.visible)
+	
 	# Heal the player
+	print("✓ Healing player by", heal_amount, "health")
 	heal_player(heal_amount)
 	
 	# Play meditation sound
+	print("✓ Playing meditation sound")
 	_play_meditation_sound()
 	
 	# Create heal effect particles
+	print("✓ Creating heal effect particles")
 	_create_heal_effect()
 	
 	# Start the meditation timer
@@ -2226,7 +2272,8 @@ func start_meditation() -> void:
 	meditation_tween = create_tween()
 	meditation_tween.tween_callback(_on_meditation_complete).set_delay(meditation_duration)
 	
-	print("✓ Meditation started - healing", heal_amount, "health")
+	print("✓ Meditation timer started for", meditation_duration, "seconds")
+	print("✓ Meditation started successfully - healing", heal_amount, "health")
 
 func _on_meditation_complete() -> void:
 	"""Called when the meditation completes"""
@@ -2306,9 +2353,18 @@ func _create_heal_effect() -> void:
 	var heal_effect_scene = load("res://Particles/HealEffect.tscn")
 	if heal_effect_scene:
 		var heal_effect = heal_effect_scene.instantiate()
-		heal_effect.position = global_position
+		
+		# Position the heal effect relative to the BennyMeditateSprite if available
+		if meditate_sprite and meditate_sprite.visible:
+			# Use the meditate sprite's global position for the heal effect
+			heal_effect.position = meditate_sprite.global_position
+			print("✓ Created heal effect at BennyMeditateSprite position")
+		else:
+			# Fallback to player position if meditate sprite not available
+			heal_effect.position = global_position
+			print("✓ Created heal effect at player position (fallback)")
+		
 		get_tree().current_scene.add_child(heal_effect)
-		print("✓ Created heal effect at player position")
 	else:
 		print("⚠ HealEffect scene not found")
 
