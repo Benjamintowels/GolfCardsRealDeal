@@ -1669,6 +1669,7 @@ func launch_golf_ball(direction: Vector2, charged_power: float, height: float):
 func _on_golf_ball_landed(tile: Vector2i):
 	print("Course: Ball landed - exiting ball_flying phase!")
 	print("DEBUG: Ball landed, hole_score before increment =", hole_score)
+	var is_first_shot = (hole_score == 0)  # Check if this is the first shot before incrementing
 	hole_score += 1
 	print("DEBUG: Ball landed, hole_score after increment =", hole_score)
 	print("Turning off camera following for golf ball")
@@ -1726,19 +1727,33 @@ func _on_golf_ball_landed(tile: Vector2i):
 			# Show the "Draw Club Cards" button instead of waiting for movement
 			show_draw_club_cards_button()
 		else:
-			# Player needs to move to the ball - show drive distance dialog
-			var sprite = player_node.get_node_or_null("Sprite2D")
-			var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
-			var player_center = player_node.global_position + player_size / 2
-			var player_start_pos = player_center
-			var ball_landing_pos = launch_manager.golf_ball.global_position
-			drive_distance = player_start_pos.distance_to(ball_landing_pos)
-			var dialog_timer = get_tree().create_timer(0.5)  # Reduced from 1.5 to 0.5 second delay
-			dialog_timer.timeout.connect(func():
-				show_drive_distance_dialog()
-			)
-			game_phase = "move"
-			_update_player_mouse_facing_state()
+			# Check if this ball was moved by RedJay - if so, don't show drive distance dialog
+			if card_effect_handler and card_effect_handler.has_method("was_ball_moved_by_redjay") and card_effect_handler.was_ball_moved_by_redjay(launch_manager.golf_ball):
+				print("Ball was moved by RedJay - skipping drive distance dialog")
+				# Clear the RedJay moved ball reference since the ball has now landed
+				if card_effect_handler.has_method("clear_redjay_moved_ball"):
+					card_effect_handler.clear_redjay_moved_ball()
+				game_phase = "move"
+				_update_player_mouse_facing_state()
+			else:
+				# Player needs to move to the ball - show drive distance dialog only for tee shots or first shots
+				if should_show_drive_distance_dialog(is_first_shot):
+					var sprite = player_node.get_node_or_null("Sprite2D")
+					var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
+					var player_center = player_node.global_position + player_size / 2
+					var player_start_pos = player_center
+					var ball_landing_pos = launch_manager.golf_ball.global_position
+					drive_distance = player_start_pos.distance_to(ball_landing_pos)
+					var dialog_timer = get_tree().create_timer(0.5)  # Reduced from 1.5 to 0.5 second delay
+					dialog_timer.timeout.connect(func():
+						show_drive_distance_dialog()
+					)
+					game_phase = "move"
+					_update_player_mouse_facing_state()
+				else:
+					print("Not a tee shot or first shot - skipping drive distance dialog")
+					game_phase = "move"
+					_update_player_mouse_facing_state()
 	else:
 		# Ball went in the hole - don't show drive distance dialog
 		# The hole completion dialog will be shown by the pin's hole_in_one signal
@@ -5271,3 +5286,19 @@ func retry_squirrel_player_references() -> void:
 	
 	print("Total Squirrels retried: ", squirrel_count)
 	print("=== END PLAYER REFERENCE RETRY ===")
+
+func should_show_drive_distance_dialog(is_first_shot: bool = false) -> bool:
+	"""Check if drive distance dialog should be shown (only for tee shots or first shots)"""
+	# Check if player is on a tee tile
+	var current_tile_type = map_manager.get_tile_type(player_grid_pos.x, player_grid_pos.y)
+	if current_tile_type == "Tee":
+		print("Player is on tee tile - showing drive distance dialog")
+		return true
+	
+	# Check if this is the first shot of the hole
+	if is_first_shot:
+		print("This is the first shot of the hole - showing drive distance dialog")
+		return true
+	
+	print("Not a tee shot or first shot - not showing drive distance dialog")
+	return false

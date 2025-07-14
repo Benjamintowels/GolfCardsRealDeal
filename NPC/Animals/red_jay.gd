@@ -3,6 +3,9 @@ extends Node2D
 # RedJay states
 enum State { FLYING_TO_BALL, PUSHING_BALL, FLYING_AWAY, CLEANUP }
 
+# Signal for effect completion
+signal effect_completed
+
 var current_state: State = State.FLYING_TO_BALL
 var target_ball: Node2D = null
 var pin_position: Vector2 = Vector2.ZERO
@@ -186,7 +189,13 @@ func _fly_away():
 	
 	var tween = create_tween()
 	tween.tween_method(_move_toward_target, global_position, target_pos, fly_away_distance / flight_speed)
-	tween.tween_callback(_cleanup)
+	tween.tween_callback(_on_fly_away_complete)
+
+func _on_fly_away_complete():
+	"""Called when RedJay finishes flying away"""
+	print("RedJay effect completed - emitting signal")
+	emit_signal("effect_completed")
+	_cleanup()
 
 func _update_flight_sprite(direction: Vector2):
 	"""Update the sprite to show flight animation based on direction"""

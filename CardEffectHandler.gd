@@ -12,6 +12,11 @@ var scramble_landing_tiles: Array[Vector2i] = []
 var scramble_ball_landed_count := 0
 var scramble_total_balls := 3
 
+# RedJay ball movement tracking
+var redjay_moving_ball := false
+var redjay_ball_original_position: Vector2 = Vector2.ZERO
+var redjay_moved_ball: Node2D = null  # Track the specific ball that was moved by RedJay
+
 # Signals
 signal scramble_complete(closest_ball_position: Vector2, closest_ball_tile: Vector2i)
 
@@ -683,6 +688,21 @@ func is_scramble_active() -> bool:
 func get_scramble_ball_count() -> int:
 	return scramble_balls.size()
 
+func is_redjay_moving_ball() -> bool:
+	"""Check if RedJay is currently moving the ball"""
+	return redjay_moving_ball
+
+func was_ball_moved_by_redjay(ball: Node2D) -> bool:
+	"""Check if a specific ball was moved by RedJay"""
+	var was_moved = redjay_moved_ball == ball
+	print("Checking if ball was moved by RedJay - ball:", ball.name if ball else "null", "redjay_moved_ball:", redjay_moved_ball.name if redjay_moved_ball else "null", "result:", was_moved)
+	return was_moved
+
+func clear_redjay_moved_ball():
+	"""Clear the RedJay moved ball reference"""
+	redjay_moved_ball = null
+	print("Cleared RedJay moved ball reference")
+
 func clear_all_scramble_balls():
 	"""Immediately clear all scramble balls - used when one goes in the hole"""
 	print("Clearing all scramble balls due to hole completion")
@@ -850,6 +870,7 @@ func handle_animal_help_effect(card: CardData):
 
 func _handle_call_of_the_wild_effect(card: CardData):
 	"""Handle the specific Call of the Wild card effect"""
+	print("=== CALL OF THE WILD EFFECT ACTIVATED ===")
 	print("Activating Call of the Wild effect!")
 	
 	# Get the ball position
@@ -869,6 +890,16 @@ func _handle_call_of_the_wild_effect(card: CardData):
 	if not ball_node:
 		print("Warning: Could not find ball node for Call of the Wild effect")
 		return
+	
+	# Set up RedJay movement tracking
+	redjay_moving_ball = true
+	redjay_ball_original_position = ball_node.global_position
+	redjay_moved_ball = ball_node # Track the specific ball that was moved
+	print("RedJay tracking set up - ball:", ball_node.name, "position:", ball_node.global_position)
+	
+	# Switch camera focus to the ball
+	course.camera_following_ball = true
+	print("Camera switched to follow ball during RedJay effect")
 	
 	# Create RedJay effect
 	_create_red_jay_effect(ball_node, pin_position)
@@ -907,6 +938,10 @@ func _create_red_jay_effect(ball_node: Node2D, pin_position: Vector2):
 	# Add to scene
 	course.add_child(red_jay)
 	
+	# Connect to RedJay completion signal if it exists
+	if red_jay.has_signal("effect_completed"):
+		red_jay.effect_completed.connect(_on_redjay_effect_completed)
+	
 	# Start the RedJay effect
 	if red_jay.has_method("start_red_jay_effect"):
 		red_jay.start_red_jay_effect(ball_node, pin_position)
@@ -934,6 +969,24 @@ func _get_random_off_screen_position(ball_position: Vector2) -> Vector2:
 			return Vector2(-margin, randf_range(-margin, screen_size.y + margin))
 	
 	return Vector2.ZERO
+
+func _on_redjay_effect_completed():
+	"""Handle when RedJay effect is completed"""
+	print("RedJay effect completed - switching camera back to player")
+	
+	# Reset RedJay movement tracking
+	redjay_moving_ball = false
+	redjay_moved_ball = null # Clear the tracked ball
+	
+	# Switch camera focus back to player
+	course.camera_following_ball = false
+	if course.has_method("smooth_camera_to_player"):
+		course.smooth_camera_to_player()
+		print("Camera switched back to player after RedJay effect")
+	
+	# The ball will land naturally and trigger the normal landing logic
+	# but we need to prevent the drive distance dialog from showing
+	# This will be handled in the course's _on_golf_ball_landed function
 
 func _on_arrange_dialog_closed():
 	"""Handle when the arrange dialog is closed"""
