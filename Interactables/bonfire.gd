@@ -223,11 +223,11 @@ func _on_area_entered(area: Area2D):
 	if object.has_method("get_ball_height") and object.has_method("get_ball_velocity"):
 		print("Bonfire: Handling ball collision")
 		handle_ball_collision(object)
-	elif object.name == "Player" or (object.has_method("get_grid_position") and object.has_method("take_damage")):
+	elif object.name == "Player":
 		print("Bonfire: Handling player collision")
 		handle_player_entered(object)
 	else:
-		print("Bonfire: Unknown object type entered")
+		print("Bonfire: Unknown object type entered (ignoring non-player entities)")
 
 func _on_area_exited(area: Area2D):
 	# Handle any cleanup when ball leaves bonfire area
