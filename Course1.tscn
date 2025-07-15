@@ -169,7 +169,6 @@ scale = Vector2(0.11, 0.11)
 mouse_filter = 1
 
 [node name="CardRow" type="BoxContainer" parent="UILayer/CardHandAnchor"]
-z_index = 400
 custom_minimum_size = Vector2(296.69, 105.645)
 layout_direction = 2
 layout_mode = 0
@@ -179,22 +178,25 @@ offset_right = 2515.04
 offset_bottom = 578.645
 size_flags_horizontal = 15
 size_flags_vertical = 15
+mouse_filter = 2
 theme_override_constants/separation = 75
 alignment = 1
 
 [node name="DrawCards" parent="UILayer" instance=ExtResource("28_draw_cards")]
-z_index = 300
+z_index = 4096
 z_as_relative = false
-offset_left = 145.0
-offset_top = 216.0
-offset_right = 185.0
-offset_bottom = 256.0
+offset_left = 74.0
+offset_top = 40.0
+offset_right = 114.0
+offset_bottom = 80.0
 
 [node name="DrawClubCards" parent="UILayer" instance=ExtResource("27_draw_club_cards")]
 z_index = 301
 z_as_relative = false
 offset_left = 80.0
 offset_top = 216.0
+offset_right = 80.0
+offset_bottom = 216.0
 
 [node name="PowerMeter" parent="UILayer" instance=ExtResource("30_power_meter")]
 visible = false

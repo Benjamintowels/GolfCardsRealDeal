@@ -37,11 +37,25 @@ func re_register_all_npcs():
 	var npc_count = 0
 	# Recursively find all nodes in the scene in the 'NPC' group
 	var npc_nodes = get_tree().get_nodes_in_group("NPC")
+	print("Found", npc_nodes.size(), "nodes in 'NPC' group")
+	
 	for node in npc_nodes:
 		if is_instance_valid(node):
 			npcs.append(node)
 			npc_count += 1
-			print("  Registered NPC:", node.name, "at", node.global_position)
+			print("  Registered NPC:", node.name, "at", node.global_position, "Class:", node.get_class())
+			
+			# Check if NPC has grid position
+			if node.has_method("get_grid_position"):
+				var grid_pos = node.get_grid_position()
+				print("    Grid position:", grid_pos)
+			elif "grid_position" in node:
+				print("    Grid position property:", node.grid_position)
+			else:
+				print("    No grid position method/property found")
+		else:
+			print("  Skipping invalid NPC node:", node)
+	
 	print("Total NPCs registered in Entities:", npc_count)
 
 func register_npc(npc: Node) -> void:

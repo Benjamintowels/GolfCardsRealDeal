@@ -348,20 +348,29 @@ func draw_cards(count: int = 3) -> void:
 	emit_signal("deck_updated")
 
 func discard(card: CardData) -> void:
+	print("DeckManager: Attempting to discard card:", card.name)
+	print("DeckManager: Card in hand before discard:", hand.has(card))
+	print("DeckManager: Hand size before discard:", hand.size())
+	
 	if hand.has(card):
 		hand.erase(card)
+		print("DeckManager: Successfully removed card from hand")
 	else:
 		print("Warning: Tried to discard a card not in hand:", card.name)
 
 	# Sort card into appropriate discard pile
 	if is_club_card(card):
 		club_discard_pile.append(card)
+		print("DeckManager: Added", card.name, "to club discard pile (size:", club_discard_pile.size(), ")")
 	else:
 		action_discard_pile.append(card)
 		print("DeckManager: Discarded", card.name, "to action discard pile (size:", action_discard_pile.size(), ")")
 	
 	# Also maintain legacy discard pile for compatibility
 	discard_pile.append(card)
+	
+	print("DeckManager: Hand size after discard:", hand.size())
+	print("DeckManager: Total discard pile size:", discard_pile.size())
 	
 	# Validate deck state after discarding
 	validate_deck_state()

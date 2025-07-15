@@ -535,6 +535,8 @@ func _ready() -> void:
 		card_effect_handler,
 		player_node.get_node_or_null("KickSound"),  # Add KickSound reference
 		player_node.get_node_or_null("PunchB"),  # Add PunchB sound reference
+		player_node.get_node_or_null("AssassinDash"),  # Add AssassinDash sound reference
+		player_node.get_node_or_null("AssassinCut"),  # Add AssassinCut sound reference
 		movement_buttons_container  # Pass CardRow reference for animation
 	)
 	
@@ -669,7 +671,7 @@ func adjust_background_positioning() -> void:
 
 	setup_swing_sounds()
 
-	card_hand_anchor.z_index = 100
+	card_hand_anchor.z_index = 245  # Keep original z_index from scene file
 	card_hand_anchor.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Changed to IGNORE to allow clicks to pass through to grid tiles
 	card_hand_anchor.get_parent().move_child(card_hand_anchor, card_hand_anchor.get_parent().get_child_count() - 1)
 
@@ -680,7 +682,7 @@ func adjust_background_positioning() -> void:
 	parent.move_child(card_hand_anchor, parent.get_child_count() - 1)
 	parent.move_child(hud,             parent.get_child_count() - 1)
 
-	card_hand_anchor.z_index = 100
+	card_hand_anchor.z_index = 245  # Keep original z_index from scene file
 	hud.z_index             = 101
 	end_turn_button.get_node("TextureButton").pressed.connect(_on_end_turn_pressed)
 	end_turn_button.z_index = 102
@@ -1756,7 +1758,7 @@ func _on_golf_ball_landed(tile: Vector2i):
 				game_phase = "move"
 				_update_player_mouse_facing_state()
 			else:
-				# Player needs to move to the ball - show drive distance dialog only for tee shots or first shots
+				# Player needs to move to the ball - show drive distance dialog on every shot
 				if should_show_drive_distance_dialog(is_first_shot):
 					var sprite = player_node.get_node_or_null("Sprite2D")
 					var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
@@ -1767,11 +1769,18 @@ func _on_golf_ball_landed(tile: Vector2i):
 					var dialog_timer = get_tree().create_timer(0.5)  # Reduced from 1.5 to 0.5 second delay
 					dialog_timer.timeout.connect(func():
 						show_drive_distance_dialog()
+						# Tween camera back to player after showing drive distance dialog
+						create_camera_tween(player_center, 0.8)
 					)
 					game_phase = "move"
 					_update_player_mouse_facing_state()
 				else:
 					print("Not a tee shot or first shot - skipping drive distance dialog")
+					# Tween camera back to player even when skipping dialog
+					var sprite = player_node.get_node_or_null("Sprite2D")
+					var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
+					var player_center = player_node.global_position + player_size / 2
+					create_camera_tween(player_center, 0.8)
 					game_phase = "move"
 					_update_player_mouse_facing_state()
 	else:
@@ -2568,7 +2577,10 @@ func show_tee_selection_instruction() -> void:
 	$UILayer.add_child(instruction_label)
 
 func show_drive_distance_dialog() -> void:
+	print("=== SHOWING DRIVE DISTANCE DIALOG ===")
+	print("Drive distance: ", drive_distance, " pixels")
 	if drive_distance_dialog:
+		print("Clearing existing drive distance dialog")
 		drive_distance_dialog.queue_free()
 	
 	drive_distance_dialog = Control.new()
@@ -2590,7 +2602,7 @@ func show_drive_distance_dialog() -> void:
 	dialog_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	drive_distance_dialog.add_child(dialog_box)
 	var title_label := Label.new()
-	title_label.text = "Drive Distance"
+	title_label.text = "Shot Distance"
 	title_label.add_theme_font_size_override("font_size", 28)
 	title_label.add_theme_color_override("font_color", Color.YELLOW)
 	title_label.add_theme_constant_override("outline_size", 2)
@@ -2618,17 +2630,17 @@ func show_drive_distance_dialog() -> void:
 	
 func _on_drive_distance_dialog_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		print("=== DRIVE DISTANCE DIALOG CLICKED ===")
 		if drive_distance_dialog:
+			print("Dismissing drive distance dialog")
 			drive_distance_dialog.queue_free()
 			drive_distance_dialog = null
 		
+		print("Setting game phase to 'move' and showing draw cards button")
 		game_phase = "move"
 		_update_player_mouse_facing_state()
 		draw_cards_button.visible = true
-		var dialog_player_sprite = player_node.get_node_or_null("Sprite2D")
-		var dialog_player_size = dialog_player_sprite.texture.get_size() * dialog_player_sprite.scale if dialog_player_sprite and dialog_player_sprite.texture else Vector2(cell_size, cell_size)
-		var player_center: Vector2 = player_node.global_position + dialog_player_size / 2
-		create_camera_tween(player_center, 1.0)
+		# Camera tween is already handled in the ball landing logic, so we don't need to call it here
 
 func setup_swing_sounds() -> void:
 	swing_strong_sound = $SwingStrong
@@ -2878,7 +2890,6 @@ func _on_golf_ball_sand_landing():
 	
 	if launch_manager.golf_ball and map_manager:
 		var final_tile = Vector2i(floor(launch_manager.golf_ball.position.x / cell_size), floor(launch_manager.golf_ball.position.y / cell_size))
-		_on_golf_ball_landed(final_tile)
 		_on_golf_ball_landed(final_tile)
 
 func _on_grenade_landed(final_tile: Vector2i) -> void:
@@ -3156,6 +3167,22 @@ func show_reward_phase():
 	"""Show the suitcase for reward selection"""
 	print("Starting reward phase...")
 	
+	# Clear the player's hand and UI elements before showing rewards
+	if deck_manager:
+		print("Clearing player hand for reward phase - hand size before:", deck_manager.hand.size())
+		deck_manager.hand.clear()
+		print("Player hand cleared - hand size after:", deck_manager.hand.size())
+		# Update the deck display to reflect the cleared hand
+		update_deck_display()
+	
+	# Clear any movement buttons that might still be visible
+	if movement_controller:
+		movement_controller.clear_all_movement_ui()
+	if attack_handler:
+		attack_handler.clear_all_attack_ui()
+	if weapon_handler:
+		weapon_handler.clear_all_weapon_ui()
+	
 	# Create and show the suitcase
 	var suitcase_scene = preload("res://UI/SuitCase.tscn")
 	var suitcase = suitcase_scene.instantiate()
@@ -3217,6 +3244,14 @@ func _on_suitcase_reached():
 func show_suitcase_overlay():
 	"""Show the SuitCase overlay for reward selection"""
 	print("=== SHOWING SUITCASE OVERLAY ===")
+	
+	# Clear any movement buttons that might still be visible during SuitCase interaction
+	if movement_controller:
+		movement_controller.clear_all_movement_ui()
+	if attack_handler:
+		attack_handler.clear_all_attack_ui()
+	if weapon_handler:
+		weapon_handler.clear_all_weapon_ui()
 	
 	# Create and show the SuitCase overlay
 	var suitcase_scene = preload("res://UI/SuitCase.tscn")
@@ -3328,6 +3363,21 @@ func _on_advance_to_next_hole():
 
 func reset_for_next_hole():
 	print("=== ADVANCING TO HOLE", current_hole + 2, "===")
+	
+	# Clear the player's hand when advancing to next hole
+	if deck_manager:
+		print("Clearing player hand for next hole - hand size before:", deck_manager.hand.size())
+		deck_manager.hand.clear()
+		print("Player hand cleared - hand size after:", deck_manager.hand.size())
+		# Update the deck display to reflect the cleared hand
+		update_deck_display()
+		# Clear any movement buttons that might still be visible
+		if movement_controller:
+			movement_controller.clear_all_movement_ui()
+		if attack_handler:
+			attack_handler.clear_all_attack_ui()
+		if weapon_handler:
+			weapon_handler.clear_all_weapon_ui()
 	
 	# Clean up any existing reward UI
 	var existing_suitcase = $UILayer.get_node_or_null("SuitCase")
@@ -3466,6 +3516,19 @@ func show_front_nine_complete_dialog():
 	dialog.popup_centered()
 	dialog.confirmed.connect(func():
 		dialog.queue_free()
+		# Clear the player's hand when completing front 9
+		if deck_manager:
+			print("Clearing player hand for front 9 completion - hand size before:", deck_manager.hand.size())
+			deck_manager.hand.clear()
+			print("Player hand cleared - hand size after:", deck_manager.hand.size())
+			update_deck_display()
+			# Clear any movement buttons that might still be visible
+			if movement_controller:
+				movement_controller.clear_all_movement_ui()
+			if attack_handler:
+				attack_handler.clear_all_attack_ui()
+			if weapon_handler:
+				weapon_handler.clear_all_weapon_ui()
 		# Show mid-game shop overlay instead of changing scenes
 		show_mid_game_shop_overlay()
 	)
@@ -3530,6 +3593,19 @@ func show_back_nine_complete_dialog():
 	dialog.popup_centered()
 	dialog.confirmed.connect(func():
 		dialog.queue_free()
+		# Clear the player's hand when completing back 9
+		if deck_manager:
+			print("Clearing player hand for back 9 completion - hand size before:", deck_manager.hand.size())
+			deck_manager.hand.clear()
+			print("Player hand cleared - hand size after:", deck_manager.hand.size())
+			update_deck_display()
+			# Clear any movement buttons that might still be visible
+			if movement_controller:
+				movement_controller.clear_all_movement_ui()
+			if attack_handler:
+				attack_handler.clear_all_attack_ui()
+			if weapon_handler:
+				weapon_handler.clear_all_weapon_ui()
 		get_tree().reload_current_scene()
 	)
 
@@ -4683,8 +4759,13 @@ func get_movement_controller() -> Node:
 func fix_ui_layers() -> void:
 	"""Fix UI layer z-indices and mouse filtering"""
 	if card_hand_anchor:
-		card_hand_anchor.z_index = 100
+		card_hand_anchor.z_index = 245  # Keep original z_index from scene file
 		card_hand_anchor.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Allow clicks to pass through to prevent blocking tile clicks
+		
+		# Ensure CardRow has lower z_index than DrawCardsButton
+		var card_row = card_hand_anchor.get_node_or_null("CardRow")
+		if card_row:
+			card_row.z_index = 200  # Lower than DrawCardsButton (300)
 	
 	if hud:
 		hud.z_index = 101
@@ -5436,17 +5517,7 @@ func retry_squirrel_player_references() -> void:
 	print("=== END PLAYER REFERENCE RETRY ===")
 
 func should_show_drive_distance_dialog(is_first_shot: bool = false) -> bool:
-	"""Check if drive distance dialog should be shown (only for tee shots or first shots)"""
-	# Check if player is on a tee tile
-	var current_tile_type = map_manager.get_tile_type(player_grid_pos.x, player_grid_pos.y)
-	if current_tile_type == "Tee":
-		print("Player is on tee tile - showing drive distance dialog")
-		return true
-	
-	# Check if this is the first shot of the hole
-	if is_first_shot:
-		print("This is the first shot of the hole - showing drive distance dialog")
-		return true
-	
-	print("Not a tee shot or first shot - not showing drive distance dialog")
-	return false
+	"""Check if drive distance dialog should be shown (now shows on every shot)"""
+	# Show drive distance dialog on every shot
+	print("Showing drive distance dialog for this shot")
+	return true

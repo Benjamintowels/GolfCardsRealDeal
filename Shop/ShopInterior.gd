@@ -152,6 +152,7 @@ func load_shop_items():
 		preload("res://Cards/CallofthewildCard.tres"),
 		preload("res://Cards/Dash.tres"),
 		preload("res://Cards/EtherDash.tres"),
+		preload("res://Cards/AssassinDash.tres"),
 		preload("res://Cards/GhostMode.tres"),
 		
 		# Movement cards

@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="CardData" load_steps=3 format=3 uid="uid://da3xdgj4k3nae"]
+
+[ext_resource type="Script" uid="uid://b1c024jgv23kk" path="res://Cards/CardData.gd" id="1_b47xp"]
+[ext_resource type="Texture2D" uid="uid://box3mscc5grbs" path="res://Cards/Vampire.png" id="1_q0p3d"]
+
+[resource]
+script = ExtResource("1_b47xp")
+name = "Vampire"
+effect_type = "Vampire"
+effect_strength = 1
+image = ExtResource("1_q0p3d")
+level = 1
+max_level = 2
+upgrade_cost = 100
+price = 100
+default_tier = 1
+movement_bonus = 1
+attack_bonus = 1
+weapon_shots_bonus = 1
+effect_bonus = 1
+metadata/_custom_type_script = "uid://b1c024jgv23kk"

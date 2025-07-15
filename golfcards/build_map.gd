@@ -942,6 +942,7 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		# Add gang member to groups for smart optimization
 		gang_member.add_to_group("gang_members")
 		gang_member.add_to_group("collision_objects")
+		gang_member.add_to_group("NPC")  # Add to NPC group for attack system
 		
 		ysort_objects.append({"node": gang_member, "grid_pos": gang_pos})
 		obstacle_layer.add_child(gang_member)
@@ -971,6 +972,7 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		# Add police to groups for smart optimization
 		police.add_to_group("police")
 		police.add_to_group("collision_objects")
+		police.add_to_group("NPC")  # Add to NPC group for attack system
 		
 		ysort_objects.append({"node": police, "grid_pos": police_pos})
 		obstacle_layer.add_child(police)
@@ -1002,6 +1004,7 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		# Add zombie to groups for smart optimization
 		zombie.add_to_group("zombies")
 		zombie.add_to_group("collision_objects")
+		zombie.add_to_group("NPC")  # Add to NPC group for attack system
 		
 		ysort_objects.append({"node": zombie, "grid_pos": zombie_pos})
 		obstacle_layer.add_child(zombie)
@@ -1031,6 +1034,7 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		# Add wraith to groups for smart optimization
 		wraith.add_to_group("bosses")
 		wraith.add_to_group("collision_objects")
+		wraith.add_to_group("NPC")  # Add to NPC group for attack system
 		
 		ysort_objects.append({"node": wraith, "grid_pos": wraith_pos})
 		obstacle_layer.add_child(wraith)
@@ -1108,7 +1112,7 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 			# Add squirrel to groups for smart optimization
 			squirrel.add_to_group("squirrels")
 			squirrel.add_to_group("collision_objects")
-			squirrel.add_to_group("npcs")
+			squirrel.add_to_group("NPC")  # Add to NPC group for attack system
 			
 			ysort_objects.append({"node": squirrel, "grid_pos": squirrel_pos})
 			obstacle_layer.add_child(squirrel)

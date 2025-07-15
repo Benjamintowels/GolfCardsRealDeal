@@ -24,6 +24,8 @@ var card_click_sound: AudioStreamPlayer2D
 var card_play_sound: AudioStreamPlayer2D
 var kick_sound: AudioStreamPlayer2D  # Reference to KickSound from player scene
 var punchb_sound: AudioStreamPlayer2D  # Reference to PunchB sound from player scene
+var assassin_dash_sound: AudioStreamPlayer2D  # Reference to AssassinDash sound
+var assassin_cut_sound: AudioStreamPlayer2D  # Reference to AssassinDash cut sound
 
 # UI references
 var card_stack_display: Control
@@ -75,6 +77,8 @@ func setup(
 	card_effect_handler_ref: Node,
 	kick_sound_ref: AudioStreamPlayer2D = null,
 	punchb_sound_ref: AudioStreamPlayer2D = null,
+	assassin_dash_sound_ref: AudioStreamPlayer2D = null,
+	assassin_cut_sound_ref: AudioStreamPlayer2D = null,
 	card_row_ref: Control = null
 ):
 	player_node = player_node_ref
@@ -92,6 +96,8 @@ func setup(
 	card_effect_handler = card_effect_handler_ref
 	kick_sound = kick_sound_ref
 	punchb_sound = punchb_sound_ref
+	assassin_dash_sound = assassin_dash_sound_ref
+	assassin_cut_sound = assassin_cut_sound_ref
 	card_row = card_row_ref
 	
 	# Store the original position of the CardRow for animation
@@ -234,6 +240,51 @@ func calculate_valid_attack_tiles() -> void:
 		print("Total tiles for AttackDog card:", valid_attack_tiles.size())
 		return
 
+	# Special case for AssassinDash card - show cross pattern but only if tile behind enemy is available
+	if selected_card and selected_card.name == "AssassinDash":
+		print("AssassinDash card detected - showing cross pattern with behind-enemy validation")
+		
+		var cross_positions = []
+		
+		# Add positions in cross pattern: up, down, left, right (no diagonals)
+		for distance in range(1, attack_range + 1):
+			# Up
+			var up_pos = Vector2i(player_grid_pos.x, player_grid_pos.y - distance)
+			if up_pos.y >= 0:
+				cross_positions.append(up_pos)
+			
+			# Down
+			var down_pos = Vector2i(player_grid_pos.x, player_grid_pos.y + distance)
+			if down_pos.y < grid_size.y:
+				cross_positions.append(down_pos)
+			
+			# Left
+			var left_pos = Vector2i(player_grid_pos.x - distance, player_grid_pos.y)
+			if left_pos.x >= 0:
+				cross_positions.append(left_pos)
+			
+			# Right
+			var right_pos = Vector2i(player_grid_pos.x + distance, player_grid_pos.y)
+			if right_pos.x < grid_size.x:
+				cross_positions.append(right_pos)
+		
+		# Check each cross position for NPCs and validate behind-enemy tiles
+		for pos in cross_positions:
+			if has_npc_at_position(pos):
+				# Calculate the position behind the enemy (opposite direction from player)
+				var direction = pos - player_grid_pos
+				var behind_enemy_pos = pos + direction
+				
+				# Check if the tile behind the enemy is available
+				if is_position_valid_for_assassin_dash(behind_enemy_pos):
+					valid_attack_tiles.append(pos)
+					print("Added AssassinDash target at:", pos, "with valid behind-enemy tile at:", behind_enemy_pos)
+				else:
+					print("Skipped AssassinDash target at:", pos, "- behind-enemy tile not available at:", behind_enemy_pos)
+		
+		print("Total valid AssassinDash targets:", valid_attack_tiles.size())
+		return
+
 	# DEBUG: Print all oil drum grid positions
 	var interactables = get_tree().get_nodes_in_group("interactables")
 	print("Found", interactables.size(), "interactables in group")
@@ -272,6 +323,10 @@ func has_npc_at_position(pos: Vector2i) -> bool:
 		return false
 	
 	var npcs = entities.get_npcs()
+	print("=== NPC DETECTION DEBUG ===")
+	print("Checking for NPC at position:", pos)
+	print("Total NPCs in Entities:", npcs.size())
+	
 	for npc in npcs:
 		if is_instance_valid(npc):
 			var npc_pos = Vector2i.ZERO
@@ -279,21 +334,28 @@ func has_npc_at_position(pos: Vector2i) -> bool:
 			# Try to get grid position using different methods
 			if npc.has_method("get_grid_position"):
 				npc_pos = npc.get_grid_position()
+				print("NPC:", npc.name, "at position:", npc_pos, "(using get_grid_position)")
 			elif "grid_position" in npc:
 				npc_pos = npc.grid_position
+				print("NPC:", npc.name, "at position:", npc_pos, "(using grid_position property)")
 			elif "grid_pos" in npc:
 				npc_pos = npc.grid_pos
+				print("NPC:", npc.name, "at position:", npc_pos, "(using grid_pos property)")
 			else:
 				# Fallback: calculate grid position from world position
 				var world_pos = npc.global_position
 				var cell_size_used = cell_size if "cell_size" in npc else 48
 				npc_pos = Vector2i(floor(world_pos.x / cell_size_used), floor(world_pos.y / cell_size_used))
+				print("NPC:", npc.name, "at position:", npc_pos, "(calculated from world position)")
 			
 			if npc_pos == pos:
-				print("Found NPC at position:", pos, "NPC:", npc.name)
+				print("✓ Found NPC at position:", pos, "NPC:", npc.name)
 				return true
+		else:
+			print("✗ Invalid NPC reference:", npc)
 	
-	print("No NPC found at position:", pos)
+	print("✗ No NPC found at position:", pos)
+	print("=== END NPC DETECTION DEBUG ===")
 	return false
 
 func get_npc_at_position(pos: Vector2i) -> Node:
@@ -432,41 +494,35 @@ func exit_attack_mode() -> void:
 	print("=== EXITING ATTACK MODE ===")
 	print("Selected card:", selected_card.name if selected_card else "None")
 	print("Card in hand:", deck_manager.hand.has(selected_card) if selected_card else "N/A")
-	
+	print("Hand contents:", deck_manager.hand.map(func(c): return c.name))
 	is_attack_mode = false
 	hide_all_attack_highlights()
 	valid_attack_tiles.clear()
-	
 	# Animate CardRow back to original position
 	animate_card_row_up()
-
 	if selected_card:
+		print("AttackHandler: Exiting attack mode with card:", selected_card.name)
+		print("AttackHandler: Card in hand:", deck_manager.hand.has(selected_card))
 		if deck_manager.hand.has(selected_card):
-			print("Discarding card from hand:", selected_card.name)
+			print("AttackHandler: Discarding attack card from hand:", selected_card.name)
 			deck_manager.discard(selected_card)
 			card_stack_display.animate_card_discard(selected_card.name)
 			emit_signal("card_discarded", selected_card)
 		else:
-			print("Card not in hand:", selected_card.name)
-	
+			print("AttackHandler: Card not in hand:", selected_card.name)
 	print("=== END EXITING ATTACK MODE ===")
-
 	# Clean up the button directly
 	if active_button and active_button.is_inside_tree():
 		if movement_controller and movement_controller.has_method("get_movement_buttons_container"):
 			var container = movement_controller.get_movement_buttons_container()
 			if container and container.has_node(NodePath(active_button.name)):
 				container.remove_child(active_button)
-		
 		active_button.queue_free()
-		
 		# Also remove from movement controller's button list if it exists
 		if movement_controller and movement_controller.has_method("remove_button_from_list"):
 			movement_controller.remove_button_from_list(active_button)
-
 	active_button = null
 	selected_card = null
-	
 	emit_signal("attack_mode_exited")
 
 func handle_tile_click(x: int, y: int) -> bool:
@@ -519,6 +575,20 @@ func handle_tile_click(x: int, y: int) -> bool:
 			if npc:
 				print("✓ NPC found - performing AttackDog attack!")
 				perform_attackdog_attack_on_npc(npc, clicked)
+				card_play_sound.play()
+				return true
+			else:
+				print("✗ No NPC found at position:", clicked)
+				return false
+
+		# Check if this is an AssassinDash card attack
+		if selected_card and selected_card.name == "AssassinDash":
+			print("AssassinDash card detected - checking for target at:", clicked)
+			var npc = get_npc_at_position(clicked)
+			
+			if npc:
+				print("✓ NPC found - performing AssassinDash attack!")
+				perform_assassin_dash_attack_on_npc(npc, clicked)
 				card_play_sound.play()
 				return true
 			else:
@@ -617,6 +687,37 @@ func apply_knockback(npc: Node, current_pos: Vector2i) -> void:
 				npc.update_z_index_for_ysort()
 			print("Applied instant pushback to NPC (distance:", actual_knockback_distance, ", no animation support)")
 
+func is_position_valid_for_assassin_dash(pos: Vector2i) -> bool:
+	"""Check if a position is valid for AssassinDash behind-enemy movement"""
+	var is_valid = true
+	
+	# Basic bounds checking
+	if pos.x < 0 or pos.y < 0 or pos.x >= grid_size.x or pos.y >= grid_size.y:
+		is_valid = false
+	
+	# Check if the position is occupied by an obstacle
+	elif obstacle_map.has(pos):
+		var obstacle = obstacle_map[pos]
+		if obstacle.has_method("blocks") and obstacle.blocks():
+			is_valid = false
+	
+	# Check if the position is occupied by another NPC
+	elif card_effect_handler and card_effect_handler.course:
+		var entities = card_effect_handler.course.get_node_or_null("Entities")
+		if entities and entities.has_method("get_npcs"):
+			var npcs = entities.get_npcs()
+			for npc in npcs:
+				if is_instance_valid(npc) and npc.has_method("get_grid_position"):
+					if npc.get_grid_position() == pos:
+						is_valid = false
+						break
+	
+	# Check if the position is occupied by the player
+	elif pos == player_grid_pos:
+		is_valid = false
+	
+	return is_valid
+
 func is_position_valid_for_knockback(pos: Vector2i) -> bool:
 	"""Check if a position is valid for NPC knockback"""
 	var is_valid = true
@@ -675,6 +776,48 @@ func clear_all_attack_ui() -> void:
 func get_attack_cards_for_inventory() -> Array[CardData]:
 	"""Get all attack cards from the current hand"""
 	return deck_manager.hand.filter(func(card): return card.effect_type == "Attack")
+
+func _debug_list_all_npcs() -> void:
+	"""Debug function to list all NPCs and their positions"""
+	print("=== DEBUG: LISTING ALL NPCs ===")
+	
+	if not card_effect_handler or not card_effect_handler.course:
+		print("No card_effect_handler or course found")
+		return
+	
+	var entities = card_effect_handler.course.get_node_or_null("Entities")
+	if not entities:
+		print("No Entities found")
+		return
+	
+	var npcs = entities.get_npcs()
+	print("Total NPCs in Entities:", npcs.size())
+	
+	for i in range(npcs.size()):
+		var npc = npcs[i]
+		if is_instance_valid(npc):
+			var npc_pos = Vector2i.ZERO
+			
+			# Try to get grid position using different methods
+			if npc.has_method("get_grid_position"):
+				npc_pos = npc.get_grid_position()
+				print("NPC", i, ":", npc.name, "at position:", npc_pos, "(using get_grid_position)")
+			elif "grid_position" in npc:
+				npc_pos = npc.grid_position
+				print("NPC", i, ":", npc.name, "at position:", npc_pos, "(using grid_position property)")
+			elif "grid_pos" in npc:
+				npc_pos = npc.grid_pos
+				print("NPC", i, ":", npc.name, "at position:", npc_pos, "(using grid_pos property)")
+			else:
+				# Fallback: calculate grid position from world position
+				var world_pos = npc.global_position
+				var cell_size_used = cell_size if "cell_size" in npc else 48
+				npc_pos = Vector2i(floor(world_pos.x / cell_size_used), floor(world_pos.y / cell_size_used))
+				print("NPC", i, ":", npc.name, "at position:", npc_pos, "(calculated from world position)")
+		else:
+			print("NPC", i, ": Invalid NPC reference:", npc)
+	
+	print("=== END DEBUG: LISTING ALL NPCs ===")
 
 func update_player_position(new_grid_pos: Vector2i) -> void:
 	"""Update the stored player grid position"""
@@ -1202,4 +1345,101 @@ func perform_punchb_attack_with_movement_oil_drum(oil_drum: Node, target_pos: Ve
 	else:
 		# Fallback if animation is not available
 		print("Player animation not available - performing immediate attack")
-		perform_punchb_attack_immediate_oil_drum(oil_drum, target_pos) 
+		perform_punchb_attack_immediate_oil_drum(oil_drum, target_pos)
+
+func perform_assassin_dash_attack_on_npc(npc: Node, target_pos: Vector2i) -> void:
+	"""Perform AssassinDash attack on NPC with movement to behind-enemy position"""
+	print("=== PERFORMING ASSASSIN DASH ATTACK ===")
+	print("NPC:", npc.name)
+	print("Target position:", target_pos)
+	print("Player position:", player_grid_pos)
+	print("[AssassinDash] selected_card:", selected_card.name if selected_card else "None", "hand:", deck_manager.hand.map(func(c): return c.name))
+	# Calculate the position behind the enemy (opposite direction from player)
+	var direction = target_pos - player_grid_pos
+	var behind_enemy_pos = target_pos + direction
+	print("Moving player to behind-enemy position:", behind_enemy_pos)
+	# Store original player position
+	var original_player_pos = player_grid_pos
+	# Play camera whoosh sound when card is played
+	if assassin_dash_sound:
+		assassin_dash_sound.play()
+	# Animate player movement to behind-enemy position
+	if player_node and player_node.has_method("animate_to_position"):
+		player_node.animate_to_position(behind_enemy_pos, func():
+			# Play cut sound when reaching the NPC
+			if assassin_cut_sound:
+				assassin_cut_sound.play()
+			# Deal 40 damage to the NPC
+			var assassin_damage = 40
+			# Check if NPC is dead
+			var is_dead = false
+			if npc.has_method("get_is_dead"):
+				is_dead = npc.get_is_dead()
+			elif npc.has_method("is_dead"):
+				is_dead = npc.is_dead()
+			elif "is_dead" in npc:
+				is_dead = npc.is_dead
+			if is_dead:
+				print("Attacking dead NPC - pushing corpse")
+				assassin_damage = 0
+			else:
+				# Deal damage to the NPC
+				if npc.has_method("take_damage"):
+					npc.take_damage(assassin_damage)
+				else:
+					print("NPC does not have take_damage method")
+			# Apply knockback (works for both living and dead NPCs)
+			apply_knockback(npc, target_pos)
+			# Emit signal
+			emit_signal("npc_attacked", npc, assassin_damage)
+			
+			# Update player grid position to behind-enemy position (stay there)
+			player_grid_pos = behind_enemy_pos
+			# Update the course's player position reference
+			if card_effect_handler and card_effect_handler.course:
+				card_effect_handler.course.player_grid_pos = behind_enemy_pos
+			
+			# Exit attack mode
+			exit_attack_mode()
+		)
+	else:
+		# Fallback if animation is not available
+		print("Player animation not available - performing immediate attack")
+		perform_assassin_dash_attack_immediate(npc, target_pos)
+
+func perform_assassin_dash_attack_immediate(npc: Node, target_pos: Vector2i) -> void:
+	"""Perform AssassinDash attack immediately without movement animation"""
+	# Play cut sound
+	if assassin_cut_sound:
+		assassin_cut_sound.play()
+	
+	# Deal 40 damage
+	var assassin_damage = 40
+	
+	# Check if NPC is dead
+	var is_dead = false
+	if npc.has_method("get_is_dead"):
+		is_dead = npc.get_is_dead()
+	elif npc.has_method("is_dead"):
+		is_dead = npc.is_dead()
+	elif "is_dead" in npc:
+		is_dead = npc.is_dead
+	
+	if is_dead:
+		print("Attacking dead NPC - pushing corpse")
+		assassin_damage = 0
+	else:
+		# Deal damage to the NPC
+		if npc.has_method("take_damage"):
+			npc.take_damage(assassin_damage)
+		else:
+			print("NPC does not have take_damage method")
+	
+	# Apply knockback (works for both living and dead NPCs)
+	apply_knockback(npc, target_pos)
+	
+	# Emit signal
+	emit_signal("npc_attacked", npc, assassin_damage)
+	
+	# Exit attack mode
+	exit_attack_mode() 

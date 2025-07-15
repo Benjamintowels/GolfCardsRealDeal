@@ -324,40 +324,53 @@ func animate_card_row_up() -> void:
 
 func exit_movement_mode() -> void:
 	is_movement_mode = false
+	
+	# Store the selected card before clearing it
+	var card_to_discard = selected_card
+	var card_discarded := false
+	
 	selected_card = null
 	selected_card_label = ""
-	active_button = null
+	
 	hide_all_movement_highlights()
 	valid_movement_tiles.clear()
 	
 	# Animate CardRow back to original position
 	animate_card_row_up()
 	
+	# Handle card discard
+	if card_to_discard:
+		print("MovementController: Exiting movement mode with card:", card_to_discard.name)
+		print("MovementController: Card in hand:", deck_manager.hand.has(card_to_discard))
+		print("MovementController: Is club card:", deck_manager.is_club_card(card_to_discard))
+		
+		# Don't discard club cards here - they're handled by the club card selection system
+		if deck_manager.hand.has(card_to_discard) and not deck_manager.is_club_card(card_to_discard):
+			print("MovementController: Discarding movement card:", card_to_discard.name)
+			deck_manager.discard(card_to_discard)
+			card_discarded = true
+			
+			# Reset the course's next_card_doubled variable when the card is used
+			if card_effect_handler and card_effect_handler.course and card_effect_handler.course.next_card_doubled:
+				card_effect_handler.course.next_card_doubled = false
+			
+			# Reset the course's next_movement_card_rooboost variable when the card is used
+			if card_effect_handler and card_effect_handler.course and card_effect_handler.course.next_movement_card_rooboost:
+				card_effect_handler.course.next_movement_card_rooboost = false
+		elif deck_manager.is_club_card(card_to_discard):
+			print("MovementController: Skipping discard for club card:", card_to_discard.name)
+			pass
+		else:
+			print("MovementController: Card not in hand or already discarded:", card_to_discard.name)
+			pass
+
+		if card_discarded:
+			print("MovementController: Animating card discard for:", card_to_discard.name)
+			card_stack_display.animate_card_discard(card_to_discard.name)
+			emit_signal("card_discarded", card_to_discard)
+
+	# Clean up the button
 	if active_button and active_button.is_inside_tree():
-		if selected_card:
-			var card_discarded := false
-
-			# Don't discard club cards here - they're handled by the club card selection system
-			if deck_manager.hand.has(selected_card) and not deck_manager.is_club_card(selected_card):
-				deck_manager.discard(selected_card)
-				card_discarded = true
-				
-				# Reset the course's next_card_doubled variable when the card is used
-				if card_effect_handler and card_effect_handler.course and card_effect_handler.course.next_card_doubled:
-					card_effect_handler.course.next_card_doubled = false
-				
-				# Reset the course's next_movement_card_rooboost variable when the card is used
-				if card_effect_handler and card_effect_handler.course and card_effect_handler.course.next_movement_card_rooboost:
-					card_effect_handler.course.next_movement_card_rooboost = false
-			elif deck_manager.is_club_card(selected_card):
-				pass
-			else:
-				pass
-
-			if card_discarded:
-				card_stack_display.animate_card_discard(selected_card.name)
-				emit_signal("card_discarded", selected_card)
-
 		if movement_buttons_container and movement_buttons_container.has_node(NodePath(active_button.name)):
 			movement_buttons_container.remove_child(active_button)
 
@@ -386,6 +399,8 @@ func handle_tile_click(x: int, y: int) -> bool:
 			print("EtherDash movement completed - allowing additional moves")
 			return true
 		
+		# Exit movement mode to discard the card after successful movement
+		exit_movement_mode()
 		return true
 	else:
 		print("Invalid movement tile or not in movement mode")
