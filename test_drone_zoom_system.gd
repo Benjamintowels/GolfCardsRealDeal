@@ -44,6 +44,9 @@ func _input(event):
 			KEY_5:
 				# Test zoom in after movement
 				_test_zoom_in_after_movement()
+			KEY_6:
+				# Test default zoom position
+				_test_default_zoom_position()
 
 func _add_drone():
 	"""Test adding drone equipment"""
@@ -105,6 +108,7 @@ func _show_status():
 	print("Has drone:", equipment_manager.has_drone())
 	print("Drone zoom enabled:", equipment_manager.is_drone_zoom_enabled())
 	print("Camera zoom:", camera.get_current_zoom() if camera else "No camera")
+	print("Default zoom position:", camera.get_default_zoom_position() if camera else "No camera")
 	print("Equipped equipment count:", equipment_manager.get_equipment_count())
 	
 	# Show equipped equipment names
@@ -137,3 +141,41 @@ func _test_zoom_in_after_movement():
 		print("Zoom difference:", new_zoom - current_zoom)
 	else:
 		print("ERROR: Camera does not have zoom_in_after_movement method") 
+
+func _test_default_zoom_position():
+	"""Test the default zoom position functionality"""
+	print("\n=== TESTING DEFAULT ZOOM POSITION ===")
+	
+	if not camera:
+		print("ERROR: No camera found")
+		return
+	
+	# Get current default zoom position
+	var default_zoom = camera.get_default_zoom_position()
+	print("Current default zoom position:", default_zoom)
+	
+	# Manually zoom to a different position
+	print("Manually zooming to 0.8...")
+	camera.set_zoom_level(0.8)
+	await get_tree().create_timer(0.5).timeout
+	print("Zoom after manual adjustment:", camera.get_current_zoom())
+	
+	# Test zoom in after movement - should go to default position
+	print("Testing zoom in after movement...")
+	camera.zoom_in_after_movement()
+	await get_tree().create_timer(1.5).timeout  # Wait for tween to complete
+	print("Zoom after movement effect:", camera.get_current_zoom())
+	print("Expected default zoom:", default_zoom)
+	
+	# Test setting a new default zoom position
+	print("Setting new default zoom position to 2.2...")
+	camera.set_default_zoom_position(2.2)
+	print("New default zoom position:", camera.get_default_zoom_position())
+	
+	# Test zoom in after movement with new default
+	print("Testing zoom in after movement with new default...")
+	camera.set_zoom_level(1.0)  # Set to different position
+	await get_tree().create_timer(0.5).timeout
+	camera.zoom_in_after_movement()
+	await get_tree().create_timer(1.5).timeout
+	print("Zoom after movement with new default:", camera.get_current_zoom()) 

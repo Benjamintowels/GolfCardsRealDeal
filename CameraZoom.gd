@@ -5,15 +5,21 @@ extends Camera2D
 @export var zoom_speed: float = 0.1
 @export var zoom_smoothness: float = 5.0
 
-var target_zoom: float = 1.5
+var target_zoom: float = 1.2  # Will be set to default_zoom_position in _ready()
 var is_zooming: bool = false
 var zoom_tween: Tween = null
 
 # Dynamic zoom limits for drone equipment
-var current_min_zoom: float = 0.6
+var current_min_zoom: float = 0.1
 var current_max_zoom: float = 3.0
 
+# Default zoom position for the "zoom in" effect after movement
+var default_zoom_position: float = 1.5
+
 func _ready():
+	# Initialize target_zoom with default position
+	target_zoom = default_zoom_position
+	
 	# Initialize zoom
 	zoom = Vector2(target_zoom, target_zoom)
 	
@@ -42,24 +48,33 @@ func set_zoom_level(zoom_level: float):
 	_start_zoom_tween()
 
 func zoom_in_after_movement():
-	"""Smoothly zoom in to a closer view after player movement"""
-	# Calculate a closer zoom level for better player visibility
-	var closer_zoom = min(target_zoom + 0.3, current_max_zoom)
+	"""Smoothly zoom in to the default zoom position after player movement"""
+	# Always zoom to the default zoom position, regardless of current zoom
+	var zoom_target = clamp(default_zoom_position, current_min_zoom, current_max_zoom)
 	
-	# Only zoom in if we're not already at maximum zoom
-	if closer_zoom > target_zoom:
-		print("CameraZoom: Zooming in after movement from", target_zoom, "to", closer_zoom)
-		target_zoom = closer_zoom
+	# Only zoom if we're not already at the default position
+	if abs(target_zoom - zoom_target) > 0.01:  # Small threshold to avoid unnecessary tweens
+		print("CameraZoom: Zooming in after movement from", target_zoom, "to default position", zoom_target)
+		target_zoom = zoom_target
 		_start_zoom_tween()
 	else:
-		print("CameraZoom: Already at maximum zoom, skipping zoom in")
+		print("CameraZoom: Already at default zoom position, skipping zoom in")
 
 func reset_zoom():
-	target_zoom = 1.5
+	target_zoom = default_zoom_position
 	_start_zoom_tween()
 
 func get_current_zoom() -> float:
 	return target_zoom
+
+func set_default_zoom_position(zoom_level: float):
+	"""Set the default zoom position for the zoom in effect"""
+	default_zoom_position = clamp(zoom_level, current_min_zoom, current_max_zoom)
+	print("CameraZoom: Set default zoom position to", default_zoom_position)
+
+func get_default_zoom_position() -> float:
+	"""Get the current default zoom position"""
+	return default_zoom_position
 
 func set_camera_limits(left: float, right: float, top: float, bottom: float):
 	"""Set camera limits dynamically"""
