@@ -1196,6 +1196,10 @@ func launch_grenade_launcher() -> void:
 		course.hide_aiming_circle()
 		course.hide_aiming_instruction()
 		
+		# Restore zoom after aiming
+		if course.has_method("restore_zoom_after_aiming"):
+			course.restore_zoom_after_aiming()
+		
 		# Restore original club if it was stored
 		if has_meta("original_club"):
 			course.selected_club = get_meta("original_club")

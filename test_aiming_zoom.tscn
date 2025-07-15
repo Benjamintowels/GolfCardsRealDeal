@@ -1,0 +1,27 @@
+[gd_scene load_steps=2 format=3 uid="uid://bbxwcmgg2xyji"]
+
+[ext_resource type="Script" path="res://test_aiming_zoom.gd" id="1_0xqxq"]
+
+[node name="TestAimingZoom" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("1_0xqxq")
+
+[node name="Instructions" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = -100.0
+offset_right = 400.0
+offset_bottom = -10.0
+text = "Aiming Zoom Test Controls:
+1 - Enter aiming phase
+2 - Exit aiming (left click)
+3 - Exit aiming (right click)
+4 - Show status
+5 - Test zoom restoration"
+vertical_alignment = 1 

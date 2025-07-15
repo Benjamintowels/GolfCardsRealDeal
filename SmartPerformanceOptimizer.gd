@@ -339,11 +339,15 @@ func handle_aiming_input(event: InputEvent, course_instance):
 			course_instance.is_aiming_phase = false
 			course_instance.hide_aiming_circle()
 			course_instance.hide_aiming_instruction()
+			if course_instance.has_method("restore_zoom_after_aiming"):
+				course_instance.restore_zoom_after_aiming()
 			course_instance.enter_launch_phase()
 		elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
 			course_instance.is_aiming_phase = false
 			course_instance.hide_aiming_circle()
 			course_instance.hide_aiming_instruction()
+			if course_instance.has_method("restore_zoom_after_aiming"):
+				course_instance.restore_zoom_after_aiming()
 			course_instance.game_phase = "move"
 			course_instance._update_player_mouse_facing_state()
 

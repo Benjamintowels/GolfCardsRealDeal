@@ -844,11 +844,13 @@ func _input(event: InputEvent) -> void:
 				is_aiming_phase = false
 				hide_aiming_circle()
 				hide_aiming_instruction()
+				restore_zoom_after_aiming()
 				enter_launch_phase()
 			elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
 				is_aiming_phase = false
 				hide_aiming_circle()
 				hide_aiming_instruction()
+				restore_zoom_after_aiming()
 				game_phase = "move"  # Return to move phase
 				_update_player_mouse_facing_state()
 	elif game_phase == "launch":
@@ -2761,6 +2763,24 @@ func enter_aiming_phase() -> void:
 	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
 	var player_center = player_node.global_position + player_size / 2
 	create_camera_tween(player_center, 1.0)
+	
+	# Zoom out when entering aiming phase for better visibility
+	if camera and camera.has_method("set_zoom_level"):
+		# Store current zoom to restore later
+		if not has_meta("pre_aiming_zoom"):
+			set_meta("pre_aiming_zoom", camera.get_current_zoom())
+		
+		# Calculate zoom out based on shot distance potential
+		var base_zoom = camera.get_default_zoom_position()
+		var zoom_out_factor = 0.3  # Zoom out by 30%
+		var aiming_zoom = base_zoom - zoom_out_factor
+		
+		# Ensure we don't go below minimum zoom
+		if camera.has_method("current_min_zoom"):
+			aiming_zoom = max(aiming_zoom, camera.current_min_zoom)
+		
+		print("Zooming out for aiming from", camera.get_current_zoom(), "to", aiming_zoom)
+		camera.set_zoom_level(aiming_zoom)
 
 func show_aiming_instruction() -> void:
 	var existing_instruction = $UILayer.get_node_or_null("AimingInstructionLabel")
@@ -2787,6 +2807,15 @@ func hide_aiming_instruction() -> void:
 	var instruction_label = $UILayer.get_node_or_null("AimingInstructionLabel")
 	if instruction_label:
 		instruction_label.queue_free()
+
+func restore_zoom_after_aiming() -> void:
+	"""Restore camera zoom to the level it was at before entering aiming phase"""
+	if camera and camera.has_method("set_zoom_level") and has_meta("pre_aiming_zoom"):
+		var pre_aiming_zoom = get_meta("pre_aiming_zoom")
+		print("Restoring zoom after aiming from", camera.get_current_zoom(), "to", pre_aiming_zoom)
+		camera.set_zoom_level(pre_aiming_zoom)
+		# Remove the stored zoom level
+		remove_meta("pre_aiming_zoom")
 
 func draw_cards_for_shot(card_count: int = 5) -> void:
 	print("=== DRAWING CARDS FOR SHOT ===")
