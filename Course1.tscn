@@ -1,4 +1,4 @@
-[gd_scene load_steps=31 format=3 uid="uid://dlq5ygh2wv33m"]
+[gd_scene load_steps=32 format=3 uid="uid://dlq5ygh2wv33m"]
 
 [ext_resource type="Script" uid="uid://d4hrfk75nrm45" path="res://course_1.gd" id="1_pe8tc"]
 [ext_resource type="Texture2D" uid="uid://cpe67sk2vh8me" path="res://EDGE.png" id="2_eymfu"]
@@ -16,6 +16,7 @@
 [ext_resource type="PackedScene" uid="uid://dna6q0m23qdsl" path="res://Bags/Bag.tscn" id="12_bag"]
 [ext_resource type="PackedScene" path="res://InventoryDialog.tscn" id="13_inventory"]
 [ext_resource type="Script" uid="uid://1gtesn5q77m4" path="res://golfcards/build_map.gd" id="14_build_map"]
+[ext_resource type="Texture2D" uid="uid://ded1wjrmxwoqc" path="res://UI/BennyDeckPlaceholder.png" id="15_er2ln"]
 [ext_resource type="Script" uid="uid://dks6b1bolk5lu" path="res://LaunchManager.gd" id="15_launch_manager"]
 [ext_resource type="Script" uid="uid://b278n4knxowm2" path="res://Entities.gd" id="16_entities"]
 [ext_resource type="PackedScene" uid="uid://bqx80a02w3v4u" path="res://HealthBar.tscn" id="17_health_bar"]
@@ -95,9 +96,9 @@ text = "ModShot"
 
 [node name="EndRoundButton" type="Button" parent="UILayer"]
 z_index = 5
-offset_top = 43.0
+offset_top = 62.0
 offset_right = 92.0
-offset_bottom = 74.0
+offset_bottom = 93.0
 text = "End Round"
 
 [node name="EndTurnButton" parent="UILayer" instance=ExtResource("29_end_turn")]
@@ -114,10 +115,13 @@ offset_right = 40.0
 offset_bottom = 23.0
 
 [node name="DeckImage" type="TextureRect" parent="UILayer"]
-offset_left = 20.0
-offset_top = 169.0
-offset_right = 60.0
-offset_bottom = 209.0
+z_index = 100
+texture_filter = 1
+offset_left = 33.0
+offset_right = 1569.0
+offset_bottom = 1024.0
+scale = Vector2(0.055, 0.055)
+texture = ExtResource("15_er2ln")
 
 [node name="CharacterImage" type="TextureRect" parent="UILayer"]
 z_index = 6
@@ -229,9 +233,9 @@ offset_bottom = 455.53
 
 [node name="HealthTestButtons" type="VBoxContainer" parent="UILayer"]
 z_index = 10
-offset_top = 78.0
+offset_top = 101.0
 offset_right = 200.0
-offset_bottom = 148.0
+offset_bottom = 171.0
 
 [node name="DamageButton" type="Button" parent="UILayer/HealthTestButtons"]
 layout_mode = 2

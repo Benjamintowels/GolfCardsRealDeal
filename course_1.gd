@@ -788,12 +788,6 @@ func adjust_background_positioning() -> void:
 	$UILayer.add_child(complete_hole_btn)
 	complete_hole_btn.pressed.connect(_on_complete_hole_pressed)
 
-	var test_bag_btn := Button.new()
-	test_bag_btn.name = "TestBagButton"
-	test_bag_btn.text = "Test Bag Click"
-	test_bag_btn.position = Vector2(400, 100)
-	test_bag_btn.z_index = 999
-	$UILayer.add_child(test_bag_btn)
 
 func _on_complete_hole_pressed():
 	# Clear any existing balls before showing the hole completion dialog

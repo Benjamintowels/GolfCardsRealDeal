@@ -873,6 +873,13 @@ func _handle_call_of_the_wild_effect(card: CardData):
 	print("=== CALL OF THE WILD EFFECT ACTIVATED ===")
 	print("Activating Call of the Wild effect!")
 	
+	# Animate the card row down to get out of the way
+	if course.has_method("get_movement_controller"):
+		var movement_controller = course.get_movement_controller()
+		if movement_controller and movement_controller.has_method("animate_card_row_down"):
+			movement_controller.animate_card_row_down()
+			print("Card row animated down for Call of the Wild effect")
+	
 	# Get the ball position
 	var ball_position = get_ball_position()
 	if ball_position == Vector2.ZERO:
@@ -983,6 +990,13 @@ func _on_redjay_effect_completed():
 	if course.has_method("smooth_camera_to_player"):
 		course.smooth_camera_to_player()
 		print("Camera switched back to player after RedJay effect")
+	
+	# Animate the card row back up
+	if course.has_method("get_movement_controller"):
+		var movement_controller = course.get_movement_controller()
+		if movement_controller and movement_controller.has_method("animate_card_row_up"):
+			movement_controller.animate_card_row_up()
+			print("Card row animated back up after Call of the Wild effect")
 	
 	# The ball will land naturally and trigger the normal landing logic
 	# but we need to prevent the drive distance dialog from showing
