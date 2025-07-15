@@ -50,7 +50,7 @@ var etherdash_start_position: Vector2i = Vector2i.ZERO
 
 # Swing animation system
 var swing_animation: Node2D = null
-var previous_charging_height: bool = false  # Track previous state to detect changes
+var previous_charging: bool = false  # Track previous state to detect changes
 
 # Benny arm height controller
 var benny_arm_height_controller: Node2D = null
@@ -2017,17 +2017,18 @@ func _update_swing_animation() -> void:
 			# Don't play swing animation for GrenadeLauncherClubCard
 			return
 	
-	# Check if height charge state changed
-	if is_charging_height != previous_charging_height:
-		if is_charging_height:
-			# Height charge started - start swing animation
+	# Check if power charge state changed (swing animation should trigger when power charging starts)
+	if is_charging != previous_charging:
+		if is_charging:
+			# Power charge started - start swing animation
 			start_swing_animation()  # Use our updated method that handles facing
 		else:
-			# Height charge stopped - stop swing animation
-			swing_animation.stop_swing_animation()
+			# Power charge stopped - stop swing animation
+			if swing_animation:
+				swing_animation.stop_swing_animation()
 		
 		# Update previous state
-		previous_charging_height = is_charging_height
+		previous_charging = is_charging
 
 func start_swing_animation() -> void:
 	"""Manually start the swing animation"""

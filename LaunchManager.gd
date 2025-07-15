@@ -894,18 +894,19 @@ func show_height_meter():
 	height_meter = Control.new()
 	height_meter.name = "HeightMeter"
 	height_meter.size = Vector2(80, 350)
-	height_meter.position = Vector2(335.5, 206.5)  # Center of screen for testing
+	height_meter.position = Vector2(433.675, 139.06) # Updated position from screenshot
+	height_meter.scale = Vector2(0.57, 0.57) # Updated scale from screenshot
 	ui_layer.add_child(height_meter)
 	height_meter.z_index = 200
 	
-	# Add instruction text for height selection
-	var instruction_label := Label.new()
-	instruction_label.text = "Move mouse up/down\nto set height\nClick to confirm"
-	instruction_label.add_theme_font_size_override("font_size", 12)
-	instruction_label.add_theme_color_override("font_color", Color.YELLOW)
-	instruction_label.position = Vector2(-120, 150)  # Position to the left of the meter
-	instruction_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	height_meter.add_child(instruction_label)
+	# REMOVED: Add instruction text for height selection
+	# var instruction_label := Label.new()
+	# instruction_label.text = "Move mouse up/down\nto set height\nClick to confirm"
+	# instruction_label.add_theme_font_size_override("font_size", 12)
+	# instruction_label.add_theme_color_override("font_color", Color.YELLOW)
+	# instruction_label.position = Vector2(-120, 150)  # Position to the left of the meter
+	# instruction_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# height_meter.add_child(instruction_label)
 	
 	var background := ColorRect.new()
 	background.color = Color(0, 0, 0, 0.7)

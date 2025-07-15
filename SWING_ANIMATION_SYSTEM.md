@@ -35,8 +35,8 @@ The Player script has been enhanced with swing animation support:
 ## How It Works
 
 ### Automatic Triggering
-1. When the player starts charging height (`is_charging_height = true`), the swing animation automatically starts
-2. When height charging stops (`is_charging_height = false`), the animation stops
+1. When the player starts charging power (`is_charging = true`), the swing animation automatically starts
+2. When power charging stops (`is_charging = false`), the animation stops
 3. The animation plays once and then hides the swing sprite
 
 ### Spritesheet Processing
@@ -56,8 +56,8 @@ The system automatically:
 
 ### Automatic Usage
 The swing animation triggers automatically when:
-- Player starts charging height (right-click and drag up)
-- Player stops charging height
+- Player starts charging power (left-click and hold)
+- Player stops charging power
 
 ### Manual Control
 You can also manually control the animation:
@@ -91,7 +91,7 @@ The system uses reasonable frame width constraints (32-200 pixels) to determine 
 - Animation automatically cleans up after completion
 
 ### Integration Points
-- Integrates with LaunchManager's height charging system
+- Integrates with LaunchManager's power charging system
 - Works with all character types (Benny, Clark, Layla)
 - Compatible with existing Player movement and collision systems
 
