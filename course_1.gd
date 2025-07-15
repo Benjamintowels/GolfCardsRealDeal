@@ -1329,7 +1329,7 @@ func update_camera_to_player() -> void:
 	# Smoothly follow player during movement (small tween for smooth following)
 	var current_camera_pos = camera.position
 	var target_camera_pos = player_center
-	var follow_speed = 8.0  # How quickly camera follows during movement
+	var follow_speed = 3.0  # How quickly camera follows during movement
 	
 	var new_camera_pos = current_camera_pos.lerp(target_camera_pos, follow_speed * get_process_delta_time())
 	camera.position = new_camera_pos
@@ -1347,7 +1347,13 @@ func smooth_camera_to_player() -> void:
 	camera_snap_back_pos = player_center
 	
 	# Smoothly tween camera to final position using managed tween
-	create_camera_tween(player_center, 0.3)
+	create_camera_tween(player_center, 0.9)
+	
+	# Add smooth zoom in effect after camera position tween completes
+	if camera and camera.has_method("zoom_in_after_movement"):
+		# Add a small delay to let the camera position tween complete first
+		var zoom_timer = get_tree().create_timer(0.4)  # Wait 0.4 seconds
+		zoom_timer.timeout.connect(func(): camera.zoom_in_after_movement())
 
 func update_player_position() -> void:
 	if not player_node:

@@ -41,6 +41,9 @@ func _input(event):
 			KEY_4:
 				# Show current status
 				_show_status()
+			KEY_5:
+				# Test zoom in after movement
+				_test_zoom_in_after_movement()
 
 func _add_drone():
 	"""Test adding drone equipment"""
@@ -108,4 +111,29 @@ func _show_status():
 	var equipment_names = []
 	for equipment in equipment_manager.get_equipped_equipment():
 		equipment_names.append(equipment.name)
-	print("Equipped equipment:", equipment_names) 
+	print("Equipped equipment:", equipment_names)
+
+func _test_zoom_in_after_movement():
+	"""Test the zoom in after movement functionality"""
+	print("\n=== TESTING ZOOM IN AFTER MOVEMENT ===")
+	
+	if not camera:
+		print("ERROR: No camera found")
+		return
+	
+	# Get current zoom
+	var current_zoom = camera.get_current_zoom()
+	print("Current zoom before test:", current_zoom)
+	
+	# Test the zoom in after movement function
+	if camera.has_method("zoom_in_after_movement"):
+		camera.zoom_in_after_movement()
+		print("✓ Called zoom_in_after_movement()")
+		
+		# Wait a moment for the tween to complete, then check the result
+		await get_tree().create_timer(0.5).timeout
+		var new_zoom = camera.get_current_zoom()
+		print("Zoom after movement effect:", new_zoom)
+		print("Zoom difference:", new_zoom - current_zoom)
+	else:
+		print("ERROR: Camera does not have zoom_in_after_movement method") 

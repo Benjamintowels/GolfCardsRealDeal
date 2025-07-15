@@ -41,6 +41,19 @@ func set_zoom_level(zoom_level: float):
 	target_zoom = clamp(zoom_level, current_min_zoom, current_max_zoom)
 	_start_zoom_tween()
 
+func zoom_in_after_movement():
+	"""Smoothly zoom in to a closer view after player movement"""
+	# Calculate a closer zoom level for better player visibility
+	var closer_zoom = min(target_zoom + 0.3, current_max_zoom)
+	
+	# Only zoom in if we're not already at maximum zoom
+	if closer_zoom > target_zoom:
+		print("CameraZoom: Zooming in after movement from", target_zoom, "to", closer_zoom)
+		target_zoom = closer_zoom
+		_start_zoom_tween()
+	else:
+		print("CameraZoom: Already at maximum zoom, skipping zoom in")
+
 func reset_zoom():
 	target_zoom = 1.5
 	_start_zoom_tween()
@@ -79,10 +92,10 @@ func _start_zoom_tween():
 	# Create new tween
 	zoom_tween = create_tween()
 	zoom_tween.set_trans(Tween.TRANS_SINE)
-	zoom_tween.set_ease(Tween.EASE_OUT)
+	zoom_tween.set_ease(Tween.EASE_IN_OUT)
 	
-	# Tween to target zoom
-	zoom_tween.tween_property(self, "zoom", Vector2(target_zoom, target_zoom), 0.3)
+	# Tween to target zoom (slower and smoother)
+	zoom_tween.tween_property(self, "zoom", Vector2(target_zoom, target_zoom), 1.2)
 	
 	# Mark as zooming during the tween
 	is_zooming = true

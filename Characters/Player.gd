@@ -1291,6 +1291,13 @@ func _on_movement_completed() -> void:
 	var course = get_tree().current_scene
 	if course and course.has_method("smooth_camera_to_player"):
 		course.smooth_camera_to_player()
+	
+	# Add smooth zoom in effect after movement
+	var camera = get_tree().current_scene.get_node_or_null("GameCamera")
+	if camera and camera.has_method("zoom_in_after_movement"):
+		# Add a small delay to let the camera position tween complete first
+		var zoom_timer = get_tree().create_timer(0.4)  # Wait 0.4 seconds
+		zoom_timer.timeout.connect(func(): camera.zoom_in_after_movement())
 
 func update_z_index_for_ysort(ysort_objects: Array, shop_grid_pos: Vector2i = Vector2i.ZERO) -> void:
 	"""Update player Y-sort using the simple global system"""
@@ -1308,6 +1315,11 @@ func update_z_index_for_ysort(ysort_objects: Array, shop_grid_pos: Vector2i = Ve
 			print("✓ Player z_index boosted to", z_index, "for shop entrance")
 
 func start_movement_mode(card, movement_range_: int):
+	# Always reset EtherDash state before starting a new movement mode
+	is_etherdash_mode = false
+	etherdash_moves_remaining = 0
+	etherdash_start_position = Vector2i.ZERO
+
 	selected_card = card
 	movement_range = movement_range_
 	is_movement_mode = true
