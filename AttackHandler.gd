@@ -28,9 +28,16 @@ var punchb_sound: AudioStreamPlayer2D  # Reference to PunchB sound from player s
 # UI references
 var card_stack_display: Control
 var deck_manager: DeckManager
+var card_row: Control  # Reference to the CardRow for animation
 
 # Card effect handling
 var card_effect_handler: Node
+
+# CardRow animation variables
+var card_row_original_position: Vector2
+var card_row_animation_tween: Tween
+var card_row_animation_duration: float = 0.3
+var card_row_animation_offset: float = 100.0  # How far down to move the CardRow
 
 # Attack properties
 var attack_damage := 25
@@ -67,7 +74,8 @@ func setup(
 	deck_manager_ref: DeckManager,
 	card_effect_handler_ref: Node,
 	kick_sound_ref: AudioStreamPlayer2D = null,
-	punchb_sound_ref: AudioStreamPlayer2D = null
+	punchb_sound_ref: AudioStreamPlayer2D = null,
+	card_row_ref: Control = null
 ):
 	player_node = player_node_ref
 	grid_tiles = grid_tiles_ref
@@ -84,6 +92,11 @@ func setup(
 	card_effect_handler = card_effect_handler_ref
 	kick_sound = kick_sound_ref
 	punchb_sound = punchb_sound_ref
+	card_row = card_row_ref
+	
+	# Store the original position of the CardRow for animation
+	if card_row:
+		card_row_original_position = card_row.position
 
 # Reference to movement controller for button cleanup
 var movement_controller: Node = null
@@ -364,6 +377,9 @@ func show_attack_highlights() -> void:
 			print("Created new attack highlight for tile at", pos)
 		attack_highlight.visible = true
 		print("Made attack highlight visible for tile at", pos)
+	
+	# Animate CardRow down to get out of the way of range display
+	animate_card_row_down()
 
 func hide_all_attack_highlights() -> void:
 	for y in grid_size.y:
@@ -373,6 +389,45 @@ func hide_all_attack_highlights() -> void:
 			if attack_highlight:
 				attack_highlight.visible = false
 
+func animate_card_row_down() -> void:
+	"""Animate the CardRow downwards to get out of the way of range display"""
+	if not card_row:
+		return
+	
+	# Stop any existing animation
+	if card_row_animation_tween and card_row_animation_tween.is_valid():
+		card_row_animation_tween.kill()
+	
+	# Create new tween for smooth animation
+	card_row_animation_tween = create_tween()
+	card_row_animation_tween.set_trans(Tween.TRANS_QUAD)
+	card_row_animation_tween.set_ease(Tween.EASE_OUT)
+	
+	# Animate to the offset position
+	var target_position = card_row_original_position + Vector2(0, card_row_animation_offset)
+	card_row_animation_tween.tween_property(card_row, "position", target_position, card_row_animation_duration)
+	
+	print("AttackHandler: Animating CardRow down by", card_row_animation_offset, "pixels")
+
+func animate_card_row_up() -> void:
+	"""Animate the CardRow back to its original position"""
+	if not card_row:
+		return
+	
+	# Stop any existing animation
+	if card_row_animation_tween and card_row_animation_tween.is_valid():
+		card_row_animation_tween.kill()
+	
+	# Create new tween for smooth animation
+	card_row_animation_tween = create_tween()
+	card_row_animation_tween.set_trans(Tween.TRANS_QUAD)
+	card_row_animation_tween.set_ease(Tween.EASE_OUT)
+	
+	# Animate back to the original position
+	card_row_animation_tween.tween_property(card_row, "position", card_row_original_position, card_row_animation_duration)
+	
+	print("AttackHandler: Animating CardRow back to original position")
+
 func exit_attack_mode() -> void:
 	print("=== EXITING ATTACK MODE ===")
 	print("Selected card:", selected_card.name if selected_card else "None")
@@ -381,6 +436,9 @@ func exit_attack_mode() -> void:
 	is_attack_mode = false
 	hide_all_attack_highlights()
 	valid_attack_tiles.clear()
+	
+	# Animate CardRow back to original position
+	animate_card_row_up()
 
 	if selected_card:
 		if deck_manager.hand.has(selected_card):

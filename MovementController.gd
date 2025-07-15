@@ -27,11 +27,18 @@ var card_play_sound: AudioStreamPlayer2D
 # UI references
 var card_stack_display: Control
 var deck_manager: DeckManager
+var card_row: Control  # Reference to the CardRow for animation
 
 # Card effect handling
 var card_effect_handler: Node
 var attack_handler: Node  # Reference to AttackHandler
 var weapon_handler: Node  # Reference to WeaponHandler
+
+# CardRow animation variables
+var card_row_original_position: Vector2
+var card_row_animation_tween: Tween
+var card_row_animation_duration: float = 0.3
+var card_row_animation_offset: float = 1300.0  # How far down to move the CardRow
 
 # Signals
 signal movement_mode_entered
@@ -57,7 +64,8 @@ func setup(
 	deck_manager_ref: DeckManager,
 	card_effect_handler_ref: Node,
 	attack_handler_ref: Node = null,
-	weapon_handler_ref: Node = null
+	weapon_handler_ref: Node = null,
+	card_row_ref: Control = null
 ):
 	player_node = player_node_ref
 	grid_tiles = grid_tiles_ref
@@ -74,6 +82,11 @@ func setup(
 	card_effect_handler = card_effect_handler_ref
 	attack_handler = attack_handler_ref
 	weapon_handler = weapon_handler_ref
+	card_row = card_row_ref
+	
+	# Store the original position of the CardRow for animation
+	if card_row:
+		card_row_original_position = card_row.position
 
 func create_movement_buttons() -> void:
 	for child in movement_buttons_container.get_children():
@@ -259,6 +272,9 @@ func show_movement_highlights() -> void:
 	for pos in valid_movement_tiles:
 		grid_tiles[pos.y][pos.x].get_node("MovementHighlight").visible = true
 	
+	# Animate CardRow down to get out of the way of range display
+	animate_card_row_down()
+	
 	# Check if movement tiles are outside screen view and adjust camera zoom if needed
 	check_and_adjust_camera_zoom_for_movement_tiles()
 
@@ -267,11 +283,56 @@ func hide_all_movement_highlights() -> void:
 		for x in grid_size.x:
 			grid_tiles[y][x].get_node("MovementHighlight").visible = false
 
+func animate_card_row_down() -> void:
+	"""Animate the CardRow downwards to get out of the way of range display"""
+	if not card_row:
+		return
+	
+	# Stop any existing animation
+	if card_row_animation_tween and card_row_animation_tween.is_valid():
+		card_row_animation_tween.kill()
+	
+	# Create new tween for smooth animation
+	card_row_animation_tween = create_tween()
+	card_row_animation_tween.set_trans(Tween.TRANS_QUAD)
+	card_row_animation_tween.set_ease(Tween.EASE_OUT)
+	
+	# Animate to the offset position
+	var target_position = card_row_original_position + Vector2(0, card_row_animation_offset)
+	card_row_animation_tween.tween_property(card_row, "position", target_position, card_row_animation_duration)
+	
+	print("MovementController: Animating CardRow down by", card_row_animation_offset, "pixels")
+
+func animate_card_row_up() -> void:
+	"""Animate the CardRow back to its original position"""
+	if not card_row:
+		return
+	
+	# Stop any existing animation
+	if card_row_animation_tween and card_row_animation_tween.is_valid():
+		card_row_animation_tween.kill()
+	
+	# Create new tween for smooth animation
+	card_row_animation_tween = create_tween()
+	card_row_animation_tween.set_trans(Tween.TRANS_QUAD)
+	card_row_animation_tween.set_ease(Tween.EASE_OUT)
+	
+	# Animate back to the original position
+	card_row_animation_tween.tween_property(card_row, "position", card_row_original_position, card_row_animation_duration)
+	
+	print("MovementController: Animating CardRow back to original position")
+
 func exit_movement_mode() -> void:
 	is_movement_mode = false
+	selected_card = null
+	selected_card_label = ""
+	active_button = null
 	hide_all_movement_highlights()
 	valid_movement_tiles.clear()
-
+	
+	# Animate CardRow back to original position
+	animate_card_row_up()
+	
 	if active_button and active_button.is_inside_tree():
 		if selected_card:
 			var card_discarded := false

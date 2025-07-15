@@ -534,7 +534,8 @@ func _ready() -> void:
 		deck_manager,
 		card_effect_handler,
 		player_node.get_node_or_null("KickSound"),  # Add KickSound reference
-		player_node.get_node_or_null("PunchB")  # Add PunchB sound reference
+		player_node.get_node_or_null("PunchB"),  # Add PunchB sound reference
+		movement_buttons_container  # Pass CardRow reference for animation
 	)
 	
 	# Setup weapon handler after attack handler
@@ -571,7 +572,8 @@ func _ready() -> void:
 		deck_manager,
 		card_effect_handler,
 		attack_handler,
-		weapon_handler
+		weapon_handler,
+		movement_buttons_container  # Pass CardRow reference for animation
 	)
 	
 
