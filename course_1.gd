@@ -584,6 +584,7 @@ func _ready() -> void:
 	attack_handler.npc_attacked.connect(_on_npc_attacked)
 	attack_handler.kick_attack_performed.connect(_on_kick_attack_performed)
 	attack_handler.punchb_attack_performed.connect(_on_punchb_attack_performed)
+	attack_handler.ash_dog_attack_performed.connect(_on_ash_dog_attack_performed)
 	
 	# Connect weapon handler signals
 	weapon_handler.npc_shot.connect(_on_npc_shot)
@@ -4865,6 +4866,10 @@ func _on_punchb_attack_performed() -> void:
 	"""Handle when a PunchB attack is performed - trigger punch animation"""
 	if player_node and player_node.has_method("start_punchb_animation"):
 		player_node.start_punchb_animation()
+
+func _on_ash_dog_attack_performed() -> void:
+	"""Handle when an Ash dog attack is performed - trigger ash dog animation"""
+	print("Ash dog attack performed - animation handled by AttackHandler")
 
 func _on_npc_shot(npc: Node, damage: int) -> void:
 	"""Handle when an NPC is shot with a weapon"""

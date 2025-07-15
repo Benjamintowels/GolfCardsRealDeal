@@ -36,6 +36,9 @@ var card_effect_handler: Node
 var attack_damage := 25
 var knockback_distance := 1
 
+# Ash dog attack properties
+var ash_dog_damage := 50
+
 # Signals
 signal attack_mode_entered
 signal attack_mode_exited
@@ -44,6 +47,7 @@ signal card_discarded(card: CardData)
 signal npc_attacked(npc: Node, damage: int)
 signal kick_attack_performed
 signal punchb_attack_performed
+signal ash_dog_attack_performed
 
 func _init():
 	pass
@@ -203,6 +207,18 @@ func calculate_valid_attack_tiles() -> void:
 			print("Added cross pattern tile for PunchB card at:", pos)
 		
 		print("Total cross pattern tiles for PunchB card:", valid_attack_tiles.size())
+		return
+
+	# Special case for AttackDog card - show all tiles within range regardless of content
+	if selected_card and selected_card.name == "AttackDog":
+		print("AttackDog card detected - showing all tiles within range")
+		for y in grid_size.y:
+			for x in grid_size.x:
+				var pos := Vector2i(x, y)
+				if calculate_grid_distance(player_grid_pos, pos) <= attack_range and pos != player_grid_pos:
+					valid_attack_tiles.append(pos)
+					print("Added tile for AttackDog card at:", pos)
+		print("Total tiles for AttackDog card:", valid_attack_tiles.size())
 		return
 
 	# DEBUG: Print all oil drum grid positions
@@ -435,6 +451,20 @@ func handle_tile_click(x: int, y: int) -> bool:
 				return true
 			else:
 				print("✗ No valid target found at position:", clicked)
+				return false
+		
+		# Check if this is an AttackDog card attack
+		if selected_card and selected_card.name == "AttackDog":
+			print("AttackDog card detected - checking for target at:", clicked)
+			var npc = get_npc_at_position(clicked)
+			
+			if npc:
+				print("✓ NPC found - performing AttackDog attack!")
+				perform_attackdog_attack_on_npc(npc, clicked)
+				card_play_sound.play()
+				return true
+			else:
+				print("✗ No NPC found at position:", clicked)
 				return false
 		
 		# Check for normal NPC attack
@@ -678,6 +708,191 @@ func perform_kickb_attack_on_oil_drum(oil_drum: Node, target_pos: Vector2i) -> v
 	exit_attack_mode()
 	
 	print("=== END KICKB ATTACK ON OIL DRUM ===") 
+
+func perform_attackdog_attack_on_npc(npc: Node, target_pos: Vector2i) -> void:
+	"""Perform AttackDog attack on NPC with Ash dog animation"""
+	print("=== PERFORMING ATTACKDOG ATTACK ON NPC ===")
+	print("NPC:", npc.name)
+	print("Target position:", target_pos)
+	print("Player position:", player_grid_pos)
+	
+	# Emit ash dog attack signal for animation
+	emit_signal("ash_dog_attack_performed")
+	
+	# Create and animate Ash dog
+	create_and_animate_ash_dog(npc, target_pos)
+
+func create_and_animate_ash_dog(npc: Node, target_pos: Vector2i) -> void:
+	"""Create Ash dog and animate it to attack the target"""
+	# Load Ash scene
+	var ash_scene = preload("res://NPC/Animals/Ash/Ash.tscn")
+	if not ash_scene:
+		print("Error: Failed to load Ash scene")
+		complete_attackdog_attack(npc, target_pos)
+		return
+	
+	var ash = ash_scene.instantiate()
+	if not ash:
+		print("Error: Failed to instantiate Ash")
+		complete_attackdog_attack(npc, target_pos)
+		return
+	
+	# Add Ash as child of the player character (BennyChar, LaylaChar, etc.)
+	var character_node = null
+	if player_node:
+		# Find the character node (BennyChar, LaylaChar, etc.)
+		for child in player_node.get_children():
+			if child.name.ends_with("Char"):
+				character_node = child
+				break
+		
+		if character_node:
+			character_node.add_child(ash)
+			ash.global_position = player_node.global_position
+			print("Ash dog created as child of", character_node.name, "at position:", ash.global_position)
+		else:
+			# Fallback: add to player node directly
+			player_node.add_child(ash)
+			ash.global_position = player_node.global_position
+			print("Ash dog created as child of player node at position:", ash.global_position)
+	else:
+		print("Error: No player node found")
+		ash.queue_free()
+		complete_attackdog_attack(npc, target_pos)
+		return
+	
+	# Play Ash bark sound
+	var ash_bark = ash.get_node_or_null("AshBark")
+	if ash_bark:
+		ash_bark.play()
+		print("Playing Ash bark sound")
+	
+	# Get target world position
+	var target_world_pos = Vector2(target_pos.x * cell_size + cell_size/2, target_pos.y * cell_size + cell_size/2)
+	if card_effect_handler and card_effect_handler.course:
+		target_world_pos += card_effect_handler.course.camera_container.global_position
+	
+	# Calculate direction for sprite orientation
+	var direction = target_world_pos - ash.global_position
+	var is_horizontal = abs(direction.x) > abs(direction.y)
+	var is_up = direction.y < 0
+	
+	# Set up Ash sprites
+	var default_sprite = ash.get_node_or_null("AshDefaultSprite")
+	var attack_sprite = ash.get_node_or_null("AshAttackSprite")
+	
+	if not default_sprite or not attack_sprite:
+		print("Error: Ash sprites not found")
+		ash.queue_free()
+		complete_attackdog_attack(npc, target_pos)
+		return
+	
+	# Hide default sprite, show attack sprite
+	default_sprite.visible = false
+	attack_sprite.visible = true
+	
+	# Set appropriate attack sprite based on direction
+	if is_horizontal:
+		# Use AshAttackLeftRight for horizontal movement
+		attack_sprite.texture = load("res://NPC/Animals/Ash/AshAttackLeftRight.png")
+		attack_sprite.flip_h = direction.x < 0  # Flip if moving left
+	else:
+		# Use AshAttackUp for vertical movement
+		attack_sprite.texture = load("res://NPC/Animals/Ash/AshAttackUp.png")
+		attack_sprite.flip_h = false  # No flip for vertical
+	
+	print("Ash dog attacking in direction:", "horizontal" if is_horizontal else "vertical", "flip_h:", attack_sprite.flip_h)
+	
+	# Animate Ash to target position
+	var tween = create_tween()
+	tween.tween_property(ash, "global_position", target_world_pos, 0.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.tween_callback(func():
+		# Flash effect at target
+		create_flash_effect(target_world_pos)
+		
+		# Switch to default sprite
+		attack_sprite.visible = false
+		default_sprite.visible = true
+		
+		# Set appropriate default sprite based on direction
+		if is_horizontal:
+			default_sprite.texture = load("res://NPC/Animals/Ash/AshDefaultLeftRight.png")
+			default_sprite.flip_h = direction.x < 0  # Flip if moving left
+		else:
+			default_sprite.texture = load("res://NPC/Animals/Ash/AshDefaultUp.png")
+			default_sprite.flip_h = false  # No flip for vertical
+		
+		# Flip the sprite to face the opposite direction for return journey
+		if is_horizontal:
+			default_sprite.flip_h = direction.x >= 0  # Flip to face opposite direction
+		# For vertical movement, we don't need to flip since it's the same sprite
+		
+		# Animate back to player
+		var return_tween = create_tween()
+		return_tween.tween_property(ash, "global_position", player_node.global_position, 0.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		return_tween.tween_callback(func():
+			# Remove Ash and complete attack
+			ash.queue_free()
+			complete_attackdog_attack(npc, target_pos)
+		)
+	)
+
+func create_flash_effect(position: Vector2) -> void:
+	"""Create a flash effect at the specified position"""
+	# Create a simple flash effect using a ColorRect
+	var flash = ColorRect.new()
+	flash.color = Color.WHITE
+	flash.size = Vector2(48, 48)  # Same size as a tile
+	flash.global_position = position - flash.size / 2
+	flash.z_index = 1000  # Very high z-index to appear on top
+	
+	# Add to the scene
+	if card_effect_handler and card_effect_handler.course:
+		card_effect_handler.course.add_child(flash)
+	else:
+		add_child(flash)
+	
+	# Animate flash
+	var flash_tween = create_tween()
+	flash_tween.tween_property(flash, "modulate:a", 0.0, 0.2).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	flash_tween.tween_callback(flash.queue_free)
+
+func complete_attackdog_attack(npc: Node, target_pos: Vector2i) -> void:
+	"""Complete the AttackDog attack by dealing damage"""
+	print("Completing AttackDog attack on NPC:", npc.name)
+	
+	# Deal 50 damage to the NPC
+	var damage = ash_dog_damage
+	
+	# Check if NPC is dead
+	var is_dead = false
+	if npc.has_method("get_is_dead"):
+		is_dead = npc.get_is_dead()
+	elif npc.has_method("is_dead"):
+		is_dead = npc.is_dead()
+	elif "is_dead" in npc:
+		is_dead = npc.is_dead
+	
+	if is_dead:
+		print("Attacking dead NPC - pushing corpse")
+		damage = 0
+	else:
+		# Deal damage to the NPC
+		if npc.has_method("take_damage"):
+			npc.take_damage(damage)
+		else:
+			print("NPC does not have take_damage method")
+	
+	# Apply knockback (works for both living and dead NPCs)
+	apply_knockback(npc, target_pos)
+	
+	# Emit signal
+	emit_signal("npc_attacked", npc, damage)
+	
+	# Exit attack mode
+	exit_attack_mode()
+	
+	print("=== END ATTACKDOG ATTACK ===")
 
 func perform_punchb_attack_on_npc(npc: Node, target_pos: Vector2i) -> void:
 	"""Perform PunchB attack on NPC with movement animation"""

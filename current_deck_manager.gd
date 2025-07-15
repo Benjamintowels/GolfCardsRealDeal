@@ -18,6 +18,7 @@ var starter_deck: Array[CardData] = [
 	preload("res://Cards/KickB.tres"),
 	preload("res://Cards/PunchB.tres"),
 	preload("res://Cards/PunchB.tres"),
+	preload("res://Cards/AttackDog.tres"),     # AttackDog card
 	preload("res://Cards/Hybrid.tres"),        # Putter
 	preload("res://Cards/GrenadeLauncherClubCard.tres"),        # Grenade Launcher Club Card
 	preload("res://Cards/SpearCard.tres"),     # SpearCard

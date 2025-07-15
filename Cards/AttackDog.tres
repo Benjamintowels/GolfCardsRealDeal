@@ -7,7 +7,7 @@
 script = ExtResource("1_86mt3")
 name = "AttackDog"
 effect_type = "Attack"
-effect_strength = 1
+effect_strength = 4
 image = ExtResource("1_x06ui")
 level = 1
 max_level = 2

@@ -1,0 +1,31 @@
+[gd_scene load_steps=6 format=3 uid="uid://u4texuicopgo"]
+
+[ext_resource type="Script" uid="uid://wgqm6pkxm5ov" path="res://NPC/Animals/Ash/ash.gd" id="1_t7h7n"]
+[ext_resource type="Texture2D" uid="uid://dltho7pn086ge" path="res://NPC/Animals/Ash/AshDefaultLeftRight.png" id="2_32nfh"]
+[ext_resource type="Texture2D" uid="uid://d2346jx718ql1" path="res://NPC/Animals/Ash/AshShadow.png" id="2_e4asw"]
+[ext_resource type="Texture2D" uid="uid://eptvhes5c14s" path="res://NPC/Animals/Ash/AshAttackLeftRight.png" id="4_h1svd"]
+[ext_resource type="AudioStream" uid="uid://l00wklsitc03" path="res://Sounds/AshBark.mp3" id="5_dbsyj"]
+
+[node name="Ash" type="Node2D"]
+script = ExtResource("1_t7h7n")
+
+[node name="AshShadow" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(0, -5)
+texture = ExtResource("2_e4asw")
+
+[node name="AshDefaultSprite" type="Sprite2D" parent="."]
+visible = false
+texture_filter = 1
+position = Vector2(0, -29)
+texture = ExtResource("2_32nfh")
+
+[node name="AshAttackSprite" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(7, -35)
+texture = ExtResource("4_h1svd")
+
+[node name="YSortPoint" type="Marker2D" parent="."]
+
+[node name="AshBark" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("5_dbsyj")
