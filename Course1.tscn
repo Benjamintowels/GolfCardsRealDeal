@@ -93,19 +93,11 @@ offset_right = 123.0
 offset_bottom = 31.0
 text = "ModShot"
 
-[node name="SwingTestButton" type="Button" parent="UILayer"]
-offset_left = 20.0
-offset_top = 60.0
-offset_right = 200.0
-offset_bottom = 90.0
-text = "Test Swing Animation"
-
 [node name="EndRoundButton" type="Button" parent="UILayer"]
 z_index = 5
-offset_left = 1050.0
-offset_top = 616.0
-offset_right = 1142.0
-offset_bottom = 647.0
+offset_top = 43.0
+offset_right = 92.0
+offset_bottom = 74.0
 text = "End Round"
 
 [node name="EndTurnButton" parent="UILayer" instance=ExtResource("29_end_turn")]
@@ -130,9 +122,9 @@ offset_bottom = 209.0
 [node name="CharacterImage" type="TextureRect" parent="UILayer"]
 z_index = 6
 texture_filter = 1
-offset_left = -12.0
+offset_left = -7.32
 offset_top = 462.0
-offset_right = 28.0
+offset_right = 32.68
 offset_bottom = 502.0
 
 [node name="CardAnchor" type="Marker2D" parent="UILayer"]
@@ -189,9 +181,9 @@ alignment = 1
 [node name="DrawCards" parent="UILayer" instance=ExtResource("28_draw_cards")]
 z_index = 300
 z_as_relative = false
-offset_left = 20.0
+offset_left = 145.0
 offset_top = 216.0
-offset_right = 60.0
+offset_right = 185.0
 offset_bottom = 256.0
 
 [node name="DrawClubCards" parent="UILayer" instance=ExtResource("27_draw_club_cards")]
@@ -215,10 +207,11 @@ offset_bottom = 40.0
 
 [node name="Bag" parent="UILayer" instance=ExtResource("12_bag")]
 z_index = 500
-offset_left = 53.0
-offset_top = 90.0
-offset_right = 113.0
-offset_bottom = 150.0
+offset_left = 169.5
+offset_top = 541.8
+offset_right = 229.5
+offset_bottom = 601.8
+scale = Vector2(1.53, 1.53)
 
 [node name="BlockHealthBar" parent="UILayer" instance=ExtResource("22_block_health_bar")]
 z_index = 10
@@ -236,10 +229,9 @@ offset_bottom = 455.53
 
 [node name="HealthTestButtons" type="VBoxContainer" parent="UILayer"]
 z_index = 10
-offset_left = 20.07
-offset_top = 275.005
-offset_right = 220.07
-offset_bottom = 345.005
+offset_top = 78.0
+offset_right = 200.0
+offset_bottom = 148.0
 
 [node name="DamageButton" type="Button" parent="UILayer/HealthTestButtons"]
 layout_mode = 2
@@ -290,5 +282,3 @@ volume_db = -5.859
 
 [node name="Snow" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("23_6ixtt")
-
-[connection signal="pressed" from="UILayer/SwingTestButton" to="." method="_on_swing_test_button_pressed"]

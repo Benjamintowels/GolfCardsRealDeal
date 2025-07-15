@@ -12,6 +12,7 @@ offset_bottom = 60.0
 script = ExtResource("1_bag")
 
 [node name="TextureRect" type="TextureRect" parent="."]
+texture_filter = 1
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
