@@ -57,6 +57,9 @@ func handle_card_effect(card: CardData) -> bool:
 	elif card.effect_type == "AnimalHelp":
 		handle_animal_help_effect(card)
 		return true
+	elif card.effect_type == "PlayerEffect":
+		handle_player_effect(card)
+		return true
 	
 	return false
 
@@ -867,6 +870,64 @@ func handle_animal_help_effect(card: CardData):
 	remove_specific_card_button(card)
 	
 	print("AnimalHelp effect activated")
+
+func handle_player_effect(card: CardData):
+	"""Handle PlayerEffect cards - apply effects directly to the player"""
+	print("CardEffectHandler: Handling PlayerEffect card:", card.name)
+	
+	if card.name == "GhostMode":
+		_handle_ghost_mode_effect(card)
+	else:
+		print("Unknown PlayerEffect card:", card.name)
+	
+	# Handle card discard - could be from hand or bag pile
+	if course.deck_manager.hand.has(card):
+		course.deck_manager.discard(card)
+		course.card_stack_display.animate_card_discard(card.name)
+		course.update_deck_display()
+	else:
+		# Card is from bag pile during club selection - just animate discard
+		course.card_stack_display.animate_card_discard(card.name)
+		print("PlayerEffect card used from bag pile")
+	
+	# Remove only the specific card button, not the entire hand
+	remove_specific_card_button(card)
+	
+	print("PlayerEffect activated")
+
+func _handle_ghost_mode_effect(card: CardData):
+	"""Handle the specific GhostMode card effect"""
+	print("=== GHOST MODE EFFECT ACTIVATED ===")
+	print("Activating GhostMode effect!")
+	
+	# Play the cool sound effect
+	play_ghost_mode_sound()
+	
+	# Activate ghost mode on the course
+	if course.has_method("activate_ghost_mode"):
+		course.activate_ghost_mode()
+		print("GhostMode activated on course")
+	else:
+		print("Warning: Course does not have activate_ghost_mode method")
+
+func play_ghost_mode_sound():
+	"""Play the cool sound effect when GhostMode card is used"""
+	# Create a temporary AudioStreamPlayer to play the sound
+	var sound_player = AudioStreamPlayer.new()
+	course.add_child(sound_player)
+	
+	# Load and play the sound
+	var sound_file = load("res://Sounds/CoolSound.mp3")
+	if sound_file:
+		sound_player.stream = sound_file
+		sound_player.play()
+		print("Playing GhostMode sound effect")
+	else:
+		print("Warning: CoolSound.mp3 not found")
+	
+	# Remove the temporary sound player after a short delay
+	await get_tree().create_timer(0.1).timeout
+	sound_player.queue_free()
 
 func _handle_call_of_the_wild_effect(card: CardData):
 	"""Handle the specific Call of the Wild card effect"""

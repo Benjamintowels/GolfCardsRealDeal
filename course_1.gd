@@ -2120,6 +2120,11 @@ func get_visible_npcs_by_priority() -> Array[Node]:
 			var script_path = npc.get_script().resource_path if npc.get_script() else ""
 			var is_squirrel = "Squirrel.gd" in script_path
 			
+			# If ghost mode is active, NPCs should ignore the player (except squirrels that detect balls)
+			if ghost_mode_active and not is_squirrel:
+				print("NPC ", npc.name, " ignoring player due to ghost mode (distance: ", distance, ")")
+				continue
+			
 			if is_squirrel:
 				# Special case for squirrels: include them if they can detect a ball, regardless of player vision
 				print("=== CHECKING SQUIRREL FOR TURN SEQUENCE ===")
@@ -2819,6 +2824,10 @@ func draw_cards_for_shot(card_count: int = 5) -> void:
 	
 	# Clear block when starting a new player turn (after world turn ends or is skipped)
 	clear_block()
+	
+	# Deactivate ghost mode when starting a new player turn
+	if ghost_mode_active:
+		deactivate_ghost_mode()
 	
 	var card_draw_modifier = player_stats.get("card_draw", 0)
 	var final_card_count = card_count + card_draw_modifier
@@ -4242,6 +4251,10 @@ func is_player_on_shop_tile() -> bool:
 var ghost_ball: Node2D = null
 var ghost_ball_active: bool = false
 
+# Ghost mode variables
+var ghost_mode_active: bool = false
+var ghost_mode_tween: Tween
+
 func create_ghost_ball() -> void:
 	if ghost_ball and is_instance_valid(ghost_ball):
 		ghost_ball.queue_free()
@@ -4268,6 +4281,70 @@ func create_ghost_ball() -> void:
 	# Global Y-sort will be handled by the ball's update_y_sort() method
 	if chosen_landing_spot != Vector2.ZERO:
 		ghost_ball.set_landing_spot(chosen_landing_spot)
+
+func activate_ghost_mode() -> void:
+	"""Activate ghost mode - make player transparent and ignored by NPCs"""
+	print("=== ACTIVATING GHOST MODE ===")
+	
+	if ghost_mode_active:
+		print("Ghost mode already active, ignoring activation")
+		return
+	
+	ghost_mode_active = true
+	print("Ghost mode activated")
+	
+	# Make player sprite transparent
+	if player_node:
+		var sprite = player_node.get_character_sprite()
+		if sprite:
+			# Kill any existing tween
+			if ghost_mode_tween and ghost_mode_tween.is_valid():
+				ghost_mode_tween.kill()
+			
+			# Create new tween for transparency animation
+			ghost_mode_tween = create_tween()
+			ghost_mode_tween.tween_property(sprite, "modulate:a", 0.4, 0.5)  # Animate to 40% opacity
+			ghost_mode_tween.set_trans(Tween.TRANS_SINE)
+			ghost_mode_tween.set_ease(Tween.EASE_OUT)
+			print("Player sprite transparency animation started")
+		else:
+			print("Warning: Could not find player sprite for ghost mode")
+	
+	print("=== GHOST MODE ACTIVATED ===")
+
+func deactivate_ghost_mode() -> void:
+	"""Deactivate ghost mode - restore player visibility"""
+	print("=== DEACTIVATING GHOST MODE ===")
+	
+	if not ghost_mode_active:
+		print("Ghost mode not active, ignoring deactivation")
+		return
+	
+	ghost_mode_active = false
+	print("Ghost mode deactivated")
+	
+	# Restore player sprite visibility
+	if player_node:
+		var sprite = player_node.get_character_sprite()
+		if sprite:
+			# Kill any existing tween
+			if ghost_mode_tween and ghost_mode_tween.is_valid():
+				ghost_mode_tween.kill()
+			
+			# Create new tween to restore opacity
+			ghost_mode_tween = create_tween()
+			ghost_mode_tween.tween_property(sprite, "modulate:a", 1.0, 0.5)  # Animate back to full opacity
+			ghost_mode_tween.set_trans(Tween.TRANS_SINE)
+			ghost_mode_tween.set_ease(Tween.EASE_OUT)
+			print("Player sprite opacity restoration started")
+		else:
+			print("Warning: Could not find player sprite for ghost mode deactivation")
+	
+	print("=== GHOST MODE DEACTIVATED ===")
+
+func is_ghost_mode_active() -> bool:
+	"""Check if ghost mode is currently active"""
+	return ghost_mode_active
 
 func update_ghost_ball() -> void:
 	"""Update the ghost ball's landing spot"""

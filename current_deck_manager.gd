@@ -24,7 +24,8 @@ var starter_deck: Array[CardData] = [
 	preload("res://Cards/SpearCard.tres"),     # SpearCard
 	preload("res://Cards/Dash.tres"),          # Dash card
 	preload("res://Cards/EtherDash.tres"),     # EtherDash card
-	preload("res://Cards/CallofthewildCard.tres")               # Call of the Wild card (for testing)
+	preload("res://Cards/CallofthewildCard.tres"),              # Call of the Wild card (for testing)
+	preload("res://Cards/GhostMode.tres")      # GhostMode card (for testing)
 ]
 
 func _ready():

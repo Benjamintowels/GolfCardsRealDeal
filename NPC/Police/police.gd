@@ -474,6 +474,15 @@ func _check_player_vision() -> void:
 			print("No player reference found for vision check")
 		return
 	
+	# Check if ghost mode is active - if so, ignore the player
+	var course = _find_course_script()
+	if course and course.has_method("is_ghost_mode_active") and course.is_ghost_mode_active():
+		print("Police ignoring player due to ghost mode")
+		if current_state != State.PATROL:
+			current_state = State.PATROL
+			state_machine.set_state("patrol")
+		return
+	
 	print("=== POLICE VISION CHECK ===")
 	print("Police position:", grid_position)
 	print("Player reference:", player.name if player else "None")

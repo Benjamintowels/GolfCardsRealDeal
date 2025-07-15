@@ -870,6 +870,15 @@ func _check_player_vision() -> void:
 	if not player:
 		return
 	
+	# Check if ghost mode is active - if so, ignore the player
+	var course = _find_course_script()
+	if course and course.has_method("is_ghost_mode_active") and course.is_ghost_mode_active():
+		print("GangMember ignoring player due to ghost mode")
+		if current_state != State.PATROL:
+			current_state = State.PATROL
+			state_machine.set_state("patrol")
+		return
+	
 	var player_pos = player.grid_pos
 	var distance = grid_position.distance_to(player_pos)
 	
