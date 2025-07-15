@@ -60,6 +60,9 @@ func handle_card_effect(card: CardData) -> bool:
 	elif card.effect_type == "PlayerEffect":
 		handle_player_effect(card)
 		return true
+	elif card.effect_type == "Vampire":
+		handle_vampire_effect(card)
+		return true
 	
 	return false
 
@@ -877,6 +880,8 @@ func handle_player_effect(card: CardData):
 	
 	if card.name == "GhostMode":
 		_handle_ghost_mode_effect(card)
+	elif card.name == "Vampire":
+		_handle_vampire_effect(card)
 	else:
 		print("Unknown PlayerEffect card:", card.name)
 	
@@ -928,6 +933,70 @@ func play_ghost_mode_sound():
 	# Remove the temporary sound player after a short delay
 	await get_tree().create_timer(0.1).timeout
 	sound_player.queue_free()
+
+func _handle_vampire_effect(card: CardData):
+	"""Handle the specific Vampire card effect"""
+	print("=== VAMPIRE EFFECT ACTIVATED ===")
+	print("Activating Vampire effect!")
+	
+	# Play the vampire sound effect
+	play_vampire_sound()
+	
+	# Activate vampire mode on the course
+	if course.has_method("activate_vampire_mode"):
+		course.activate_vampire_mode()
+		print("Vampire mode activated on course")
+	else:
+		print("Warning: Course does not have activate_vampire_mode method")
+
+func play_vampire_sound():
+	"""Play the vampire sound effect when Vampire card is used"""
+	# Create a temporary AudioStreamPlayer to play the sound
+	var sound_player = AudioStreamPlayer.new()
+	course.add_child(sound_player)
+	
+	# Load and play the sound
+	var sound_file = load("res://Sounds/Vampire.mp3")
+	if sound_file:
+		sound_player.stream = sound_file
+		sound_player.play()
+		print("Playing Vampire sound effect")
+	else:
+		print("Warning: Vampire.mp3 not found")
+	
+	# Remove the temporary sound player after a short delay
+	await get_tree().create_timer(0.1).timeout
+	sound_player.queue_free()
+
+func handle_vampire_effect(card: CardData):
+	"""Handle the Vampire card effect - activate vampire mode"""
+	print("=== VAMPIRE EFFECT ACTIVATED ===")
+	print("Activating Vampire effect!")
+	
+	# Play the vampire sound effect
+	play_vampire_sound()
+	
+	# Activate vampire mode on the course
+	if course.has_method("activate_vampire_mode"):
+		course.activate_vampire_mode()
+		print("Vampire mode activated on course")
+	else:
+		print("Warning: Course does not have activate_vampire_mode method")
+	
+	# Handle card discard - could be from hand or bag pile
+	if course.deck_manager.hand.has(card):
+		course.deck_manager.discard(card)
+		course.card_stack_display.animate_card_discard(card.name)
+		course.update_deck_display()
+	else:
+		# Card is from bag pile during club selection - just animate discard
+		course.card_stack_display.animate_card_discard(card.name)
+		print("Vampire card used from bag pile")
+	
+	# Remove only the specific card button, not the entire hand
+	remove_specific_card_button(card)
+	
+	print("Vampire effect activated")
 
 func _handle_call_of_the_wild_effect(card: CardData):
 	"""Handle the specific Call of the Wild card effect"""

@@ -1107,6 +1107,12 @@ func take_damage(amount: int) -> void:
 	"""Player takes damage and updates health bar"""
 	var damage_to_health = amount
 	
+	# Check if vampire mode is active - heal instead of taking damage
+	if vampire_mode_active:
+		print("Vampire mode active - healing for damage instead of taking damage!")
+		heal_player(amount)
+		return
+	
 	# Check if block is active and apply damage to block first
 	if block_active and block_health_bar and block_health_bar.has_block():
 		damage_to_health = block_health_bar.take_block_damage(amount)
@@ -1884,9 +1890,7 @@ func _end_turn_logic() -> void:
 			
 			enter_draw_cards_phase()  # Start with club selection phase
 		else:
-			draw_cards_for_shot(5)
-			create_movement_buttons()
-			draw_cards_button.visible = false
+			show_draw_cards_button_for_turn_start()
 	else:
 		# Use WorldTurnManager for NPC turn sequence
 		_start_world_turn_sequence()
@@ -1920,9 +1924,7 @@ func _continue_after_world_turn() -> void:
 		
 		enter_draw_cards_phase()  # Start with club selection phase
 	else:
-		draw_cards_for_shot(5)
-		create_movement_buttons()
-		draw_cards_button.visible = false
+		show_draw_cards_button_for_turn_start()
 
 func start_npc_turn_sequence() -> void:
 	"""Handle the NPC turn sequence with priority-based turns for visible NPCs"""
@@ -1967,9 +1969,7 @@ func start_npc_turn_sequence() -> void:
 			
 			enter_draw_cards_phase()  # Start with club selection phase
 		else:
-			draw_cards_for_shot(5)
-			create_movement_buttons()
-			draw_cards_button.visible = false
+			show_draw_cards_button_for_turn_start()
 		return
 	
 	# Disable end turn button during NPC turn
@@ -1997,9 +1997,7 @@ func start_npc_turn_sequence() -> void:
 			
 			enter_draw_cards_phase()  # Start with club selection phase
 		else:
-			draw_cards_for_shot(5)
-			create_movement_buttons()
-			draw_cards_button.visible = false
+			show_draw_cards_button_for_turn_start()
 		return
 	
 	print("Beginning World Turn phase with ", visible_npcs.size(), " NPCs...")
@@ -2070,9 +2068,7 @@ func start_npc_turn_sequence() -> void:
 		
 		enter_draw_cards_phase()  # Start with club selection phase
 	else:
-		draw_cards_for_shot(5)
-		create_movement_buttons()
-		draw_cards_button.visible = false
+		show_draw_cards_button_for_turn_start()
 
 func get_visible_npcs_by_priority() -> Array[Node]:
 	"""Get all NPCs visible to the player, sorted by priority (fastest first)"""
@@ -2840,6 +2836,10 @@ func draw_cards_for_shot(card_count: int = 5) -> void:
 	# Deactivate ghost mode when starting a new player turn
 	if ghost_mode_active:
 		deactivate_ghost_mode()
+	
+	# Deactivate vampire mode when starting a new player turn
+	if vampire_mode_active:
+		deactivate_vampire_mode()
 	
 	var card_draw_modifier = player_stats.get("card_draw", 0)
 	var final_card_count = card_count + card_draw_modifier
@@ -3650,6 +3650,16 @@ func _on_draw_cards_pressed() -> void:
 			if card_draw_sound and card_draw_sound.stream:
 				card_draw_sound.play()
 		draw_club_cards()
+	elif game_phase == "waiting_for_draw":
+		print("Drawing cards for turn start...")
+		if card_stack_display.has_node("CardDraw"):
+			var card_draw_sound = card_stack_display.get_node("CardDraw")
+			if card_draw_sound and card_draw_sound.stream:
+				card_draw_sound.play()
+		draw_cards_for_shot(5)
+		create_movement_buttons()
+		draw_cards_button.visible = false
+		print("Drew 5 new cards for turn start. DrawCards button hidden:", draw_cards_button.visible)
 	else:
 		if card_stack_display.has_node("CardDraw"):
 			var card_draw_sound = card_stack_display.get_node("CardDraw")
@@ -4331,6 +4341,10 @@ var ghost_ball_active: bool = false
 var ghost_mode_active: bool = false
 var ghost_mode_tween: Tween
 
+# Vampire mode variables
+var vampire_mode_active: bool = false
+var vampire_mode_tween: Tween
+
 func create_ghost_ball() -> void:
 	if ghost_ball and is_instance_valid(ghost_ball):
 		ghost_ball.queue_free()
@@ -4421,6 +4435,71 @@ func deactivate_ghost_mode() -> void:
 func is_ghost_mode_active() -> bool:
 	"""Check if ghost mode is currently active"""
 	return ghost_mode_active
+
+func activate_vampire_mode() -> void:
+	"""Activate vampire mode - make player heal from damage and apply dark red hue"""
+	print("=== ACTIVATING VAMPIRE MODE ===")
+	
+	if vampire_mode_active:
+		print("Vampire mode already active, ignoring activation")
+		return
+	
+	vampire_mode_active = true
+	print("Vampire mode activated")
+	
+	# Apply dark red hue to player sprite
+	if player_node:
+		var sprite = player_node.get_character_sprite()
+		if sprite:
+			# Kill any existing tween
+			if vampire_mode_tween and vampire_mode_tween.is_valid():
+				vampire_mode_tween.kill()
+			
+			# Create new tween for dark red hue animation
+			vampire_mode_tween = create_tween()
+			# Apply dark red hue (reduce green and blue channels)
+			vampire_mode_tween.tween_property(sprite, "modulate", Color(1.0, 0.2, 0.2, 1.0), 0.5)  # Dark red hue
+			vampire_mode_tween.set_trans(Tween.TRANS_SINE)
+			vampire_mode_tween.set_ease(Tween.EASE_OUT)
+			print("Player sprite dark red hue animation started")
+		else:
+			print("Warning: Could not find player sprite for vampire mode")
+	
+	print("=== VAMPIRE MODE ACTIVATED ===")
+
+func deactivate_vampire_mode() -> void:
+	"""Deactivate vampire mode - restore player normal appearance"""
+	print("=== DEACTIVATING VAMPIRE MODE ===")
+	
+	if not vampire_mode_active:
+		print("Vampire mode not active, ignoring deactivation")
+		return
+	
+	vampire_mode_active = false
+	print("Vampire mode deactivated")
+	
+	# Restore player sprite normal appearance
+	if player_node:
+		var sprite = player_node.get_character_sprite()
+		if sprite:
+			# Kill any existing tween
+			if vampire_mode_tween and vampire_mode_tween.is_valid():
+				vampire_mode_tween.kill()
+			
+			# Create new tween to restore normal color
+			vampire_mode_tween = create_tween()
+			vampire_mode_tween.tween_property(sprite, "modulate", Color(1.0, 1.0, 1.0, 1.0), 0.5)  # Normal white
+			vampire_mode_tween.set_trans(Tween.TRANS_SINE)
+			vampire_mode_tween.set_ease(Tween.EASE_OUT)
+			print("Player sprite normal color restoration started")
+		else:
+			print("Warning: Could not find player sprite for vampire mode deactivation")
+	
+	print("=== VAMPIRE MODE DEACTIVATED ===")
+
+func is_vampire_mode_active() -> bool:
+	"""Check if vampire mode is currently active"""
+	return vampire_mode_active
 
 func update_ghost_ball() -> void:
 	"""Update the ghost ball's landing spot"""
@@ -5521,3 +5600,26 @@ func should_show_drive_distance_dialog(is_first_shot: bool = false) -> bool:
 	# Show drive distance dialog on every shot
 	print("Showing drive distance dialog for this shot")
 	return true
+
+func show_draw_cards_button_for_turn_start() -> void:
+	"""Show the DrawCardsButton at the start of a player turn instead of automatically drawing cards"""
+	print("=== SHOWING DRAW CARDS BUTTON FOR TURN START ===")
+	
+	# Clear block when starting a new player turn (after world turn ends or is skipped)
+	clear_block()
+	
+	# Deactivate ghost mode when starting a new player turn
+	if ghost_mode_active:
+		deactivate_ghost_mode()
+	
+	# Deactivate vampire mode when starting a new player turn
+	if vampire_mode_active:
+		deactivate_vampire_mode()
+	
+	# Show the DrawCardsButton instead of automatically drawing cards
+	draw_cards_button.visible = true
+	
+	# Set game phase to indicate we're waiting for player to draw cards
+	game_phase = "waiting_for_draw"
+	
+	print("DrawCardsButton shown for turn start. Game phase:", game_phase)

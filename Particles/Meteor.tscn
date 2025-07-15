@@ -1,0 +1,50 @@
+[gd_scene load_steps=8 format=3 uid="uid://c5ukriseh3bq7"]
+
+[ext_resource type="Texture2D" uid="uid://dgu7aj251wve6" path="res://Particles/CraterExplode1.png" id="1_6ibsf"]
+[ext_resource type="AudioStream" uid="uid://dc4p1v43vdh2w" path="res://Sounds/MeteorStart.mp3" id="1_pan0m"]
+[ext_resource type="AudioStream" uid="uid://2klg50o7ifji" path="res://Sounds/MeteorCrash.mp3" id="2_3kjxh"]
+[ext_resource type="Texture2D" uid="uid://dae07gitcvuqf" path="res://Particles/Crater.png" id="2_uoray"]
+[ext_resource type="AudioStream" uid="uid://bsgivnl5tc2bi" path="res://Sounds/MeteorLand.mp3" id="3_6ibsf"]
+[ext_resource type="Texture2D" uid="uid://dg0medw1jbgau" path="res://Particles/CraterExplode2.png" id="3_uoray"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_uoray"]
+radius = 24.7191
+
+[node name="Meteor" type="Node2D"]
+
+[node name="MeteorSprite" type="Sprite2D" parent="."]
+
+[node name="CraterSprite" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(0, -86)
+texture = ExtResource("2_uoray")
+
+[node name="CraterExplosion1" type="Sprite2D" parent="."]
+visible = false
+texture_filter = 1
+position = Vector2(0, -79)
+texture = ExtResource("1_6ibsf")
+
+[node name="CraterExplosion2" type="Sprite2D" parent="."]
+visible = false
+texture_filter = 1
+position = Vector2(8, -83)
+texture = ExtResource("3_uoray")
+
+[node name="MeteorStart" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("1_pan0m")
+
+[node name="MeteorCrash" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("2_3kjxh")
+
+[node name="MeteorLand" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("3_6ibsf")
+
+[node name="YSortPoint" type="Marker2D" parent="."]
+position = Vector2(0, -9)
+
+[node name="Area2D" type="Area2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D"]
+scale = Vector2(2.67, 1)
+shape = SubResource("CircleShape2D_uoray")

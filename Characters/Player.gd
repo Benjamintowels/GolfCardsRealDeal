@@ -2261,6 +2261,9 @@ func animate_to_position(target_grid_pos: Vector2i, callback: Callable = Callabl
 	movement_tween.set_trans(Tween.TRANS_SINE)
 	movement_tween.set_ease(Tween.EASE_OUT)
 	
+	# Update Y-sorting during movement
+	movement_tween.tween_callback(update_z_index_for_ysort.bind([], Vector2i.ZERO))
+	
 	# Update grid position immediately for collision detection
 	grid_pos = target_grid_pos
 	

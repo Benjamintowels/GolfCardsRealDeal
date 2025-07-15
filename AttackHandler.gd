@@ -1399,6 +1399,11 @@ func perform_assassin_dash_attack_on_npc(npc: Node, target_pos: Vector2i) -> voi
 			if card_effect_handler and card_effect_handler.course:
 				card_effect_handler.course.player_grid_pos = behind_enemy_pos
 			
+			# CRITICAL: Update player Y-sorting immediately after AssassinDash movement
+			if player_node and player_node.has_method("update_z_index_for_ysort"):
+				player_node.update_z_index_for_ysort([], Vector2i.ZERO)
+				print("✓ Updated player Y-sorting after AssassinDash movement to position:", behind_enemy_pos)
+			
 			# Exit attack mode
 			exit_attack_mode()
 		)

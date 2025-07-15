@@ -64,15 +64,14 @@ func _spawn_coin_particle(spawn_position: Vector2) -> void:
 		print("ERROR: No current scene found!")
 		return
 	
-	# Set initial position
-	coin_particle.global_position = spawn_position
-	
 	# Add random offset to spread coins around the spawn point
 	var random_offset = Vector2(
 		randf_range(-explosion_radius * 0.3, explosion_radius * 0.3),
 		randf_range(-explosion_radius * 0.3, explosion_radius * 0.3)
 	)
-	coin_particle.position += random_offset
+	
+	# Set initial position with random offset applied to global position
+	coin_particle.global_position = spawn_position + random_offset
 	
 	# Add initial velocity for explosion effect
 	if coin_particle.has_method("add_explosion_velocity"):
