@@ -33,6 +33,7 @@ signal player_turn_ended
 @onready var kill_gangmember_button: Button = $UILayer/KillGangMemberButton
 @onready var bag_upgrade_test_button: Button = $UILayer/BagUpgradeTestButton
 @onready var background_manager: Node = $BackgroundManager
+@onready var reach_ball_button: Control = $UILayer/ReachBallButton
 
 # WorldTurnManager reference
 @onready var world_turn_manager: Node = $WorldTurnManager
@@ -410,6 +411,27 @@ func _process(delta):
 	# Update weapon rotation if GrenadeLauncherClubCard is selected
 	if selected_club == "GrenadeLauncherClubCard" and weapon_handler:
 		weapon_handler.update_weapon_rotation()
+	
+	# Update ReachBallButton visibility
+	update_reach_ball_button_visibility()
+
+func update_reach_ball_button_visibility() -> void:
+	"""Update the visibility of the ReachBallButton based on game state"""
+	if not reach_ball_button:
+		return
+	
+	# Show button if:
+	# 1. It's the player's turn (game_phase is "move" or "waiting_for_draw")
+	# 2. We're waiting for player to reach the ball
+	# 3. Player is not currently on the ball tile
+	var is_player_turn = game_phase in ["move", "waiting_for_draw", "draw_cards"]
+	var player_not_on_ball = player_grid_pos != ball_landing_tile
+	var should_show = is_player_turn and waiting_for_player_to_reach_ball and player_not_on_ball
+	
+	if should_show and not reach_ball_button.visible:
+		reach_ball_button.show_button()
+	elif not should_show and reach_ball_button.visible:
+		reach_ball_button.hide_button()
 
 func update_ball_for_optimizer():
 	"""Update ball state for the smart optimizer"""
@@ -477,6 +499,10 @@ func _ready() -> void:
 		damage_button.pressed.connect(_on_damage_button_pressed)
 	if heal_button:
 		heal_button.pressed.connect(_on_heal_button_pressed)
+	
+	# Connect reach ball button
+	if reach_ball_button:
+		reach_ball_button.reach_ball_pressed.connect(_on_reach_ball_pressed)
 
 
 	create_grid()
@@ -798,6 +824,10 @@ func _on_complete_hole_pressed():
 	show_hole_completion_dialog()
 
 func _input(event: InputEvent) -> void:
+	# Handle escape key for pause menu
+	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+		show_pause_menu()
+		return
 
 	# Debug: Log all left click events to see what phase we're in
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
@@ -1299,6 +1329,42 @@ func _on_damage_button_pressed() -> void:
 func _on_heal_button_pressed() -> void:
 	"""Handle heal button press"""
 	heal_player(20)
+
+func _on_reach_ball_pressed() -> void:
+	"""Handle reach ball button press - teleport player to ball"""
+	print("Course: Reach ball button pressed - teleporting player to ball")
+	
+	# Check if we have a valid ball position
+	if ball_landing_tile == Vector2i.ZERO:
+		print("No ball landing tile available")
+		return
+	
+	# Use the existing teleport functionality from CardEffectHandler
+	if card_effect_handler and card_effect_handler.has_method("teleport_player_to_ball"):
+		# Get the ball's current position
+		var ball_position = Vector2.ZERO
+		if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball):
+			ball_position = launch_manager.golf_ball.global_position
+		else:
+			# Fallback: calculate position from ball_landing_tile
+			ball_position = Vector2(ball_landing_tile.x * cell_size + cell_size/2, ball_landing_tile.y * cell_size + cell_size/2) + camera_container.global_position
+		
+		# Teleport the player to the ball
+		card_effect_handler.teleport_player_to_ball(ball_position)
+		
+		# Clear the waiting state since player is now at the ball
+		waiting_for_player_to_reach_ball = false
+		
+		# Remove ball landing highlight if it exists
+		if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball) and launch_manager.golf_ball.has_method("remove_landing_highlight"):
+			launch_manager.golf_ball.remove_landing_highlight()
+		
+		# Enter draw cards phase since player is now at the ball
+		enter_draw_cards_phase()
+		
+		print("Player teleported to ball successfully")
+	else:
+		print("CardEffectHandler not available for teleport")
 
 func handle_player_death() -> void:
 	"""Handle player death - fade to black and show death screen"""
@@ -5892,3 +5958,167 @@ func show_draw_cards_button_for_turn_start() -> void:
 	game_phase = "waiting_for_draw"
 	
 	print("DrawCardsButton shown for turn start. Game phase:", game_phase)
+
+func show_pause_menu():
+	"""Show the pause menu dialog with End Round, Quit Game, and Cancel options"""
+	# Don't show if already showing a dialog
+	if get_tree().get_nodes_in_group("pause_menu").size() > 0:
+		return
+	
+	# Create the pause menu dialog
+	var pause_dialog = Control.new()
+	pause_dialog.name = "PauseMenu"
+	pause_dialog.add_to_group("pause_menu")
+	pause_dialog.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	pause_dialog.z_index = 3000
+	pause_dialog.mouse_filter = Control.MOUSE_FILTER_STOP
+	
+	# Background
+	var background = ColorRect.new()
+	background.color = Color(0, 0, 0, 0.8)
+	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	background.mouse_filter = Control.MOUSE_FILTER_STOP
+	pause_dialog.add_child(background)
+	
+	# Main container
+	var main_container = Control.new()
+	main_container.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	main_container.custom_minimum_size = Vector2(400, 300)
+	main_container.position = Vector2(-200, -150)
+	main_container.z_index = 3000
+	pause_dialog.add_child(main_container)
+	
+	# Panel background
+	var panel = ColorRect.new()
+	panel.color = Color(0.2, 0.2, 0.2, 0.95)
+	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	main_container.add_child(panel)
+	
+	# Border
+	var border = ColorRect.new()
+	border.color = Color(0.8, 0.8, 0.8, 0.6)
+	border.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	border.position = Vector2(-2, -2)
+	border.size += Vector2(4, 4)
+	border.z_index = -1
+	main_container.add_child(border)
+	
+	# Title
+	var title = Label.new()
+	title.text = "Pause Menu"
+	title.add_theme_font_size_override("font_size", 28)
+	title.add_theme_color_override("font_color", Color.WHITE)
+	title.add_theme_constant_override("outline_size", 2)
+	title.add_theme_color_override("font_outline_color", Color.BLACK)
+	title.position = Vector2(150, 30)
+	title.size = Vector2(100, 40)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	main_container.add_child(title)
+	
+	# Button container
+	var button_container = VBoxContainer.new()
+	button_container.position = Vector2(100, 100)
+	button_container.size = Vector2(200, 150)
+	button_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	main_container.add_child(button_container)
+	
+	# End Round button
+	var end_round_button = Button.new()
+	end_round_button.text = "End Round"
+	end_round_button.size = Vector2(200, 40)
+	end_round_button.pressed.connect(_on_pause_end_round_pressed.bind(pause_dialog))
+	button_container.add_child(end_round_button)
+	
+	# Quit Game button
+	var quit_game_button = Button.new()
+	quit_game_button.text = "Quit Game"
+	quit_game_button.size = Vector2(200, 40)
+	quit_game_button.pressed.connect(_on_quit_game_pressed)
+	button_container.add_child(quit_game_button)
+	
+	# Cancel button
+	var cancel_button = Button.new()
+	cancel_button.text = "Cancel"
+	cancel_button.size = Vector2(200, 40)
+	cancel_button.pressed.connect(_on_cancel_pause_pressed.bind(pause_dialog))
+	button_container.add_child(cancel_button)
+	
+	# Add to UI layer
+	var ui_layer = get_node_or_null("UILayer")
+	if ui_layer:
+		ui_layer.add_child(pause_dialog)
+	else:
+		add_child(pause_dialog)
+
+func _on_pause_end_round_pressed(pause_dialog: Control):
+	"""Handle End Round button press from pause menu"""
+	# Clear all player score and effects
+	clear_player_state()
+	
+	# Clear current deck
+	if deck_manager:
+		deck_manager.hand.clear()
+		deck_manager.discard_pile.clear()
+		update_deck_display()
+	
+	# Remove pause dialog
+	pause_dialog.queue_free()
+	
+	# Transition to Main.tscn
+	get_tree().change_scene_to_file("res://Main.tscn")
+
+func _on_quit_game_pressed():
+	"""Handle Quit Game button press"""
+	get_tree().quit()
+
+func _on_cancel_pause_pressed(pause_dialog: Control):
+	"""Handle Cancel button press"""
+	pause_dialog.queue_free()
+
+func clear_player_state():
+	"""Clear all player score and effects"""
+	# Clear round scores
+	round_scores.clear()
+	round_complete = false
+	
+	# Reset hole score
+	hole_score = 0
+	
+	# Clear any active effects
+	sticky_shot_active = false
+	bouncey_shot_active = false
+	fire_ball_active = false
+	ice_ball_active = false
+	explosive_shot_active = false
+	next_shot_modifier = ""
+	next_card_doubled = false
+	rooboost_active = false
+	next_movement_card_rooboost = false
+	extra_turns_remaining = 0
+	
+	# Clear block system
+	block_active = false
+	block_amount = 0
+	
+	# Reset character health
+	Global.reset_character_health()
+	
+	# Clear equipment effects
+	Global.equipped_items.clear()
+	Global.apply_equipment_buffs()
+	
+	# Reset currency
+	Global.current_looty = 50
+	
+	# Clear any active game states
+	game_phase = "move"
+	
+	# Clear any active weapon/attack modes
+	if weapon_handler:
+		weapon_handler.exit_weapon_mode()
+	if attack_handler:
+		attack_handler.exit_attack_mode()
+	if movement_controller:
+		movement_controller.clear_all_movement_ui()
+	
+	print("Player state cleared")

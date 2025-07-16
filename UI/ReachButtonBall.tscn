@@ -1,0 +1,29 @@
+[gd_scene load_steps=3 format=3 uid="uid://djn0dry2myach"]
+
+[ext_resource type="Script" uid="uid://ppffv2mxt4l" path="res://UI/reach_button_ball.gd" id="1_lhkwl"]
+[ext_resource type="Texture2D" uid="uid://c0pbjis7yjh6i" path="res://UI/ReachBullButton.png" id="2_p1xyk"]
+
+[node name="ReachButtonBall" type="Control"]
+layout_mode = 3
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -100.0
+offset_top = 200.0
+offset_right = -20.0
+offset_bottom = 280.0
+grow_horizontal = 0
+script = ExtResource("1_lhkwl")
+
+[node name="TextureButton" type="TextureButton" parent="."]
+texture_filter = 1
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+tooltip_text = "Teleport to Ball"
+texture_normal = ExtResource("2_p1xyk")
+texture_pressed = ExtResource("2_p1xyk")
+texture_hover = ExtResource("2_p1xyk")
