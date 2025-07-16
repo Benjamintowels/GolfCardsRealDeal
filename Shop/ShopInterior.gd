@@ -156,6 +156,7 @@ func load_shop_items():
 		preload("res://Cards/AssassinDash.tres"),
 		preload("res://Cards/GhostMode.tres"),
 		preload("res://Cards/Vampire.tres"),
+		preload("res://Cards/DodgeCard.tres"),
 		preload("res://Cards/MeteorCard.tres"),
 		preload("res://Cards/BagCheck.tres"),
 		

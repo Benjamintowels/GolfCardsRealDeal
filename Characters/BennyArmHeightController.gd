@@ -117,6 +117,16 @@ func set_set_height_phase(active: bool):
 		print("  NormalSprite:", benny_normal_sprite != null)
 		return
 	
+	# Check if dodge mode is active - if so, don't override the dodge sprites
+	var course = get_tree().current_scene
+	var dodge_mode_active = false
+	if course and course.has_method("is_dodge_mode_active"):
+		dodge_mode_active = course.is_dodge_mode_active()
+	
+	if dodge_mode_active:
+		print("⚠ Dodge mode is active - not switching sprites for SetHeight phase")
+		return
+	
 	if active:
 		# Hide the normal sprite and show the armless sprite and arm height
 		benny_normal_sprite.visible = false

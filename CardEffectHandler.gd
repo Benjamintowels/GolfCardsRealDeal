@@ -63,6 +63,9 @@ func handle_card_effect(card: CardData) -> bool:
 	elif card.effect_type == "Vampire":
 		handle_vampire_effect(card)
 		return true
+	elif card.effect_type == "Dodge":
+		handle_dodge_effect(card)
+		return true
 	elif card.effect_type == "BagAdjust":
 		handle_bag_adjust_effect(card)
 		return true
@@ -1000,6 +1003,55 @@ func handle_vampire_effect(card: CardData):
 	remove_specific_card_button(card)
 	
 	print("Vampire effect activated")
+
+func handle_dodge_effect(card: CardData):
+	"""Handle the Dodge card effect - activate dodge mode"""
+	print("=== DODGE EFFECT ACTIVATED ===")
+	print("Activating Dodge effect!")
+	
+	# Play the dodge sound effect
+	play_dodge_sound()
+	
+	# Activate dodge mode on the course
+	if course.has_method("activate_dodge_mode"):
+		course.activate_dodge_mode()
+		print("Dodge mode activated on course")
+	else:
+		print("Warning: Course does not have activate_dodge_mode method")
+	
+	# Handle card discard - could be from hand or bag pile
+	if course.deck_manager.hand.has(card):
+		course.deck_manager.discard(card)
+		course.card_stack_display.animate_card_discard(card.name)
+		course.update_deck_display()
+	else:
+		# Card is from bag pile during club selection - just animate discard
+		course.card_stack_display.animate_card_discard(card.name)
+		print("Dodge card used from bag pile")
+	
+	# Remove only the specific card button, not the entire hand
+	remove_specific_card_button(card)
+	
+	print("Dodge effect activated")
+
+func play_dodge_sound():
+	"""Play the dodge sound effect when Dodge card is used"""
+	# Create a temporary AudioStreamPlayer to play the sound
+	var sound_player = AudioStreamPlayer.new()
+	course.add_child(sound_player)
+	
+	# Load and play the sound (using WhooshCut as a suitable dodge sound)
+	var sound_file = load("res://Sounds/WhooshCut.mp3")
+	if sound_file:
+		sound_player.stream = sound_file
+		sound_player.play()
+		print("Playing Dodge sound effect")
+	else:
+		print("Warning: WhooshCut.mp3 not found")
+	
+	# Remove the temporary sound player after a short delay
+	await get_tree().create_timer(0.1).timeout
+	sound_player.queue_free()
 
 func handle_bag_adjust_effect(card: CardData):
 	"""Handle BagAdjust effect - show dialog to choose a club for this shot"""

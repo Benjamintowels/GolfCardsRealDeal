@@ -58,6 +58,7 @@ var base_cards: Array[CardData] = [
 	preload("res://Cards/AssassinDash.tres"),
 	preload("res://Cards/GhostMode.tres"),
 	preload("res://Cards/Vampire.tres"),
+	preload("res://Cards/DodgeCard.tres"),
 	preload("res://Cards/MeteorCard.tres"),
 	preload("res://Cards/BagCheck.tres"),
 	preload("res://Cards/Putter.tres"),

@@ -1111,6 +1111,12 @@ func take_damage(amount: int) -> void:
 		heal_player(amount)
 		return
 	
+	# Check if dodge mode is active - dodge the damage
+	if dodge_mode_active:
+		print("Dodge mode active - dodging damage!")
+		trigger_dodge_animation()
+		return
+	
 	# Check if block is active and apply damage to block first
 	if block_active and block_health_bar and block_health_bar.has_block():
 		damage_to_health = block_health_bar.take_block_damage(amount)
@@ -1264,6 +1270,12 @@ func update_block_sprite_flip() -> void:
 	if normal_sprite and block_sprite and block_sprite.visible:
 		# Update block sprite flip_h to match normal sprite
 		block_sprite.flip_h = normal_sprite.flip_h
+
+func update_dodge_sprite_flip() -> void:
+	"""Update the dodge sprite's flip_h state to match the normal sprite (no longer needed with hue effect)"""
+	# This function is no longer needed since we're using hue effects instead of sprite switching
+	# Keeping it for compatibility but it does nothing
+	pass
 
 func clear_block() -> void:
 	"""Clear all block points and switch back to normal sprite"""
@@ -2841,6 +2853,10 @@ func draw_cards_for_shot(card_count: int = 5) -> void:
 	if vampire_mode_active:
 		deactivate_vampire_mode()
 	
+	# Deactivate dodge mode when starting a new player turn
+	if dodge_mode_active:
+		deactivate_dodge_mode()
+	
 	var card_draw_modifier = player_stats.get("card_draw", 0)
 	var final_card_count = card_count + card_draw_modifier
 	final_card_count = max(1, final_card_count)
@@ -4415,6 +4431,10 @@ var ghost_mode_tween: Tween
 var vampire_mode_active: bool = false
 var vampire_mode_tween: Tween
 
+# Dodge mode variables
+var dodge_mode_active: bool = false
+var dodge_mode_tween: Tween
+
 func create_ghost_ball() -> void:
 	if ghost_ball and is_instance_valid(ghost_ball):
 		ghost_ball.queue_free()
@@ -4570,6 +4590,163 @@ func deactivate_vampire_mode() -> void:
 func is_vampire_mode_active() -> bool:
 	"""Check if vampire mode is currently active"""
 	return vampire_mode_active
+
+func activate_dodge_mode() -> void:
+	"""Activate dodge mode - apply dodge status (no sprite switching, uses hue effect)"""
+	print("=== ACTIVATING DODGE MODE ===")
+	
+	if dodge_mode_active:
+		print("Dodge mode already active, ignoring activation")
+		return
+	
+	dodge_mode_active = true
+	print("Dodge mode activated")
+	
+	# No sprite switching needed - the hue effect will be applied when dodging
+	print("=== DODGE MODE ACTIVATED ===")
+
+# Removed switch_to_dodge_ready_sprite() - no longer needed with hue effect approach
+
+func trigger_dodge_animation() -> void:
+	"""Trigger the dodge animation when damage is avoided"""
+	print("=== TRIGGERING DODGE ANIMATION ===")
+	
+	# Play dodge sound
+	play_dodge_sound()
+	
+	# Animate dodge movement with hue effect
+	animate_dodge_with_hue_effect()
+	
+	# Wait for animation to complete, then restore sprite but keep hue effect
+	await get_tree().create_timer(0.8).timeout  # Wait for animation to complete
+	restore_sprite_after_dodge()
+
+# Removed switch_to_dodge_sprite() - no longer needed with hue effect approach
+
+func animate_dodge_with_hue_effect() -> void:
+	"""Animate the dodge with movement and hue effect"""
+	print("=== ANIMATING DODGE WITH HUE EFFECT ===")
+	
+	if not player_node:
+		print("✗ No player node found")
+		return
+	
+	# Get the character sprite
+	var character_sprite = player_node.get_character_sprite()
+	if not character_sprite:
+		print("✗ No character sprite found")
+		return
+	
+	# Store original position and modulate
+	var original_position = player_node.global_position
+	var original_modulate = character_sprite.modulate
+	
+	# Calculate dodge direction (slightly to the side)
+	var dodge_offset = Vector2(20, 0)  # Move 20 pixels to the right
+	
+	# Create tween for dodge movement and hue effect
+	var dodge_tween = create_tween()
+	dodge_tween.set_parallel(true)
+	
+	# Move to dodge position
+	dodge_tween.tween_property(player_node, "global_position", original_position + dodge_offset, 0.3)
+	dodge_tween.set_trans(Tween.TRANS_SINE)
+	dodge_tween.set_ease(Tween.EASE_OUT)
+	
+	# Apply light yellow hue effect
+	var yellow_hue = Color(1.0, 1.0, 0.8, 1.0)  # Light yellow
+	dodge_tween.tween_property(character_sprite, "modulate", yellow_hue, 0.3)
+	
+	# Wait a moment, then move back
+	await get_tree().create_timer(0.3).timeout
+	
+	var return_tween = create_tween()
+	return_tween.tween_property(player_node, "global_position", original_position, 0.3)
+	return_tween.set_trans(Tween.TRANS_SINE)
+	return_tween.set_ease(Tween.EASE_IN)
+	
+	# Keep the hue effect active (don't restore original modulate)
+	# The hue effect will be cleared when dodge mode is deactivated
+	
+	print("✓ Dodge movement and hue effect animation completed")
+
+func restore_sprite_after_dodge() -> void:
+	"""Restore sprite after dodge animation but keep hue effect"""
+	print("=== RESTORING SPRITE AFTER DODGE ===")
+	
+	# Don't deactivate dodge mode yet - keep the hue effect active
+	# The hue effect will be cleared when dodge mode is deactivated
+	print("✓ Sprite restored, hue effect maintained until next damage or turn end")
+
+func animate_dodge_movement() -> void:
+	"""Animate the player moving slightly out of the way"""
+	print("=== ANIMATING DODGE MOVEMENT ===")
+	
+	if not player_node:
+		print("✗ No player node found")
+		return
+	
+	# Store original position
+	var original_position = player_node.global_position
+	
+	# Calculate dodge direction (slightly to the side)
+	var dodge_offset = Vector2(20, 0)  # Move 20 pixels to the right
+	
+	# Create tween for dodge movement
+	var dodge_tween = create_tween()
+	dodge_tween.set_parallel(true)
+	
+	# Move to dodge position
+	dodge_tween.tween_property(player_node, "global_position", original_position + dodge_offset, 0.3)
+	dodge_tween.set_trans(Tween.TRANS_SINE)
+	dodge_tween.set_ease(Tween.EASE_OUT)
+	
+	# Wait a moment, then move back
+	await get_tree().create_timer(0.3).timeout
+	
+	var return_tween = create_tween()
+	return_tween.tween_property(player_node, "global_position", original_position, 0.3)
+	return_tween.set_trans(Tween.TRANS_SINE)
+	return_tween.set_ease(Tween.EASE_IN)
+	
+	print("✓ Dodge movement animation completed")
+
+func play_dodge_sound() -> void:
+	"""Play the dodge sound effect"""
+	if player_node:
+		var dodge_sound = player_node.get_node_or_null("Dodge")
+		if dodge_sound and dodge_sound is AudioStreamPlayer2D:
+			dodge_sound.play()
+			print("✓ Playing dodge sound")
+		else:
+			print("✗ Dodge sound not found in player node")
+
+func deactivate_dodge_mode() -> void:
+	"""Deactivate dodge mode - restore player normal appearance"""
+	print("=== DEACTIVATING DODGE MODE ===")
+	
+	if not dodge_mode_active:
+		print("Dodge mode not active, ignoring deactivation")
+		return
+	
+	dodge_mode_active = false
+	print("Dodge mode deactivated")
+	
+	# Clear the hue effect from the character sprite
+	if player_node:
+		var character_sprite = player_node.get_character_sprite()
+		if character_sprite:
+			# Restore original modulate (white, no tint)
+			character_sprite.modulate = Color.WHITE
+			print("✓ Hue effect cleared from character sprite")
+	
+	print("=== DODGE MODE DEACTIVATED ===")
+
+# Removed switch_from_dodge_sprite() - no longer needed with hue effect approach
+
+func is_dodge_mode_active() -> bool:
+	"""Check if dodge mode is currently active"""
+	return dodge_mode_active
 
 func update_ghost_ball() -> void:
 	"""Update the ghost ball's landing spot"""
@@ -5437,6 +5614,9 @@ func _update_player_mouse_facing_state() -> void:
 	
 	# Update block sprite flip to match normal sprite
 	update_block_sprite_flip()
+	
+	# Update dodge sprite flip to match normal sprite
+	update_dodge_sprite_flip()
 	
 	# Hide weapon when game phase changes to move (unless GrenadeLauncherClubCard is selected)
 	if game_phase == "move" and selected_club != "GrenadeLauncherClubCard" and weapon_handler:

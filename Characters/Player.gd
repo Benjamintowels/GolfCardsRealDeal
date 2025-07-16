@@ -604,6 +604,28 @@ func _calculate_kill_dampening(ball_velocity: Vector2, overkill_damage: int) -> 
 
 func _play_collision_sound() -> void:
 	"""Play a sound effect when colliding with projectiles"""
+	# Check if dodge mode is active - if so, play dodge sound instead
+	var current_course = get_tree().current_scene
+	if current_course and current_course.has_method("is_dodge_mode_active") and current_course.is_dodge_mode_active():
+		print("Dodge mode active - playing dodge sound instead of collision sound")
+		# Try to find Dodge sound specifically
+		var dodge_sound = current_course.get_node_or_null("Dodge")
+		if dodge_sound and dodge_sound is AudioStreamPlayer2D:
+			dodge_sound.play()
+			return
+		else:
+			# Fallback: create a temporary audio player for dodge sound
+			var temp_audio = AudioStreamPlayer2D.new()
+			var sound_file = load("res://Sounds/WhooshCut.mp3")
+			if sound_file:
+				temp_audio.stream = sound_file
+				temp_audio.volume_db = -10.0  # Slightly quieter
+				add_child(temp_audio)
+				temp_audio.play()
+				# Remove the audio player after it finishes
+				temp_audio.finished.connect(func(): temp_audio.queue_free())
+			return
+	
 	# Try to find an audio player in the course
 	var course = get_tree().current_scene
 	if course:
@@ -635,6 +657,14 @@ func take_damage(amount: int, is_headshot: bool = false) -> void:
 	"""Take damage and handle death if health reaches 0"""
 	if not is_alive:
 		print("Player is already dead, ignoring damage")
+		return
+	
+	# Check if dodge mode is active - if so, trigger dodge instead of taking damage
+	var current_course = get_tree().current_scene
+	if current_course and current_course.has_method("is_dodge_mode_active") and current_course.is_dodge_mode_active():
+		print("Dodge mode active - triggering dodge instead of taking damage!")
+		if current_course.has_method("trigger_dodge_animation"):
+			current_course.trigger_dodge_animation()
 		return
 	
 	# Allow negative health for overkill calculations

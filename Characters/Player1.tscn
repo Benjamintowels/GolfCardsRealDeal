@@ -66,3 +66,6 @@ stream = ExtResource("15_camerawhoosh")
 
 [node name="AssassinCut" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("16_whooshcut")
+
+[node name="Dodge" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("16_whooshcut")
