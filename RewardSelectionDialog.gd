@@ -107,6 +107,9 @@ var available_equipment: Array[EquipmentData] = [
 # Available bag upgrades for rewards (will be populated dynamically)
 var available_bag_upgrades: Array[BagData] = []
 
+# Crowd management
+var crowd_instance: Node2D = null
+
 func _ready():
 	# Hide the dialog initially
 	visible = false
@@ -546,6 +549,9 @@ func show_reward_selection():
 	
 	# Show the dialog
 	visible = true
+	
+	# Show cheering crowd
+	show_crowd()
 
 func show_score_based_reward_selection(score: int, par: int, hole_in_one: bool = false):
 	"""Show reward selection with score-based tier probabilities and hole-in-one support"""
@@ -587,6 +593,9 @@ func show_score_based_reward_selection(score: int, par: int, hole_in_one: bool =
 	# Show the dialog
 	visible = true
 	
+	# Show cheering crowd
+	show_crowd()
+	
 	# Print score-based reward info for debugging
 	var score_vs_par = score - par
 	var probabilities = Global.get_score_based_tier_probabilities(score, par)
@@ -615,6 +624,7 @@ func add_advance_button():
 func _on_advance_pressed():
 	"""Handle advance button press"""
 	advance_to_next_hole.emit()
+	hide_crowd()
 	visible = false
 
 func check_bag_slots(reward_data: Resource, reward_type: String) -> bool:
@@ -1014,6 +1024,7 @@ func handle_reward_selection(reward_data: Resource, reward_type: String):
 		# Add $Looty directly
 		add_reward_to_inventory(reward_data, reward_type)
 		reward_selected.emit(reward_data, reward_type)
+		hide_crowd()
 		visible = false
 		return
 	
@@ -1036,6 +1047,7 @@ func handle_reward_selection(reward_data: Resource, reward_type: String):
 				for sel in selected_rewards:
 					add_reward_to_inventory(sel["data"], sel["type"])
 					reward_selected.emit(sel["data"], sel["type"])
+				hide_crowd()
 				visible = false
 			else:
 				# Show a message or highlight to prompt for second pick (optional)
@@ -1045,6 +1057,7 @@ func handle_reward_selection(reward_data: Resource, reward_type: String):
 		clear_reward_buttons()
 		add_reward_to_inventory(reward_data, reward_type)
 		reward_selected.emit(reward_data, reward_type)
+		hide_crowd()
 		visible = false
 	else:
 		# Bag is full - trigger replacement system
@@ -1073,6 +1086,7 @@ func trigger_replacement_system(reward_data: Resource, reward_type: String):
 	replacement_dialog.show_replacement_dialog(reward_data, reward_type)
 	
 	# Hide the reward selection dialog
+	hide_crowd()
 	visible = false
 
 func add_reward_to_inventory(reward_data: Resource, reward_type: String):
@@ -1112,7 +1126,7 @@ func add_looty_reward(reward_data: Resource):
 
 func _exit_tree():
 	"""Clean up when the dialog is removed"""
-	pass
+	hide_crowd()
 
 func clear_reward_buttons():
 	"""Clear all three reward buttons"""
@@ -1150,4 +1164,45 @@ func _on_replacement_cancelled():
 	if middle_reward_button:
 		middle_reward_button.disabled = false
 	if right_reward_button:
-		right_reward_button.disabled = false 
+		right_reward_button.disabled = false
+
+# Crowd Management Functions
+func show_crowd():
+	"""Show cheering crowd behind the suitcase"""
+	if crowd_instance:
+		crowd_instance.queue_free()
+	
+	# Create crowd instance
+	var crowd_scene = preload("res://UI/Crowd.tscn")
+	crowd_instance = crowd_scene.instantiate()
+	
+	# Get the crowd position from the UILayer/CrowdPosition node
+	var crowd_position_node = get_tree().current_scene.get_node_or_null("UILayer/CrowdPosition")
+	if crowd_position_node:
+		crowd_instance.position = crowd_position_node.global_position
+		print("Crowd positioned at CrowdPosition node: ", crowd_position_node.global_position)
+	else:
+		# Fallback to suitcase position if CrowdPosition node not found
+		crowd_instance.position = Vector2(596, 281)
+		print("CrowdPosition node not found, using fallback position")
+	
+	crowd_instance.z_index = -1  # Behind the reward dialog
+	crowd_instance.scale = Vector2(0.5, 0.5)  # Scale to fit behind suitcase
+	
+	# Add to the scene
+	get_tree().current_scene.add_child(crowd_instance)
+	
+	# Start cheering animation
+	if crowd_instance.has_method("start_cheering"):
+		crowd_instance.start_cheering()
+	
+	print("Crowd displayed for reward selection!")
+
+func hide_crowd():
+	"""Hide and clean up the crowd"""
+	if crowd_instance:
+		if crowd_instance.has_method("stop_cheering"):
+			crowd_instance.stop_cheering()
+		crowd_instance.queue_free()
+		crowd_instance = null
+		print("Crowd hidden and cleaned up!") 

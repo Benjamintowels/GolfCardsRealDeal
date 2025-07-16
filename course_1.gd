@@ -3394,6 +3394,20 @@ func reset_for_next_hole():
 	if existing_suitcase_reward_dialog:
 		existing_suitcase_reward_dialog.queue_free()
 	
+	# Clean up any crowd instances
+	var crowd_instances = get_tree().get_nodes_in_group("crowd")
+	for crowd in crowd_instances:
+		if crowd.has_method("stop_cheering"):
+			crowd.stop_cheering()
+		crowd.queue_free()
+	
+	# Also check for any crowd nodes that might not be in the group
+	var all_nodes = get_tree().get_nodes_in_group("")
+	for node in all_nodes:
+		if node.name == "Crowd" and node.has_method("stop_cheering"):
+			node.stop_cheering()
+			node.queue_free()
+	
 	# Reset launch manager state for new hole
 	if launch_manager and launch_manager.has_method("set_ball_in_flight"):
 		launch_manager.set_ball_in_flight(false)
@@ -3527,6 +3541,13 @@ func show_front_nine_complete_dialog():
 				attack_handler.clear_all_attack_ui()
 			if weapon_handler:
 				weapon_handler.clear_all_weapon_ui()
+		
+		# Clean up any crowd instances
+		var crowd_instances = get_tree().get_nodes_in_group("crowd")
+		for crowd in crowd_instances:
+			if crowd.has_method("stop_cheering"):
+				crowd.stop_cheering()
+			crowd.queue_free()
 		# Show mid-game shop overlay instead of changing scenes
 		show_mid_game_shop_overlay()
 	)

@@ -1,17 +1,17 @@
-[gd_scene load_steps=3 format=3 uid="uid://b8tp8bk0umt4j"]
+[gd_scene load_steps=4 format=3 uid="uid://b8tp8bk0umt4j"]
 
+[ext_resource type="Script" uid="uid://cy2w173bx7wgg" path="res://UI/crowd.gd" id="1_itw4i"]
 [ext_resource type="Texture2D" uid="uid://umm77tomvbe2" path="res://UI/Crowd.png" id="1_tv152"]
 [ext_resource type="Texture2D" uid="uid://bqigcw6thh1kw" path="res://UI/CrowdCheer.png" id="2_itw4i"]
 
 [node name="Crowd" type="Node2D"]
+script = ExtResource("1_itw4i")
 
 [node name="CrowdSprite" type="Sprite2D" parent="."]
 texture_filter = 1
+position = Vector2(2209, -1481)
 texture = ExtResource("1_tv152")
 
 [node name="CrowdCheerSprite" type="Sprite2D" parent="."]
-visible = false
 texture_filter = 1
-position = Vector2(-2.205, 0)
-scale = Vector2(0.98, 1)
 texture = ExtResource("2_itw4i")

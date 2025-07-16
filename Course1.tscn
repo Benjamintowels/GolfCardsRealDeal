@@ -251,6 +251,9 @@ text = "Heal 20 HP"
 visible = false
 z_index = 100
 
+[node name="CrowdPosition" type="Marker2D" parent="UILayer"]
+position = Vector2(789, 593)
+
 [node name="SwingSoft" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("6_6eaol")
 
