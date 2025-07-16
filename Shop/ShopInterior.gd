@@ -492,8 +492,8 @@ func create_shop_item_display(item, container_size: Vector2) -> Control:
 	container.gui_input.connect(_on_shop_item_clicked.bind(item))
 	
 	# Add hover effect
-	container.mouse_entered.connect(_on_shop_item_hover.bind(container, true))
-	container.mouse_exited.connect(_on_shop_item_hover.bind(container, false))
+	container.mouse_entered.connect(_on_shop_item_hover.bind(container, true, item))
+	container.mouse_exited.connect(_on_shop_item_hover.bind(container, false, item))
 	
 	# Store reference to container for potential input disabling
 	container.set_meta("shop_item_container", true)
@@ -605,13 +605,17 @@ func add_item_to_inventory(item: Resource, item_type: String):
 		if equipment_manager:
 			equipment_manager.add_equipment(equipment_data)
 
-func _on_shop_item_hover(container: Control, is_hovering: bool):
+func _on_shop_item_hover(container: Control, is_hovering: bool, item: Resource):
 	"""Handle shop item hover effects"""
 	var background = container.get_child(0)  # Background is first child
 	if is_hovering:
 		background.color = Color(0.3, 0.3, 0.3, 0.9)
+		# Show InfoBox with item info
+		show_shop_item_info(item)
 	else:
 		background.color = Color(0.2, 0.2, 0.2, 0.9)
+		# Hide InfoBox
+		hide_shop_item_info()
 
 func show_purchase_message(message: String):
 	"""Show a purchase confirmation message"""
@@ -987,5 +991,31 @@ func _on_upgrade_dialog_closed():
 	# Re-enable shop input
 	shop_input_enabled = true
 	enable_shop_item_containers()
+
+func show_shop_item_info(item: Resource):
+	"""Show shop item information in the InfoBox"""
+	var infobox = get_tree().current_scene.get_node_or_null("UILayer/InfoBoxBasic")
+	if infobox and infobox.has_method("show_info"):
+		var item_info = item.name
+		
+		# Add type-specific information
+		if item is CardData:
+			item_info += "\nType: " + item.effect_type
+			item_info += "\nStrength: " + str(item.get_effective_strength())
+			if item.is_upgraded():
+				item_info += "\n" + item.get_upgrade_description()
+			item_info += "\nPrice: " + str(item.price) + " $Looty"
+		elif item is EquipmentData:
+			if item.description:
+				item_info += "\n" + item.description
+			item_info += "\nPrice: " + str(item.price) + " $Looty"
+		
+		infobox.show_info(item_info)
+
+func hide_shop_item_info():
+	"""Hide the InfoBox"""
+	var infobox = get_tree().current_scene.get_node_or_null("UILayer/InfoBoxBasic")
+	if infobox and infobox.has_method("hide_info"):
+		infobox.hide_info()
 
  

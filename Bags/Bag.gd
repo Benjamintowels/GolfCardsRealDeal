@@ -532,6 +532,8 @@ func create_card_display(card_data: CardData, count: int, clickable: bool = fals
 			tween.tween_property(button, "scale", hover_scale, 0.2)
 			# Bring to front when hovered
 			button.z_index = 200
+			# Show InfoBox with card info
+			show_card_info(card_data)
 		)
 		button.mouse_exited.connect(func():
 			print("Bag: Mouse exited button for", card_data.name)
@@ -540,6 +542,8 @@ func create_card_display(card_data: CardData, count: int, clickable: bool = fals
 			tween.tween_property(button, "scale", original_scale, 0.2)
 			# Return to original z_index
 			button.z_index = 100
+			# Hide InfoBox
+			hide_card_info()
 		)
 		
 		# Add hover effect as a separate overlay
@@ -628,6 +632,8 @@ func create_card_display(card_data: CardData, count: int, clickable: bool = fals
 			tween.tween_property(card_instance, "scale", hover_scale, 0.2)
 			# Bring to front when hovered
 			card_container.z_index = 200
+			# Show InfoBox with card info
+			show_card_info(card_data)
 		)
 		card_container.mouse_exited.connect(func():
 			print("Bag: Mouse exited card container for", card_data.name)
@@ -636,6 +642,8 @@ func create_card_display(card_data: CardData, count: int, clickable: bool = fals
 			tween.tween_property(card_instance, "scale", original_scale, 0.2)
 			# Return to original z_index
 			card_container.z_index = 1
+			# Hide InfoBox
+			hide_card_info()
 		)
 		
 		print("Bag: CardVisual created - size:", card_instance.size, "scale:", card_instance.scale, "visible:", card_instance.visible)
@@ -1010,16 +1018,13 @@ func create_equipment_display(equipment_data: EquipmentData, clickable: bool = f
 	
 	# Connect mouse enter/exit signals for hover effect
 	container.mouse_entered.connect(func():
-		desc_bg.visible = true
-		desc_label.visible = true
-		# Ensure description appears on top by setting high z_index
-		desc_bg.z_index = 1000
-		desc_label.z_index = 1001
+		# Show InfoBox with equipment info
+		show_equipment_info(equipment_data)
 	)
 	
 	container.mouse_exited.connect(func():
-		desc_bg.visible = false
-		desc_label.visible = false
+		# Hide InfoBox
+		hide_equipment_info()
 	)
 	
 	# If clickable, add click functionality
@@ -1150,6 +1155,38 @@ func is_club_card(card_data: CardData) -> bool:
 	"""Check if a card is a club card based on its name"""
 	var club_names = ["Putter", "Wood", "Wooden", "Iron", "Hybrid", "Driver", "PitchingWedge", "Fire Club", "Ice Club", "GrenadeLauncherClubCard"]
 	return club_names.has(card_data.name)
+
+func show_card_info(card_data: CardData):
+	"""Show card information in the InfoBox"""
+	var infobox = get_tree().current_scene.get_node_or_null("UILayer/InfoBoxBasic")
+	if infobox and infobox.has_method("show_info"):
+		var card_info = card_data.get_upgraded_name()
+		card_info += "\nType: " + card_data.effect_type
+		card_info += "\nStrength: " + str(card_data.get_effective_strength())
+		if card_data.is_upgraded():
+			card_info += "\n" + card_data.get_upgrade_description()
+		infobox.show_info(card_info)
+
+func hide_card_info():
+	"""Hide the InfoBox"""
+	var infobox = get_tree().current_scene.get_node_or_null("UILayer/InfoBoxBasic")
+	if infobox and infobox.has_method("hide_info"):
+		infobox.hide_info()
+
+func show_equipment_info(equipment_data: EquipmentData):
+	"""Show equipment information in the InfoBox"""
+	var infobox = get_tree().current_scene.get_node_or_null("UILayer/InfoBoxBasic")
+	if infobox and infobox.has_method("show_info"):
+		var equipment_info = equipment_data.name
+		if equipment_data.description:
+			equipment_info += "\n" + equipment_data.description
+		infobox.show_info(equipment_info)
+
+func hide_equipment_info():
+	"""Hide the InfoBox"""
+	var infobox = get_tree().current_scene.get_node_or_null("UILayer/InfoBoxBasic")
+	if infobox and infobox.has_method("hide_info"):
+		infobox.hide_info()
 
 func create_placeholder_slot() -> Control:
 	"""Create a placeholder slot using CardSlot.png"""

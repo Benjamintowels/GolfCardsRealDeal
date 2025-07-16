@@ -1,0 +1,30 @@
+[gd_scene load_steps=3 format=3 uid="uid://6cx3nqfqkjvx"]
+
+[ext_resource type="Texture2D" uid="uid://ltoemefenfu" path="res://UI/DialogBoxBasic.png" id="1_m8gfj"]
+[ext_resource type="Script" uid="uid://dde2t1lm2ek1y" path="res://UI/InfoBoxBasic.gd" id="2_script"]
+
+[node name="InfoBoxBasic" type="Node2D"]
+z_index = 3345
+script = ExtResource("2_script")
+
+[node name="InfoBoxBasicSprite" type="Sprite2D" parent="."]
+texture_filter = 1
+texture = ExtResource("1_m8gfj")
+
+[node name="InfoLabel" type="Label" parent="."]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -100.0
+offset_top = -15.0
+offset_right = 100.0
+offset_bottom = 15.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(0, 0, 0, 1)
+text = "Card Info Here"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2

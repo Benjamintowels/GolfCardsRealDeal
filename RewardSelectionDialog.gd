@@ -990,18 +990,22 @@ func setup_reward_button(button: Button, reward_data: Resource, reward_type: Str
 		container.add_child(amount_label)
 	
 	# Add hover effect
-	button.mouse_entered.connect(_on_reward_button_hover.bind(button, true))
-	button.mouse_exited.connect(_on_reward_button_hover.bind(button, false))
+	button.mouse_entered.connect(_on_reward_button_hover.bind(button, true, reward_data, reward_type))
+	button.mouse_exited.connect(_on_reward_button_hover.bind(button, false, reward_data, reward_type))
 
-func _on_reward_button_hover(button: Button, is_hovering: bool):
+func _on_reward_button_hover(button: Button, is_hovering: bool, reward_data: Resource, reward_type: String):
 	"""Handle reward button hover effects"""
 	var container = button.get_child(0)  # Container is first child
 	if container and container.get_child_count() > 0:
 		var background = container.get_child(0)  # Background is first child of container
 		if is_hovering:
 			background.color = Color(0.3, 0.3, 0.3, 0.9)
+			# Show InfoBox with reward info
+			show_reward_info(reward_data, reward_type)
 		else:
 			background.color = Color(0.2, 0.2, 0.2, 0.9)
+			# Hide InfoBox
+			hide_reward_info()
 
 func _on_left_reward_selected():
 	handle_reward_selection(left_reward_data, left_reward_type)
@@ -1207,4 +1211,35 @@ func hide_crowd():
 			crowd_instance.stop_cheering()
 		crowd_instance.queue_free()
 		crowd_instance = null
-		print("Crowd hidden and cleaned up!") 
+		print("Crowd hidden and cleaned up!")
+
+func show_reward_info(reward_data: Resource, reward_type: String):
+	"""Show reward information in the InfoBox"""
+	var infobox = get_tree().current_scene.get_node_or_null("UILayer/InfoBoxBasic")
+	if infobox and infobox.has_method("show_info"):
+		var reward_info = reward_data.name
+		
+		# Add type-specific information
+		if reward_data is CardData:
+			reward_info += "\nType: " + reward_data.effect_type
+			reward_info += "\nStrength: " + str(reward_data.get_effective_strength())
+			if reward_data.is_upgraded():
+				reward_info += "\n" + reward_data.get_upgrade_description()
+		elif reward_data is EquipmentData:
+			if reward_data.description:
+				reward_info += "\n" + reward_data.description
+		elif reward_data is BagData:
+			reward_info += "\nBag Upgrade - Level " + str(reward_data.level)
+		elif reward_type == "looty":
+			var amount = reward_data.get_meta("looty_amount", 15)
+			reward_info += "\n$Looty Amount: " + str(amount)
+		
+		# Add reward type information
+		reward_info += "\nReward Type: " + reward_type.capitalize()
+		infobox.show_info(reward_info)
+
+func hide_reward_info():
+	"""Hide the InfoBox"""
+	var infobox = get_tree().current_scene.get_node_or_null("UILayer/InfoBoxBasic")
+	if infobox and infobox.has_method("hide_info"):
+		infobox.hide_info() 

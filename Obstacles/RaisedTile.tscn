@@ -1,0 +1,11 @@
+[gd_scene load_steps=3 format=3 uid="uid://w7r7s0bwakab"]
+
+[ext_resource type="Texture2D" uid="uid://60je85wnfsyi" path="res://Obstacles/Raised.png" id="1_ipcek"]
+[ext_resource type="Script" uid="uid://cqbqstehjidel" path="res://Obstacles/raised_tile.gd" id="1_psl70"]
+
+[node name="RaisedTile" type="Node2D"]
+script = ExtResource("1_psl70")
+
+[node name="RaisedSprite" type="Sprite2D" parent="."]
+texture_filter = 1
+texture = ExtResource("1_ipcek")

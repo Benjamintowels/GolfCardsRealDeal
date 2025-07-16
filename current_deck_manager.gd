@@ -8,26 +8,27 @@ var current_deck: Array[CardData] = []
 
 # Default starter deck as specified - only wooden stick and putter for clubs
 var starter_deck: Array[CardData] = [
+	# Movement cards (x2 each)
 	preload("res://Cards/Move1.tres"),
 	preload("res://Cards/Move1.tres"),
 	preload("res://Cards/Move2.tres"),
 	preload("res://Cards/Move2.tres"),
 	preload("res://Cards/Move3.tres"),
 	preload("res://Cards/Move3.tres"),
-	preload("res://Cards/KickB.tres"),
-	preload("res://Cards/KickB.tres"),
+	
+	# Attack cards (x2 each)
 	preload("res://Cards/PunchB.tres"),
 	preload("res://Cards/PunchB.tres"),
-	preload("res://Cards/AttackDog.tres"),     # AttackDog card
-	preload("res://Cards/Hybrid.tres"),        # Putter
-	preload("res://Cards/GrenadeLauncherClubCard.tres"),        # Grenade Launcher Club Card
-	preload("res://Cards/MeteorCard.tres"),    # MeteorCard (replaces SpearCard)
-	preload("res://Cards/Dash.tres"),          # Dash card
-	preload("res://Cards/EtherDash.tres"),     # EtherDash card
-	preload("res://Cards/AssassinDash.tres"),  # AssassinDash card (for testing)
-	preload("res://Cards/CallofthewildCard.tres"),              # Call of the Wild card (for testing)
-	preload("res://Cards/BagCheck.tres"),      # BagCheck card (for testing)
-	preload("res://Cards/DodgeCard.tres")      # DodgeCard (for testing)
+	preload("res://Cards/KickB.tres"),
+	preload("res://Cards/KickB.tres"),
+	
+	# Defense cards (x2 each)
+	preload("res://Cards/BlockB.tres"),
+	preload("res://Cards/BlockB.tres"),
+	
+	# Club cards
+	preload("res://Cards/Putter.tres"),        # Putter
+	preload("res://Cards/Wooden.tres")         # Wooden club
 ]
 
 func _ready():
