@@ -26,8 +26,8 @@ texture_filter = 1
 layout_mode = 0
 offset_left = -14.0
 offset_top = -71.0
-offset_right = 1522.0
-offset_bottom = 953.0
+offset_right = 5196.0
+offset_bottom = 2696.0
 scale = Vector2(0.749709, 0.750651)
 texture = ExtResource("3_wkp8b")
 
@@ -84,6 +84,13 @@ offset_top = 58.0
 offset_right = 234.0
 offset_bottom = 101.0
 text = "Start Round"
+
+[node name="DrivingRange" type="Button" parent="UI"]
+offset_left = 459.0
+offset_top = 31.0
+offset_right = 575.0
+offset_bottom = 62.0
+text = "Driving Range"
 
 [node name="Character2" type="Sprite2D" parent="UI"]
 texture_filter = 1

@@ -96,6 +96,12 @@ func build_map_from_layout(layout: Array) -> void:
 # --- Clear all existing objects from the map ---
 func clear_existing_objects() -> void:
 	var objects_removed = 0
+	
+	# Check if obstacle_layer exists
+	if not obstacle_layer:
+		print("WARNING: obstacle_layer is null in clear_existing_objects()")
+		return
+	
 	for child in obstacle_layer.get_children():
 		child.queue_free()
 		objects_removed += 1

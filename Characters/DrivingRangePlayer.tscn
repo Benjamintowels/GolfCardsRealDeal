@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://driving_range_player"]
+
+[ext_resource type="Script" path="res://Characters/DrivingRangePlayer.gd" id="1_driving_player"]
+
+[node name="DrivingRangePlayer" type="CharacterBody2D"]
+script = ExtResource("1_driving_player") 

@@ -1,0 +1,296 @@
+[gd_scene load_steps=32 format=3 uid="uid://6slp5ieujdwe"]
+
+[ext_resource type="Script" uid="uid://c4tuj2kube4yv" path="res://Stages/driving_range.gd" id="1_6olb2"]
+[ext_resource type="Script" uid="uid://bwql8y8wd3qbr" path="res://CameraZoom.gd" id="1_1384d"]
+[ext_resource type="Script" uid="uid://dsaq6hn05kfxf" path="res://MapManager.gd" id="2_6olb2"]
+[ext_resource type="Script" uid="uid://1gtesn5q77m4" path="res://golfcards/build_map.gd" id="3_1ho3v"]
+[ext_resource type="Script" uid="uid://dks6b1bolk5lu" path="res://LaunchManager.gd" id="4_55nnp"]
+[ext_resource type="Script" uid="uid://b278n4knxowm2" path="res://Entities.gd" id="5_btpjj"]
+[ext_resource type="Script" uid="uid://d3eloiw6y4k1g" path="res://BackgroundManager.gd" id="6_m5kwi"]
+[ext_resource type="Script" uid="uid://co4tpic85friv" path="res://CoinExplosionManager.gd" id="7_je7xe"]
+[ext_resource type="PackedScene" uid="uid://bwu8uv1gonuj7" path="res://NPC/WorldTurnManager.tscn" id="8_5x3hu"]
+[ext_resource type="PackedScene" uid="uid://c73sma1rss70c" path="res://UI/EndTurnButton.tscn" id="9_f7i13"]
+[ext_resource type="PackedScene" uid="uid://b63032ekv2fkj" path="res://CardStackDisplay.tscn" id="10_41om8"]
+[ext_resource type="Texture2D" uid="uid://ded1wjrmxwoqc" path="res://UI/BennyDeckPlaceholder.png" id="11_iv2pe"]
+[ext_resource type="PackedScene" uid="uid://be7et5h4g4wmw" path="res://UI/DrawCardsButton.tscn" id="12_jcc37"]
+[ext_resource type="PackedScene" uid="uid://cobc2ineqfb8e" path="res://UI/DrawClubCardsButton.tscn" id="13_whkd0"]
+[ext_resource type="PackedScene" uid="uid://epbwjl2sq5cq" path="res://UI/PowerMeter.tscn" id="14_abmio"]
+[ext_resource type="PackedScene" uid="uid://dna6q0m23qdsl" path="res://Bags/Bag.tscn" id="15_pmqxb"]
+[ext_resource type="PackedScene" path="res://BlockHealthBar.tscn" id="16_hpo7e"]
+[ext_resource type="PackedScene" uid="uid://bqx80a02w3v4u" path="res://HealthBar.tscn" id="17_um752"]
+[ext_resource type="PackedScene" path="res://InventoryDialog.tscn" id="18_ln553"]
+[ext_resource type="PackedScene" uid="uid://6cx3nqfqkjvx" path="res://UI/InfoBoxBasic.tscn" id="19_kcdpp"]
+[ext_resource type="PackedScene" uid="uid://djn0dry2myach" path="res://UI/ReachButtonBall.tscn" id="20_e4fbs"]
+[ext_resource type="AudioStream" uid="uid://bgo3uwe4u826s" path="res://CardTouch.mp3" id="21_sx0me"]
+[ext_resource type="AudioStream" uid="uid://c48v687edetup" path="res://CardPlaySound.mp3" id="22_lycae"]
+[ext_resource type="AudioStream" uid="uid://cb8sa18x713vc" path="res://Sounds/SwingSoft.mp3" id="23_ruyn8"]
+[ext_resource type="AudioStream" uid="uid://btlp8x1wjnfoc" path="res://Sounds/SwingMed.mp3" id="24_6pkd4"]
+[ext_resource type="AudioStream" uid="uid://dp8fikarw3m2b" path="res://Sounds/SwingStrong.mp3" id="25_qnmkl"]
+[ext_resource type="AudioStream" uid="uid://b6akh4wu4kriu" path="res://Sounds/WaterPlunk.mp3" id="26_ktoje"]
+[ext_resource type="AudioStream" uid="uid://dwr2ykmge3ncb" path="res://Sounds/SandThunk.mp3" id="27_suip7"]
+[ext_resource type="AudioStream" uid="uid://ccvh643uqte1h" path="res://Sounds/Birds.mp3" id="28_vq35r"]
+[ext_resource type="AudioStream" uid="uid://c6807wk0mjel5" path="res://Sounds/HoleComplete.mp3" id="29_0lsm0"]
+[ext_resource type="AudioStream" uid="uid://tu47pjuwugnn" path="res://Sounds/Snow.mp3" id="30_1glv8"]
+
+[node name="DrivingRange" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_6olb2")
+
+[node name="ObstacleLayer" type="Control" parent="."]
+z_index = 2
+layout_mode = 3
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="GameCamera" type="Camera2D" parent="."]
+script = ExtResource("1_1384d")
+
+[node name="MapManager" type="Node" parent="."]
+script = ExtResource("2_6olb2")
+
+[node name="BuildMap" type="Node" parent="."]
+script = ExtResource("3_1ho3v")
+
+[node name="LaunchManager" type="Node" parent="."]
+script = ExtResource("4_55nnp")
+
+[node name="Entities" type="Node" parent="."]
+script = ExtResource("5_btpjj")
+
+[node name="BackgroundManager" type="Node" parent="."]
+script = ExtResource("6_m5kwi")
+
+[node name="CoinExplosionManager" type="Node" parent="."]
+script = ExtResource("7_je7xe")
+
+[node name="WorldTurnManager" parent="." instance=ExtResource("8_5x3hu")]
+
+[node name="UILayer" type="CanvasLayer" parent="."]
+
+[node name="ModShotRoom" type="Button" parent="UILayer"]
+visible = false
+offset_right = 123.0
+offset_bottom = 31.0
+text = "ModShot"
+
+[node name="EndRoundButton" type="Button" parent="UILayer"]
+z_index = 5
+offset_top = 62.0
+offset_right = 92.0
+offset_bottom = 93.0
+text = "End Round"
+
+[node name="EndTurnButton" parent="UILayer" instance=ExtResource("9_f7i13")]
+offset_left = 955.0
+offset_top = 841.0
+offset_right = 995.0
+offset_bottom = 881.0
+
+[node name="CardStackDisplay" parent="UILayer" instance=ExtResource("10_41om8")]
+z_index = 15
+
+[node name="CharacterLabel" type="Label" parent="UILayer"]
+offset_right = 40.0
+offset_bottom = 23.0
+
+[node name="DeckImage" type="TextureRect" parent="UILayer"]
+z_index = 100
+texture_filter = 1
+offset_left = 33.0
+offset_right = 1569.0
+offset_bottom = 1024.0
+scale = Vector2(0.055, 0.055)
+texture = ExtResource("11_iv2pe")
+
+[node name="CharacterImage" type="TextureRect" parent="UILayer"]
+z_index = 6
+texture_filter = 1
+offset_left = -16.0
+offset_top = 889.0
+offset_right = 24.0
+offset_bottom = 929.0
+
+[node name="CardAnchor" type="Marker2D" parent="UILayer"]
+position = Vector2(250, 284)
+
+[node name="HUD" type="VBoxContainer" parent="UILayer"]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -315.95
+offset_top = 20.0
+offset_right = -175.95
+offset_bottom = 200.0
+
+[node name="TurnLabel" type="Label" parent="UILayer/HUD"]
+layout_mode = 2
+
+[node name="DrawLabel" type="Label" parent="UILayer/HUD"]
+layout_mode = 2
+
+[node name="DiscardLabel" type="Label" parent="UILayer/HUD"]
+layout_mode = 2
+
+[node name="ShotLabel" type="Label" parent="UILayer/HUD"]
+layout_mode = 2
+
+[node name="CardHandAnchor" type="Control" parent="UILayer"]
+z_index = 245
+texture_filter = 1
+custom_minimum_size = Vector2(100, 300)
+layout_mode = 3
+anchors_preset = 0
+offset_left = 28.0
+offset_top = 851.0
+offset_right = 128.0
+offset_bottom = 1151.0
+scale = Vector2(0.11, 0.11)
+mouse_filter = 1
+
+[node name="CardRow" type="BoxContainer" parent="UILayer/CardHandAnchor"]
+custom_minimum_size = Vector2(296.69, 105.645)
+layout_direction = 2
+layout_mode = 0
+offset_left = 2218.35
+offset_top = 473.0
+offset_right = 2515.04
+offset_bottom = 578.645
+size_flags_horizontal = 15
+size_flags_vertical = 15
+mouse_filter = 2
+theme_override_constants/separation = 75
+alignment = 1
+
+[node name="DrawCards" parent="UILayer" instance=ExtResource("12_jcc37")]
+z_index = 4096
+z_as_relative = false
+offset_left = 146.0
+offset_top = 615.0
+offset_right = 186.0
+offset_bottom = 655.0
+scale = Vector2(0.685, 0.685)
+
+[node name="DrawClubCards" parent="UILayer" instance=ExtResource("13_whkd0")]
+z_index = 301
+z_as_relative = false
+offset_left = 123.0
+offset_top = 612.0
+offset_right = 123.0
+offset_bottom = 612.0
+scale = Vector2(0.775, 0.775)
+
+[node name="PowerMeter" parent="UILayer" instance=ExtResource("14_abmio")]
+visible = false
+z_index = 4096
+z_as_relative = false
+offset_left = 50.0
+offset_top = 50.0
+offset_right = 312.0
+offset_bottom = 342.0
+
+[node name="TextureButton" type="TextureButton" parent="UILayer"]
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="Bag" parent="UILayer" instance=ExtResource("15_pmqxb")]
+z_index = 500
+offset_left = 162.0
+offset_top = 963.0
+offset_right = 222.0
+offset_bottom = 1023.0
+scale = Vector2(1.53, 1.53)
+
+[node name="BlockHealthBar" parent="UILayer" instance=ExtResource("16_hpo7e")]
+z_index = 10
+offset_left = 18.0
+offset_top = 797.0
+offset_right = 218.0
+offset_bottom = 837.0
+
+[node name="HealthBar" parent="UILayer" instance=ExtResource("17_um752")]
+z_index = 10
+offset_left = 17.0
+offset_top = 846.0
+offset_right = 217.0
+offset_bottom = 886.0
+
+[node name="HealthTestButtons" type="VBoxContainer" parent="UILayer"]
+z_index = 10
+offset_top = 101.0
+offset_right = 200.0
+offset_bottom = 171.0
+
+[node name="DamageButton" type="Button" parent="UILayer/HealthTestButtons"]
+layout_mode = 2
+text = "Take 20 Damage"
+
+[node name="HealButton" type="Button" parent="UILayer/HealthTestButtons"]
+layout_mode = 2
+text = "Heal 20 HP"
+
+[node name="InventoryDialog" parent="UILayer" instance=ExtResource("18_ln553")]
+visible = false
+z_index = 100
+
+[node name="InfoBoxBasic" parent="UILayer" instance=ExtResource("19_kcdpp")]
+
+[node name="ReachBallButton" parent="UILayer" instance=ExtResource("20_e4fbs")]
+z_index = 200
+offset_left = -1846.0
+offset_top = 716.0
+offset_right = -1766.0
+offset_bottom = 796.0
+
+[node name="CrowdPosition" type="Marker2D" parent="UILayer"]
+position = Vector2(789, 593)
+
+[node name="ReturnToClubhouseButton" type="Button" parent="UILayer"]
+z_index = 100
+offset_left = 20.0
+offset_top = 20.0
+offset_right = 180.0
+offset_bottom = 60.0
+text = "Return to Clubhouse"
+
+[node name="CardClickSound" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("21_sx0me")
+volume_db = 5.507
+
+[node name="CardPlaySound" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("22_lycae")
+
+[node name="SwingSoft" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("23_ruyn8")
+
+[node name="SwingMed" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("24_6pkd4")
+
+[node name="SwingStrong" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("25_qnmkl")
+
+[node name="WaterPlunk" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("26_ktoje")
+volume_db = 4.223
+
+[node name="SandThunk" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("27_suip7")
+volume_db = -6.335
+
+[node name="BirdsTweeting" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("28_vq35r")
+volume_db = -0.732
+
+[node name="HoleComplete" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("29_0lsm0")
+volume_db = -5.859
+
+[node name="Snow" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("30_1glv8")
+
+[connection signal="pressed" from="UILayer/ReturnToClubhouseButton" to="." method="_on_return_to_clubhouse_pressed"]
