@@ -112,6 +112,8 @@ func create_movement_buttons() -> void:
 		# Set overlay color based on card type
 		if card.effect_type == "Attack":
 			overlay.color = Color(1, 0.5, 0, 0.25)  # Orange for attack cards
+		elif card.effect_type == "AOEAttack":
+			overlay.color = Color(1, 0.3, 0, 0.25)  # Dark orange for AOE attack cards
 		elif card.effect_type == "Weapon":
 			overlay.color = Color(1, 0, 0, 0.25)  # Red for weapon cards
 		else:
@@ -201,6 +203,29 @@ func _on_movement_card_pressed(card: CardData, button: TextureButton) -> void:
 			return
 		else:
 			print("✗ Attack handler is null - cannot handle attack card!")
+			return
+	
+	# Check if this is an AOE attack card
+	if card.effect_type == "AOEAttack":
+		print("=== AOE ATTACK CARD DETECTED ===")
+		print("Card name:", card.name)
+		print("Effect type:", card.effect_type)
+		print("Attack handler available:", attack_handler != null)
+		
+		if attack_handler:
+			print("Handling as AOE attack card")
+			# Clear any existing modes first to prevent double discarding
+			if is_in_movement_mode():
+				print("Clearing movement mode before switching to AOE attack card")
+				exit_movement_mode()
+			if attack_handler.is_in_attack_mode():
+				print("Clearing existing attack mode before switching to new AOE attack card")
+				attack_handler.clear_all_attack_ui()
+			# Pass the button reference to the attack handler for cleanup
+			attack_handler._on_aoe_attack_card_pressed(card, button)
+			return
+		else:
+			print("✗ Attack handler is null - cannot handle AOE attack card!")
 			return
 	
 	# Check if this is a special effect card first

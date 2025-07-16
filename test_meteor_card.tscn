@@ -1,0 +1,15 @@
+[gd_scene load_steps=2 format=3 uid="uid://test_meteor_card"]
+
+[ext_resource type="Script" path="res://test_meteor_card.gd" id="1_test_meteor"]
+
+[node name="TestMeteorCard" type="Node2D"]
+script = ExtResource("1_test_meteor")
+
+[node name="TestButton" type="Button" parent="."]
+offset_left = 10.0
+offset_top = 10.0
+offset_right = 150.0
+offset_bottom = 50.0
+text = "Run Meteor Test"
+
+[connection signal="pressed" from="TestButton" to="." method="_on_test_button_pressed"] 

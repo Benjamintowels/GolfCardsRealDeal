@@ -142,6 +142,33 @@ func _on_attack_card_pressed(card: CardData, button: TextureButton) -> void:
 	emit_signal("card_selected", card)
 	print("=== END ATTACK CARD PRESSED ===")
 
+func _on_aoe_attack_card_pressed(card: CardData, button: TextureButton) -> void:
+	print("=== AOE ATTACK CARD PRESSED ===")
+	print("Card:", card.name, "Effect type:", card.effect_type)
+	print("Card in hand:", deck_manager.hand.has(card))
+	print("Attack handler setup check - card_effect_handler:", card_effect_handler != null)
+	print("Attack handler setup check - deck_manager:", deck_manager != null)
+	
+	if selected_card == card:
+		print("Card already selected, returning")
+		return
+	card_click_sound.play()
+	hide_all_attack_highlights()
+	valid_attack_tiles.clear()
+
+	is_attack_mode = true
+	active_button = button
+	selected_card = card
+	attack_range = card.get_effective_strength()
+	print("AOE attack range set to:", attack_range)
+
+	calculate_valid_aoe_attack_tiles()
+	show_attack_highlights()
+	
+	emit_signal("attack_mode_entered")
+	emit_signal("card_selected", card)
+	print("=== END AOE ATTACK CARD PRESSED ===")
+
 func calculate_valid_attack_tiles() -> void:
 	valid_attack_tiles.clear()
 	print("Calculating valid attack tiles - Player at:", player_grid_pos, "Attack range:", attack_range)
@@ -308,6 +335,51 @@ func calculate_valid_attack_tiles() -> void:
 	
 	print("Total valid attack tiles found:", valid_attack_tiles.size())
 
+func calculate_valid_aoe_attack_tiles() -> void:
+	valid_attack_tiles.clear()
+	print("Calculating valid AOE attack tiles - Player at:", player_grid_pos, "AOE attack range:", attack_range)
+
+	# Special case for Meteor card - show all tiles within range for 3x2 placement
+	if selected_card and selected_card.name == "Meteor":
+		print("Meteor card detected - showing all tiles within range for 3x2 placement")
+		for y in grid_size.y:
+			for x in grid_size.x:
+				var pos := Vector2i(x, y)
+				if calculate_grid_distance(player_grid_pos, pos) <= attack_range and pos != player_grid_pos:
+					# Check if this position can be the top-left corner of a 3x2 area
+					if can_place_3x2_area_at_position(pos):
+						valid_attack_tiles.append(pos)
+						print("Added valid 3x2 placement position for Meteor at:", pos)
+		print("Total valid 3x2 placement positions for Meteor:", valid_attack_tiles.size())
+		return
+
+	print("Total valid AOE attack tiles found:", valid_attack_tiles.size())
+
+func can_place_3x2_area_at_position(top_left_pos: Vector2i) -> bool:
+	"""Check if a 3x2 area can be placed with the given position as top-left corner"""
+	# Check if all 6 tiles in the 3x2 area are within grid bounds
+	for y_offset in range(2):  # 2 rows
+		for x_offset in range(3):  # 3 columns
+			var check_pos = top_left_pos + Vector2i(x_offset, y_offset)
+			if check_pos.x >= grid_size.x or check_pos.y >= grid_size.y:
+				return false
+	return true
+
+func find_valid_3x2_target_position(clicked_pos: Vector2i) -> Vector2i:
+	"""Find the top-left position of a valid 3x2 area that contains the clicked position"""
+	# Check all possible 3x2 areas that could contain the clicked position
+	for y_offset in range(2):  # 2 rows
+		for x_offset in range(3):  # 3 columns
+			var top_left_pos = clicked_pos - Vector2i(x_offset, y_offset)
+			
+			# Check if this top-left position is in our valid tiles list
+			if top_left_pos in valid_attack_tiles:
+				print("Found valid 3x2 area with top-left at:", top_left_pos, "containing clicked position:", clicked_pos)
+				return top_left_pos
+	
+	# If no valid 3x2 area found, return invalid position
+	return Vector2i(-1, -1)
+
 func calculate_grid_distance(a: Vector2i, b: Vector2i) -> int:
 	return abs(a.x - b.x) + abs(a.y - b.y)
 
@@ -423,10 +495,25 @@ func get_npc_at_position(pos: Vector2i) -> Node:
 
 func show_attack_highlights() -> void:
 	hide_all_attack_highlights()
-	print("Showing attack highlights for", valid_attack_tiles.size(), "tiles")
+	print("=== SHOWING ATTACK HIGHLIGHTS ===")
+	print("Valid attack tiles count:", valid_attack_tiles.size())
+	print("Grid tiles available:", grid_tiles != null)
+	if grid_tiles:
+		print("Grid size:", grid_tiles.size(), "x", grid_tiles[0].size() if grid_tiles.size() > 0 else "N/A")
+	
 	for pos in valid_attack_tiles:
+		print("Processing highlight for position:", pos)
+		# Check bounds
+		if pos.y >= grid_tiles.size() or pos.x >= grid_tiles[pos.y].size():
+			print("Position out of bounds:", pos, "Grid size:", grid_tiles.size(), "x", grid_tiles[pos.y].size() if pos.y < grid_tiles.size() else "N/A")
+			continue
+			
 		# Create orange attack highlight
 		var tile = grid_tiles[pos.y][pos.x]
+		if not tile:
+			print("No tile found at position:", pos)
+			continue
+			
 		var attack_highlight = tile.get_node_or_null("AttackHighlight")
 		if not attack_highlight:
 			attack_highlight = ColorRect.new()
@@ -439,6 +526,8 @@ func show_attack_highlights() -> void:
 			print("Created new attack highlight for tile at", pos)
 		attack_highlight.visible = true
 		print("Made attack highlight visible for tile at", pos)
+	
+	print("=== END SHOWING ATTACK HIGHLIGHTS ===")
 	
 	# Animate CardRow down to get out of the way of range display
 	animate_card_row_down()
@@ -530,6 +619,19 @@ func handle_tile_click(x: int, y: int) -> bool:
 	var clicked := Vector2i(x, y)
 	print("Attack tile click at:", clicked, "Attack mode:", is_attack_mode, "Valid tiles:", valid_attack_tiles)
 	
+	# Special handling for Meteor card - check if clicked position is within any valid 3x2 area
+	if is_attack_mode and selected_card and selected_card.name == "Meteor":
+		print("Meteor card detected - checking if clicked position is within valid 3x2 area")
+		var target_pos = find_valid_3x2_target_position(clicked)
+		if target_pos != Vector2i(-1, -1):
+			print("✓ Valid 3x2 target found at:", target_pos, "for clicked position:", clicked)
+			perform_meteor_attack(target_pos)
+			card_play_sound.play()
+			return true
+		else:
+			print("✗ Clicked position not within any valid 3x2 area:", clicked)
+			return false
+	
 	if is_attack_mode and clicked in valid_attack_tiles:
 		print("=== ATTACK TILE CLICK DEBUG ===")
 		print("Selected card:", selected_card.name if selected_card else "None")
@@ -594,6 +696,8 @@ func handle_tile_click(x: int, y: int) -> bool:
 			else:
 				print("✗ No NPC found at position:", clicked)
 				return false
+		
+
 		
 		# Check for normal NPC attack
 		var npc = get_npc_at_position(clicked)
@@ -1445,6 +1549,162 @@ func perform_assassin_dash_attack_immediate(npc: Node, target_pos: Vector2i) -> 
 	
 	# Emit signal
 	emit_signal("npc_attacked", npc, assassin_damage)
+	
+	# Exit attack mode
+	exit_attack_mode() 
+
+func perform_meteor_attack(target_pos: Vector2i) -> void:
+	"""Perform Meteor AOE attack at the specified position"""
+	print("=== PERFORMING METEOR AOE ATTACK ===")
+	print("Target position:", target_pos)
+	
+	# Calculate the 3x2 area positions
+	var aoe_positions = []
+	for y_offset in range(2):  # 2 rows
+		for x_offset in range(3):  # 3 columns
+			var pos = target_pos + Vector2i(x_offset, y_offset)
+			aoe_positions.append(pos)
+	
+	print("AOE positions:", aoe_positions)
+	
+	# Create and animate the meteor
+	create_and_animate_meteor(target_pos, aoe_positions)
+
+func create_and_animate_meteor(target_pos: Vector2i, aoe_positions: Array) -> void:
+	"""Create and animate the meteor falling to the target position"""
+	print("Creating meteor at target position:", target_pos)
+	
+	# Load the meteor scene
+	var meteor_scene = load("res://Particles/Meteor.tscn")
+	if not meteor_scene:
+		print("✗ ERROR: Could not load Meteor.tscn")
+		exit_attack_mode()
+		return
+	
+	# Create meteor instance
+	var meteor = meteor_scene.instantiate()
+	if not meteor:
+		print("✗ ERROR: Could not instantiate meteor")
+		exit_attack_mode()
+		return
+	
+	# Add meteor to the scene
+	if card_effect_handler and card_effect_handler.course:
+		card_effect_handler.course.add_child(meteor)
+	else:
+		add_child(meteor)
+	
+	# Calculate world position for the meteor target (center of the 3x2 area)
+	var world_target_x = (target_pos.x + 1.5) * cell_size  # Center of 3-tile width
+	var world_target_y = (target_pos.y + 0.5) * cell_size  # Center of 2-tile height
+	var world_target_pos = Vector2(world_target_x, world_target_y)
+	
+	# Position meteor above the screen
+	var meteor_start_pos = Vector2(world_target_x, -100)  # Start above screen
+	meteor.global_position = meteor_start_pos
+	
+	# Play meteor start sound
+	var meteor_start_sound = meteor.get_node_or_null("MeteorStart")
+	if meteor_start_sound:
+		meteor_start_sound.play()
+	
+	# Animate meteor falling
+	var tween = create_tween()
+	tween.set_trans(Tween.TRANS_QUAD)
+	tween.set_ease(Tween.EASE_IN)
+	
+	# Meteor falls to target over 1.5 seconds
+	tween.tween_property(meteor, "global_position", world_target_pos, 1.5)
+	tween.tween_callback(func():
+		# Meteor has landed - play crash and land sounds
+		var meteor_crash_sound = meteor.get_node_or_null("MeteorCrash")
+		var meteor_land_sound = meteor.get_node_or_null("MeteorLand")
+		
+		if meteor_crash_sound:
+			meteor_crash_sound.play()
+		if meteor_land_sound:
+			meteor_land_sound.play()
+		
+		# Start crater animation sequence
+		start_crater_animation(meteor, aoe_positions)
+	)
+
+func start_crater_animation(meteor: Node, aoe_positions: Array) -> void:
+	"""Start the crater animation sequence"""
+	print("Starting crater animation for AOE positions:", aoe_positions)
+	
+	# Get the crater sprites
+	var meteor_sprite = meteor.get_node_or_null("MeteorSprite")
+	var crater_explosion1 = meteor.get_node_or_null("CraterExplosion1")
+	var crater_explosion2 = meteor.get_node_or_null("CraterExplosion2")
+	var crater_sprite = meteor.get_node_or_null("CraterSprite")
+	
+	if not meteor_sprite or not crater_explosion1 or not crater_explosion2 or not crater_sprite:
+		print("✗ ERROR: Missing crater sprites in meteor scene")
+		complete_meteor_attack(aoe_positions)
+		return
+	
+	# Hide meteor sprite and show first explosion
+	meteor_sprite.visible = false
+	crater_explosion1.visible = true
+	
+	# Animate through the crater sequence
+	var tween = create_tween()
+	
+	# Show first explosion for 0.3 seconds
+	tween.tween_callback(func():
+		crater_explosion1.visible = false
+		crater_explosion2.visible = true
+	).set_delay(0.3)
+	
+	# Show second explosion for 0.3 seconds
+	tween.tween_callback(func():
+		crater_explosion2.visible = false
+		crater_sprite.visible = true
+	).set_delay(0.3)
+	
+	# Show final crater for 0.5 seconds then complete attack
+	tween.tween_callback(func():
+		complete_meteor_attack(aoe_positions)
+	).set_delay(0.5)
+
+func complete_meteor_attack(aoe_positions: Array) -> void:
+	"""Complete the meteor attack by dealing damage to NPCs in the AOE area"""
+	print("Completing meteor attack for AOE positions:", aoe_positions)
+	
+	var meteor_damage = 35  # Base meteor damage
+	var total_damage_dealt = 0
+	
+	# Deal damage to all NPCs in the AOE area
+	for pos in aoe_positions:
+		var npc = get_npc_at_position(pos)
+		if npc:
+			print("Dealing meteor damage to NPC at position:", pos)
+			
+			# Check if NPC is dead
+			var is_dead = false
+			if npc.has_method("get_is_dead"):
+				is_dead = npc.get_is_dead()
+			elif npc.has_method("is_dead"):
+				is_dead = npc.is_dead()
+			elif "is_dead" in npc:
+				is_dead = npc.is_dead
+			
+			if not is_dead:
+				# Deal damage to the NPC
+				if npc.has_method("take_damage"):
+					npc.take_damage(meteor_damage)
+					total_damage_dealt += meteor_damage
+					print("Dealt", meteor_damage, "damage to NPC:", npc.name)
+				else:
+					print("NPC does not have take_damage method:", npc.name)
+			else:
+				print("NPC is already dead, skipping damage:", npc.name)
+	
+	print("Meteor attack complete - total damage dealt:", total_damage_dealt)
+	
+	# Emit signal for attack completion
+	emit_signal("npc_attacked", null, total_damage_dealt)
 	
 	# Exit attack mode
 	exit_attack_mode() 

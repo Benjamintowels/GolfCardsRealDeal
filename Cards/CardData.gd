@@ -40,6 +40,8 @@ func get_effective_strength() -> int:
 				effective += movement_bonus
 			"Attack":
 				effective += attack_bonus
+			"AOEAttack":
+				effective += attack_bonus
 			"Weapon":
 				effective += weapon_shots_bonus
 			"ModifyNext", "Modify":
@@ -52,6 +54,8 @@ func get_upgrade_description() -> String:
 		"Movement":
 			return "Increases movement range by " + str(movement_bonus)
 		"Attack":
+			return "Increases attack range by " + str(attack_bonus)
+		"AOEAttack":
 			return "Increases attack range by " + str(attack_bonus)
 		"Weapon":
 			return "Allows " + str(weapon_shots_bonus) + " additional shot(s)"

@@ -5117,7 +5117,10 @@ func _on_ball_collision_detected() -> void:
 
 func _on_npc_attacked(npc: Node, damage: int) -> void:
 	"""Handle when an NPC is attacked"""
-	print("NPC attacked:", npc.name, "Damage dealt:", damage)
+	if npc:
+		print("NPC attacked:", npc.name, "Damage dealt:", damage)
+	else:
+		print("NPC attacked: No NPC found, Damage dealt:", damage)
 
 func _on_kick_attack_performed() -> void:
 	"""Handle when a kick attack is performed - trigger kick animation"""
@@ -5135,13 +5138,16 @@ func _on_ash_dog_attack_performed() -> void:
 
 func _on_npc_shot(npc: Node, damage: int) -> void:
 	"""Handle when an NPC is shot with a weapon"""
-	print("NPC shot:", npc.name, "Damage dealt:", damage)
-	
-	# Play global death sound if NPC died
-	if npc.has_method("get_is_dead") and npc.get_is_dead():
-		if global_death_sound:
-			global_death_sound.play()
-			print("Playing global death sound")
+	if npc:
+		print("NPC shot:", npc.name, "Damage dealt:", damage)
+		
+		# Play global death sound if NPC died
+		if npc.has_method("get_is_dead") and npc.get_is_dead():
+			if global_death_sound:
+				global_death_sound.play()
+				print("Playing global death sound")
+	else:
+		print("NPC shot: No NPC found, Damage dealt:", damage)
 
 func _on_knife_landed(final_tile: Vector2i) -> void:
 	"""Handle when a throwing knife lands"""
