@@ -48,6 +48,7 @@ var sniper_scene = preload("res://Weapons/Sniper.tscn")
 var grenade_scene = preload("res://Weapons/Grenade.tscn")
 var spear_scene = preload("res://Weapons/Spear.tscn")
 var grenade_launcher_scene = preload("res://Weapons/GrenadeLauncher.tscn")
+var shuriken_scene = preload("res://Weapons/Shuriken.tscn")
 var reticle_texture = preload("res://UI/Reticle.png")
 
 # Signals
@@ -283,6 +284,37 @@ func enter_weapon_aiming_mode() -> void:
 		var tween := get_tree().create_tween()
 		tween.tween_property(course.camera, "position", player_center, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	
+	# For shuriken mode, set up camera focused on player (not following mouse)
+	elif selected_card and selected_card.name == "ShurikenCard" and card_effect_handler and card_effect_handler.course:
+		var course = card_effect_handler.course
+		# Set up camera to stay focused on player during shuriken aiming
+		course.is_aiming_phase = true
+		
+		# Set a temporary club for shuriken aiming (use ShurikenCard for character-specific range)
+		var original_club = course.selected_club
+		course.selected_club = "ShurikenCard"
+		
+		# Show aiming circle with shuriken reticle image
+		show_shuriken_aiming_circle()
+		
+		# Show shuriken-specific aiming instruction
+		show_shuriken_aiming_instruction()
+		
+		# Animate CardRow down to get out of the way of aiming circle
+		if movement_controller and movement_controller.has_method("animate_card_row_down"):
+			movement_controller.animate_card_row_down()
+			print("WeaponHandler: Animating CardRow down for shuriken aiming")
+		
+		# Store original club to restore later
+		set_meta("original_club", original_club)
+		
+		# Keep camera focused on player (don't follow mouse)
+		var sprite = player_node.get_node_or_null("Sprite2D")
+		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
+		var player_center = player_node.global_position + player_size / 2
+		var tween := get_tree().create_tween()
+		tween.tween_property(course.camera, "position", player_center, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	
 	# Input is handled by the course's _input function
 
 func show_knife_aiming_circle() -> void:
@@ -408,6 +440,47 @@ func show_sniper_aiming_instruction() -> void:
 	
 	course.get_node("UILayer").add_child(instruction_label)
 
+func show_shuriken_aiming_circle() -> void:
+	"""Show aiming circle with shuriken reticle image"""
+	if not card_effect_handler or not card_effect_handler.course:
+		return
+	
+	var course = card_effect_handler.course
+	
+	# Use the course's show_aiming_circle function but override the texture
+	course.show_aiming_circle()
+	
+	# Replace the target circle texture with shuriken reticle texture
+	if course.aiming_circle:
+		var circle = course.aiming_circle.get_node_or_null("CircleVisual")
+		if circle:
+			var shuriken_reticle_texture = preload("res://UI/Reticle.png")  # Use regular reticle for now
+			circle.texture = shuriken_reticle_texture
+
+func show_shuriken_aiming_instruction() -> void:
+	"""Show shuriken-specific aiming instruction"""
+	if not card_effect_handler or not card_effect_handler.course:
+		return
+	
+	var course = card_effect_handler.course
+	var existing_instruction = course.get_node_or_null("UILayer/AimingInstructionLabel")
+	if existing_instruction:
+		existing_instruction.queue_free()
+	
+	var instruction_label := Label.new()
+	instruction_label.name = "AimingInstructionLabel"
+	instruction_label.text = "Move mouse to set shuriken target\nLeft click to throw, Right click to cancel"
+	
+	instruction_label.add_theme_font_size_override("font_size", 18)
+	instruction_label.add_theme_color_override("font_color", Color.CYAN)
+	instruction_label.add_theme_constant_override("outline_size", 2)
+	instruction_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	
+	instruction_label.position = Vector2(400, 50)
+	instruction_label.z_index = 200
+	
+	course.get_node("UILayer").add_child(instruction_label)
+
 func show_grenade_aiming_circle() -> void:
 	"""Show aiming circle with grenade reticle image"""
 	if not card_effect_handler or not card_effect_handler.course:
@@ -471,6 +544,8 @@ func create_weapon_instance() -> void:
 		weapon_scene = sniper_scene
 	elif selected_card and selected_card.name == "SpearCard":
 		weapon_scene = spear_scene
+	elif selected_card and selected_card.name == "ShurikenCard":
+		weapon_scene = shuriken_scene
 	else:
 		weapon_scene = pistol_scene # Fallback to pistol
 	
@@ -669,6 +744,12 @@ func fire_weapon() -> void:
 	if selected_card and selected_card.name == "SpearCard" and launch_manager:
 		# Use LaunchManager for spear throwing
 		launch_spear()
+		return
+	
+	# Check if this is a shuriken and we have LaunchManager
+	if selected_card and selected_card.name == "ShurikenCard" and launch_manager:
+		# Use LaunchManager for shuriken throwing
+		launch_shuriken()
 		return
 	
 	# Check if this is a BurstShot weapon
@@ -1262,6 +1343,61 @@ func launch_spear() -> void:
 	# Exit weapon mode (LaunchManager will handle the rest)
 	exit_weapon_mode()
 
+func launch_shuriken() -> void:
+	"""Launch a shuriken using the LaunchManager system"""
+	if not launch_manager or not weapon_instance or not camera:
+		return
+	
+	# Get the landing spot from the aiming circle if available, otherwise use mouse position
+	var landing_spot = camera.get_global_mouse_position()  # Default to mouse position
+	if card_effect_handler and card_effect_handler.course:
+		var course = card_effect_handler.course
+		if course.chosen_landing_spot != Vector2.ZERO:
+			landing_spot = course.chosen_landing_spot
+	
+	# Set up LaunchManager for shuriken mode
+	launch_manager.chosen_landing_spot = landing_spot
+	launch_manager.player_stats = player_stats
+	
+	# Create a shuriken instance if it doesn't exist
+	var shuriken_instance = null
+	var shurikens = get_tree().get_nodes_in_group("shurikens")
+	for shuriken in shurikens:
+		if is_instance_valid(shuriken):
+			shuriken_instance = shuriken
+			break
+	
+	if not shuriken_instance:
+		# Create a new shuriken instance
+		shuriken_instance = shuriken_scene.instantiate()
+		
+		# Add shuriken to groups for smart optimization
+		shuriken_instance.add_to_group("shurikens")
+		shuriken_instance.add_to_group("collision_objects")
+		
+		# Add to the CameraContainer like golf balls
+		if card_effect_handler and card_effect_handler.course:
+			var camera_container = card_effect_handler.course.get_node_or_null("CameraContainer")
+			if camera_container:
+				camera_container.add_child(shuriken_instance)
+				shuriken_instance.global_position = player_node.global_position
+			else:
+				# Fallback to course if CameraContainer not found
+				card_effect_handler.course.add_child(shuriken_instance)
+				shuriken_instance.global_position = player_node.global_position
+		else:
+			return
+	
+	# Set up the shuriken properties
+	shuriken_instance.cell_size = cell_size
+	shuriken_instance.map_manager = card_effect_handler.course.map_manager if card_effect_handler else null
+	
+	# Enter shuriken mode in LaunchManager
+	launch_manager.enter_shuriken_mode()
+	
+	# Don't exit weapon mode immediately - let the LaunchManager handle cleanup
+	# after the shuriken is launched and landed
+
 func perform_raytrace() -> Node:
 	"""Perform raytrace from pistol center to mouse position with proper bullet physics"""
 	if not weapon_instance or not player_node or not camera:
@@ -1506,6 +1642,27 @@ func exit_weapon_mode() -> void:
 			course.selected_club = get_meta("original_club")
 			remove_meta("original_club")
 	
+	# Clean up shuriken aiming mode if it was active
+	if selected_card and selected_card.name == "ShurikenCard" and card_effect_handler and card_effect_handler.course:
+		var course = card_effect_handler.course
+		course.is_aiming_phase = false
+		course.hide_aiming_circle()
+		course.hide_aiming_instruction()
+		
+		# Animate CardRow back to original position
+		if movement_controller and movement_controller.has_method("animate_card_row_up"):
+			movement_controller.animate_card_row_up()
+			print("WeaponHandler: Animating CardRow back to original position after shuriken aiming")
+		
+		# Restore zoom after aiming
+		if course.has_method("restore_zoom_after_aiming"):
+			course.restore_zoom_after_aiming()
+		
+		# Restore original club if it was stored
+		if has_meta("original_club"):
+			course.selected_club = get_meta("original_club")
+			remove_meta("original_club")
+	
 	# Input is handled by the course's _input function
 	
 	selected_card = null
@@ -1584,6 +1741,12 @@ func handle_input(event: InputEvent) -> bool:
 		
 		# For sniper mode, update aiming circle like normal shot placement
 		if selected_card and selected_card.name == "SniperCard" and card_effect_handler and card_effect_handler.course:
+			var course = card_effect_handler.course
+			if course.is_aiming_phase and course.aiming_circle:
+				course.update_aiming_circle()
+		
+		# For shuriken mode, update aiming circle like normal shot placement
+		if selected_card and selected_card.name == "ShurikenCard" and card_effect_handler and card_effect_handler.course:
 			var course = card_effect_handler.course
 			if course.is_aiming_phase and course.aiming_circle:
 				course.update_aiming_circle()

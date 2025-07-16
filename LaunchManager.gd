@@ -15,6 +15,7 @@ var is_selecting_height := false  # New state for height selection phase
 var is_knife_mode := false  # Track if we're launching a knife instead of a ball
 var is_grenade_mode := false  # Track if we're launching a grenade instead of a ball
 var is_spear_mode := false  # Track if we're launching a spear instead of a ball
+var is_shuriken_mode := false  # Track if we're launching a shuriken instead of a ball
 
 # Launch constants
 const MAX_LAUNCH_POWER := 1200.0
@@ -315,6 +316,74 @@ func exit_spear_mode() -> void:
 	is_spear_mode = false
 	
 	# Clear spear reference (reuses throwing_knife variable)
+	throwing_knife = null
+	
+	# Restore golf ball reference from stored reference or find one in scene
+	if previous_golf_ball and is_instance_valid(previous_golf_ball):
+		golf_ball = previous_golf_ball
+	else:
+		# Fallback: find any valid ball in the scene
+		var balls = get_tree().get_nodes_in_group("balls")
+		for ball in balls:
+			if is_instance_valid(ball):
+				golf_ball = ball
+				break
+	previous_golf_ball = null
+	
+	# Exit launch phase to return to normal game state
+	exit_launch_phase()
+
+func enter_shuriken_mode() -> void:
+	"""Enter shuriken throwing mode"""
+	is_shuriken_mode = true
+	selected_club = "ShurikenCard"  # Use ShurikenCard club stats for shuriken throwing
+	
+	# Store the current golf ball reference before entering shuriken mode
+	previous_golf_ball = golf_ball
+	
+	# Create character-specific shuriken data based on strength
+	var character_strength = player_stats.get("strength", 0)
+	var base_max_distance = 2000.0  # Half power for shuriken (4000 / 2)
+	var strength_multiplier = 1.0 + (character_strength * 0.25)  # +25% per strength point
+	var max_distance = base_max_distance * strength_multiplier
+	
+	# Set up character-specific shuriken data
+	club_data = {
+		"ShurikenCard": {
+			"max_distance": max_distance,
+			"min_distance": 200.0,
+			"trailoff_forgiveness": 0.8,
+			"is_putter": false,
+			"min_height": 20.0,       # Medium-high min height for shurikens
+			"max_height": 300.0       # Medium-high max height for shurikens
+		}
+	}
+	
+	# For shuriken mode, launch immediately without entering launch phase
+	if is_shuriken_mode:
+		print("LaunchManager: Shuriken mode - launching immediately")
+		
+		# Calculate launch parameters for immediate launch
+		var sprite = player_node.get_node_or_null("Sprite2D")
+		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
+		var player_center = player_node.global_position + player_size / 2
+		var direction = (chosen_landing_spot - player_center).normalized()
+		var distance = player_center.distance_to(chosen_landing_spot)
+		
+		# Use full power for immediate launch (like grenade launcher at 100% charge)
+		var final_power = club_data.get("ShurikenCard", {}).get("max_distance", 2000.0)
+		var height = 50.0  # Fixed height for shuriken (matching the shuriken's starting height)
+		
+		# Launch the shuriken immediately
+		launch_shuriken(direction, final_power, height)
+	else:
+		enter_launch_phase()
+
+func exit_shuriken_mode() -> void:
+	"""Exit shuriken throwing mode"""
+	is_shuriken_mode = false
+	
+	# Clear shuriken reference (reuses throwing_knife variable)
 	throwing_knife = null
 	
 	# Restore golf ball reference from stored reference or find one in scene
@@ -750,6 +819,97 @@ func launch_spear(launch_direction: Vector2, final_power: float, height: float, 
 	# Exit launch phase to transition to ball flying phase
 	exit_launch_phase()
 
+func launch_shuriken(launch_direction: Vector2, final_power: float, height: float, launch_spin: float = 0.0, spin_strength_category: int = 0):
+	"""Launch the shuriken with the specified parameters"""
+	golf_ball = null
+	var existing_shuriken = null
+	var shurikens = get_tree().get_nodes_in_group("shurikens")
+	
+	# Find an available shuriken in the scene (not landed)
+	for shuriken in shurikens:
+		if is_instance_valid(shuriken):
+			# Check if this shuriken is available (not landed)
+			var is_available = false
+			if shuriken.has_method("is_in_flight"):
+				is_available = shuriken.is_in_flight()
+			elif "landed_flag" in shuriken:
+				is_available = not shuriken.landed_flag
+			else:
+				# If we can't determine if it's landed, assume it's available
+				is_available = true
+			
+			if is_available:
+				existing_shuriken = shuriken
+				break
+
+	if not existing_shuriken:
+		# Create a new shuriken instance
+		var shuriken_scene = preload("res://Weapons/Shuriken.tscn")
+		existing_shuriken = shuriken_scene.instantiate()
+		
+		# Add shuriken to groups for smart optimization
+		existing_shuriken.add_to_group("shurikens")
+		existing_shuriken.add_to_group("collision_objects")
+		
+		# Add to the CameraContainer like golf balls
+		if card_effect_handler and card_effect_handler.course:
+			var camera_container = card_effect_handler.course.get_node_or_null("CameraContainer")
+			if camera_container:
+				camera_container.add_child(existing_shuriken)
+				existing_shuriken.global_position = player_node.global_position
+			else:
+				# Fallback to course if CameraContainer not found
+				card_effect_handler.course.add_child(existing_shuriken)
+				existing_shuriken.global_position = player_node.global_position
+		else:
+			return
+
+	# Use the existing shuriken
+	throwing_knife = existing_shuriken  # Reuse throwing_knife variable for shuriken
+
+	# Set shuriken properties using character-specific shuriken stats
+	var shuriken_club_info = club_data.get("ShurikenCard", {
+		"max_distance": 2000.0,  # Half power for shuriken
+		"min_distance": 200.0,
+		"trailoff_forgiveness": 0.8
+	})
+	throwing_knife.chosen_landing_spot = chosen_landing_spot
+	throwing_knife.set_club_info(shuriken_club_info)
+
+	# Calculate time percentage for the shuriken
+	var time_percent = charge_time / max_charge_time
+	time_percent = clamp(time_percent, 0.0, 1.0)
+	throwing_knife.set_time_percentage(time_percent)
+
+	# Calculate correct launch direction from shuriken to target
+	var direction = (chosen_landing_spot - throwing_knife.global_position).normalized()
+	print("Shuriken launch - chosen_landing_spot: ", chosen_landing_spot, " shuriken_position: ", throwing_knife.global_position)
+	print("Shuriken launch - direction: ", direction, " power: ", final_power, " height: ", height)
+	
+	# Play throw sound
+	if throwing_knife.has_method("get_node_or_null"):
+		var throw_sound = throwing_knife.get_node_or_null("Throw")
+		if throw_sound:
+			throw_sound.play()
+			print("Playing shuriken throw sound")
+	
+	# Launch the shuriken
+	throwing_knife.launch(direction, final_power, height, launch_spin, spin_strength_category)
+
+	# Set ball in flight state (reusing the same system)
+	set_ball_in_flight(true)
+
+	# Keep camera focused on player (don't follow shuriken)
+	if card_effect_handler and card_effect_handler.course:
+		card_effect_handler.course.camera_following_ball = false
+
+	# Store reference and emit signal
+	self.throwing_knife = throwing_knife
+	emit_signal("ball_launched", throwing_knife)  # Reuse ball_launched signal for compatibility
+	
+	# Exit launch phase to transition to ball flying phase
+	exit_launch_phase()
+
 func show_power_meter():
 	# Check if PowerMeter is already visible from the course (height phase)
 	var course = card_effect_handler.course if card_effect_handler else null
@@ -1028,6 +1188,8 @@ func handle_input(event: InputEvent) -> bool:
 						launch_grenade(launch_direction, final_power, launch_height)
 					elif is_spear_mode:
 						launch_spear(launch_direction, final_power, launch_height)
+					elif is_shuriken_mode:
+						launch_shuriken(launch_direction, final_power, launch_height)
 					else:
 						launch_golf_ball(launch_direction, final_power, launch_height)
 					hide_power_meter()
@@ -1055,6 +1217,9 @@ func handle_input(event: InputEvent) -> bool:
 					elif is_spear_mode:
 						print("LaunchManager: Launching spear")
 						launch_spear(launch_direction, final_power, launch_height)
+					elif is_shuriken_mode:
+						print("LaunchManager: Launching shuriken")
+						launch_shuriken(launch_direction, final_power, launch_height)
 					else:
 						print("LaunchManager: Launching golf ball")
 						launch_golf_ball(launch_direction, final_power, launch_height)
@@ -1140,6 +1305,13 @@ func calculate_launch_direction() -> Vector2:
 		for spear in spears:
 			if is_instance_valid(spear):
 				projectile_position = spear.global_position
+				break
+	elif is_shuriken_mode:
+		# For shurikens, check shuriken instances
+		var shurikens = get_tree().get_nodes_in_group("shurikens")
+		for shuriken in shurikens:
+			if is_instance_valid(shuriken):
+				projectile_position = shuriken.global_position
 				break
 	else:
 		# For balls, check ball instances

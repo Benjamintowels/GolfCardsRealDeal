@@ -2018,7 +2018,7 @@ func _update_swing_animation() -> void:
 	var course = get_tree().current_scene
 	if course and course.has_method("get_launch_manager"):
 		var launch_manager = course.get_launch_manager()
-		if launch_manager and (launch_manager.is_knife_mode or launch_manager.is_grenade_mode or launch_manager.is_spear_mode):
+		if launch_manager and (launch_manager.is_knife_mode or launch_manager.is_grenade_mode or launch_manager.is_spear_mode or launch_manager.is_shuriken_mode):
 			# Don't play swing animation for weapons
 			return
 	

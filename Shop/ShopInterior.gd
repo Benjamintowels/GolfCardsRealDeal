@@ -134,6 +134,7 @@ func load_shop_items():
 		preload("res://Cards/KickB.tres"),
 		preload("res://Cards/PunchB.tres"),
 		preload("res://Cards/ThrowingKnife.tres"),
+		preload("res://Cards/ShurikenCard.tres"),
 		preload("res://Cards/PistolCard.tres"),
 		preload("res://Cards/BurstShot.tres"),
 		preload("res://Cards/ShotgunCard.tres"),

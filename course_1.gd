@@ -159,6 +159,7 @@ var club_max_distances = {
 	"PitchingWedge": 200.0,  # Same as old Putter settings
 	"ShotgunCard": 350.0,    # Shotgun range
 	"SniperCard": 1500.0,    # Sniper range
+	"ShurikenCard": 2000.0,  # Shuriken range (half power)
 	"GrenadeLauncherClubCard": 2000.0  # Grenade launcher range (much higher velocity!)
 }
 
@@ -239,6 +240,13 @@ var club_data = {
 		"trailoff_forgiveness": 0.8,  # Forgiving for weapon
 		"min_height": 15.0,       # Medium min height
 		"max_height": 200.0       # Medium max height
+	},
+	"ShurikenCard": {
+		"max_distance": 2000.0,   # Half power for shuriken (4000 / 2)
+		"min_distance": 100.0,    # Reasonable min distance
+		"trailoff_forgiveness": 0.8,  # Forgiving for weapon
+		"min_height": 20.0,       # Medium min height
+		"max_height": 300.0       # Medium max height
 	}
 }
 
@@ -1663,14 +1671,16 @@ func update_aiming_circle():
 		else:
 			circle.modulate = Color(1, 0, 0, 0.8)  # Red
 	
-	var target_camera_pos = clamped_position
-	# Add vertical offset of -300 pixels to show player near bottom of screen and better see arc apex
-	target_camera_pos.y -= 120
-	var current_camera_pos = camera.position
-	var camera_speed = 5.0  # Adjust for faster/slower camera movement
-	
-	var new_camera_pos = current_camera_pos.lerp(target_camera_pos, camera_speed * get_process_delta_time())
-	camera.position = new_camera_pos
+	# Only move camera if not in shuriken mode (keep camera focused on player for shuriken)
+	if selected_club != "ShurikenCard":
+		var target_camera_pos = clamped_position
+		# Add vertical offset of -300 pixels to show player near bottom of screen and better see arc apex
+		target_camera_pos.y -= 120
+		var current_camera_pos = camera.position
+		var camera_speed = 5.0  # Adjust for faster/slower camera movement
+		
+		var new_camera_pos = current_camera_pos.lerp(target_camera_pos, camera_speed * get_process_delta_time())
+		camera.position = new_camera_pos
 	
 	
 	var distance_label = aiming_circle.get_node_or_null("DistanceLabel")
@@ -4895,10 +4905,11 @@ func _on_ball_launched(ball: Node2D):
 	# Set up ball properties that require course_1.gd references
 	ball.map_manager = map_manager
 	
-	# Check if this is a throwing knife, grenade, spear, or golf ball
+	# Check if this is a throwing knife, grenade, spear, shuriken, or golf ball
 	var is_knife = ball.has_method("is_throwing_knife") and ball.is_throwing_knife()
 	var is_grenade = ball.has_method("is_grenade_weapon") and ball.is_grenade_weapon()
 	var is_spear = ball.has_method("is_spear_weapon") and ball.is_spear_weapon()
+	var is_shuriken = ball.has_method("is_shuriken_weapon") and ball.is_shuriken_weapon()
 	
 	if is_knife:
 		# Handle throwing knife
@@ -4966,6 +4977,28 @@ func _on_ball_launched(ball: Node2D):
 		# Set camera following
 		camera_following_ball = true
 		print("Camera following set to true for spear")
+		
+	elif is_shuriken:
+		# Handle shuriken
+		print("=== HANDLING SHURIKEN LAUNCH ===")
+		print("Shuriken detected - connecting to shuriken signal handlers")
+		
+		# Play shuriken throw sound when launched
+		var throw_sound = ball.get_node_or_null("Throw")
+		if throw_sound:
+			throw_sound.play()
+			print("Playing shuriken throw sound")
+		else:
+			print("Warning: Throw sound not found on shuriken")
+		
+		# Connect shuriken signals
+		ball.landed.connect(_on_shuriken_landed)
+		ball.shuriken_hit_target.connect(_on_shuriken_hit_target)
+		ball.out_of_bounds.connect(_on_shuriken_out_of_bounds)
+		
+		# Set camera following
+		camera_following_ball = true
+		print("Camera following set to true for shuriken")
 		
 	else:
 		# Handle golf ball
@@ -5218,6 +5251,81 @@ func _on_spear_hit_target(target: Node2D) -> void:
 		if spear_impact:
 			spear_impact.play()
 			print("Playing spear impact sound")
+
+func _on_shuriken_landed(final_tile: Vector2i) -> void:
+	"""Handle when a shuriken lands"""
+	print("Shuriken landed at tile:", final_tile)
+	
+	# Clean up weapon mode immediately when shuriken lands
+	if weapon_handler and weapon_handler.is_in_weapon_mode():
+		weapon_handler.exit_weapon_mode()
+		print("Exited weapon mode after shuriken landing")
+	
+	# Set game phase to move immediately to allow movement cards
+	game_phase = "move"
+	print("Set game phase to 'move' after shuriken landing")
+	
+	# Update smart optimizer state immediately when shuriken lands
+	if smart_optimizer:
+		smart_optimizer.update_game_state("move", false, false, false)
+	
+	# Keep camera focused on player (don't follow shuriken)
+	camera_following_ball = false
+	
+	# Exit shuriken mode immediately
+	if launch_manager:
+		launch_manager.exit_shuriken_mode()
+		print("Exited shuriken mode after shuriken landing")
+
+func _on_shuriken_hit_target(target: Node2D) -> void:
+	"""Handle when a shuriken hits a target"""
+	print("Shuriken hit target:", target.name)
+	
+	# Clean up weapon mode immediately when shuriken hits target
+	if weapon_handler and weapon_handler.is_in_weapon_mode():
+		weapon_handler.exit_weapon_mode()
+		print("Exited weapon mode after shuriken hit target")
+	
+	# Set game phase to move immediately to allow movement cards
+	game_phase = "move"
+	print("Set game phase to 'move' after shuriken hit target")
+	
+	# Play shuriken impact sound
+	var shuriken = target.get_parent() if target.get_parent() else target
+	if shuriken and shuriken.has_method("is_shuriken") and shuriken.is_shuriken:
+		var throw_sound = shuriken.get_node_or_null("Throw")
+		if throw_sound:
+			throw_sound.play()
+			print("Playing shuriken impact sound")
+
+func _on_shuriken_out_of_bounds() -> void:
+	"""Handle when a shuriken goes out of bounds"""
+	print("Shuriken went out of bounds")
+	
+	# Clean up weapon mode immediately when shuriken goes out of bounds
+	if weapon_handler and weapon_handler.is_in_weapon_mode():
+		weapon_handler.exit_weapon_mode()
+		print("Exited weapon mode after shuriken out of bounds")
+	
+	# Update smart optimizer state
+	if smart_optimizer:
+		smart_optimizer.update_game_state("move", false, false, false)
+	
+	# Set game phase to move to allow movement cards
+	game_phase = "move"
+	
+	# Set ball in flight to false to allow movement cards
+	if launch_manager:
+		launch_manager.set_ball_in_flight(false)
+		print("Set ball_in_flight to false after shuriken out of bounds")
+	
+	# Exit shuriken mode immediately
+	if launch_manager:
+		launch_manager.exit_shuriken_mode()
+		print("Exited shuriken mode after out of bounds")
+	
+	# Reset camera following
+	camera_following_ball = false
 
 func setup_global_death_sound() -> void:
 	"""Setup global death sound that can be heard from anywhere"""
