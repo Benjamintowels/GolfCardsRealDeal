@@ -16,6 +16,7 @@ radius = 24.7191
 script = ExtResource("1_fas8m")
 
 [node name="MeteorSprite" type="Sprite2D" parent="."]
+z_index = 1145
 texture_filter = 1
 position = Vector2(-53, -68)
 texture = ExtResource("1_74lpd")
@@ -57,3 +58,6 @@ stream = ExtResource("3_6ibsf")
 
 [node name="YSortPoint" type="Marker2D" parent="."]
 position = Vector2(0, -9)
+
+[node name="TopHeight" type="Marker2D" parent="."]
+position = Vector2(0, -14)

@@ -75,11 +75,21 @@ func update_camera_state(camera_position: Vector2):
 		# Mark all static objects for Y-sort update when camera moves
 		add_object_for_ysort_update("camera_moved")
 		
-		# Also update explosions when camera moves
+		# Also update explosions and meteors when camera moves
 		var explosions = get_tree().get_nodes_in_group("explosions")
 		for explosion in explosions:
 			if is_instance_valid(explosion):
 				Global.update_object_y_sort(explosion, "objects")
+		
+		var meteors = get_tree().get_nodes_in_group("meteors")
+		for meteor in meteors:
+			if is_instance_valid(meteor):
+				Global.update_object_y_sort(meteor, "objects")
+		
+		var craters = get_tree().get_nodes_in_group("craters")
+		for crater in craters:
+			if is_instance_valid(crater):
+				Global.update_object_y_sort(crater, "objects")
 
 func smart_process(delta: float, course_instance):
 	"""Smart _process function that only runs expensive operations when needed"""
@@ -209,6 +219,18 @@ func update_ysort_systems(course_instance, current_time: float):
 	for explosion in explosions:
 		if is_instance_valid(explosion):
 			Global.update_object_y_sort(explosion, "objects")
+	
+	# Update meteors Y-sort when they exist
+	var meteors = get_tree().get_nodes_in_group("meteors")
+	for meteor in meteors:
+		if is_instance_valid(meteor):
+			Global.update_object_y_sort(meteor, "objects")
+	
+	# Update craters Y-sort when they exist
+	var craters = get_tree().get_nodes_in_group("craters")
+	for crater in craters:
+		if is_instance_valid(crater):
+			Global.update_object_y_sort(crater, "objects")
 	
 	# Update camera position for spatial calculations
 	update_camera_state(course_instance.camera.global_position)

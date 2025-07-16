@@ -238,7 +238,7 @@ func update_all_objects_y_sort(ysort_objects: Array):
 
 func update_all_group_objects_y_sort():
 	"""
-	Update Y-sort for all objects in specific groups (explosions, etc.)
+	Update Y-sort for all objects in specific groups (explosions, meteors, etc.)
 	This handles dynamically created objects that aren't in the ysort_objects array
 	"""
 	# Update explosions
@@ -246,6 +246,18 @@ func update_all_group_objects_y_sort():
 	for explosion in explosions:
 		if is_instance_valid(explosion):
 			update_object_y_sort(explosion, "objects")
+	
+	# Update meteors
+	var meteors = get_tree().get_nodes_in_group("meteors")
+	for meteor in meteors:
+		if is_instance_valid(meteor):
+			update_object_y_sort(meteor, "objects")
+	
+	# Update craters
+	var craters = get_tree().get_nodes_in_group("craters")
+	for crater in craters:
+		if is_instance_valid(crater):
+			update_object_y_sort(crater, "objects")
 	
 	# Update other group objects as needed
 	var bonfires = get_tree().get_nodes_in_group("ysort_objects")

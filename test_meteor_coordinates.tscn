@@ -1,0 +1,47 @@
+[gd_scene load_steps=2 format=3 uid="uid://caa682e0gu7g4"]
+
+[ext_resource type="Script" path="res://test_meteor_coordinates.gd" id="1_test"]
+
+[node name="MeteorCoordinateTest" type="Node2D"]
+script = ExtResource("1_test")
+
+[node name="TestButton" type="Button" parent="."]
+offset_left = 10.0
+offset_top = 10.0
+offset_right = 200.0
+offset_bottom = 50.0
+text = "Test Coordinates"
+
+[node name="Instructions" type="Label" parent="."]
+offset_left = 10.0
+offset_top = 60.0
+offset_right = 400.0
+offset_bottom = 120.0
+text = "This test verifies meteor coordinate conversion.
+Press SPACE or click the button to run the test.
+Check the console for coordinate calculations."
+
+[node name="GridVisual" type="Node2D" parent="."]
+position = Vector2(50, 150)
+
+[node name="GridTile_10_5" type="ColorRect" parent="GridVisual"]
+offset_left = 480.0
+offset_top = 240.0
+offset_right = 528.0
+offset_bottom = 288.0
+color = Color(1, 0, 0, 0.5)
+
+[node name="GridLabel" type="Label" parent="GridVisual"]
+offset_left = 480.0
+offset_top = 290.0
+offset_right = 528.0
+offset_bottom = 310.0
+text = "(10,5)"
+horizontal_alignment = 1
+
+[node name="WorldPositionLabel" type="Label" parent="."]
+offset_left = 10.0
+offset_top = 130.0
+offset_right = 400.0
+offset_bottom = 150.0
+text = "Grid position (10,5) should be converted to world coordinates with camera offset" 
