@@ -131,12 +131,14 @@ func _ready():
 	
 	if world_turn_manager:
 		print("Found WorldTurnManager: ", world_turn_manager.name)
-		# Connect to turn signals (registration handled by boss manager)
+		# Register with WorldTurnManager
+		world_turn_manager.register_npc(self)
+		# Connect to turn signals
 		world_turn_manager.npc_turn_started.connect(_on_turn_started)
 		world_turn_manager.npc_turn_ended.connect(_on_turn_ended)
-		print("✓ GangMember connected to WorldTurnManager signals")
+		print("✓ GangMember registered with WorldTurnManager")
 	else:
-		print("✗ ERROR: Could not connect to WorldTurnManager")
+		print("✗ ERROR: Could not register with WorldTurnManager")
 		print("Tried paths: ", possible_paths)
 	
 	# Initialize state machine
