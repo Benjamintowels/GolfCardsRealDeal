@@ -21,6 +21,10 @@ Global="*res://Global.gd"
 Deck="*res://DeckManager.gd"
 FadeManager="*res://FadeManager.gd"
 
+[display]
+
+window/size/mode=3
+
 [editor]
 
 movie_writer/movie_file="C:/Users/TowelsPC/Documents/GolfCards1.avi"
