@@ -1217,22 +1217,29 @@ func show_reward_info(reward_data: Resource, reward_type: String):
 	"""Show reward information in the InfoBox"""
 	var infobox = get_tree().current_scene.get_node_or_null("UILayer/InfoBoxBasic")
 	if infobox and infobox.has_method("show_info"):
-		var reward_info = reward_data.name
+		var reward_info = ""
 		
-		# Add type-specific information
+		# Get the name based on the type of resource
 		if reward_data is CardData:
+			reward_info = reward_data.name
 			reward_info += "\nType: " + reward_data.effect_type
 			reward_info += "\nStrength: " + str(reward_data.get_effective_strength())
 			if reward_data.is_upgraded():
 				reward_info += "\n" + reward_data.get_upgrade_description()
 		elif reward_data is EquipmentData:
+			reward_info = reward_data.name
 			if reward_data.description:
 				reward_info += "\n" + reward_data.description
 		elif reward_data is BagData:
+			reward_info = "Bag Upgrade"
 			reward_info += "\nBag Upgrade - Level " + str(reward_data.level)
 		elif reward_type == "looty":
+			reward_info = "$Looty"
 			var amount = reward_data.get_meta("looty_amount", 15)
 			reward_info += "\n$Looty Amount: " + str(amount)
+		else:
+			# Fallback for unknown resource types
+			reward_info = "Unknown Reward"
 		
 		# Add reward type information
 		reward_info += "\nReward Type: " + reward_type.capitalize()
