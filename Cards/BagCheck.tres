@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="CardData" load_steps=3 format=3 uid="uid://bqx8y7n2k3m5f"]
+
+[ext_resource type="Script" uid="uid://b1c024jgv23kk" path="res://Cards/CardData.gd" id="1_0dhqr"]
+[ext_resource type="Texture2D" uid="uid://b38r588sres0j" path="res://Cards/BagCheck.png" id="1_8qkak"]
+
+[resource]
+script = ExtResource("1_0dhqr")
+name = "BagCheck"
+effect_type = "BagAdjust"
+effect_strength = 1
+image = ExtResource("1_8qkak")
+level = 1
+max_level = 2
+upgrade_cost = 100
+price = 75
+default_tier = 2
+movement_bonus = 1
+attack_bonus = 1
+weapon_shots_bonus = 1
+effect_bonus = 1
+metadata/_custom_type_script = "uid://b1c024jgv23kk"

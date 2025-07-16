@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="CardData" load_steps=3 format=3 uid="uid://614flogqiyal"]
+
+[ext_resource type="Script" uid="uid://b1c024jgv23kk" path="res://Cards/CardData.gd" id="1_0oci4"]
+[ext_resource type="Texture2D" uid="uid://b38r588sres0j" path="res://Cards/BagCheck.png" id="1_oan7y"]
+
+[resource]
+script = ExtResource("1_0oci4")
+name = "BagCheckCard"
+effect_type = "ClubAdjust"
+effect_strength = 1
+image = ExtResource("1_oan7y")
+level = 1
+max_level = 2
+upgrade_cost = 100
+price = 100
+default_tier = 1
+movement_bonus = 1
+attack_bonus = 1
+weapon_shots_bonus = 1
+effect_bonus = 1
+metadata/_custom_type_script = "uid://b1c024jgv23kk"

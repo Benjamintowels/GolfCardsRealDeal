@@ -63,6 +63,9 @@ func handle_card_effect(card: CardData) -> bool:
 	elif card.effect_type == "Vampire":
 		handle_vampire_effect(card)
 		return true
+	elif card.effect_type == "BagAdjust":
+		handle_bag_adjust_effect(card)
+		return true
 	
 	return false
 
@@ -997,6 +1000,68 @@ func handle_vampire_effect(card: CardData):
 	remove_specific_card_button(card)
 	
 	print("Vampire effect activated")
+
+func handle_bag_adjust_effect(card: CardData):
+	"""Handle BagAdjust effect - show dialog to choose a club for this shot"""
+	print("CardEffectHandler: Handling BagAdjust card:", card.name)
+	
+	# Create and show the bag check dialog
+	var bag_check_dialog_scene = preload("res://BagCheckDialog.tscn")
+	var bag_check_dialog = bag_check_dialog_scene.instantiate()
+	
+	# Add to UI layer
+	var ui_layer = course.get_node_or_null("UILayer")
+	if ui_layer:
+		ui_layer.add_child(bag_check_dialog)
+	else:
+		course.add_child(bag_check_dialog)
+	
+	# Connect signals
+	bag_check_dialog.club_selected.connect(_on_bag_check_club_selected)
+	bag_check_dialog.dialog_closed.connect(_on_bag_check_dialog_closed)
+	
+	# Show the dialog
+	bag_check_dialog.show_bag_check_dialog()
+	
+	# Handle card discard - could be from hand or bag pile
+	if course.deck_manager.hand.has(card):
+		course.deck_manager.discard(card)
+		course.card_stack_display.animate_card_discard(card.name)
+		course.update_deck_display()
+	else:
+		# Card is from bag pile during club selection - just animate discard
+		course.card_stack_display.animate_card_discard(card.name)
+		print("BagCheck card used from bag pile")
+	
+	# Remove only the specific card button, not the entire hand
+	remove_specific_card_button(card)
+	
+	print("BagAdjust effect activated - dialog shown")
+
+func _on_bag_check_club_selected(selected_club: CardData):
+	"""Handle when a club is selected from the bag check dialog"""
+	print("CardEffectHandler: Player selected club from bag check dialog:", selected_club.name)
+	
+	# Set the temporary club for the next shot
+	if course.has_method("set_temporary_club"):
+		course.set_temporary_club(selected_club)
+		print("Temporary club set:", selected_club.name)
+	else:
+		print("Warning: Course does not have set_temporary_club method")
+	
+	# Update the deck display to show the card was used
+	if course.has_method("update_deck_display"):
+		course.update_deck_display()
+	
+	# Update the movement buttons to show the remaining cards
+	if course.has_method("create_movement_buttons"):
+		course.create_movement_buttons()
+	
+	print("BagAdjust effect completed - temporary club set, player can continue turn")
+
+func _on_bag_check_dialog_closed():
+	"""Handle when the bag check dialog is closed"""
+	print("CardEffectHandler: Bag check dialog closed")
 
 func _handle_call_of_the_wild_effect(card: CardData):
 	"""Handle the specific Call of the Wild card effect"""

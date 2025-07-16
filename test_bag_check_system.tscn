@@ -1,0 +1,41 @@
+[gd_scene load_steps=4 format=3 uid="uid://bqx8y7n2k3m5h"]
+
+[ext_resource type="Script" path="res://test_bag_check_system.gd" id="1_test_script"]
+[ext_resource type="Script" path="res://CardEffectHandler.gd" id="2_card_effect_handler"]
+[ext_resource type="Script" path="res://DeckManager.gd" id="3_deck_manager"]
+
+[node name="BagCheckTest" type="Node2D"]
+script = ExtResource("1_test_script")
+
+[node name="CardEffectHandler" type="Node" parent="."]
+script = ExtResource("2_card_effect_handler")
+
+[node name="DeckManager" type="Node" parent="."]
+script = ExtResource("3_deck_manager")
+
+[node name="CurrentDeckManager" type="Node" parent="."]
+script = ExtResource("current_deck_manager")
+
+[node name="UI" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="Instructions" type="Label" parent="UI"]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = -100.0
+offset_right = 400.0
+offset_bottom = -10.0
+text = "BagCheck System Test
+
+Press SPACE to run test again
+Press R to reset test
+
+Check console for test results"
+horizontal_alignment = 1
+vertical_alignment = 1 

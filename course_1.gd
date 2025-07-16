@@ -149,6 +149,8 @@ var is_aiming_phase: bool = false
 
 # Club selection variables
 var selected_club: String = ""
+var temporary_club: CardData = null  # Temporary club from BagCheck card
+var bag_check_active: bool = false  # Track if BagCheck effect is active
 var club_max_distances = {
 	"Driver": 1200.0,        # Longest distance
 	"Hybrid": 1050.0,        # Slightly less than Driver
@@ -3723,6 +3725,8 @@ func draw_club_cards() -> void:
 		child.queue_free()
 	movement_buttons.clear()
 	
+	# Note: BagCheck temporary club will be handled after normal club drawing
+	
 	# Clear existing action cards from hand before drawing club cards
 	var cards_to_remove: Array[CardData] = []
 	for card in deck_manager.hand:
@@ -3747,6 +3751,14 @@ func draw_club_cards() -> void:
 		print("PutterHelp equipment detected - adding virtual putter card")
 		putter_help_active = deck_manager.add_virtual_putter_to_hand()
 	
+	# Check for BagCheck temporary club and add it as an extra option
+	bag_check_active = false
+	if temporary_club != null:
+		print("BagCheck temporary club detected - adding as extra option:", temporary_club.name)
+		bag_check_active = true
+		# Add the temporary club to the hand temporarily for selection
+		deck_manager.hand.append(temporary_club)
+	
 	# Then get available clubs from the hand
 	var available_clubs = deck_manager.hand.filter(func(card): return deck_manager.is_club_card(card))
 	if Global.putt_putt_mode:
@@ -3755,11 +3767,14 @@ func draw_club_cards() -> void:
 			return club_info.get("is_putter", false)
 		)
 	
-	# Calculate how many clubs we should show total (including virtual putter if active)
+	# Calculate how many clubs we should show total (including virtual putter and BagCheck if active)
 	var total_clubs_to_show = final_club_count
 	if putter_help_active:
 		total_clubs_to_show += 1  # Add one more slot for the virtual putter
 		print("PutterHelp active - total clubs to show:", total_clubs_to_show)
+	if bag_check_active:
+		total_clubs_to_show += 1  # Add one more slot for the BagCheck club
+		print("BagCheck active - total clubs to show:", total_clubs_to_show)
 	
 	total_clubs_to_show = max(1, min(total_clubs_to_show, available_clubs.size()))
 	print("Available clubs in hand:", available_clubs.map(func(card): return card.name))
@@ -3836,6 +3851,24 @@ func draw_club_cards() -> void:
 			btn.add_child(equipment_indicator)
 			print("Added PutterHelp indicator to putter card")
 		
+		# Add BagCheck indicator if this is the BagCheck temporary club
+		if bag_check_active and club_name == temporary_club.name:
+			# Create a small BagCheck indicator in the top-right corner
+			var bag_check_indicator = Label.new()
+			bag_check_indicator.text = "BAG"
+			bag_check_indicator.add_theme_font_size_override("font_size", 8)
+			bag_check_indicator.add_theme_color_override("font_color", Color.YELLOW)
+			bag_check_indicator.add_theme_constant_override("outline_size", 1)
+			bag_check_indicator.add_theme_color_override("font_outline_color", Color.BLACK)
+			bag_check_indicator.position = Vector2(btn.custom_minimum_size.x - 25, 5)
+			bag_check_indicator.size = Vector2(20, 20)
+			bag_check_indicator.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			bag_check_indicator.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+			bag_check_indicator.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			bag_check_indicator.z_index = 1  # Ensure it appears on top
+			btn.add_child(bag_check_indicator)
+			print("Added BagCheck indicator to temporary club card")
+		
 		btn.mouse_filter = Control.MOUSE_FILTER_STOP
 		btn.focus_mode = Control.FOCUS_NONE
 		btn.z_index = 10
@@ -3891,6 +3924,11 @@ func _on_club_card_pressed(club_name: String, club_info: Dictionary, button: Tex
 		deck_manager.discard(selected_card)
 		print("Discarded selected club card:", club_name, "to club discard pile")
 	
+	# Check if this was the BagCheck temporary club and clear the effect
+	if bag_check_active and club_name == temporary_club.name:
+		print("BagCheck temporary club used - clearing effect")
+		clear_temporary_club()
+	
 	# Discard all remaining club cards from hand to club discard pile
 	var remaining_club_cards: Array[CardData] = []
 	for card in deck_manager.hand:
@@ -3906,6 +3944,19 @@ func _on_club_card_pressed(club_name: String, club_info: Dictionary, button: Tex
 		child.queue_free()
 	movement_buttons.clear()
 	enter_aiming_phase()
+
+func set_temporary_club(club_data: CardData):
+	"""Set a temporary club from BagCheck card effect"""
+	print("Course: Setting temporary club:", club_data.name)
+	temporary_club = club_data
+
+func clear_temporary_club():
+	"""Clear the temporary club after use"""
+	print("Course: Clearing temporary club")
+	temporary_club = null
+	bag_check_active = false
+
+
 
 func _on_player_moved_to_tile(new_grid_pos: Vector2i) -> void:
 	player_grid_pos = new_grid_pos
