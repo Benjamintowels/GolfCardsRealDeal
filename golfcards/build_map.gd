@@ -178,6 +178,125 @@ func is_valid_position_for_squirrel(pos: Vector2i, layout: Array) -> bool:
 			return false
 	return true
 
+func is_valid_position_for_generator_strict(pos: Vector2i, layout: Array, placed_objects: Array) -> bool:
+	"""Check if a position is valid for generator switch placement (strict rules)"""
+	if pos.y < 0 or pos.y >= layout.size() or pos.x < 0 or pos.x >= layout[0].size():
+		return false
+	var tile_type = layout[pos.y][pos.x]
+	# Only allow placement on Base tiles, not on special tiles
+	if tile_type != "Base":
+		return false
+	
+	# Check for minimum spacing from other placed objects
+	for placed_pos in placed_objects:
+		var distance = max(abs(pos.x - placed_pos.x), abs(pos.y - placed_pos.y))
+		if distance < 4:  # Minimum 4 tiles from other objects
+			return false
+	
+	# Rule 2: Must be at least 2 tiles away from trees
+	# Rule 4: Must be at least 2 tiles away from tees
+	for dy in range(-2, 3):  # Check 2 tiles in all directions
+		for dx in range(-2, 3):
+			if dx == 0 and dy == 0:
+				continue
+			var check_x = pos.x + dx
+			var check_y = pos.y + dy
+			if check_x >= 0 and check_y >= 0 and check_y < layout.size() and check_x < layout[check_y].size():
+				var check_tile = layout[check_y][check_x]
+				# Don't place too close to trees specifically
+				if check_tile == "T":  # Tree tile
+					var dist = max(abs(dx), abs(dy))
+					if dist < 2:  # Must be at least 2 tiles from trees
+						return false
+				# Don't place too close to tees
+				elif check_tile == "Tee":  # Tee tile
+					var dist = max(abs(dx), abs(dy))
+					if dist < 2:  # Must be at least 2 tiles from tees
+						return false
+				# Also avoid other obstacles
+				elif check_tile in ["W", "S", "P"]:  # Water, Sand, Pin
+					var dist = max(abs(dx), abs(dy))
+					if dist < 3:  # Minimum 3 tiles from other obstacles
+						return false
+	
+	return true
+
+func is_valid_position_for_generator(pos: Vector2i, layout: Array, placed_objects: Array) -> bool:
+	"""Check if a position is valid for generator switch placement (extra safety checks)"""
+	if pos.y < 0 or pos.y >= layout.size() or pos.x < 0 or pos.x >= layout[0].size():
+		return false
+	var tile_type = layout[pos.y][pos.x]
+	# Only allow placement on Base tiles, not on special tiles
+	if tile_type != "Base":
+		return false
+	
+	# Check for minimum spacing from other placed objects (extra safety)
+	for placed_pos in placed_objects:
+		var distance = max(abs(pos.x - placed_pos.x), abs(pos.y - placed_pos.y))
+		if distance < 6:  # Larger minimum spacing for generator
+			return false
+	
+	# Check for minimum spacing from trees, water, and other obstacles
+	for dy in range(-3, 4):  # Check 3 tiles in all directions
+		for dx in range(-3, 4):
+			if dx == 0 and dy == 0:
+				continue
+			var check_x = pos.x + dx
+			var check_y = pos.y + dy
+			if check_x >= 0 and check_y >= 0 and check_y < layout.size() and check_x < layout[check_y].size():
+				var check_tile = layout[check_y][check_x]
+				# Don't place too close to trees, water, or other obstacles
+				if check_tile in ["T", "W", "S", "P"]:
+					var dist = max(abs(dx), abs(dy))
+					if dist < 3:  # Minimum 3 tiles from obstacles
+						return false
+	
+	return true
+
+func find_safe_generator_position_strict(layout: Array, placed_objects: Array) -> Vector2i:
+	"""Find a safe position for the generator switch using strict rules"""
+	var safe_positions = []
+	
+	# Look for safe positions on the left side of the course
+	for y in range(2, layout.size() - 2):  # Avoid edges
+		for x in range(2, min(10, layout[0].size() - 2)):  # Left side, max 10 tiles from edge
+			var test_pos = Vector2i(x, y)
+			if is_valid_position_for_generator_strict(test_pos, layout, placed_objects):
+				safe_positions.append(test_pos)
+	
+	if safe_positions.size() > 0:
+		# Choose the leftmost safe position
+		var best_pos = safe_positions[0]
+		for pos in safe_positions:
+			if pos.x < best_pos.x:
+				best_pos = pos
+		return best_pos
+	
+	# Ultimate fallback: middle of the course
+	return Vector2i(2, layout.size() / 2)
+
+func find_safe_generator_position(layout: Array, placed_objects: Array) -> Vector2i:
+	"""Find a safe position for the generator switch on the left side of the course"""
+	var left_side_positions = []
+	
+	# Look for safe positions on the left side of the course
+	for y in range(2, layout.size() - 2):  # Avoid edges
+		for x in range(2, min(8, layout[0].size() - 2)):  # Left side, max 8 tiles from edge
+			var test_pos = Vector2i(x, y)
+			if is_valid_position_for_generator(test_pos, layout, placed_objects):
+				left_side_positions.append(test_pos)
+	
+	if left_side_positions.size() > 0:
+		# Choose the leftmost safe position
+		var best_pos = left_side_positions[0]
+		for pos in left_side_positions:
+			if pos.x < best_pos.x:
+				best_pos = pos
+		return best_pos
+	
+	# Ultimate fallback: middle of the course
+	return Vector2i(2, layout.size() / 2)
+
 func is_valid_position_for_bonfire(pos: Vector2i, layout: Array) -> bool:
 	if pos.y < 0 or pos.y >= layout.size() or pos.x < 0 or pos.x >= layout[0].size():
 		return false
@@ -395,8 +514,11 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 			generator_switches_placed += 1
 		generator_fairway_positions.remove_at(generator_index)
 	
-	# Add generator puzzle data for hole 1 (testing)
-	if current_hole == 0:
+	# Generator puzzle configuration - easily change which hole gets the puzzle
+	var GENERATOR_PUZZLE_HOLE = 2  # 0 = hole 1, 1 = hole 2, 2 = hole 3, etc.
+	
+	# Add generator puzzle data for the configured hole
+	if current_hole == GENERATOR_PUZZLE_HOLE:
 		# Find fairway positions to create a proper barrier
 		var fairway_positions: Array = []
 		for y in layout.size():
@@ -404,23 +526,110 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 				if layout[y][x] == "F":  # Fairway tile
 					fairway_positions.append(Vector2i(x, y))
 		
-		# Find a good position for the generator (on the left side of the fairway, near tees)
-		var generator_pos = Vector2i(3, 4)  # Left side, near tees
+		# Find tee positions for generator placement
+		var tee_positions: Array = []
+		for y in layout.size():
+			for x in layout[y].size():
+				if layout[y][x] == "Tee":  # Tee tile
+					tee_positions.append(Vector2i(x, y))
 		
-		# Find fairway positions that would create a good barrier
-		# We want pylons that straddle the fairway to create a vertical force field
+		# Dynamically calculate generator position using specific rules
+		var generator_pos = Vector2i.ZERO
+		if tee_positions.size() > 0:
+			# Find the topmost tee position (highest Y value = top of screen)
+			var top_tee = tee_positions[0]
+			for tee_pos in tee_positions:
+				if tee_pos.y < top_tee.y:  # Lower Y = higher on screen
+					top_tee = tee_pos
+			
+			# Rule 1: Generator must be on a row above the top tee row
+			var target_row = top_tee.y - 1  # One row above the top tee
+			
+			# Calculate the middle column of the fairway for pylon placement reference
+			var fairway_middle_x = 0
+			if fairway_positions.size() > 0:
+				var min_x = fairway_positions[0].x
+				var max_x = fairway_positions[0].x
+				for pos in fairway_positions:
+					min_x = min(min_x, pos.x)
+					max_x = max(max_x, pos.x)
+				fairway_middle_x = (min_x + max_x) / 2
+			else:
+				fairway_middle_x = layout[0].size() / 2
+			
+			# Rule 2: Must be at least 2 tiles away from trees
+			# Rule 3: Must be on the LEFT side of the fairway (tee side)
+			var potential_positions = []
+			var max_generator_x = fairway_middle_x - 2  # Must be left of fairway middle
+			
+			for x in range(2, max_generator_x):  # Only check positions left of fairway middle
+				var test_pos = Vector2i(x, target_row)
+				if is_valid_position_for_generator_strict(test_pos, layout, placed_objects):
+					potential_positions.append(test_pos)
+			
+			if potential_positions.size() > 0:
+				# Choose the rightmost position among valid positions (closest to fairway but still on tee side)
+				generator_pos = potential_positions[0]
+				for pos in potential_positions:
+					if pos.x > generator_pos.x:
+						generator_pos = pos
+			else:
+				# Try the row above that if no valid positions found
+				target_row = top_tee.y - 2
+				for x in range(2, max_generator_x):
+					var test_pos = Vector2i(x, target_row)
+					if is_valid_position_for_generator_strict(test_pos, layout, placed_objects):
+						potential_positions.append(test_pos)
+				
+				if potential_positions.size() > 0:
+					generator_pos = potential_positions[0]
+					for pos in potential_positions:
+						if pos.x > generator_pos.x:
+							generator_pos = pos
+				else:
+					# Ultimate fallback: find any safe position on the left side
+					generator_pos = find_safe_generator_position_strict(layout, placed_objects)
+		else:
+			# Fallback: find any safe position
+			generator_pos = find_safe_generator_position_strict(layout, placed_objects)
+		
+		# Dynamically calculate pylon positions to create a vertical barrier
 		var pylon_positions: Array = []
 		
-		# For hole 1, place pylons at (15, 2) and (15, 8) to create a vertical barrier
-		# This puts pylons above and below the fairway at column 15
-		pylon_positions.append(Vector2i(15, 2))  # Above fairway
-		pylon_positions.append(Vector2i(15, 8))  # Below fairway
+		if fairway_positions.size() > 0:
+			# Find the middle of the fairway horizontally
+			var min_x = fairway_positions[0].x
+			var max_x = fairway_positions[0].x
+			for pos in fairway_positions:
+				min_x = min(min_x, pos.x)
+				max_x = max(max_x, pos.x)
+			
+			var middle_x = (min_x + max_x) / 2
+			
+			# Find the vertical range of the fairway
+			var min_y = fairway_positions[0].y
+			var max_y = fairway_positions[0].y
+			for pos in fairway_positions:
+				min_y = min(min_y, pos.y)
+				max_y = max(max_y, pos.y)
+			
+			# Place pylons above and below the fairway at the middle column
+			var pylon1_y = max(1, min_y - 2)  # Above fairway
+			var pylon2_y = min(layout.size() - 2, max_y + 2)  # Below fairway
+			
+			pylon_positions.append(Vector2i(middle_x, pylon1_y))
+			pylon_positions.append(Vector2i(middle_x, pylon2_y))
+		else:
+			# Fallback: place pylons in the middle of the course
+			var middle_x = layout[0].size() / 2
+			pylon_positions.append(Vector2i(middle_x, 2))
+			pylon_positions.append(Vector2i(middle_x, layout.size() - 3))
 		
 		positions["generator_puzzle"] = {
 			"generator_pos": generator_pos,
 			"pylon_positions": pylon_positions
 		}
-		print("🔧 RANDOM PLACEMENT: Added generator_puzzle data for hole 1")
+		print("🔧 RANDOM PLACEMENT: Added generator_puzzle data for hole %d" % (GENERATOR_PUZZLE_HOLE + 1))
 		print("  - Generator at:", generator_pos)
 		print("  - Pylons at:", pylon_positions)
 	

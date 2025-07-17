@@ -48,8 +48,23 @@ func _on_area_entered(area: Area2D):
 	"""Handle collisions with the generator switch area"""
 	var projectile = area.get_parent()
 	
+	# Only process if this is a valid projectile (golf ball, ghost ball, or throwing knife)
+	if not projectile:
+		return
+	
+	# Check if this is a golf ball or ghost ball by checking for velocity method/property
+	var is_golf_ball = projectile.has_method("get_velocity") or "velocity" in projectile
+	var is_throwing_knife = projectile.has_method("is_throwing_knife") and projectile.is_throwing_knife()
+	
+	# Only process golf balls, ghost balls, and throwing knives - ignore trees and other objects
+	if not (is_golf_ball or is_throwing_knife):
+		print("=== GENERATOR SWITCH: Ignoring non-projectile collision ===")
+		print("Colliding object:", projectile.name if projectile else "Unknown")
+		print("Object type:", projectile.get_class() if projectile else "Unknown")
+		return
+	
 	# Check if this is a golf ball or ghost ball
-	if projectile and (projectile.has_method("get_velocity") or "velocity" in projectile):
+	if is_golf_ball:
 		# Check if ball is hitting the bottom half of the generator switch
 		var ball_pos = projectile.global_position
 		var switch_pos = global_position
@@ -87,7 +102,7 @@ func _on_area_entered(area: Area2D):
 			_reflect_off_generator_switch(projectile)
 	
 	# Handle throwing knives and other projectiles
-	elif projectile and projectile.has_method("is_throwing_knife") and projectile.is_throwing_knife():
+	elif is_throwing_knife:
 		_handle_area_collision(projectile)
 
 func _on_area_exited(area: Area2D):
