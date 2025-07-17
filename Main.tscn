@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3 uid="uid://wyu3udwngros"]
+[gd_scene load_steps=14 format=3 uid="uid://wyu3udwngros"]
 
 [ext_resource type="Script" uid="uid://ct4bebh7dhisi" path="res://Main.gd" id="1_r0du0"]
 [ext_resource type="Texture2D" uid="uid://bdmpunqtl77ic" path="res://ClubHouse/ClubHouseStart.png" id="3_wkp8b"]
@@ -12,6 +12,7 @@
 [ext_resource type="AudioStream" uid="uid://d3arwob15mnkt" path="res://Sounds/CloseDoor.mp3" id="10_20pc6"]
 [ext_resource type="Texture2D" uid="uid://c5m7m06j7yols" path="res://ClubHouse/TableWooden.png" id="11_20pc6"]
 [ext_resource type="Texture2D" uid="uid://c1vpbijigd3m6" path="res://UI/WoodenDoor.png" id="12_5vvyt"]
+[ext_resource type="PackedScene" uid="uid://cuj4dcwcb5bwf" path="res://ClubHouse/FlippyTheDolphin.tscn" id="13_c6i3y"]
 
 [node name="Main" type="Control"]
 layout_mode = 3
@@ -108,7 +109,7 @@ texture = ExtResource("5_lgr22")
 [node name="Character1" type="Sprite2D" parent="UI"]
 texture_filter = 1
 position = Vector2(929, 857)
-scale = Vector2(0.23, 0.217)
+scale = Vector2(0.18, 0.17)
 texture = ExtResource("7_5vvyt")
 
 [node name="StartPuttPutt" type="Button" parent="UI"]
@@ -166,6 +167,9 @@ texture_pressed = ExtResource("12_5vvyt")
 texture_hover = ExtResource("12_5vvyt")
 texture_disabled = ExtResource("12_5vvyt")
 texture_focused = ExtResource("12_5vvyt")
+
+[node name="FlippyTheDolphin" parent="." instance=ExtResource("13_c6i3y")]
+position = Vector2(1342, 768)
 
 [connection signal="pressed" from="UI/StartPuttPutt" to="." method="_on_start_putt_putt_button_pressed"]
 [connection signal="pressed" from="UI/StartBack9" to="." method="_on_start_back_9_pressed"]

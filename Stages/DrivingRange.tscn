@@ -1,4 +1,4 @@
-[gd_scene load_steps=43 format=3 uid="uid://6slp5ieujdwe"]
+[gd_scene load_steps=44 format=3 uid="uid://6slp5ieujdwe"]
 
 [ext_resource type="Script" uid="uid://c4tuj2kube4yv" path="res://Stages/driving_range.gd" id="1_6olb2"]
 [ext_resource type="Script" uid="uid://dsaq6hn05kfxf" path="res://MapManager.gd" id="2_6olb2"]
@@ -11,6 +11,7 @@
 [ext_resource type="PackedScene" uid="uid://bwu8uv1gonuj7" path="res://NPC/WorldTurnManager.tscn" id="8_5x3hu"]
 [ext_resource type="PackedScene" uid="uid://c73sma1rss70c" path="res://UI/EndTurnButton.tscn" id="9_f7i13"]
 [ext_resource type="PackedScene" uid="uid://b63032ekv2fkj" path="res://CardStackDisplay.tscn" id="10_41om8"]
+[ext_resource type="PackedScene" uid="uid://7p5d4hyuqqtv" path="res://UI/DrivingRangeDistanceDialog.tscn" id="10_abmio"]
 [ext_resource type="Texture2D" uid="uid://ded1wjrmxwoqc" path="res://UI/BennyDeckPlaceholder.png" id="11_iv2pe"]
 [ext_resource type="PackedScene" uid="uid://be7et5h4g4wmw" path="res://UI/DrawCardsButton.tscn" id="12_jcc37"]
 [ext_resource type="PackedScene" uid="uid://cobc2ineqfb8e" path="res://UI/DrawClubCardsButton.tscn" id="13_whkd0"]
@@ -84,6 +85,10 @@ script = ExtResource("7_je7xe")
 
 [node name="UILayer" type="CanvasLayer" parent="."]
 
+[node name="DrivingRangeDistanceDialog" parent="UILayer" instance=ExtResource("10_abmio")]
+visible = false
+mouse_filter = 2
+
 [node name="ModShotRoom" type="Button" parent="UILayer"]
 visible = false
 offset_right = 123.0
@@ -122,10 +127,10 @@ texture = ExtResource("11_iv2pe")
 [node name="CharacterImage" type="TextureRect" parent="UILayer"]
 z_index = 6
 texture_filter = 1
-offset_left = 336.0
-offset_top = 887.0
-offset_right = 376.0
-offset_bottom = 927.0
+offset_left = 14.0
+offset_top = 888.0
+offset_right = 54.0
+offset_bottom = 928.0
 
 [node name="CardAnchor" type="Marker2D" parent="UILayer"]
 position = Vector2(250, 284)
@@ -179,6 +184,7 @@ theme_override_constants/separation = 75
 alignment = 1
 
 [node name="DrawCards" parent="UILayer" instance=ExtResource("12_jcc37")]
+visible = false
 z_index = 4096
 z_as_relative = false
 offset_left = 146.0
@@ -190,10 +196,10 @@ scale = Vector2(0.685, 0.685)
 [node name="DrawClubCards" parent="UILayer" instance=ExtResource("13_whkd0")]
 z_index = 301
 z_as_relative = false
-offset_left = 123.0
-offset_top = 612.0
-offset_right = 123.0
-offset_bottom = 612.0
+offset_left = -88.0
+offset_top = 593.0
+offset_right = -88.0
+offset_bottom = 593.0
 scale = Vector2(0.775, 0.775)
 
 [node name="PowerMeter" parent="UILayer" instance=ExtResource("14_abmio")]

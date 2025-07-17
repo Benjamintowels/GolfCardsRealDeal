@@ -50,7 +50,6 @@ var max_shot_distance: float = 800.0
 
 # Distance dialog
 var drive_distance_dialog: Control = null
-var distance_dialog_scene = preload("res://UI/DrivingRangeDistanceDialog.tscn")
 
 # Range flag for marking ball landing position
 var range_flag_scene = preload("res://Stages/RangeFlag.tscn")
@@ -843,93 +842,26 @@ func show_drive_distance_dialog():
 	# Check if this is a new record
 	var is_new_record = current_shot_distance > current_record_distance
 	
-	if drive_distance_dialog:
-		drive_distance_dialog.queue_free()
+	# Get the existing dialog from the scene
+	drive_distance_dialog = $UILayer/DrivingRangeDistanceDialog
 	
-	drive_distance_dialog = distance_dialog_scene.instantiate()
+	if not drive_distance_dialog:
+		print("ERROR: Could not find DrivingRangeDistanceDialog in scene")
+		return
 	
-	# Connect dialog signal
-	drive_distance_dialog.dialog_closed.connect(_on_drive_distance_dialog_closed)
+	# Connect dialog signal if not already connected
+	if not drive_distance_dialog.dialog_closed.is_connected(_on_drive_distance_dialog_closed):
+		drive_distance_dialog.dialog_closed.connect(_on_drive_distance_dialog_closed)
 	
 	# Show dialog with information
 	drive_distance_dialog.show_dialog(current_shot_distance, is_new_record, shots_taken + 1, max_shots)
-	
-	# Debug: Check if labels are accessible
-	print("DEBUG: Checking dialog labels...")
-	var distance_label = drive_distance_dialog.get_node_or_null("DialogBox/DistanceLabel")
-	var record_label = drive_distance_dialog.get_node_or_null("DialogBox/RecordLabel")
-	var shot_label = drive_distance_dialog.get_node_or_null("DialogBox/ShotLabel")
-	var instruction_label = drive_distance_dialog.get_node_or_null("DialogBox/InstructionLabel")
-	
-	print("DEBUG: DistanceLabel found:", distance_label != null)
-	print("DEBUG: RecordLabel found:", record_label != null)
-	print("DEBUG: ShotLabel found:", shot_label != null)
-	print("DEBUG: InstructionLabel found:", instruction_label != null)
 	
 	# Update record if it's a new record
 	if is_new_record:
 		current_record_distance = current_shot_distance
 		save_driving_range_record()
 	
-	# Add dialog to UI layer and ensure proper positioning
-	camera_container.add_child(drive_distance_dialog)
-	
-	# Debug: Print viewport and positioning information
-	var viewport_size = get_viewport_rect().size
-	print("DEBUG: Viewport size: ", viewport_size)
-	print("DEBUG: Camera container position: ", camera_container.position)
-	print("DEBUG: Camera container size: ", camera_container.size)
-	print("DEBUG: Camera container global position: ", camera_container.global_position)
-	
-	# Ensure dialog is properly centered and visible
-	drive_distance_dialog.visible = true
-	drive_distance_dialog.z_index = 1000  # Ensure it's on top
-	
-	# Set the dialog to cover the full viewport and center its content
-	drive_distance_dialog.size = viewport_size
-	drive_distance_dialog.position = Vector2.ZERO
-	
-	# Debug: Print dialog positioning information
-	print("DEBUG: Dialog size set to: ", drive_distance_dialog.size)
-	print("DEBUG: Dialog position set to: ", drive_distance_dialog.position)
-	print("DEBUG: Dialog global position: ", drive_distance_dialog.global_position)
-	
-	# Check if dialog has a DialogBox child and its positioning
-	var dialog_box = drive_distance_dialog.get_node_or_null("DialogBox")
-	if dialog_box:
-		print("DEBUG: DialogBox found - position: ", dialog_box.position, "size: ", dialog_box.size)
-		print("DEBUG: DialogBox global position: ", dialog_box.global_position)
-		
-		# Fix DialogBox positioning - center it within the dialog
-		var dialog_center = drive_distance_dialog.size / 2
-		var dialog_box_center = dialog_box.size / 2
-		var new_position = dialog_center - dialog_box_center
-		dialog_box.position = new_position
-		
-		print("DEBUG: DialogBox repositioned to: ", dialog_box.position)
-		print("DEBUG: DialogBox new global position: ", dialog_box.global_position)
-	else:
-		print("DEBUG: DialogBox not found in dialog scene")
-	
-	# Force layout update to ensure anchors work correctly
-	drive_distance_dialog.queue_redraw()
-	drive_distance_dialog.force_update_transform()
-	
-	# Ensure the background can receive input
-	var background = drive_distance_dialog.get_node_or_null("Background")
-	if background:
-		background.mouse_filter = Control.MOUSE_FILTER_STOP
-		print("DEBUG: Background found - mouse_filter set to STOP")
-		# Connect input handling if not already connected
-		if not background.gui_input.is_connected(_on_drive_distance_dialog_background_input):
-			background.gui_input.connect(_on_drive_distance_dialog_background_input)
-			print("DEBUG: Background input handler connected")
-		else:
-			print("DEBUG: Background input handler already connected")
-	else:
-		print("DEBUG: Background not found in dialog scene")
-	
-	print("Drive distance dialog added and positioned")
+	print("Drive distance dialog shown")
 
 func _on_drive_distance_dialog_closed():
 	"""Handle drive distance dialog closing"""
@@ -937,6 +869,9 @@ func _on_drive_distance_dialog_closed():
 	
 	# Increment shot counter
 	shots_taken += 1
+	
+	# Clear the dialog reference
+	drive_distance_dialog = null
 	
 	# Tween camera back to player
 	tween_camera_back_to_player()
@@ -1060,6 +995,11 @@ func save_driving_range_record():
 
 func _input(event):
 	"""Handle input events"""
+	# Handle escape key for pause menu
+	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+		show_pause_menu()
+		return
+	
 	if game_phase == "launch":
 		# Launch manager handles input
 		launch_manager.handle_input(event)
@@ -1081,6 +1021,124 @@ func _on_sweet_spot_hit():
 	"""Handle sweet spot hit"""
 	print("Driving Range: Sweet spot hit!")
 	# You can add visual/audio feedback here
+
+func show_pause_menu():
+	"""Show the pause menu dialog with Return to Clubhouse, Quit Game, and Cancel options"""
+	# Don't show if already showing a dialog
+	if get_tree().get_nodes_in_group("pause_menu").size() > 0:
+		return
+	
+	# Create the pause menu dialog
+	var pause_dialog = Control.new()
+	pause_dialog.name = "PauseMenu"
+	pause_dialog.add_to_group("pause_menu")
+	pause_dialog.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	pause_dialog.z_index = 3000
+	pause_dialog.mouse_filter = Control.MOUSE_FILTER_STOP
+	
+	# Background
+	var background = ColorRect.new()
+	background.color = Color(0, 0, 0, 0.8)
+	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	background.mouse_filter = Control.MOUSE_FILTER_STOP
+	pause_dialog.add_child(background)
+	
+	# Main container
+	var main_container = Control.new()
+	main_container.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	main_container.custom_minimum_size = Vector2(400, 300)
+	main_container.position = Vector2(-200, -150)
+	main_container.z_index = 3000
+	pause_dialog.add_child(main_container)
+	
+	# Panel background
+	var panel = ColorRect.new()
+	panel.color = Color(0.2, 0.2, 0.2, 0.95)
+	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	main_container.add_child(panel)
+	
+	# Border
+	var border = ColorRect.new()
+	border.color = Color(0.8, 0.8, 0.8, 0.6)
+	border.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	border.position = Vector2(-2, -2)
+	border.size += Vector2(4, 4)
+	border.z_index = -1
+	main_container.add_child(border)
+	
+	# Title
+	var title = Label.new()
+	title.text = "Driving Range Pause"
+	title.add_theme_font_size_override("font_size", 28)
+	title.add_theme_color_override("font_color", Color.WHITE)
+	title.add_theme_constant_override("outline_size", 2)
+	title.add_theme_color_override("font_outline_color", Color.BLACK)
+	title.position = Vector2(100, 30)
+	title.size = Vector2(200, 40)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	main_container.add_child(title)
+	
+	# Button container
+	var button_container = VBoxContainer.new()
+	button_container.position = Vector2(100, 100)
+	button_container.size = Vector2(200, 150)
+	button_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	main_container.add_child(button_container)
+	
+	# Return to Clubhouse button
+	var return_button = Button.new()
+	return_button.text = "Return to Clubhouse"
+	return_button.size = Vector2(200, 40)
+	return_button.pressed.connect(_on_pause_return_to_clubhouse_pressed.bind(pause_dialog))
+	button_container.add_child(return_button)
+	
+	# Quit Game button
+	var quit_game_button = Button.new()
+	quit_game_button.text = "Quit Game"
+	quit_game_button.size = Vector2(200, 40)
+	quit_game_button.pressed.connect(_on_quit_game_pressed)
+	button_container.add_child(quit_game_button)
+	
+	# Cancel button
+	var cancel_button = Button.new()
+	cancel_button.text = "Cancel"
+	cancel_button.size = Vector2(200, 40)
+	cancel_button.pressed.connect(_on_cancel_pause_pressed.bind(pause_dialog))
+	button_container.add_child(cancel_button)
+	
+	# Add to UI layer
+	var ui_layer = get_node_or_null("UILayer")
+	if ui_layer:
+		ui_layer.add_child(pause_dialog)
+	else:
+		add_child(pause_dialog)
+
+func _on_pause_return_to_clubhouse_pressed(pause_dialog: Control):
+	"""Handle Return to Clubhouse button press from pause menu"""
+	# Clean up camera tracking
+	cleanup_camera_tracking()
+	
+	# Remove camera from group
+	if camera and camera.is_in_group("camera"):
+		camera.remove_from_group("camera")
+	
+	# Clean up vertical parallax before leaving
+	if background_manager:
+		background_manager.cleanup_vertical_parallax()
+	
+	# Remove pause dialog
+	pause_dialog.queue_free()
+	
+	# Transition to Main.tscn
+	get_tree().change_scene_to_file("res://Main.tscn")
+
+func _on_quit_game_pressed():
+	"""Handle Quit Game button press"""
+	get_tree().quit()
+
+func _on_cancel_pause_pressed(pause_dialog: Control):
+	"""Handle Cancel button press"""
+	pause_dialog.queue_free()
 
 func build_driving_range_map(layout: Array) -> void:
 	"""Custom build map function for driving range - no StoneWall layers"""
@@ -1347,12 +1405,3 @@ func place_driving_range_objects(object_positions: Dictionary, layout: Array) ->
 		obstacle_layer.add_child(grass)
 	
 	build_map.update_all_ysort_z_indices()
-
-func _on_drive_distance_dialog_background_input(event: InputEvent):
-	"""Handle background click to close dialog (fallback for scene-based dialog)"""
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		print("Drive distance dialog background clicked - closing")
-		if drive_distance_dialog:
-			drive_distance_dialog.queue_free()
-			drive_distance_dialog = null
-		_on_drive_distance_dialog_closed()
