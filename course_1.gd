@@ -3,6 +3,7 @@ extends Control
 # WorldTurnManager integration
 signal player_turn_ended
 
+@onready var gimme_scene = $UILayer/Gimme
 @onready var character_image = $UILayer/CharacterImage
 @onready var character_label = $UILayer/CharacterLabel
 @onready var end_round_button = $UILayer/EndRoundButton
@@ -118,6 +119,10 @@ var block_amount := 0  # Current block points
 # Multi-hole game loop variables
 var round_scores := []  # Array to store scores for each hole
 var round_complete := false  # Flag to track if front 9 is complete
+
+# Gimme mechanic variables
+var gimme_active := false  # Track if gimme is currently active
+var gimme_ball: Node2D = null  # Reference to the ball that's in gimme range
 
 
 
@@ -504,6 +509,9 @@ func _ready() -> void:
 	# Connect reach ball button
 	if reach_ball_button:
 		reach_ball_button.reach_ball_pressed.connect(_on_reach_ball_pressed)
+	
+	# Initialize gimme button state
+	hide_gimme_button()
 
 
 	create_grid()
@@ -620,7 +628,9 @@ func _ready() -> void:
 	
 	# Connect weapon handler signals
 	weapon_handler.npc_shot.connect(_on_npc_shot)
+	var pin = find_pin_in_scene()
 	
+	call_deferred("_connect_pin_signals")
 	# Initialize background manager
 	if background_manager:
 		background_manager.set_camera_reference(camera)
@@ -1149,7 +1159,7 @@ func take_damage(amount: int) -> void:
 			clear_block()
 		
 		print("Block absorbed damage. Remaining damage to health:", damage_to_health)
-	
+
 	# Apply remaining damage to health
 	if health_bar and damage_to_health > 0:
 		health_bar.take_damage(damage_to_health)
@@ -1798,6 +1808,9 @@ func _on_golf_ball_landed(tile: Vector2i):
 	camera_following_ball = false
 	ball_landing_tile = tile
 	
+	# Note: Gimme detection is now handled by the Pin's GimmeArea Area2D
+	# The gimme_triggered signal will be connected and handled separately
+	
 	# Hide grenade launcher weapon now that golf ball has landed (if using GrenadeLauncherClubCard)
 	print("Golf ball landed - checking weapon handler:", weapon_handler != null, " weapon_instance:", weapon_handler.weapon_instance != null if weapon_handler else "N/A", " selected_club:", selected_club)
 	
@@ -1841,12 +1854,15 @@ func _on_golf_ball_landed(tile: Vector2i):
 		
 		# Check if player is already on the landing tile
 		if player_grid_pos == ball_landing_tile:
-			print("Player is already on the ball landing tile - showing club cards immediately")
-			# Player is already on the ball tile - show "Draw Club Cards" button immediately
+			print("Player is already on the ball landing tile - checking for gimme and showing buttons")
+			# Player is already on the ball tile - remove landing highlight
 			if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball) and launch_manager.golf_ball.has_method("remove_landing_highlight"):
 				launch_manager.golf_ball.remove_landing_highlight()
 			
-			# Show the "Draw Club Cards" button instead of waiting for movement
+			# Check if this ball is in gimme range
+			check_and_show_gimme_button()
+			
+			# Show the "Draw Club Cards" button
 			show_draw_club_cards_button()
 		else:
 			# Check if this ball was moved by RedJay - if so, don't show drive distance dialog
@@ -1889,7 +1905,173 @@ func _on_golf_ball_landed(tile: Vector2i):
 		print("Ball went in the hole - skipping drive distance dialog")
 		# Clear the ball reference since it's been destroyed
 		launch_manager.golf_ball = null
+
+# Removed check_gimme_condition function - now using Pin's GimmeArea Area2D for detection
+
+
+func trigger_gimme_sequence():
+	"""Trigger the gimme sequence with animations and sounds"""
+	print("=== TRIGGERING GIMME SEQUENCE ===")
 	
+	# Set gimme as active
+	gimme_active = true
+	
+	# Get the gimme scene
+	gimme_scene = $UILayer/Gimme
+	if not gimme_scene:
+		print("ERROR: Could not find Gimme scene")
+		return
+	
+	# Make sure the gimme scene is visible
+	gimme_scene.visible = true
+	print("Gimme scene made visible")
+	
+	# Play the gimme sounds
+	play_gimme_sounds()
+	
+	# Complete the hole with an extra stroke
+	complete_hole_with_gimme()
+
+func play_gimme_sounds():
+	"""Play the gimme sound effects"""
+	print("=== PLAYING GIMME SOUNDS ===")
+	
+	# Play SwingSoft sound
+	if swing_soft_sound:
+		swing_soft_sound.play()
+		print("Playing SwingSoft sound for gimme")
+	else:
+		print("ERROR: swing_soft_sound is null!")
+	
+	# Play HoleIn sound after SwingSoft
+	var hole_in_timer = get_tree().create_timer(0.3)
+	hole_in_timer.timeout.connect(func():
+		print("Playing HoleIn sound for gimme")
+		# Load and play HoleIn sound
+		var hole_in_sound = AudioStreamPlayer2D.new()
+		var hole_in_stream = load("res://Sounds/HoleIn.mp3")
+		if hole_in_stream:
+			hole_in_sound.stream = hole_in_stream
+			add_child(hole_in_sound)
+			hole_in_sound.play()
+			print("HoleIn sound played successfully")
+			
+			# Remove the sound player after it finishes
+			hole_in_sound.finished.connect(func():
+				hole_in_sound.queue_free()
+			)
+		else:
+			print("ERROR: Could not load HoleIn.mp3")
+	)
+
+func complete_hole_with_gimme():
+	"""Complete the hole with gimme (add extra stroke and show completion)"""
+	print("=== COMPLETING GIMME HOLE ===")
+	
+	# Add extra stroke for the gimme putt
+	hole_score += 1
+	print("Added gimme stroke - final hole score:", hole_score)
+	
+	# Clear the ball
+	if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball):
+		launch_manager.golf_ball.queue_free()
+		launch_manager.golf_ball = null
+	
+	# Hide the gimme button
+	hide_gimme_button()
+	
+	# Reset gimme state
+	gimme_active = false
+	gimme_ball = null
+	
+	# Show hole completion dialog
+	show_hole_completion_dialog()
+
+func clear_gimme_state():
+	"""Clear the gimme state when appropriate (new ball launched, hole completed, etc.)"""
+	print("=== CLEARING GIMME STATE ===")
+	gimme_ball = null
+	gimme_active = false
+	hide_gimme_button()
+	print("Gimme state cleared")
+
+func show_gimme_animation():
+	"""Show the gimme animation and play sounds"""
+	print("=== SHOWING GIMME ANIMATION ===")
+	
+	# Make gimme scene visible and animate it to the target position
+	gimme_scene.visible = true
+	print("Gimme scene made visible")
+	
+	# Create tween to animate gimme scene to target position
+	var tween = create_tween()
+	tween.set_parallel(true)
+	
+	# Animate position from current position (bottom of screen) to target position
+	var current_pos = gimme_scene.position
+	var target_pos = Vector2(451, 1018.0)  # Target position as specified (screen coordinates)
+	print("Animating gimme from", current_pos, "to", target_pos)
+	
+	tween.tween_property(gimme_scene, "position", target_pos, 0.8)
+	tween.tween_callback(func():
+		print("=== GIMME ANIMATION COMPLETE - PLAYING SOUNDS ===")
+		# Play SwingSoft sound
+		if swing_soft_sound:
+			swing_soft_sound.play()
+			print("Playing SwingSoft sound for gimme")
+		else:
+			print("ERROR: swing_soft_sound is null!")
+		
+		# Play HoleIn sound after SwingSoft
+		var hole_in_timer = get_tree().create_timer(0.3)
+		hole_in_timer.timeout.connect(func():
+			print("Playing HoleIn sound for gimme")
+			# Load and play HoleIn sound
+			var hole_in_sound = AudioStreamPlayer2D.new()
+			var hole_in_stream = load("res://Sounds/HoleIn.mp3")
+			if hole_in_stream:
+				hole_in_sound.stream = hole_in_stream
+				add_child(hole_in_sound)
+				hole_in_sound.play()
+				print("HoleIn sound played successfully")
+				
+				# Remove the sound player after it finishes
+				hole_in_sound.finished.connect(func():
+					hole_in_sound.queue_free()
+				)
+			else:
+				print("ERROR: Could not load HoleIn.mp3")
+		)
+	).set_delay(0.5)
+
+func complete_gimme_hole():
+	"""Complete the hole with gimme (add extra stroke and show completion)"""
+	print("=== COMPLETING GIMME HOLE ===")
+	
+	# Add extra stroke for the gimme putt
+	hole_score += 1
+	print("Added gimme stroke - final hole score:", hole_score)
+	
+	# Clear the ball
+	if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball):
+		launch_manager.golf_ball.queue_free()
+		launch_manager.golf_ball = null
+	
+	# Animate gimme scene back out of the way
+	if gimme_scene:
+		var tween = create_tween()
+		var hide_pos = gimme_scene.position + Vector2(0, 200)  # Move down to hide
+		tween.tween_property(gimme_scene, "position", hide_pos, 0.5)
+		tween.tween_callback(func():
+			gimme_scene.visible = false
+		)
+	
+	# Reset gimme state
+	gimme_active = false
+	
+	# Show hole completion dialog
+	show_hole_completion_dialog()
+
 func highlight_tee_tiles():
 	for y in grid_size.y:
 		for x in grid_size.x:
@@ -2726,11 +2908,16 @@ func _on_drive_distance_dialog_input(event: InputEvent) -> void:
 			drive_distance_dialog.queue_free()
 			drive_distance_dialog = null
 		
-		print("Setting game phase to 'move' and showing draw cards button")
-		game_phase = "move"
-		_update_player_mouse_facing_state()
-		draw_cards_button.visible = true
-		# Camera tween is already handled in the ball landing logic, so we don't need to call it here
+		# Check if gimme is active
+		if gimme_active:
+			print("=== GIMME DIALOG DISMISSED - COMPLETING HOLE ===")
+			complete_gimme_hole()
+		else:
+			print("Setting game phase to 'move' and showing draw cards button")
+			game_phase = "move"
+			_update_player_mouse_facing_state()
+			draw_cards_button.visible = true
+			# Camera tween is already handled in the ball landing logic, so we don't need to call it here
 
 func setup_swing_sounds() -> void:
 	swing_strong_sound = $SwingStrong
@@ -3575,6 +3762,16 @@ func reset_for_next_hole():
 	var entities = get_node_or_null("Entities")
 	if entities:
 		entities.re_register_all_npcs()
+		
+func _connect_pin_signals():
+	var pin = find_pin_in_scene()
+	if pin:
+		if not pin.gimme_triggered.is_connected(_on_gimme_triggered):
+			pin.gimme_triggered.connect(_on_gimme_triggered)
+		if not pin.gimme_ball_exited.is_connected(_on_gimme_ball_exited):
+			pin.gimme_ball_exited.connect(_on_gimme_ball_exited)
+	else:
+		print("Pin not found when trying to connect gimme signals!")
 
 func show_course_complete_dialog():
 	var dialog = AcceptDialog.new()
@@ -4102,9 +4299,12 @@ func _on_player_moved_to_tile(new_grid_pos: Vector2i) -> void:
 	
 	# Check if player is on an active ball tile
 	if waiting_for_player_to_reach_ball and player_grid_pos == ball_landing_tile:
-		# Player is on the ball tile - show "Draw Club Cards" button
+		# Player is on the ball tile - remove landing highlight
 		if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball) and launch_manager.golf_ball.has_method("remove_landing_highlight"):
 			launch_manager.golf_ball.remove_landing_highlight()
+		
+		# Check if this ball is in gimme range
+		check_and_show_gimme_button()
 		
 		# Show the "Draw Club Cards" button instead of automatically entering launch phase
 		show_draw_club_cards_button()
@@ -4118,6 +4318,64 @@ func _on_player_moved_to_tile(new_grid_pos: Vector2i) -> void:
 		else:
 			# Normal movement - exit movement mode
 			exit_movement_mode()
+
+func check_and_show_gimme_button():
+	"""Check if the current ball is in gimme range and show gimme button if so"""
+	print("=== CHECKING FOR GIMME BUTTON ===")
+	
+	# Check if we have a gimme ball and it's the current ball
+	if gimme_ball and gimme_ball == launch_manager.golf_ball and is_instance_valid(gimme_ball):
+		print("Gimme ball found and is current ball - showing gimme button")
+		show_gimme_button()
+	else:
+		print("No gimme ball or ball is not current - not showing gimme button")
+		hide_gimme_button()
+
+func show_gimme_button():
+	"""Show the gimme button"""
+	print("=== SHOWING GIMME BUTTON ===")
+	
+	# Get the gimme scene and button
+	gimme_scene = $UILayer/Gimme
+	if gimme_scene:
+		gimme_scene.visible = true
+		print("Gimme button made visible")
+		
+		# Connect the button press signal if not already connected
+		var gimme_button = gimme_scene.get_node_or_null("GimmeButton")
+		if gimme_button:
+			print("GimmeButton found:", gimme_button.name)
+			print("GimmeButton type:", gimme_button.get_class())
+			print("GimmeButton mouse_filter:", gimme_button.mouse_filter)
+			print("GimmeButton disabled:", gimme_button.disabled)
+			print("GimmeButton visible:", gimme_button.visible)
+			
+			if not gimme_button.pressed.is_connected(_on_gimme_button_pressed):
+				gimme_button.pressed.connect(_on_gimme_button_pressed)
+				print("Gimme button signal connected")
+			else:
+				print("Gimme button signal already connected")
+		else:
+			print("ERROR: Could not find GimmeButton within Gimme scene")
+	else:
+		print("ERROR: Could not find Gimme scene")
+
+func hide_gimme_button():
+	"""Hide the gimme button"""
+	if gimme_scene:
+		gimme_scene.visible = false
+		print("Gimme button hidden")
+
+func _on_gimme_button_pressed():
+	"""Handle gimme button press"""
+	print("=== GIMME BUTTON PRESSED ===")
+	print("Gimme button was successfully clicked!")
+	
+	# Hide the gimme button
+	hide_gimme_button()
+	
+	# Trigger the gimme sequence
+	trigger_gimme_sequence()
 
 func show_draw_club_cards_button() -> void:
 	"""Show the 'Draw Club Cards' button when player is on an active ball tile"""
@@ -5115,6 +5373,55 @@ func _on_hole_in_one(score: int):
 	
 	show_hole_completion_dialog()
 
+func _on_gimme_triggered(ball: Node2D):
+	"""Handle gimme detection when ball enters gimme area"""
+	print("=== GIMME DETECTED FROM PIN AREA ===")
+	print("Ball entered gimme area:", ball.name)
+	
+	# Store the gimme ball reference for later use
+	# The gimme button will be shown when the player reaches the ball
+	gimme_ball = ball
+
+func _on_gimme_ball_exited(ball: Node2D):
+	"""Handle when ball exits gimme area"""
+	print("=== GIMME BALL EXITED ===")
+	print("Ball exited gimme area:", ball.name)
+	print("Current gimme_ball:", gimme_ball.name if gimme_ball else "null")
+	print("Current launch_manager.golf_ball:", launch_manager.golf_ball.name if launch_manager.golf_ball else "null")
+	# Clear the gimme ball reference when the ball exits the gimme area
+	# This ensures that if the ball flies over the gimme area and lands elsewhere, 
+	# the gimme option is not available
+	if gimme_ball == ball:
+		gimme_ball = null
+		print("Cleared gimme ball reference - ball exited gimme area")
+		# Hide the gimme button if it's currently visible
+		hide_gimme_button()
+	else:
+		print("Ball that exited was not the tracked gimme ball - ignoring")
+		print("=== GIMME BALL EXITED ===")
+		print("Ball exited gimme area:", ball.name)
+		print("Current gimme_ball:", gimme_ball.name if gimme_ball else "null")
+		print("Current launch_manager.golf_ball:", launch_manager.golf_ball.name if launch_manager.golf_ball else "null")
+	
+	# Clear the gimme ball reference when the ball exits the gimme area
+	# This ensures that if the ball flies over the gimme area and lands elsewhere, 
+	# the gimme option is not available
+	if gimme_ball == ball:
+		gimme_ball = null
+		print("Cleared gimme ball reference - ball exited gimme area")
+		
+		# Hide the gimme button if it's currently visible
+		hide_gimme_button()
+	else:
+		print("Ball that exited was not the tracked gimme ball - ignoring")
+
+func find_pin_in_scene() -> Node2D:
+	"""Find the pin in the scene for gimme tracking"""
+	var pins = get_tree().get_nodes_in_group("pins")
+	if pins.size() > 0:
+		return pins[0]  # Return the first pin found
+	return null
+
 func _on_pin_flag_hit(ball: Node2D):
 	"""Handle pin flag hit - ball velocity has already been reduced by the pin"""
 	pass
@@ -5190,7 +5497,7 @@ func fix_ui_layers() -> void:
 		card_hand_anchor.z_index = 245  # Keep original z_index from scene file
 		card_hand_anchor.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Allow clicks to pass through to prevent blocking tile clicks
 		
-		# Ensure CardRow has lower z_index than DrawCardsButton
+		# Ensure CardRow has lower z-index than DrawCardsButton
 		var card_row = card_hand_anchor.get_node_or_null("CardRow")
 		if card_row:
 			card_row.z_index = 200  # Lower than DrawCardsButton (300)
@@ -5227,10 +5534,13 @@ func _on_scramble_complete(closest_ball_position: Vector2, closest_ball_tile: Ve
 	
 	# Check if player is already on the landing tile
 	if player_grid_pos == ball_landing_tile:
-		print("Player is already on the scramble ball landing tile - showing club cards immediately")
-		# Player is already on the ball tile - show "Draw Club Cards" button immediately
+		print("Player is already on the scramble ball landing tile - checking for gimme and showing buttons")
+		# Player is already on the ball tile - remove landing highlight
 		if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball) and launch_manager.golf_ball.has_method("remove_landing_highlight"):
 			launch_manager.golf_ball.remove_landing_highlight()
+		
+		# Check if this ball is in gimme range
+		check_and_show_gimme_button()
 		
 		# Show the "Draw Club Cards" button instead of waiting for movement
 		show_draw_club_cards_button()
@@ -5253,6 +5563,9 @@ func _on_scramble_complete(closest_ball_position: Vector2, closest_ball_tile: Ve
 
 # LaunchManager signal handlers
 func _on_ball_launched(ball: Node2D):
+	# Clear any existing gimme state when a new ball is launched
+	clear_gimme_state()
+	
 	# Set up ball properties that require course_1.gd references
 	ball.map_manager = map_manager
 	
@@ -5456,7 +5769,7 @@ func _on_launch_phase_exited():
 		
 		if not is_grenade_launcher:
 			weapon_handler.hide_weapon()
-	
+
 	# Check if we're in grenade mode and the grenade has already exploded
 	if launch_manager and launch_manager.is_grenade_mode:
 		# If grenade mode is still active, the grenade hasn't exploded yet
@@ -5797,7 +6110,7 @@ func check_player_fire_damage() -> void:
 			# Mark this fire tile as having damaged the player this turn
 			fire_tiles_that_damaged_player.append(fire_tile_pos)
 			player_took_damage = true
-	
+
 	if player_took_damage:
 		print("Player fire damage check complete - damage applied")
 
@@ -6004,6 +6317,9 @@ func show_draw_cards_button_for_turn_start() -> void:
 	if ball_landing_tile != Vector2i.ZERO:
 		waiting_for_player_to_reach_ball = true
 		print("waiting_for_player_to_reach_ball set to true for new turn")
+	
+	# Check if this ball is in gimme range
+	check_and_show_gimme_button()
 	
 	# Show the DrawCardsButton instead of automatically drawing cards
 	draw_cards_button.visible = true

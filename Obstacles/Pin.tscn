@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3 uid="uid://sblupej8nqta"]
+[gd_scene load_steps=9 format=3 uid="uid://sblupej8nqta"]
 
 [ext_resource type="Texture2D" uid="uid://dew7o75riveac" path="res://Obstacles/Pin.png" id="1_d4e4i"]
 [ext_resource type="Script" uid="uid://bwf6bw8ok5ff0" path="res://Obstacles/Pin.gd" id="1_ttkiq"]
@@ -11,6 +11,9 @@ radius = 15.0
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_sfb8c"]
 radius = 7.22954
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_fuhma"]
+radius = 100.154
 
 [node name="Pin" type="Node2D"]
 z_index = 1000
@@ -48,6 +51,13 @@ position = Vector2(3, -116)
 [node name="HoleArea" type="Area2D" parent="."]
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="HoleArea"]
-position = Vector2(1, 0)
-scale = Vector2(1.48, 0.758)
+position = Vector2(0.135, 0)
+scale = Vector2(1.08, 0.553)
 shape = SubResource("CircleShape2D_sfb8c")
+
+[node name="GimmeArea" type="Area2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="GimmeArea"]
+position = Vector2(0, -1)
+scale = Vector2(1, 0.72)
+shape = SubResource("CircleShape2D_fuhma")

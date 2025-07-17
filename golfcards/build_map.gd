@@ -711,8 +711,20 @@ func build_map_from_layout_base(layout: Array, place_pin: bool = true) -> void:
 						pin.hole_in_one.connect(Callable(get_parent(), "_on_hole_in_one"))
 				if pin.has_signal("pin_flag_hit"):
 					pin.pin_flag_hit.connect(_on_pin_flag_hit)
+				if pin.has_signal("gimme_triggered"):
+					# Connect gimme signal to parent's method
+					if get_parent() and get_parent().has_method("_on_gimme_triggered"):
+						pin.gimme_triggered.connect(Callable(get_parent(), "_on_gimme_triggered"))
+				if pin.has_signal("gimme_ball_exited"):
+					# Connect gimme ball exited signal to parent's method
+					if get_parent() and get_parent().has_method("_on_gimme_ball_exited"):
+						pin.gimme_ball_exited.connect(Callable(get_parent(), "_on_gimme_ball_exited"))
 				ysort_objects.append({"node": pin, "grid_pos": pin_pos})
 				update_all_ysort_z_indices()
+				
+				# Set the global pin position for gimme mechanic
+				Global.saved_pin_position = pin_pos
+				print("Pin placed at grid position:", pin_pos, " - Global.saved_pin_position set to:", Global.saved_pin_position)
 
 func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> void:
 	# Get TreeManager for random tree variations

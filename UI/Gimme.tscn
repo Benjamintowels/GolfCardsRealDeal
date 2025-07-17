@@ -1,0 +1,19 @@
+[gd_scene load_steps=3 format=3 uid="uid://kegh7lp2gmr5"]
+
+[ext_resource type="Texture2D" uid="uid://dlxmduo4aatmw" path="res://UI/Gimme.png" id="1_jfmcq"]
+[ext_resource type="Texture2D" uid="uid://c4b7jdiif45gr" path="res://UI/GimmeHover.png" id="2_vf5rc"]
+
+[node name="Gimme" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+
+[node name="GimmeButton" type="TextureButton" parent="."]
+texture_filter = 1
+layout_mode = 0
+offset_left = 6.0
+offset_top = -15.0
+offset_right = 6.0
+offset_bottom = -15.0
+texture_normal = ExtResource("1_jfmcq")
+texture_pressed = ExtResource("1_jfmcq")
+texture_hover = ExtResource("2_vf5rc")

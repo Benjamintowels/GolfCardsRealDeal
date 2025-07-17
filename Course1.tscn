@@ -1,4 +1,4 @@
-[gd_scene load_steps=34 format=3 uid="uid://dlq5ygh2wv33m"]
+[gd_scene load_steps=35 format=3 uid="uid://dlq5ygh2wv33m"]
 
 [ext_resource type="Script" uid="uid://d4hrfk75nrm45" path="res://course_1.gd" id="1_pe8tc"]
 [ext_resource type="Texture2D" uid="uid://cpe67sk2vh8me" path="res://EDGE.png" id="2_eymfu"]
@@ -14,6 +14,7 @@
 [ext_resource type="PackedScene" uid="uid://bwu8uv1gonuj7" path="res://NPC/WorldTurnManager.tscn" id="11_rkv8t"]
 [ext_resource type="Script" uid="uid://bwql8y8wd3qbr" path="res://CameraZoom.gd" id="11_zoom"]
 [ext_resource type="PackedScene" uid="uid://dna6q0m23qdsl" path="res://Bags/Bag.tscn" id="12_bag"]
+[ext_resource type="PackedScene" uid="uid://kegh7lp2gmr5" path="res://UI/Gimme.tscn" id="13_1r40f"]
 [ext_resource type="PackedScene" path="res://InventoryDialog.tscn" id="13_inventory"]
 [ext_resource type="Script" uid="uid://1gtesn5q77m4" path="res://golfcards/build_map.gd" id="14_build_map"]
 [ext_resource type="Texture2D" uid="uid://ded1wjrmxwoqc" path="res://UI/BennyDeckPlaceholder.png" id="15_er2ln"]
@@ -89,6 +90,15 @@ script = ExtResource("26_coin_explosion")
 [node name="WorldTurnManager" parent="." instance=ExtResource("11_rkv8t")]
 
 [node name="UILayer" type="CanvasLayer" parent="."]
+
+[node name="Gimme" parent="UILayer" instance=ExtResource("13_1r40f")]
+z_index = 301
+z_as_relative = false
+offset_left = 541.0
+offset_top = 367.0
+offset_right = 581.0
+offset_bottom = 407.0
+scale = Vector2(0.685, 0.685)
 
 [node name="ModShotRoom" type="Button" parent="UILayer"]
 visible = false

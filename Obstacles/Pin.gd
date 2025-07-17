@@ -2,6 +2,12 @@ extends BaseObstacle
 
 signal hole_in_one(score: int)
 signal pin_flag_hit(ball: Node2D)  # New signal for pin flag hits
+signal gimme_triggered(ball: Node2D)  # New signal for gimme detection
+signal gimme_ball_exited(ball: Node2D)  # New signal for when ball exits gimme area
+
+# Gimme tracking variables
+var ball_in_gimme_area := false
+var current_gimme_ball: Node2D = null
 
 # Pin flag reflection settings
 const HOLE_IN_HEIGHT_MAX = 5.0  # Maximum height for hole-in
@@ -30,6 +36,20 @@ func _ready():
 		print("Hole collision area connected")
 	else:
 		print("No HoleArea found - hole-in detection may not work properly")
+	
+	# Connect to the gimme Area2D's area_entered and area_exited signals (for gimme detection)
+	var gimme_area = get_node_or_null("GimmeArea")
+	if gimme_area:
+		# Set collision layer to 0 so it doesn't interfere with physics
+		gimme_area.collision_layer = 0
+		# Set collision mask to 1 so it can detect golf balls on layer 1
+		gimme_area.collision_mask = 1
+		
+		gimme_area.connect("area_entered", _on_gimme_area_entered)
+		gimme_area.connect("area_exited", _on_gimme_area_exited)
+		print("Gimme collision area connected")
+	else:
+		print("No GimmeArea found - gimme detection may not work properly")
 	
 	# Set collision height based on TopHeight Marker2D position (if it exists)
 	var top_height_marker = get_node_or_null("TopHeight")
@@ -128,3 +148,73 @@ func _on_hole_area_entered(area: Area2D):
 			
 			# Note: Removed direct call to show_hole_completion_dialog() 
 			# The course will handle this through the signal connection
+
+func _on_gimme_area_entered(area: Area2D):
+	"""Handle collisions with the gimme area (for gimme detection)"""
+	print("=== GIMME AREA ENTERED ===")
+	print("Area that entered:", area.name)
+	print("Area parent:", area.get_parent().name if area.get_parent() else "null")
+	
+	# Check if the area belongs to a golf ball
+	if area.get_parent() and area.get_parent().has_method("get_height"):
+		var golf_ball = area.get_parent()
+		var ball_height = golf_ball.get_height()
+		
+		# Check if this is a ghost ball (ghost balls have is_ghost property set to true)
+		if "is_ghost" in golf_ball and golf_ball.is_ghost:
+			return
+		
+		# Track that this ball is in the gimme area
+		ball_in_gimme_area = true
+		current_gimme_ball = golf_ball
+		print("Ball entered gimme area:", golf_ball.name, "ball height:", ball_height)
+		
+		# Always check if the ball is NOT in the hole area (regardless of height)
+		var hole_area = get_node_or_null("HoleArea")
+		if hole_area:
+			# Get the hole area's collision shape to check if ball is inside it
+			var hole_shape = hole_area.get_node_or_null("CollisionShape2D")
+			if hole_shape and hole_shape.shape:
+				# Check if the ball's position is within the hole area
+				var ball_pos = golf_ball.global_position
+				var hole_center = hole_area.global_position
+				var hole_radius = hole_shape.shape.radius * hole_shape.scale.x  # Assuming circular hole
+				
+				var distance_to_hole_center = ball_pos.distance_to(hole_center)
+				
+				if distance_to_hole_center > hole_radius:
+					# Ball is in gimme area but NOT in the hole - trigger gimme
+					print("=== GIMME AREA TRIGGERED ===")
+					print("Ball in gimme area but outside hole - ball height:", ball_height, "distance to hole center:", distance_to_hole_center, "hole radius:", hole_radius, "golf ball:", golf_ball.name)
+					
+					# Emit signal for gimme detection
+					gimme_triggered.emit(golf_ball)
+				else:
+					print("Ball in gimme area but INSIDE hole - not triggering gimme")
+			else:
+				print("ERROR: Could not get hole shape for gimme check")
+		else:
+			print("ERROR: No HoleArea found for gimme check")
+
+func _on_gimme_area_exited(area: Area2D):
+	"""Handle when ball exits the gimme area"""
+	print("=== GIMME AREA EXITED ===")
+	print("Area that exited:", area.name)
+	print("Area parent:", area.get_parent().name if area.get_parent() else "null")
+	
+	# Check if the area belongs to a golf ball
+	if area.get_parent() and area.get_parent().has_method("get_height"):
+		var golf_ball = area.get_parent()
+		
+		# Check if this is the ball we were tracking
+		if golf_ball == current_gimme_ball:
+			ball_in_gimme_area = false
+			current_gimme_ball = null
+			print("Ball exited gimme area:", golf_ball.name, "- gimme tracking cleared")
+			
+			# Emit signal to notify course that ball is no longer in gimme range
+			gimme_ball_exited.emit(golf_ball)
+		else:
+			print("Ball exited gimme area but wasn't the tracked ball:", golf_ball.name)
+	else:
+		print("Area that exited was not a golf ball - ignoring")
