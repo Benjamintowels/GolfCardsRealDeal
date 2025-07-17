@@ -309,6 +309,7 @@ var object_scene_map := {
 	"BONFIRE": preload("res://Interactables/Bonfire.tscn"),
 	"SUITCASE": preload("res://MapSuitCase.tscn"),
 	"WRAITH": preload("res://NPC/Bosses/Wraith.tscn"),
+	"GENERATOR": preload("res://Interactables/GeneratorSwitch.tscn"),
 }
 
 var object_to_tile_mapping := {
@@ -326,6 +327,7 @@ var object_to_tile_mapping := {
 	"SQUIRREL": "Base",
 	"BONFIRE": "Base",
 	"WRAITH": "G",
+	"GENERATOR": "Base",
 }
 
 # Add these variables after the existing object_scene_map and object_to_tile_mapping
@@ -370,8 +372,10 @@ func clear_existing_objects() -> void:
 			var is_police = obstacle.name == "Police" or (obstacle.get_script() and "police.gd" in str(obstacle.get_script().get_path()))
 			# Check for zombies by name or script
 			var is_zombie = obstacle.name == "ZombieGolfer" or (obstacle.get_script() and "ZombieGolfer.gd" in str(obstacle.get_script().get_path()))
+			# Check for generator switches by name or script
+			var is_generator_switch = obstacle.name == "GeneratorSwitch" or (obstacle.get_script() and "generator_switch.gd" in str(obstacle.get_script().get_path()))
 			
-			if is_tree or is_shop or is_pin or is_oil_drum or is_stone_wall or is_police or is_zombie:
+			if is_tree or is_shop or is_pin or is_oil_drum or is_stone_wall or is_police or is_zombie or is_generator_switch:
 				keys_to_remove.append(pos)
 	
 	for pos in keys_to_remove:

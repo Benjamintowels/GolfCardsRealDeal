@@ -1199,6 +1199,12 @@ func _on_area_entered(area):
 		_handle_roof_bounce_collision(area.get_parent())
 		# Notify course to re-enable player collision since ball hit boulder
 		notify_course_of_collision()
+	# Check if this is a Generator Switch collision
+	elif area.get_parent() and area.get_parent().has_method("_handle_generator_switch_collision"):
+		# Generator Switch collision detected - use roof bounce system
+		_handle_roof_bounce_collision(area.get_parent())
+		# Notify course to re-enable player collision since ball hit generator switch
+		notify_course_of_collision()
 	# Check if this is a Bush collision
 	elif area.get_parent() and area.get_parent().has_method("_handle_bush_collision"):
 		print("=== GOLFBALL BUSH COLLISION DETECTED ===")

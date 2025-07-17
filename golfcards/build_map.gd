@@ -129,8 +129,10 @@ func clear_existing_objects() -> void:
 			var is_zombie = obstacle.name == "ZombieGolfer" or (obstacle.get_script() and "ZombieGolfer.gd" in str(obstacle.get_script().get_path()))
 			# Check for bonfires by name or script
 			var is_bonfire = obstacle.name == "Bonfire" or (obstacle.get_script() and "bonfire.gd" in str(obstacle.get_script().get_path()))
+			# Check for generator switches by name or script
+			var is_generator_switch = obstacle.name == "GeneratorSwitch" or (obstacle.get_script() and "generator_switch.gd" in str(obstacle.get_script().get_path()))
 			
-			if is_tree or is_shop or is_pin or is_oil_drum or is_stone_wall or is_boulder or is_police or is_zombie or is_bonfire:
+			if is_tree or is_shop or is_pin or is_oil_drum or is_stone_wall or is_boulder or is_police or is_zombie or is_bonfire or is_generator_switch:
 				keys_to_remove.append(pos)
 	for pos in keys_to_remove:
 		obstacle_map.erase(pos)
@@ -246,7 +248,8 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 		"squirrels": [],
 		"bonfires": [],
 		"suitcase": Vector2i.ZERO,
-		"wraiths": []
+		"wraiths": [],
+		"generator_switches": []
 	}
 	
 	# Use difficulty tier spawning if parameters are -1 (default)
@@ -362,6 +365,32 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 			placed_objects.append(boulder_pos)
 			boulders_placed += 1
 		valid_positions.remove_at(boulder_index)
+	
+	# Place Generator Switches on fairway tiles (for testing, just place 1 on hole 1)
+	var num_generator_switches = 1 if current_hole == 0 else 0  # Only place 1 on hole 1 for testing
+	var generator_switches_placed = 0
+	
+	# Get fairway positions for generator switches
+	var generator_fairway_positions: Array = []
+	for y in layout.size():
+		for x in layout[y].size():
+			if layout[y][x] == "F":  # Fairway tiles
+				generator_fairway_positions.append(Vector2i(x, y))
+	
+	while generator_switches_placed < num_generator_switches and generator_fairway_positions.size() > 0:
+		var generator_index = randi() % generator_fairway_positions.size()
+		var generator_pos = generator_fairway_positions[generator_index]
+		var valid = true
+		for placed_pos in placed_objects:
+			var distance = max(abs(generator_pos.x - placed_pos.x), abs(generator_pos.y - placed_pos.y))
+			if distance < 8:  # Same spacing as trees
+				valid = false
+				break
+		if valid:
+			positions.generator_switches.append(generator_pos)
+			placed_objects.append(generator_pos)
+			generator_switches_placed += 1
+		generator_fairway_positions.remove_at(generator_index)
 	
 	# Place Bushes on remaining base tiles (after boulders)
 	var num_bushes = 6  # Place 6 bushes per hole
@@ -791,6 +820,29 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		
 		ysort_objects.append({"node": boulder, "grid_pos": boulder_pos})
 		obstacle_layer.add_child(boulder)
+	
+	# Place Generator Switches
+	for generator_pos in object_positions.generator_switches:
+		var scene: PackedScene = object_scene_map["GENERATOR"]
+		if scene == null:
+			push_error("🚫 GeneratorSwitch scene is null")
+			continue
+		var generator_switch: Node2D = scene.instantiate() as Node2D
+		if generator_switch == null:
+			push_error("❌ GeneratorSwitch instantiation failed at (%d,%d)" % [generator_pos.x, generator_pos.y])
+			continue
+		var world_pos: Vector2 = Vector2(generator_pos.x, generator_pos.y) * cell_size
+		generator_switch.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
+		
+		# Always set the grid_position property unconditionally
+		generator_switch.set_meta("grid_position", generator_pos)
+		
+		# Add generator switch to groups for smart optimization
+		generator_switch.add_to_group("generator_switches")
+		generator_switch.add_to_group("collision_objects")
+		
+		ysort_objects.append({"node": generator_switch, "grid_pos": generator_pos})
+		obstacle_layer.add_child(generator_switch)
 	
 	# Place Bushes
 	
