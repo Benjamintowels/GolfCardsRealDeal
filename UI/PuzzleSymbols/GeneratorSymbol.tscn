@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3 uid="uid://du5ivq74t5caj"]
+
+[ext_resource type="Texture2D" uid="uid://ppx6p1j0e4ob" path="res://UI/PuzzleSymbols/GeneratorSymbol.png" id="1_3c8lj"]
+
+[node name="GeneratorSymbol" type="Node2D"]
+
+[node name="GeneratorSymbol" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(8, 2)
+texture = ExtResource("1_3c8lj")

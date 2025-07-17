@@ -355,7 +355,7 @@ func get_valid_fairway_positions(layout: Array) -> Array:
 	
 	return fairway_positions
 
-func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include_shop: bool = true, num_gang_members: int = -1, num_oil_drums: int = -1, num_police: int = -1, num_zombies: int = -1) -> Dictionary:
+func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include_shop: bool = true, num_gang_members: int = -1, num_oil_drums: int = -1, num_police: int = -1, num_zombies: int = -1, puzzle_type: String = "score") -> Dictionary:
 	var positions = {
 		"trees": [],
 		"shop": Vector2i.ZERO,
@@ -376,6 +376,29 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 	
 	# Use difficulty tier spawning if parameters are -1 (default)
 	var npc_counts = Global.get_difficulty_tier_npc_counts(current_hole)
+	
+	# Apply puzzle type modifications to NPC counts
+	match puzzle_type:
+		"score":
+			# Score puzzle: Only squirrels spawn
+			num_gang_members = 0
+			num_police = 0
+			num_zombies = 0
+			print("🎯 PUZZLE TYPE: Score puzzle - only squirrels will spawn")
+			
+		"mob":
+			# Mob puzzle: Double the normal NPCs
+			num_gang_members = npc_counts.gang_members * 2
+			num_police = npc_counts.police * 2
+			num_zombies = npc_counts.zombies * 2
+			print("🎯 PUZZLE TYPE: Mob puzzle - doubling NPC counts")
+			
+		"generator", "miniboss":
+			# Generator and Miniboss puzzles: Use normal difficulty tier
+			print("🎯 PUZZLE TYPE: ", puzzle_type, " puzzle - using normal difficulty tier")
+			
+		_:
+			print("🎯 PUZZLE TYPE: Unknown puzzle type '", puzzle_type, "', using default")
 	
 	if num_gang_members == -1:
 		num_gang_members = npc_counts.gang_members
@@ -514,11 +537,8 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 			generator_switches_placed += 1
 		generator_fairway_positions.remove_at(generator_index)
 	
-	# Generator puzzle configuration - easily change which hole gets the puzzle
-	var GENERATOR_PUZZLE_HOLE = 2  # 0 = hole 1, 1 = hole 2, 2 = hole 3, etc.
-	
-	# Add generator puzzle data for the configured hole
-	if current_hole == GENERATOR_PUZZLE_HOLE:
+	# Generator puzzle configuration - triggered by puzzle type
+	if puzzle_type == "generator":
 		# Find fairway positions to create a proper barrier
 		var fairway_positions: Array = []
 		for y in layout.size():
@@ -597,6 +617,7 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 		var pylon_positions: Array = []
 		
 		if fairway_positions.size() > 0:
+			# For angled fairways, we need to find strategic points along the fairway path
 			# Find the middle of the fairway horizontally
 			var min_x = fairway_positions[0].x
 			var max_x = fairway_positions[0].x
@@ -613,12 +634,35 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 				min_y = min(min_y, pos.y)
 				max_y = max(max_y, pos.y)
 			
-			# Place pylons above and below the fairway at the middle column
-			var pylon1_y = max(1, min_y - 2)  # Above fairway
-			var pylon2_y = min(layout.size() - 2, max_y + 2)  # Below fairway
+			# For angled fairways, find the actual fairway positions at the middle X coordinate
+			# Use a wider range to account for angled fairways
+			var fairway_at_middle_x: Array = []
+			for pos in fairway_positions:
+				# Check if position is within 2 tiles of the middle X (for angled fairways)
+				if abs(pos.x - middle_x) <= 2:
+					fairway_at_middle_x.append(pos)
 			
-			pylon_positions.append(Vector2i(middle_x, pylon1_y))
-			pylon_positions.append(Vector2i(middle_x, pylon2_y))
+			# If we found fairway positions near the middle X, use those for pylon placement
+			if fairway_at_middle_x.size() > 0:
+				var min_fairway_y = fairway_at_middle_x[0].y
+				var max_fairway_y = fairway_at_middle_x[0].y
+				for pos in fairway_at_middle_x:
+					min_fairway_y = min(min_fairway_y, pos.y)
+					max_fairway_y = max(max_fairway_y, pos.y)
+				
+				# Place pylons above and below the fairway at the middle column
+				var pylon1_y = max(1, min_fairway_y - 2)  # Above fairway
+				var pylon2_y = min(layout.size() - 2, max_fairway_y + 2)  # Below fairway
+				
+				pylon_positions.append(Vector2i(middle_x, pylon1_y))
+				pylon_positions.append(Vector2i(middle_x, pylon2_y))
+			else:
+				# Fallback: use the original logic for straight fairways
+				var pylon1_y = max(1, min_y - 2)  # Above fairway
+				var pylon2_y = min(layout.size() - 2, max_y + 2)  # Below fairway
+				
+				pylon_positions.append(Vector2i(middle_x, pylon1_y))
+				pylon_positions.append(Vector2i(middle_x, pylon2_y))
 		else:
 			# Fallback: place pylons in the middle of the course
 			var middle_x = layout[0].size() / 2
@@ -629,7 +673,7 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 			"generator_pos": generator_pos,
 			"pylon_positions": pylon_positions
 		}
-		print("🔧 RANDOM PLACEMENT: Added generator_puzzle data for hole %d" % (GENERATOR_PUZZLE_HOLE + 1))
+		print("🔧 RANDOM PLACEMENT: Added generator_puzzle data for current hole")
 		print("  - Generator at:", generator_pos)
 		print("  - Pylons at:", pylon_positions)
 	
@@ -830,11 +874,8 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 				positions.bonfires.append(bonfire_pos)
 				placed_objects.append(bonfire_pos)
 	
-	# Miniboss puzzle configuration - easily change which hole gets the puzzle
-	var MINIBOSS_PUZZLE_HOLE = 0  # 0 = hole 1, 1 = hole 2, 2 = hole 3, etc.
-	
-	# Add miniboss puzzle data for the configured hole
-	if current_hole == MINIBOSS_PUZZLE_HOLE:
+	# Miniboss puzzle configuration - triggered by puzzle type
+	if puzzle_type == "miniboss":
 		print("🗡️ MINIBOSS PUZZLE: Setting up miniboss puzzle for hole", current_hole + 1)
 		
 		# Find fairway positions for miniboss placement
@@ -926,20 +967,56 @@ func place_treeline_vert_borders(layout: Array) -> void:
 	print("✓ TreeLineVert border placed - Left at (-48, ", map_height / 2, ")")
 	print("✓ Using TreeLineVert.tscn scene file for better alignment control")
 
-func build_map_from_layout_with_randomization(layout: Array, hole_index: int = -1) -> void:
+func build_map_from_layout_with_randomization(layout: Array, hole_index: int = -1, puzzle_type: String = "score") -> void:
 	# Update current_hole if hole_index is provided
 	if hole_index >= 0:
 		current_hole = hole_index
 	
+	print("🎯 PUZZLE TYPE: Building map with puzzle type '", puzzle_type, "' for hole", current_hole + 1)
+	
 	randomize()
 	clear_existing_objects()
 	build_map_from_layout_base(layout)
+	
+	# Apply puzzle type-specific logic
+	apply_puzzle_type_configuration(puzzle_type)
+	
 	# Use difficulty tier spawning (-1 means use difficulty tier calculation)
-	var object_positions = get_random_positions_for_objects(layout, 8, true, -1, -1, -1, -1)
+	var object_positions = get_random_positions_for_objects(layout, 8, true, -1, -1, -1, -1, puzzle_type)
 	place_objects_at_positions(object_positions, layout)
 	# Place TreeLineVert borders
 	place_treeline_vert_borders(layout)
 	# position_camera_on_pin()  # This should be called from the main scene if needed
+
+func apply_puzzle_type_configuration(puzzle_type: String) -> void:
+	"""Apply puzzle type-specific configuration to the current hole"""
+	
+	print("🎯 PUZZLE TYPE: Applying configuration for '", puzzle_type, "'")
+	
+	match puzzle_type:
+		"score":
+			# Score puzzle: Only squirrels spawn (handled by normal difficulty tier)
+			print("🎯 PUZZLE TYPE: Score puzzle - standard difficulty tier spawning")
+			
+		"generator":
+			# Generator puzzle: Force generator puzzle on this hole
+			print("🎯 PUZZLE TYPE: Generator puzzle - will be applied during object placement")
+			# The generator puzzle logic is already in get_random_positions_for_objects
+			# We just need to ensure it's triggered for this hole
+			
+		"mob":
+			# Mob puzzle: Double the normal NPCs
+			print("🎯 PUZZLE TYPE: Mob puzzle - doubling NPC counts")
+			# This will be handled by modifying the difficulty tier calculation
+			
+		"miniboss":
+			# Miniboss puzzle: Force miniboss puzzle on this hole
+			print("🎯 PUZZLE TYPE: Miniboss puzzle - will be applied during object placement")
+			# The miniboss puzzle logic is already in get_random_positions_for_objects
+			# We just need to ensure it's triggered for this hole
+			
+		_:
+			print("🎯 PUZZLE TYPE: Unknown puzzle type '", puzzle_type, "', using default")
 
 func build_map_from_layout_base(layout: Array, place_pin: bool = true) -> void:
 	obstacle_map.clear()

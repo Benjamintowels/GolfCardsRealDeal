@@ -278,6 +278,11 @@ var shop_grid_pos := Vector2i(2, 4)  # Position of shop from map layout (moved l
 var suitcase_grid_pos := Vector2i.ZERO  # Track SuitCase position
 var suitcase_node: Node2D = null  # Reference to the SuitCase node
 
+# Puzzle type system variables
+var current_puzzle_type: String = "score"  # Default puzzle type
+var next_puzzle_type: String = "score"     # Puzzle type for next hole
+var puzzle_type_dialog: Control = null     # Puzzle type selection dialog
+
 var has_started := false
 
 # Move these variable declarations to just before build_map_from_layout_with_randomization
@@ -3536,8 +3541,8 @@ func _on_reward_selected(reward_data: Resource, reward_type: String):
 	if current_hole == 8 and not is_back_9_mode:  # Hole 9 (index 8) in front 9 mode
 		show_front_nine_complete_dialog()
 	else:
-		# Fade to next hole
-		FadeManager.fade_to_black(func(): reset_for_next_hole(), 0.5)
+		# Show puzzle type selection dialog
+		show_puzzle_type_selection()
 
 func _on_suitcase_reached():
 	"""Handle when the player reaches a SuitCase"""
@@ -3669,8 +3674,55 @@ func _on_advance_to_next_hole():
 	if current_hole == 8 and not is_back_9_mode:  # Hole 9 (index 8) in front 9 mode
 		show_front_nine_complete_dialog()
 	else:
-		# Fade to next hole
-		FadeManager.fade_to_black(func(): reset_for_next_hole(), 0.5)
+		# Show puzzle type selection dialog
+		show_puzzle_type_selection()
+
+func show_puzzle_type_selection():
+	"""Show the puzzle type selection dialog"""
+	
+	print("🎯 PUZZLE SELECTION: show_puzzle_type_selection() called")
+	
+	# Clean up any existing puzzle type dialog
+	if puzzle_type_dialog:
+		puzzle_type_dialog.queue_free()
+	
+	# Wait a frame to ensure any previous dialogs are fully cleaned up
+	await get_tree().process_frame
+	
+	# Create and show puzzle type selection dialog
+	var puzzle_dialog_scene = preload("res://PuzzleTypeSelectionDialog.tscn")
+	puzzle_type_dialog = puzzle_dialog_scene.instantiate()
+	puzzle_type_dialog.name = "PuzzleTypeSelectionDialog"
+	$UILayer.add_child(puzzle_type_dialog)
+	
+	print("🎯 PUZZLE SELECTION: Dialog added to UILayer")
+	
+	# Wait a frame to ensure the dialog is properly added
+	await get_tree().process_frame
+	
+	# Connect the puzzle type selection signal
+	puzzle_type_dialog.puzzle_type_selected.connect(_on_puzzle_type_selected)
+	
+	# Show the dialog
+	puzzle_type_dialog.show_puzzle_selection()
+	
+	print("🎯 PUZZLE SELECTION: Dialog created and shown")
+
+func _on_puzzle_type_selected(puzzle_type: String):
+	"""Handle when a puzzle type is selected"""
+	
+	print("🎯 PUZZLE SELECTION: Selected puzzle type:", puzzle_type)
+	
+	# Set the puzzle type for the next hole
+	next_puzzle_type = puzzle_type
+	
+	# Clean up the dialog
+	if puzzle_type_dialog:
+		puzzle_type_dialog.queue_free()
+		puzzle_type_dialog = null
+	
+	# Fade to next hole with the selected puzzle type
+	FadeManager.fade_to_black(func(): reset_for_next_hole(), 0.5)
 
 func reset_for_next_hole():
 	print("=== ADVANCING TO HOLE", current_hole + 2, "===")
@@ -3745,8 +3797,12 @@ func reset_for_next_hole():
 			player_node.disable_animations()
 		player_node.visible = false
 	
+	# Apply the selected puzzle type for this hole
+	current_puzzle_type = next_puzzle_type
+	print("🎯 PUZZLE TYPE: Applying puzzle type '", current_puzzle_type, "' to hole", current_hole + 1)
+	
 	map_manager.load_map_data(GolfCourseLayout.get_hole_layout(current_hole))
-	build_map.build_map_from_layout_with_randomization(map_manager.level_layout, current_hole)
+	build_map.build_map_from_layout_with_randomization(map_manager.level_layout, current_hole, current_puzzle_type)
 	
 	# Sync shop grid position with build_map
 	shop_grid_pos = build_map.shop_grid_pos

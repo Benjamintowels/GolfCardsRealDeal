@@ -1,0 +1,117 @@
+[gd_scene load_steps=2 format=3 uid="uid://caa682e0gu7g4"]
+
+[ext_resource type="Script" uid="uid://d0215x24fujk4" path="res://PuzzleTypeSelectionDialog.gd" id="1_script"]
+
+[node name="PuzzleTypeSelectionDialog" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_script")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.7)
+
+[node name="DialogContainer" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -300.0
+offset_top = -200.0
+offset_right = 300.0
+offset_bottom = 200.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="TitleLabel" type="Label" parent="DialogContainer"]
+layout_mode = 2
+text = "Choose Next Hole's Puzzle Type"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="DescriptionLabel" type="Label" parent="DialogContainer"]
+layout_mode = 2
+text = "Select which type of challenge you want for the next hole:"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ButtonContainer" type="HBoxContainer" parent="DialogContainer"]
+layout_mode = 2
+alignment = 1
+
+[node name="LeftButton" type="TextureButton" parent="DialogContainer/ButtonContainer"]
+custom_minimum_size = Vector2(200, 150)
+layout_mode = 2
+
+[node name="Symbol" type="TextureRect" parent="DialogContainer/ButtonContainer/LeftButton"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -32.0
+offset_top = -32.0
+offset_right = 32.0
+offset_bottom = 32.0
+grow_horizontal = 2
+grow_vertical = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Label" type="Label" parent="DialogContainer/ButtonContainer/LeftButton"]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -30.0
+grow_horizontal = 2
+grow_vertical = 0
+text = "Left Puzzle Type"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="RightButton" type="TextureButton" parent="DialogContainer/ButtonContainer"]
+custom_minimum_size = Vector2(200, 150)
+layout_mode = 2
+
+[node name="Symbol" type="TextureRect" parent="DialogContainer/ButtonContainer/RightButton"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -32.0
+offset_top = -32.0
+offset_right = 32.0
+offset_bottom = 32.0
+grow_horizontal = 2
+grow_vertical = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Label" type="Label" parent="DialogContainer/ButtonContainer/RightButton"]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -30.0
+grow_horizontal = 2
+grow_vertical = 0
+text = "Right Puzzle Type"
+horizontal_alignment = 1
+vertical_alignment = 1
