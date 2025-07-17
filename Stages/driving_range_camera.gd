@@ -46,7 +46,15 @@ func _ready():
 
 func _process(delta):
 	if camera_following_ball and camera_container:
+		# Try multiple ways to find the ball
 		var ball = camera_container.get_node_or_null("GolfBall")
+		if not ball:
+			# Try to find any ball in the camera container
+			for child in camera_container.get_children():
+				if child.is_in_group("balls") or child.name.contains("Ball"):
+					ball = child
+					break
+		
 		if ball and is_instance_valid(ball):
 			# Check if ball is still in flight
 			var is_in_flight = false
@@ -67,8 +75,10 @@ func _process(delta):
 				position = position.lerp(target_position, ball_tracking_speed * delta)
 				check_and_emit_position_changed()
 			else:
+				print("DrivingRangeCamera: Ball no longer in flight, stopping tracking")
 				camera_following_ball = false
 		else:
+			print("DrivingRangeCamera: No valid ball found, stopping tracking")
 			camera_following_ball = false
 
 func setup(player_pos: Vector2, camera_container_ref: Control):
@@ -118,6 +128,10 @@ func return_to_player():
 		print("ERROR: Cannot return to player - player position not set")
 		return
 	print("DrivingRangeCamera: Returning to player (tween)")
+	
+	# Reset ball tracking state to ensure camera is ready for next shot
+	camera_following_ball = false
+	
 	if current_tween:
 		current_tween.kill()
 	current_tween = create_tween()

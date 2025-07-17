@@ -52,6 +52,9 @@ var max_shot_distance: float = 800.0
 var drive_distance_dialog: Control = null
 var distance_dialog_scene = preload("res://UI/DrivingRangeDistanceDialog.tscn")
 
+# Range flag for marking ball landing position
+var range_flag_scene = preload("res://Stages/RangeFlag.tscn")
+
 # Return to clubhouse button
 var return_button: Button = null
 
@@ -470,7 +473,13 @@ func start_new_shot():
 	print("Starting shot", shots_taken + 1, "of", max_shots)
 	game_phase = "draw_clubs"
 	print("DEBUG: Game phase set to:", game_phase)
-	
+
+	# Always reset player_grid_pos to tee for driving range
+	player_grid_pos = Vector2i(8, 0)  # or whatever your tee position is
+
+	# Reset camera tracking state to ensure it's ready for the new ball
+	if camera and camera.has_method("stop_ball_tracking"):		camera.stop_ball_tracking()
+
 	# Place new ball on tee
 	place_ball_on_tee()
 	
@@ -484,10 +493,10 @@ func place_ball_on_tee():
 		print("ERROR: launch_manager is null!")
 		return
 	
-	# Remove existing ball if it exists
-	var existing_ball = camera_container.get_node_or_null("GolfBall")
-	if existing_ball:
-		existing_ball.queue_free()
+	# Remove all existing balls before placing a new one
+	for ball in camera_container.get_children():
+		if ball.is_in_group("balls"):
+			ball.queue_free()
 	
 	# Create new ball
 	var ball_scene = preload("res://GolfBall.tscn")
@@ -500,6 +509,8 @@ func place_ball_on_tee():
 	new_ball.position = ball_position
 	new_ball.cell_size = cell_size
 	new_ball.map_manager = map_manager
+	new_ball.collision_layer = 0 # Disable collision for the ball
+	new_ball.collision_mask = 0 # Disable collision for the ball
 	
 	# Ensure ball is properly initialized for launch
 	if new_ball.has_method("reset_ball_state"):
@@ -720,13 +731,27 @@ func enter_launch_phase():
 	launch_manager.setup(camera, camera_container, ui_layer, power_meter, map_manager, cell_size, player_grid_pos)
 	launch_manager.set_launch_parameters(chosen_landing_spot, selected_club, club_data)
 	
+	# Ensure camera is ready for tracking by resetting its state
+	if camera and camera.has_method("stop_ball_tracking"):		camera.stop_ball_tracking()
+	
+	# Disconnect any existing signals to prevent duplicate connections
+	if launch_manager.ball_landed.is_connected(_on_golf_ball_landed):
+		launch_manager.ball_landed.disconnect(_on_golf_ball_landed)
+	if launch_manager.ball_out_of_bounds.is_connected(_on_golf_ball_out_of_bounds):
+		launch_manager.ball_out_of_bounds.disconnect(_on_golf_ball_out_of_bounds)
+	
 	# Connect launch manager signals
 	launch_manager.ball_landed.connect(_on_golf_ball_landed)
 	launch_manager.ball_out_of_bounds.connect(_on_golf_ball_out_of_bounds)
 	
 	# Connect to ball launched signal to start tracking
-	if launch_manager.has_signal("ball_launched"):
+	if launch_manager.has_signal("ball_launched"):# Disconnect first to prevent duplicate connections
+		if launch_manager.ball_launched.is_connected(_on_ball_launched):
+			launch_manager.ball_launched.disconnect(_on_ball_launched)
 		launch_manager.ball_launched.connect(_on_ball_launched)
+		print("Ball launched signal connected")
+	else:
+		print("WARNING: ball_launched signal not found in launch_manager")
 	
 	# Start height selection
 	launch_manager.enter_launch_phase()
@@ -746,6 +771,18 @@ func _on_golf_ball_landed(tile: Vector2i):
 	
 	print("Drive distance:", current_shot_distance, "pixels")
 	
+	# Clear the ball to prevent infinite recursion
+	if ball:
+		print("Clearing golf ball to prevent infinite recursion")
+		ball.queue_free()
+	
+	# Place a range flag where the ball landed
+	if range_flag_scene:
+		var range_flag = range_flag_scene.instantiate()
+		range_flag.position = ball_position
+		camera_container.add_child(range_flag)
+		print("Range flag placed at ball landing position")
+	
 	# Stop ball tracking and focus camera on landing position
 	if camera and camera.has_method("stop_ball_tracking"):
 		camera.stop_ball_tracking()
@@ -760,16 +797,41 @@ func _on_golf_ball_out_of_bounds():
 	"""Handle ball going out of bounds"""
 	print("Ball went out of bounds")
 	current_shot_distance = 0.0
+	# Clear the ball to prevent any potential recursion
+	var ball = camera_container.get_node_or_null("GolfBall")
+	if ball:
+		print("Clearing golf ball (out of bounds) to prevent recursion")
+		ball.queue_free()
+	
 	show_drive_distance_dialog()
 
 func _on_ball_launched(ball: Node2D):
 	"""Handle ball launch - start camera tracking"""
 	print("Ball launched - starting camera tracking")
+	print("DEBUG: Ball launched function called with ball:", ball)
+	print("DEBUG: Camera reference:", camera)
+	print("DEBUG: Camera has start_ball_tracking method:", camera.has_method("start_ball_tracking") if camera else "No camera")
 	game_phase = "ball_flying"
+	
+	# Ensure the ball is properly named for camera tracking
+	if ball:
+		ball.name = "GolfBall"
+		print("DEBUG: Ball renamed to GolfBall for camera tracking")
 	
 	# Start ball tracking with the new camera
 	if camera and camera.has_method("start_ball_tracking"):
 		camera.start_ball_tracking()
+		print("DEBUG: Camera start_ball_tracking called")
+		print("DEBUG: Camera tracking state after start:", camera.is_tracking_ball() if camera.has_method("is_tracking_ball") else "No is_tracking_ball method")
+		
+		# Check what ball the camera is tracking
+		if camera.has_method("get_tracked_ball"):
+			var tracked_ball = camera.get_tracked_ball()
+			print("DEBUG: Camera tracked ball:", tracked_ball)
+			print("DEBUG: Current ball reference:", ball)
+			print("DEBUG: Ball references match:", tracked_ball == ball)
+	else:
+		print("DEBUG: Could not start ball tracking - camera or method missing")
 
 
 
@@ -792,21 +854,80 @@ func show_drive_distance_dialog():
 	# Show dialog with information
 	drive_distance_dialog.show_dialog(current_shot_distance, is_new_record, shots_taken + 1, max_shots)
 	
+	# Debug: Check if labels are accessible
+	print("DEBUG: Checking dialog labels...")
+	var distance_label = drive_distance_dialog.get_node_or_null("DialogBox/DistanceLabel")
+	var record_label = drive_distance_dialog.get_node_or_null("DialogBox/RecordLabel")
+	var shot_label = drive_distance_dialog.get_node_or_null("DialogBox/ShotLabel")
+	var instruction_label = drive_distance_dialog.get_node_or_null("DialogBox/InstructionLabel")
+	
+	print("DEBUG: DistanceLabel found:", distance_label != null)
+	print("DEBUG: RecordLabel found:", record_label != null)
+	print("DEBUG: ShotLabel found:", shot_label != null)
+	print("DEBUG: InstructionLabel found:", instruction_label != null)
+	
 	# Update record if it's a new record
 	if is_new_record:
 		current_record_distance = current_shot_distance
 		save_driving_range_record()
 	
 	# Add dialog to UI layer and ensure proper positioning
-	ui_layer.add_child(drive_distance_dialog)
+	camera_container.add_child(drive_distance_dialog)
+	
+	# Debug: Print viewport and positioning information
+	var viewport_size = get_viewport_rect().size
+	print("DEBUG: Viewport size: ", viewport_size)
+	print("DEBUG: Camera container position: ", camera_container.position)
+	print("DEBUG: Camera container size: ", camera_container.size)
+	print("DEBUG: Camera container global position: ", camera_container.global_position)
 	
 	# Ensure dialog is properly centered and visible
 	drive_distance_dialog.visible = true
 	drive_distance_dialog.z_index = 1000  # Ensure it's on top
 	
+	# Set the dialog to cover the full viewport and center its content
+	drive_distance_dialog.size = viewport_size
+	drive_distance_dialog.position = Vector2.ZERO
+	
+	# Debug: Print dialog positioning information
+	print("DEBUG: Dialog size set to: ", drive_distance_dialog.size)
+	print("DEBUG: Dialog position set to: ", drive_distance_dialog.position)
+	print("DEBUG: Dialog global position: ", drive_distance_dialog.global_position)
+	
+	# Check if dialog has a DialogBox child and its positioning
+	var dialog_box = drive_distance_dialog.get_node_or_null("DialogBox")
+	if dialog_box:
+		print("DEBUG: DialogBox found - position: ", dialog_box.position, "size: ", dialog_box.size)
+		print("DEBUG: DialogBox global position: ", dialog_box.global_position)
+		
+		# Fix DialogBox positioning - center it within the dialog
+		var dialog_center = drive_distance_dialog.size / 2
+		var dialog_box_center = dialog_box.size / 2
+		var new_position = dialog_center - dialog_box_center
+		dialog_box.position = new_position
+		
+		print("DEBUG: DialogBox repositioned to: ", dialog_box.position)
+		print("DEBUG: DialogBox new global position: ", dialog_box.global_position)
+	else:
+		print("DEBUG: DialogBox not found in dialog scene")
+	
 	# Force layout update to ensure anchors work correctly
 	drive_distance_dialog.queue_redraw()
 	drive_distance_dialog.force_update_transform()
+	
+	# Ensure the background can receive input
+	var background = drive_distance_dialog.get_node_or_null("Background")
+	if background:
+		background.mouse_filter = Control.MOUSE_FILTER_STOP
+		print("DEBUG: Background found - mouse_filter set to STOP")
+		# Connect input handling if not already connected
+		if not background.gui_input.is_connected(_on_drive_distance_dialog_background_input):
+			background.gui_input.connect(_on_drive_distance_dialog_background_input)
+			print("DEBUG: Background input handler connected")
+		else:
+			print("DEBUG: Background input handler already connected")
+	else:
+		print("DEBUG: Background not found in dialog scene")
 	
 	print("Drive distance dialog added and positioned")
 
@@ -830,7 +951,11 @@ func tween_camera_back_to_player():
 	"""Tween camera back to player position"""
 	if camera and camera.has_method("return_to_player"):
 		camera.return_to_player()
+		print("DEBUG: About to return camera to player")
 		print("Camera returning to player")
+		print("DEBUG: Camera return_to_player called")
+	else:
+		print("DEBUG: Camera return_to_player method not found")
 
 func show_session_complete_dialog():
 	"""Show session complete dialog"""
@@ -1222,3 +1347,12 @@ func place_driving_range_objects(object_positions: Dictionary, layout: Array) ->
 		obstacle_layer.add_child(grass)
 	
 	build_map.update_all_ysort_z_indices()
+
+func _on_drive_distance_dialog_background_input(event: InputEvent):
+	"""Handle background click to close dialog (fallback for scene-based dialog)"""
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		print("Drive distance dialog background clicked - closing")
+		if drive_distance_dialog:
+			drive_distance_dialog.queue_free()
+			drive_distance_dialog = null
+		_on_drive_distance_dialog_closed()
