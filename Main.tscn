@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=3 uid="uid://wyu3udwngros"]
+[gd_scene load_steps=16 format=3 uid="uid://wyu3udwngros"]
 
 [ext_resource type="Script" uid="uid://ct4bebh7dhisi" path="res://Main.gd" id="1_r0du0"]
 [ext_resource type="Texture2D" uid="uid://bdmpunqtl77ic" path="res://ClubHouse/ClubHouseStart.png" id="3_wkp8b"]
@@ -13,6 +13,8 @@
 [ext_resource type="Texture2D" uid="uid://c5m7m06j7yols" path="res://ClubHouse/TableWooden.png" id="11_20pc6"]
 [ext_resource type="Texture2D" uid="uid://c1vpbijigd3m6" path="res://UI/WoodenDoor.png" id="12_5vvyt"]
 [ext_resource type="PackedScene" uid="uid://cuj4dcwcb5bwf" path="res://ClubHouse/FlippyTheDolphin.tscn" id="13_c6i3y"]
+[ext_resource type="Texture2D" uid="uid://c8ekwddqhh5t0" path="res://ClubHouse/DrivingRangeSign.png" id="14_j4qnp"]
+[ext_resource type="Texture2D" uid="uid://b6xl46ycq11u4" path="res://ClubHouse/ClubHouseSign.png" id="15_fpfj3"]
 
 [node name="Main" type="Control"]
 layout_mode = 3
@@ -87,10 +89,10 @@ offset_bottom = 101.0
 text = "Start Round"
 
 [node name="DrivingRange" type="Button" parent="UI"]
-offset_left = 459.0
-offset_top = 31.0
-offset_right = 575.0
-offset_bottom = 62.0
+offset_left = 280.0
+offset_top = 602.0
+offset_right = 396.0
+offset_bottom = 633.0
 text = "Driving Range"
 
 [node name="Character2" type="Sprite2D" parent="UI"]
@@ -170,6 +172,18 @@ texture_focused = ExtResource("12_5vvyt")
 
 [node name="FlippyTheDolphin" parent="." instance=ExtResource("13_c6i3y")]
 position = Vector2(1342, 768)
+
+[node name="DrivingRangeSign" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(339, 768)
+scale = Vector2(1.705, 1.705)
+texture = ExtResource("14_j4qnp")
+
+[node name="ClubHouseSign" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(890, 228)
+scale = Vector2(1.93, 1.93)
+texture = ExtResource("15_fpfj3")
 
 [connection signal="pressed" from="UI/StartPuttPutt" to="." method="_on_start_putt_putt_button_pressed"]
 [connection signal="pressed" from="UI/StartBack9" to="." method="_on_start_back_9_pressed"]

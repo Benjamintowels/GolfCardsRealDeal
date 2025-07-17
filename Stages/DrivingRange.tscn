@@ -1,4 +1,4 @@
-[gd_scene load_steps=44 format=3 uid="uid://6slp5ieujdwe"]
+[gd_scene load_steps=45 format=3 uid="uid://6slp5ieujdwe"]
 
 [ext_resource type="Script" uid="uid://c4tuj2kube4yv" path="res://Stages/driving_range.gd" id="1_6olb2"]
 [ext_resource type="Script" uid="uid://dsaq6hn05kfxf" path="res://MapManager.gd" id="2_6olb2"]
@@ -42,6 +42,7 @@
 [ext_resource type="Texture2D" uid="uid://jtatsf4hellw" path="res://Backgrounds/foreground.png" id="38_iv2pe"]
 [ext_resource type="Texture2D" uid="uid://b1ie70kktkst4" path="res://Backgrounds/tree_line_3.png" id="39_whkd0"]
 [ext_resource type="Texture2D" uid="uid://ccko1puj56w45" path="res://Backgrounds/tree_line_2.png" id="40_abmio"]
+[ext_resource type="Texture2D" uid="uid://4dvo4vp448sh" path="res://Backgrounds/HillTileable.png" id="40_pmqxb"]
 [ext_resource type="Texture2D" uid="uid://rjr1uhg7lttn" path="res://Backgrounds/tree_line_1.png" id="41_pmqxb"]
 
 [node name="DrivingRange" type="Control"]
@@ -360,7 +361,7 @@ texture = ExtResource("37_f7i13")
 texture_filter = 1
 position = Vector2(500, -403)
 scale = Vector2(0.8, 0.215)
-texture = ExtResource("38_41om8")
+texture = ExtResource("40_pmqxb")
 
 [node name="TreeLine2" type="Sprite2D" parent="BackgroundLayers"]
 z_index = -165

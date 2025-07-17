@@ -139,6 +139,7 @@ var ball_landing_tile: Vector2i = Vector2i.ZERO
 var ball_landing_position: Vector2 = Vector2.ZERO
 var waiting_for_player_to_reach_ball := false
 var shot_start_grid_pos: Vector2i = Vector2i.ZERO  # Store where the shot was taken from (grid position)
+var used_reach_ball_button: bool = false  # Track if player used ReachBallButton this turn
 
 # Red circle aiming system variables
 var aiming_circle: Control = null
@@ -1339,6 +1340,10 @@ func _on_reach_ball_pressed() -> void:
 		print("No ball landing tile available")
 		return
 	
+	# Set the flag to indicate ReachBallButton was used
+	used_reach_ball_button = true
+	print("ReachBallButton used - club card drawing will be disabled")
+	
 	# Use the existing teleport functionality from CardEffectHandler
 	if card_effect_handler and card_effect_handler.has_method("teleport_player_to_ball"):
 		# Get the ball's current position
@@ -1359,8 +1364,21 @@ func _on_reach_ball_pressed() -> void:
 		if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball) and launch_manager.golf_ball.has_method("remove_landing_highlight"):
 			launch_manager.golf_ball.remove_landing_highlight()
 		
-		# Enter draw cards phase since player is now at the ball
-		enter_draw_cards_phase()
+		# Check if action cards have been drawn this turn
+		var action_cards_drawn = false
+		for card in deck_manager.hand:
+			if not deck_manager.is_club_card(card):
+				action_cards_drawn = true
+				break
+		
+		if action_cards_drawn:
+			# Action cards already drawn - keep current hand and enter aiming phase directly
+			print("Action cards already drawn - keeping current hand and entering aiming phase")
+			enter_aiming_phase()
+		else:
+			# No action cards drawn yet - show DrawCardsButton for action cards
+			print("No action cards drawn yet - showing DrawCardsButton for action cards")
+			show_draw_cards_button_for_turn_start()
 		
 		print("Player teleported to ball successfully")
 	else:
@@ -1761,6 +1779,13 @@ func update_aiming_circle():
 func launch_golf_ball(direction: Vector2, charged_power: float, height: float):
 	# Determine if this is a tee shot (first shot of the hole)
 	print("DEBUG: Launching ball, hole_score =", hole_score)
+	
+	# Clear the previous ball landing information since we're taking a new shot
+	ball_landing_tile = Vector2i.ZERO
+	ball_landing_position = Vector2.ZERO
+	waiting_for_player_to_reach_ball = false
+	print("Cleared ball landing information for new shot")
+	
 	launch_manager.launch_golf_ball(direction, charged_power, height, 0.0, 0)
 	
 func _on_golf_ball_landed(tile: Vector2i):
@@ -2730,7 +2755,8 @@ func start_next_shot_from_ball() -> void:
 		launch_manager.golf_ball.queue_free()
 		launch_manager.golf_ball = null
 	
-	waiting_for_player_to_reach_ball = false
+	# Don't clear waiting_for_player_to_reach_ball here - it should persist until the player actually takes a shot
+	# waiting_for_player_to_reach_ball = false
 	update_player_position()
 	enter_draw_cards_phase()
 	
@@ -2914,6 +2940,15 @@ func draw_cards_for_shot(card_count: int = 5) -> void:
 	if dodge_mode_active:
 		deactivate_dodge_mode()
 	
+	# Reset ReachBallButton flag for new turn
+	used_reach_ball_button = false
+	print("ReachBallButton flag reset for new turn")
+	
+	# Set waiting_for_player_to_reach_ball back to true for new turn if there's a ball to reach
+	if ball_landing_tile != Vector2i.ZERO:
+		waiting_for_player_to_reach_ball = true
+		print("waiting_for_player_to_reach_ball set to true for new turn")
+	
 	var card_draw_modifier = player_stats.get("card_draw", 0)
 	var final_card_count = card_count + card_draw_modifier
 	final_card_count = max(1, final_card_count)
@@ -3004,6 +3039,9 @@ func _on_grenade_landed(final_tile: Vector2i) -> void:
 	
 	# Set game phase to move to allow movement cards
 	game_phase = "move"
+	# Reset ReachBallButton flag when entering move phase after grenade landing
+	used_reach_ball_button = false
+	print("ReachBallButton flag reset after grenade landing")
 	
 	# Pause for 1 second to let player see where grenade landed
 	var pause_timer = get_tree().create_timer(1.0)
@@ -4086,6 +4124,13 @@ func show_draw_club_cards_button() -> void:
 	game_phase = "ball_tile_choice"
 	_update_player_mouse_facing_state()
 	print("Player is on ball tile - showing 'Draw Club Cards' button")
+	
+	# Check if ReachBallButton was used this turn
+	if used_reach_ball_button:
+		print("ReachBallButton was used - skipping club card drawing and entering aiming phase directly")
+		# Skip club card drawing and enter aiming phase directly
+		enter_aiming_phase()
+		return
 	
 	# Show the "Draw Club Cards" button
 	draw_club_cards_button.visible = true
@@ -5950,6 +5995,15 @@ func show_draw_cards_button_for_turn_start() -> void:
 	# Deactivate vampire mode when starting a new player turn
 	if vampire_mode_active:
 		deactivate_vampire_mode()
+	
+	# Reset ReachBallButton flag for new turn
+	used_reach_ball_button = false
+	print("ReachBallButton flag reset for new turn")
+	
+	# Set waiting_for_player_to_reach_ball back to true for new turn if there's a ball to reach
+	if ball_landing_tile != Vector2i.ZERO:
+		waiting_for_player_to_reach_ball = true
+		print("waiting_for_player_to_reach_ball set to true for new turn")
 	
 	# Show the DrawCardsButton instead of automatically drawing cards
 	draw_cards_button.visible = true

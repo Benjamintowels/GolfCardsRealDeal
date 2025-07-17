@@ -1,0 +1,27 @@
+[gd_scene load_steps=4 format=3 uid="uid://g0u7e8q82ima"]
+
+[ext_resource type="Script" uid="uid://b0ti1p3npae5u" path="res://Interactables/force_field_dome.gd" id="1_qav2u"]
+[ext_resource type="Texture2D" uid="uid://b6okrr24ut2n" path="res://Interactables/ForceFieldDome.png" id="1_r88e3"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_r88e3"]
+radius = 53.1507
+
+[node name="ForceFieldDome" type="Node2D"]
+script = ExtResource("1_qav2u")
+
+[node name="ForceFieldDomeSprite" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(81, -68)
+texture = ExtResource("1_r88e3")
+
+[node name="TopHeight" type="Marker2D" parent="."]
+position = Vector2(0, -187)
+
+[node name="YSortPoint" type="Marker2D" parent="."]
+position = Vector2(0, -16)
+
+[node name="Area2D" type="Area2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D"]
+scale = Vector2(3.21, 1.105)
+shape = SubResource("CircleShape2D_r88e3")
