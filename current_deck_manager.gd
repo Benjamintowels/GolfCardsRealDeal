@@ -21,6 +21,7 @@ var starter_deck: Array[CardData] = [
 	preload("res://Cards/PunchB.tres"),
 	preload("res://Cards/KickB.tres"),
 	preload("res://Cards/KickB.tres"),
+	preload("res://Cards/BurstShot.tres"),        # BurstShot for testing Wraith
 	
 	# Defense cards (x2 each)
 	preload("res://Cards/BlockB.tres"),

@@ -25,7 +25,7 @@ scale = Vector2(4.755, 1.65)
 shape = SubResource("CircleShape2D_7tjvc")
 
 [node name="TopHeight" type="Marker2D" parent="."]
-position = Vector2(0, -70)
+position = Vector2(0, -127.245)
 
 [node name="YsortPoint" type="Marker2D" parent="."]
 position = Vector2(-1, 21)

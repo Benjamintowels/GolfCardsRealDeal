@@ -313,6 +313,7 @@ var object_scene_map := {
 	"PYLON": preload("res://Interactables/Pylon.tscn"),
 	"VERTICAL_FIELD": preload("res://Interactables/VerticalField.tscn"),
 	"HORIZONTAL_FIELD": preload("res://Interactables/HorizontalField.tscn"),
+	"FORCE_FIELD_DOME": preload("res://Interactables/ForceFieldDome.tscn"),
 }
 
 var object_to_tile_mapping := {
@@ -334,6 +335,7 @@ var object_to_tile_mapping := {
 	"PYLON": "Base",
 	"VERTICAL_FIELD": "Base",
 	"HORIZONTAL_FIELD": "Base",
+	"FORCE_FIELD_DOME": "Base",
 }
 
 # Add these variables after the existing object_scene_map and object_to_tile_mapping

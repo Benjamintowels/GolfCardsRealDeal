@@ -62,10 +62,6 @@ var retreat_duration: float = 2.0  # Duration of retreat animation
 var dead_height: float = 50.0  # Lower height when dead (laying down)
 var base_collision_area: Area2D
 
-# Health bar
-var health_bar: HealthBar
-var health_bar_container: Control
-
 # State Machine
 enum State {PATROL, CHASE_BALL, DEAD, RETREATING}
 var current_state: State = State.PATROL
@@ -139,9 +135,6 @@ func _ready():
 	
 	# Setup base collision area
 	_setup_base_collision()
-	
-	# Create health bar
-	_create_health_bar()
 	
 	# Defer player finding until after scene is fully loaded
 	call_deferred("_find_player_reference")
@@ -378,18 +371,7 @@ func get_grid_position() -> Vector2i:
 	"""Get the current grid position of the squirrel"""
 	return grid_position
 
-func _create_health_bar() -> void:
-	"""Create and setup the health bar for the Squirrel"""
-	# Create health bar container
-	health_bar_container = Control.new()
-	health_bar_container.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	health_bar_container.position.y = -80  # Position above the Squirrel
-	add_child(health_bar_container)
-	
-	# Create health bar
-	health_bar = preload("res://HealthBar.tscn").instantiate()
-	health_bar_container.add_child(health_bar)
-	health_bar.set_health(current_health, max_health)
+
 
 func _find_player_reference() -> void:
 	"""Find the player reference after scene is loaded"""
@@ -779,10 +761,6 @@ func take_damage(amount: int, is_headshot: bool = false, weapon_position: Vector
 	
 	current_health = current_health - amount
 	
-	# Update health bar
-	if health_bar:
-		health_bar.set_health(current_health, max_health)
-	
 	# Play hit sound
 	var hit_sound = get_node_or_null("SquirrelHit")
 	if hit_sound:
@@ -801,10 +779,6 @@ func die() -> void:
 	
 	# Give death reward (Squirrels give 0 $Looty)
 	Global.give_npc_death_reward("Squirrel")
-	
-	# Hide health bar
-	if health_bar_container:
-		health_bar_container.visible = false
 	
 	# Change to retreating state
 	state_machine.set_state("retreating")
@@ -1207,9 +1181,6 @@ class ChaseBallState extends BaseState:
 class DeadState extends BaseState:
 	func enter() -> void:
 		print("Squirrel entering dead state")
-		# Hide health bar
-		if squirrel.health_bar_container:
-			squirrel.health_bar_container.visible = false
 	
 	func update() -> void:
 		# Dead Squirrels don't move or take actions

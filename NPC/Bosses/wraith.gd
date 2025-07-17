@@ -7,6 +7,7 @@ extends Node2D
 const CoinExplosionManager = preload("res://CoinExplosionManager.gd")
 
 signal turn_completed
+signal died
 
 @onready var sprite: Sprite2D = $WraithSprite
 @onready var animation_player: AnimationPlayer = $AnimationPlayer
@@ -736,6 +737,10 @@ func die():
 	# Remove from collision groups
 	remove_from_group("collision_objects")
 	remove_from_group("NPC")
+	
+	# Emit death signal for connected systems (like ForceFieldDome)
+	died.emit()
+	print("✓ Wraith death signal emitted")
 	
 	print("✓ Wraith death animation started")
 
