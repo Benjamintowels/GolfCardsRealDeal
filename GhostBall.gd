@@ -630,6 +630,17 @@ func _on_area_entered(area):
 		_handle_roof_bounce_collision(area.get_parent())
 		# Notify course to re-enable player collision since ball hit boulder
 		notify_course_of_collision()
+	# Check if this is a Force Field collision
+	elif area.get_parent() and area.get_parent().has_method("_handle_roof_bounce_collision") and area.get_parent().is_in_group("force_fields"):
+		print("=== GHOST BALL FORCE FIELD COLLISION DETECTED ===")
+		print("Force field:", area.get_parent().name)
+		print("Force field groups:", area.get_parent().get_groups())
+		print("About to call force field's _handle_roof_bounce_collision method")
+		# Force Field collision detected - call the force field's collision handler directly
+		area.get_parent()._handle_roof_bounce_collision(self)
+		print("Finished calling force field's _handle_roof_bounce_collision method")
+		# Notify course to re-enable player collision since ball hit force field
+		notify_course_of_collision()
 
 func _on_area_exited(area):
 	# Area exit handling if needed

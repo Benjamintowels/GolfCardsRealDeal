@@ -1,5 +1,8 @@
 extends Node
 
+func _ready():
+	print("🔧 BUILD_MAP.GD LOADED!")
+
 # Handles building the grid and map for a course
 
 var tile_scene_map := {}
@@ -392,6 +395,35 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 			generator_switches_placed += 1
 		generator_fairway_positions.remove_at(generator_index)
 	
+	# Add generator puzzle data for hole 1 (testing)
+	if current_hole == 0:
+		# Find fairway positions to create a proper barrier
+		var fairway_positions: Array = []
+		for y in layout.size():
+			for x in layout[y].size():
+				if layout[y][x] == "F":  # Fairway tile
+					fairway_positions.append(Vector2i(x, y))
+		
+		# Find a good position for the generator (on the left side of the fairway, near tees)
+		var generator_pos = Vector2i(3, 4)  # Left side, near tees
+		
+		# Find fairway positions that would create a good barrier
+		# We want pylons that straddle the fairway to create a vertical force field
+		var pylon_positions: Array = []
+		
+		# For hole 1, place pylons at (15, 2) and (15, 8) to create a vertical barrier
+		# This puts pylons above and below the fairway at column 15
+		pylon_positions.append(Vector2i(15, 2))  # Above fairway
+		pylon_positions.append(Vector2i(15, 8))  # Below fairway
+		
+		positions["generator_puzzle"] = {
+			"generator_pos": generator_pos,
+			"pylon_positions": pylon_positions
+		}
+		print("🔧 RANDOM PLACEMENT: Added generator_puzzle data for hole 1")
+		print("  - Generator at:", generator_pos)
+		print("  - Pylons at:", pylon_positions)
+	
 	# Place Bushes on remaining base tiles (after boulders)
 	var num_bushes = 6  # Place 6 bushes per hole
 	var bushes_placed = 0
@@ -756,6 +788,12 @@ func build_map_from_layout_base(layout: Array, place_pin: bool = true) -> void:
 				print("Pin placed at grid position:", pin_pos, " - Global.saved_pin_position set to:", Global.saved_pin_position)
 
 func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> void:
+	"""Place objects at specific positions on the map"""
+	
+	print("🔧 PLACE_OBJECTS_AT_POSITIONS CALLED!")
+	print("🔍 Object positions keys:", object_positions.keys())
+	print("🔍 Object positions size:", object_positions.size())
+	
 	# Get TreeManager for random tree variations
 	var tree_manager = get_node_or_null("/root/TreeManager")
 	if not tree_manager:
@@ -1210,6 +1248,9 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		ysort_objects.append({"node": bonfire, "grid_pos": bonfire_pos})
 		obstacle_layer.add_child(bonfire)
 	
+	# Place Generator Puzzle System
+	_place_generator_puzzle_system(object_positions, layout)
+	
 	# Place SuitCase
 	if object_positions.suitcase != Vector2i.ZERO:
 		var scene: PackedScene = object_scene_map["SUITCASE"]
@@ -1255,4 +1296,188 @@ func get_suitcase_position() -> Vector2i:
 func update_all_ysort_z_indices():
 	"""Update z_index for all objects using the simple global Y-sort system"""
 	# Use the global Y-sort system for all objects
-	Global.update_all_objects_y_sort(ysort_objects) 
+	Global.update_all_objects_y_sort(ysort_objects)
+
+func _place_generator_puzzle_system(object_positions: Dictionary, layout: Array):
+	"""Place the generator puzzle system with generator switch, pylons, and force fields"""
+	
+	print("🔧 GENERATOR PUZZLE PLACEMENT FUNCTION CALLED!")
+	print("🔧 GENERATOR PUZZLE PLACEMENT FUNCTION CALLED!")
+	print("🔧 GENERATOR PUZZLE PLACEMENT FUNCTION CALLED!")
+	print("=== GENERATOR PUZZLE PLACEMENT START ===")
+	print("🔍 Object positions keys:", object_positions.keys())
+	print("🔍 Object positions size:", object_positions.size())
+	
+	# Check if we have generator puzzle data
+	if not "generator_puzzle" in object_positions:
+		print("❌ No generator_puzzle data found in object_positions")
+		print("🔍 Available keys:", object_positions.keys())
+		return
+	
+	var puzzle_data = object_positions.generator_puzzle
+	print("✓ Generator puzzle data found:", puzzle_data)
+	
+	if not puzzle_data.has("generator_pos") or not puzzle_data.has("pylon_positions"):
+		print("❌ Missing required puzzle data - generator_pos or pylon_positions")
+		return
+	
+	# Place Generator Switch
+	var generator_pos = puzzle_data.generator_pos
+	print("✓ Placing generator switch at:", generator_pos)
+	
+	var scene: PackedScene = object_scene_map["GENERATOR"]
+	if scene == null:
+		push_error("🚫 GeneratorSwitch scene is null")
+		return
+	
+	var generator: Node2D = scene.instantiate() as Node2D
+	if generator == null:
+		push_error("❌ GeneratorSwitch instantiation failed at (%d,%d)" % [generator_pos.x, generator_pos.y])
+		return
+	
+	var world_pos: Vector2 = Vector2(generator_pos.x, generator_pos.y) * cell_size
+	generator.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
+	
+	# Set the grid_position property
+	generator.set_meta("grid_position", generator_pos)
+	
+	# Add generator to groups for smart optimization
+	generator.add_to_group("interactables")
+	generator.add_to_group("collision_objects")
+	generator.add_to_group("generator_switches")
+	
+	ysort_objects.append({"node": generator, "grid_pos": generator_pos})
+	obstacle_layer.add_child(generator)
+	
+	# Place Pylons
+	var pylon_positions = puzzle_data.pylon_positions
+	print("✓ Placing pylons at positions:", pylon_positions)
+	
+	var pylons: Array[Node2D] = []
+	
+	for pylon_pos in pylon_positions:
+		print("  - Attempting to place pylon at:", pylon_pos)
+		var pylon_scene: PackedScene = object_scene_map["PYLON"]
+		print("  - Pylon scene loaded:", pylon_scene != null)
+		if pylon_scene == null:
+			push_error("🚫 Pylon scene is null")
+			print("❌ Pylon scene is null - check object_scene_map")
+			continue
+		
+		var pylon: Node2D = pylon_scene.instantiate() as Node2D
+		print("  - Pylon instantiated:", pylon != null)
+		if pylon == null:
+			push_error("❌ Pylon instantiation failed at (%d,%d)" % [pylon_pos.x, pylon_pos.y])
+			continue
+		
+		var pylon_world_pos: Vector2 = Vector2(pylon_pos.x, pylon_pos.y) * cell_size
+		pylon.position = pylon_world_pos + Vector2(cell_size / 2, cell_size / 2)
+		
+		# Set the grid_position property
+		pylon.set_meta("grid_position", pylon_pos)
+		
+		# Add pylon to groups for smart optimization
+		pylon.add_to_group("interactables")
+		pylon.add_to_group("collision_objects")
+		pylon.add_to_group("pylons")
+		
+		ysort_objects.append({"node": pylon, "grid_pos": pylon_pos})
+		obstacle_layer.add_child(pylon)
+		pylons.append(pylon)
+		print("  ✓ Pylon placed successfully at:", pylon_pos)
+		print("    - Pylon position:", pylon.position)
+		print("    - Pylon global position:", pylon.global_position)
+		print("    - Pylon visible:", pylon.visible)
+		print("    - Obstacle layer children count:", obstacle_layer.get_child_count())
+	
+	# Create Force Fields between Pylons
+	var fields: Array[Node2D] = []
+	print("✓ Creating force fields between", pylons.size(), "pylons")
+	
+	if pylons.size() >= 2:
+		# Determine if pylons are on same row or same column
+		var pylon1 = pylons[0]
+		var pylon2 = pylons[1]
+		var pylon1_pos = pylon1.get_meta("grid_position")
+		var pylon2_pos = pylon2.get_meta("grid_position")
+		
+		var is_same_row = pylon1_pos.y == pylon2_pos.y
+		var is_same_column = pylon1_pos.x == pylon2_pos.x
+		
+		if is_same_column:
+			print("  - Creating vertical field between pylons")
+			# Create Vertical Field
+			var field_scene: PackedScene = object_scene_map["VERTICAL_FIELD"]
+			if field_scene != null:
+				var field: Node2D = field_scene.instantiate() as Node2D
+				if field != null:
+					# Position field between pylons
+					var field_world_pos = (pylon1.position + pylon2.position) / 2.0
+					field.position = field_world_pos
+					print("  - Field positioned at:", field_world_pos)
+					print("  - Field global position after positioning:", field.global_position)
+					
+					# Setup the field
+					if field.has_method("setup_field"):
+						field.setup_field(pylon1, pylon2)
+						print("  - Field global position after setup:", field.global_position)
+					
+					# Add field to groups
+					field.add_to_group("interactables")
+					field.add_to_group("collision_objects")
+					field.add_to_group("force_fields")
+					
+					# Add to ysort (use average grid position)
+					var avg_grid_pos = (pylon1_pos + pylon2_pos) / 2
+					ysort_objects.append({"node": field, "grid_pos": avg_grid_pos})
+					obstacle_layer.add_child(field)
+					fields.append(field)
+					
+					# Connect pylons to field
+					if pylon1.has_method("connect_to_field"):
+						pylon1.connect_to_field(field)
+					if pylon2.has_method("connect_to_field"):
+						pylon2.connect_to_field(field)
+		
+		elif is_same_row:
+			print("  - Creating horizontal field between pylons")
+			# Create Horizontal Field
+			var field_scene: PackedScene = object_scene_map["HORIZONTAL_FIELD"]
+			if field_scene != null:
+				var field: Node2D = field_scene.instantiate() as Node2D
+				if field != null:
+					# Position field between pylons
+					var field_world_pos = (pylon1.position + pylon2.position) / 2.0
+					field.position = field_world_pos
+					
+					# Setup the field
+					if field.has_method("setup_field"):
+						field.setup_field(pylon1, pylon2)
+					
+					# Add field to groups
+					field.add_to_group("interactables")
+					field.add_to_group("collision_objects")
+					field.add_to_group("force_fields")
+					
+					# Add to ysort (use average grid position)
+					var avg_grid_pos = (pylon1_pos + pylon2_pos) / 2
+					ysort_objects.append({"node": field, "grid_pos": avg_grid_pos})
+					obstacle_layer.add_child(field)
+					fields.append(field)
+					
+					# Connect pylons to field
+					if pylon1.has_method("connect_to_field"):
+						pylon1.connect_to_field(field)
+					if pylon2.has_method("connect_to_field"):
+						pylon2.connect_to_field(field)
+	
+	# Connect generator to pylons and fields
+	if generator.has_method("connect_to_pylons"):
+		generator.connect_to_pylons(pylons)
+	if generator.has_method("connect_to_fields"):
+		generator.connect_to_fields(fields)
+	
+	print("=== GENERATOR PUZZLE PLACEMENT COMPLETE ===")
+	print("  - Generator switch placed")
+	print("  - Pylons placed:", pylons.size())
+	print("  - Fields created:", fields.size()) 

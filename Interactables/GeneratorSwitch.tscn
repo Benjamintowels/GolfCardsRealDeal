@@ -1,7 +1,10 @@
-[gd_scene load_steps=4 format=3 uid="uid://bw5q7s2jg2c2u"]
+[gd_scene load_steps=7 format=3 uid="uid://bw5q7s2jg2c2u"]
 
 [ext_resource type="Script" uid="uid://d2kf3koahleg" path="res://Interactables/generator_switch.gd" id="1_ns3rd"]
 [ext_resource type="Texture2D" uid="uid://dupbvdbcht38w" path="res://Interactables/GeneratorSwitch.png" id="1_nx7f1"]
+[ext_resource type="AudioStream" uid="uid://3ysaxcu3xydy" path="res://Sounds/MetalTunk.mp3" id="3_71moo"]
+[ext_resource type="AudioStream" uid="uid://clfxfbbyvlybs" path="res://Sounds/Switch.mp3" id="4_o3sqw"]
+[ext_resource type="AudioStream" uid="uid://dntjgoigcoomc" path="res://Sounds/PoweredDown.mp3" id="5_inkma"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_7tjvc"]
 radius = 12.2507
@@ -10,6 +13,7 @@ radius = 12.2507
 script = ExtResource("1_ns3rd")
 
 [node name="GeneratorSwitchSprite" type="Sprite2D" parent="."]
+z_index = 10
 texture_filter = 1
 texture = ExtResource("1_nx7f1")
 
@@ -25,3 +29,18 @@ position = Vector2(0, -70)
 
 [node name="YsortPoint" type="Marker2D" parent="."]
 position = Vector2(-1, 21)
+
+[node name="CollideSound" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("3_71moo")
+volume_db = -1.465
+pitch_scale = 0.86
+
+[node name="Switch" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("4_o3sqw")
+volume_db = -1.465
+pitch_scale = 0.86
+
+[node name="PoweredDown" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("5_inkma")
+volume_db = -1.465
+pitch_scale = 0.86

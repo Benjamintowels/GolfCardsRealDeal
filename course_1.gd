@@ -310,6 +310,9 @@ var object_scene_map := {
 	"SUITCASE": preload("res://MapSuitCase.tscn"),
 	"WRAITH": preload("res://NPC/Bosses/Wraith.tscn"),
 	"GENERATOR": preload("res://Interactables/GeneratorSwitch.tscn"),
+	"PYLON": preload("res://Interactables/Pylon.tscn"),
+	"VERTICAL_FIELD": preload("res://Interactables/VerticalField.tscn"),
+	"HORIZONTAL_FIELD": preload("res://Interactables/HorizontalField.tscn"),
 }
 
 var object_to_tile_mapping := {
@@ -328,6 +331,9 @@ var object_to_tile_mapping := {
 	"BONFIRE": "Base",
 	"WRAITH": "G",
 	"GENERATOR": "Base",
+	"PYLON": "Base",
+	"VERTICAL_FIELD": "Base",
+	"HORIZONTAL_FIELD": "Base",
 }
 
 # Add these variables after the existing object_scene_map and object_to_tile_mapping
@@ -452,6 +458,7 @@ func update_ball_for_optimizer():
 		smart_optimizer.update_ball_state(ball_pos, ball_velocity)
 
 func _ready() -> void:
+	print("🔧 COURSE_1.GD _READY() CALLED!")
 	add_to_group("course")
 	
 	# Clear any existing state to prevent dictionary conflicts
@@ -5288,9 +5295,16 @@ func build_map_from_layout_with_saved_positions(layout: Array) -> void:
 	var object_positions = {
 		"trees": Global.saved_tree_positions.duplicate(),
 		"shop": Global.saved_shop_position,  # Use the saved shop position
-		"gang_members": []  # Empty array for gang members (not saved/restored)
+		"gang_members": [],  # Empty array for gang members (not saved/restored)
+		"generator_puzzle": {
+			"generator_pos": Vector2i(3, 4),  # Generator on left side near tees
+			"pylon_positions": [Vector2i(15, 2), Vector2i(15, 8)]  # Pylons above and below fairway
+		}
 	}
+	print("🔧 COURSE_1.GD: Creating object_positions")
 	print("[DEBUG] About to place trees at positions:", object_positions.trees)
+	print("[DEBUG] Object positions keys:", object_positions.keys())
+	print("🔧 COURSE_1.GD: generator_puzzle data:", object_positions.generator_puzzle)
 	
 	# Place objects at saved positions
 	build_map.place_objects_at_positions(object_positions, layout)

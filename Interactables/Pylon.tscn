@@ -1,0 +1,40 @@
+[gd_scene load_steps=6 format=3 uid="uid://bxk7r4unqjxc2"]
+
+[ext_resource type="Script" uid="uid://cnirun1v8h1sv" path="res://Interactables/pylon.gd" id="1_w2g12"]
+[ext_resource type="Texture2D" uid="uid://d2frcyvtaehrv" path="res://Interactables/Pylon.png" id="2_w2g12"]
+[ext_resource type="AudioStream" uid="uid://3ysaxcu3xydy" path="res://Sounds/MetalTunk.mp3" id="3_1h0g6"]
+[ext_resource type="AudioStream" uid="uid://clfxfbbyvlybs" path="res://Sounds/Switch.mp3" id="4_tf4ls"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_7tjvc"]
+radius = 7.25238
+
+[node name="Pylon" type="Node2D"]
+script = ExtResource("1_w2g12")
+
+[node name="PylonSprite" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(0, -48)
+texture = ExtResource("2_w2g12")
+
+[node name="Area2D" type="Area2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D"]
+position = Vector2(0, 18)
+scale = Vector2(4.755, 1.65)
+shape = SubResource("CircleShape2D_7tjvc")
+
+[node name="TopHeight" type="Marker2D" parent="."]
+position = Vector2(0, -113)
+
+[node name="YsortPoint" type="Marker2D" parent="."]
+position = Vector2(-1, 18)
+
+[node name="CollideSound" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("3_1h0g6")
+volume_db = -1.465
+pitch_scale = 0.86
+
+[node name="Switch" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("4_tf4ls")
+volume_db = -1.465
+pitch_scale = 0.86

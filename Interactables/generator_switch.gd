@@ -3,6 +3,10 @@ extends BaseObstacle
 # GeneratorSwitch collision and Y-sort system
 # Uses the same roof bounce system as boulders and other obstacles
 
+var is_powered_down: bool = false
+var connected_pylons: Array[Node2D] = []
+var connected_fields: Array[Node2D] = []
+
 func _ready():
 	# Add to groups for collision detection and optimization
 	add_to_group("collision_objects")
@@ -41,17 +45,50 @@ func get_height() -> float:
 	return Global.get_object_height_from_marker(self)
 
 func _on_area_entered(area: Area2D):
-	"""Handle collisions with the generator switch area using proper height-based detection"""
+	"""Handle collisions with the generator switch area"""
 	var projectile = area.get_parent()
 	
-	# Only handle Area2D collisions for projectiles that don't have their own collision detection
-	# Balls (GolfBall, GhostBall) will handle their own collisions through the ball's collision system
-	if projectile and projectile.has_method("is_throwing_knife") and projectile.is_throwing_knife():
+	# Check if this is a golf ball or ghost ball
+	if projectile and (projectile.has_method("get_velocity") or "velocity" in projectile):
+		# Check if ball is hitting the bottom half of the generator switch
+		var ball_pos = projectile.global_position
+		var switch_pos = global_position
+		
+		# If ball is below the center of the switch, it's hitting the bottom half
+		if ball_pos.y > switch_pos.y:
+			print("=== GENERATOR SWITCH BOTTOM HALF HIT ===")
+			print("Ball position:", ball_pos)
+			print("Switch position:", switch_pos)
+			
+			# Play switch sound first
+			var switch_sound = get_node_or_null("Switch")
+			if switch_sound and switch_sound.stream:
+				switch_sound.play()
+				print("Switch sound played")
+			
+			# Then play collide sound
+			var collision_sound = get_node_or_null("CollideSound")
+			if collision_sound and collision_sound.stream:
+				collision_sound.play()
+				print("Collision sound played")
+			
+			# Set the generator switch as powered down
+			is_powered_down = true
+			print("Generator switch powered down")
+			
+			# Play powered down sound
+			_play_powered_down_sound()
+			
+			# Deactivate all connected pylons and fields
+			_deactivate_puzzle_system()
+		else:
+			# Ball is hitting the top half - just reflect normally
+			print("=== GENERATOR SWITCH TOP HALF HIT ===")
+			_reflect_off_generator_switch(projectile)
+	
+	# Handle throwing knives and other projectiles
+	elif projectile and projectile.has_method("is_throwing_knife") and projectile.is_throwing_knife():
 		_handle_area_collision(projectile)
-	else:
-		# For balls, let them handle their own collision through their collision system
-		# The ball will call _handle_roof_bounce_collision on the generator switch
-		pass
 
 func _on_area_exited(area: Area2D):
 	"""Handle when projectile exits the generator switch area - reset ground level"""
@@ -94,8 +131,9 @@ func _handle_generator_switch_collision(projectile: Node2D) -> void:
 
 func _handle_roof_bounce_collision(projectile: Node2D) -> void:
 	"""
-	Simple collision handler: if projectile height < generator switch height, reflect.
-	If projectile height > generator switch height, set ground to generator switch height.
+	Enhanced collision handler with wall reflect detection from below.
+	If projectile height < generator switch height, reflect.
+	If projectile height > generator switch height, check for wall reflect from below.
 	"""
 	if not projectile:
 		return
@@ -112,7 +150,7 @@ func _handle_roof_bounce_collision(projectile: Node2D) -> void:
 	
 	# Check if projectile is above the generator switch
 	if projectile_height > switch_height:
-		# Projectile is above generator switch - set ground level to generator switch height
+		# Set ground level to generator switch height
 		if projectile.has_method("set_ground_level"):
 			projectile.set_ground_level(switch_height)
 	else:
@@ -155,6 +193,42 @@ func _reflect_off_generator_switch(projectile: Node2D) -> void:
 		projectile.velocity = reflected_velocity
 	
 	# Play collision sound if available
-	var collision_sound = get_node_or_null("CollisionSound")
+	var collision_sound = get_node_or_null("CollideSound")
 	if collision_sound and collision_sound.stream:
 		collision_sound.play()
+
+# Removed _check_wall_reflect_from_below method - using simpler bottom-half collision detection instead
+
+func _play_powered_down_sound():
+	"""Play the powered down sound when generator is deactivated"""
+	var powered_down_sound = get_node_or_null("PoweredDown")
+	if powered_down_sound and powered_down_sound.stream:
+		powered_down_sound.play()
+
+func connect_to_pylons(pylons: Array[Node2D]):
+	"""Connect this generator switch to pylons"""
+	connected_pylons = pylons
+
+func connect_to_fields(fields: Array[Node2D]):
+	"""Connect this generator switch to force fields"""
+	connected_fields = fields
+
+func _deactivate_puzzle_system():
+	"""Deactivate all connected pylons and fields when generator is powered down"""
+	print("=== DEACTIVATING GENERATOR PUZZLE SYSTEM ===")
+	print("Connected pylons:", connected_pylons.size())
+	print("Connected fields:", connected_fields.size())
+	
+	# Deactivate all connected pylons
+	for pylon in connected_pylons:
+		if pylon and is_instance_valid(pylon) and pylon.has_method("deactivate_pylon"):
+			print("Deactivating pylon:", pylon.name)
+			pylon.deactivate_pylon()
+	
+	# Deactivate all connected fields
+	for field in connected_fields:
+		if field and is_instance_valid(field) and field.has_method("deactivate_field"):
+			print("Deactivating field:", field.name)
+			field.deactivate_field()
+	
+	print("=== GENERATOR PUZZLE SYSTEM DEACTIVATED ===")
