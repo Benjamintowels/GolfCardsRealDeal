@@ -24,10 +24,9 @@ script = ExtResource("8_current_deck_manager")
 [node name="TextureRect" type="TextureRect" parent="."]
 texture_filter = 1
 layout_mode = 0
-offset_left = -14.0
-offset_top = -71.0
-offset_right = 5196.0
-offset_bottom = 2696.0
+offset_left = -3.27
+offset_right = 2632.73
+offset_bottom = 1488.0
 scale = Vector2(0.749709, 0.750651)
 texture = ExtResource("3_wkp8b")
 
@@ -48,31 +47,32 @@ grow_vertical = 2
 
 [node name="Table" type="Sprite2D" parent="UI"]
 texture_filter = 1
-position = Vector2(882, 438)
+position = Vector2(882, 802)
 scale = Vector2(0.285, 0.285)
 texture = ExtResource("11_20pc6")
 
 [node name="Character1Button" type="Button" parent="UI"]
-offset_left = 1022.0
-offset_top = 551.0
-offset_right = 1071.0
-offset_bottom = 582.0
+offset_left = 916.0
+offset_top = 656.0
+offset_right = 965.0
+offset_bottom = 687.0
 toggle_mode = true
 text = "Layla"
 
 [node name="Character2Button" type="Button" parent="UI"]
-offset_left = 611.0
-offset_top = 344.0
-offset_right = 668.0
-offset_bottom = 375.0
+offset_left = 596.0
+offset_top = 690.0
+offset_right = 653.0
+offset_bottom = 721.0
 toggle_mode = true
 text = "Benny"
 
 [node name="Character3Button" type="Button" parent="UI"]
-offset_left = 164.0
-offset_top = 359.0
-offset_right = 213.0
-offset_bottom = 390.0
+visible = false
+offset_left = 123.0
+offset_top = 633.0
+offset_right = 172.0
+offset_bottom = 664.0
 toggle_mode = true
 text = "Clark"
 
@@ -94,7 +94,7 @@ text = "Driving Range"
 
 [node name="Character2" type="Sprite2D" parent="UI"]
 texture_filter = 1
-position = Vector2(611, 551)
+position = Vector2(611, 889)
 scale = Vector2(0.286, 0.284)
 texture = ExtResource("5_5vvyt")
 
@@ -107,7 +107,7 @@ texture = ExtResource("5_lgr22")
 
 [node name="Character1" type="Sprite2D" parent="UI"]
 texture_filter = 1
-position = Vector2(929, 493)
+position = Vector2(929, 857)
 scale = Vector2(0.23, 0.217)
 texture = ExtResource("7_5vvyt")
 
@@ -155,10 +155,10 @@ stream = ExtResource("10_20pc6")
 [node name="StartRoundDoor" type="TextureButton" parent="."]
 texture_filter = 1
 layout_mode = 0
-offset_left = 425.0
-offset_top = 225.0
-offset_right = 486.0
-offset_bottom = 326.0
+offset_left = 1532.0
+offset_top = 551.0
+offset_right = 1593.0
+offset_bottom = 652.0
 scale = Vector2(2.65, 2.65)
 tooltip_text = "Start Round"
 texture_normal = ExtResource("12_5vvyt")

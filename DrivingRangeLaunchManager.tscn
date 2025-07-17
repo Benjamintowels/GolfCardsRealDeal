@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://4k0hqcr8unpk"]
+
+[ext_resource type="Script" path="res://DrivingRangeLaunchManager.gd" id="1_0x0x0"]
+
+[node name="DrivingRangeLaunchManager" type="Node"]
+script = ExtResource("1_0x0x0") 

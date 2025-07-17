@@ -1,10 +1,10 @@
-[gd_scene load_steps=32 format=3 uid="uid://6slp5ieujdwe"]
+[gd_scene load_steps=43 format=3 uid="uid://6slp5ieujdwe"]
 
 [ext_resource type="Script" uid="uid://c4tuj2kube4yv" path="res://Stages/driving_range.gd" id="1_6olb2"]
-[ext_resource type="Script" uid="uid://bwql8y8wd3qbr" path="res://CameraZoom.gd" id="1_1384d"]
 [ext_resource type="Script" uid="uid://dsaq6hn05kfxf" path="res://MapManager.gd" id="2_6olb2"]
+[ext_resource type="Script" uid="uid://b6m1k5axtv7i1" path="res://Stages/driving_range_camera.gd" id="2_abmio"]
 [ext_resource type="Script" uid="uid://1gtesn5q77m4" path="res://golfcards/build_map.gd" id="3_1ho3v"]
-[ext_resource type="Script" uid="uid://dks6b1bolk5lu" path="res://LaunchManager.gd" id="4_55nnp"]
+[ext_resource type="Script" uid="uid://cysllu1sx38km" path="res://DrivingRangeLaunchManager.gd" id="4_55nnp"]
 [ext_resource type="Script" uid="uid://b278n4knxowm2" path="res://Entities.gd" id="5_btpjj"]
 [ext_resource type="Script" uid="uid://d3eloiw6y4k1g" path="res://BackgroundManager.gd" id="6_m5kwi"]
 [ext_resource type="Script" uid="uid://co4tpic85friv" path="res://CoinExplosionManager.gd" id="7_je7xe"]
@@ -31,6 +31,17 @@
 [ext_resource type="AudioStream" uid="uid://ccvh643uqte1h" path="res://Sounds/Birds.mp3" id="28_vq35r"]
 [ext_resource type="AudioStream" uid="uid://c6807wk0mjel5" path="res://Sounds/HoleComplete.mp3" id="29_0lsm0"]
 [ext_resource type="AudioStream" uid="uid://tu47pjuwugnn" path="res://Sounds/Snow.mp3" id="30_1glv8"]
+[ext_resource type="Texture2D" uid="uid://cf46bwtspy62n" path="res://Backgrounds/sky_gradient.png" id="32_1ho3v"]
+[ext_resource type="Texture2D" uid="uid://cvpmm5sbrhetu" path="res://Backgrounds/horizon.png" id="33_55nnp"]
+[ext_resource type="Texture2D" uid="uid://besphl2g2lv80" path="res://Backgrounds/distant_mountains.png" id="34_m5kwi"]
+[ext_resource type="Texture2D" uid="uid://bc2lisvaowwka" path="res://Backgrounds/clouds.png" id="35_je7xe"]
+[ext_resource type="Texture2D" uid="uid://trcvj3v7kih3" path="res://Backgrounds/distant_hill.png" id="36_je7xe"]
+[ext_resource type="Texture2D" uid="uid://csr72du4mun1n" path="res://Backgrounds/city_skyline.png" id="37_f7i13"]
+[ext_resource type="Texture2D" uid="uid://uhc7ojmjmkyd" path="res://Backgrounds/hill.png" id="38_41om8"]
+[ext_resource type="Texture2D" uid="uid://jtatsf4hellw" path="res://Backgrounds/foreground.png" id="38_iv2pe"]
+[ext_resource type="Texture2D" uid="uid://b1ie70kktkst4" path="res://Backgrounds/tree_line_3.png" id="39_whkd0"]
+[ext_resource type="Texture2D" uid="uid://ccko1puj56w45" path="res://Backgrounds/tree_line_2.png" id="40_abmio"]
+[ext_resource type="Texture2D" uid="uid://rjr1uhg7lttn" path="res://Backgrounds/tree_line_1.png" id="41_pmqxb"]
 
 [node name="DrivingRange" type="Control"]
 layout_mode = 3
@@ -48,8 +59,8 @@ anchors_preset = 0
 offset_right = 40.0
 offset_bottom = 40.0
 
-[node name="GameCamera" type="Camera2D" parent="."]
-script = ExtResource("1_1384d")
+[node name="DrivingRangeCamera" type="Camera2D" parent="."]
+script = ExtResource("2_abmio")
 
 [node name="MapManager" type="Node" parent="."]
 script = ExtResource("2_6olb2")
@@ -57,7 +68,7 @@ script = ExtResource("2_6olb2")
 [node name="BuildMap" type="Node" parent="."]
 script = ExtResource("3_1ho3v")
 
-[node name="LaunchManager" type="Node" parent="."]
+[node name="DrivingRangeLaunchManager" type="Node" parent="."]
 script = ExtResource("4_55nnp")
 
 [node name="Entities" type="Node" parent="."]
@@ -111,10 +122,10 @@ texture = ExtResource("11_iv2pe")
 [node name="CharacterImage" type="TextureRect" parent="UILayer"]
 z_index = 6
 texture_filter = 1
-offset_left = -16.0
-offset_top = 889.0
-offset_right = 24.0
-offset_bottom = 929.0
+offset_left = -17.0
+offset_top = 883.0
+offset_right = 23.0
+offset_bottom = 923.0
 
 [node name="CardAnchor" type="Marker2D" parent="UILayer"]
 position = Vector2(250, 284)
@@ -292,5 +303,142 @@ volume_db = -5.859
 
 [node name="Snow" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("30_1glv8")
+
+[node name="BackgroundLayers" type="Node2D" parent="."]
+
+[node name="Sky" type="Sprite2D" parent="BackgroundLayers"]
+texture_filter = 1
+scale = Vector2(19.615, 19.615)
+texture = ExtResource("32_1ho3v")
+
+[node name="Horizon" type="Sprite2D" parent="BackgroundLayers"]
+texture_filter = 1
+position = Vector2(63, 316)
+scale = Vector2(52.95, 29.35)
+texture = ExtResource("33_55nnp")
+
+[node name="Mountains" type="Sprite2D" parent="BackgroundLayers"]
+texture_filter = 1
+position = Vector2(1541, -1088)
+scale = Vector2(3.96, 3.96)
+texture = ExtResource("34_m5kwi")
+
+[node name="Clouds" type="Sprite2D" parent="BackgroundLayers"]
+texture_filter = 1
+position = Vector2(414, -852)
+scale = Vector2(2.095, 2.095)
+texture = ExtResource("35_je7xe")
+
+[node name="DistantHill" type="Sprite2D" parent="BackgroundLayers"]
+texture_filter = 1
+position = Vector2(1050, -842)
+scale = Vector2(1.565, 1.565)
+texture = ExtResource("36_je7xe")
+
+[node name="TreeLine3" type="Sprite2D" parent="BackgroundLayers"]
+z_index = -215
+texture_filter = 1
+position = Vector2(746, -435)
+scale = Vector2(0.42, 0.42)
+texture = ExtResource("39_whkd0")
+
+[node name="City" type="Sprite2D" parent="BackgroundLayers"]
+texture_filter = 1
+position = Vector2(873, -629)
+scale = Vector2(2.84, 2.84)
+texture = ExtResource("37_f7i13")
+
+[node name="Hill" type="Sprite2D" parent="BackgroundLayers"]
+texture_filter = 1
+position = Vector2(500, -403)
+scale = Vector2(0.8, 0.215)
+texture = ExtResource("38_41om8")
+
+[node name="TreeLine2" type="Sprite2D" parent="BackgroundLayers"]
+z_index = -165
+texture_filter = 1
+position = Vector2(933, -319)
+scale = Vector2(0.71, 0.71)
+texture = ExtResource("40_abmio")
+
+[node name="Foreground" type="Sprite2D" parent="BackgroundLayers"]
+texture_filter = 1
+position = Vector2(0, -163)
+scale = Vector2(1.385, 1.385)
+texture = ExtResource("38_iv2pe")
+
+[node name="TreeLine1" type="Sprite2D" parent="BackgroundLayers"]
+texture_filter = 1
+position = Vector2(-26, -138.91)
+scale = Vector2(3.235, 2.715)
+texture = ExtResource("41_pmqxb")
+
+[node name="BackgroundLayersZoomedIn" type="Node2D" parent="."]
+visible = false
+
+[node name="Sky" type="Sprite2D" parent="BackgroundLayersZoomedIn"]
+texture_filter = 1
+scale = Vector2(19.615, 19.615)
+texture = ExtResource("32_1ho3v")
+
+[node name="Horizon" type="Sprite2D" parent="BackgroundLayersZoomedIn"]
+texture_filter = 1
+position = Vector2(63, 927)
+scale = Vector2(52.95, 29.35)
+texture = ExtResource("33_55nnp")
+
+[node name="Mountains" type="Sprite2D" parent="BackgroundLayersZoomedIn"]
+texture_filter = 1
+position = Vector2(1541, -355)
+scale = Vector2(3.96, 3.96)
+texture = ExtResource("34_m5kwi")
+
+[node name="Clouds" type="Sprite2D" parent="BackgroundLayersZoomedIn"]
+texture_filter = 1
+position = Vector2(414, -681)
+scale = Vector2(2.095, 2.095)
+texture = ExtResource("35_je7xe")
+
+[node name="DistantHill" type="Sprite2D" parent="BackgroundLayersZoomedIn"]
+texture_filter = 1
+position = Vector2(1050, -390)
+scale = Vector2(1.565, 1.565)
+texture = ExtResource("36_je7xe")
+
+[node name="TreeLine3" type="Sprite2D" parent="BackgroundLayersZoomedIn"]
+texture_filter = 1
+position = Vector2(746, -295)
+scale = Vector2(0.42, 0.42)
+texture = ExtResource("39_whkd0")
+
+[node name="City" type="Sprite2D" parent="BackgroundLayersZoomedIn"]
+texture_filter = 1
+position = Vector2(873, -291)
+scale = Vector2(2.84, 2.84)
+texture = ExtResource("37_f7i13")
+
+[node name="Hill" type="Sprite2D" parent="BackgroundLayersZoomedIn"]
+texture_filter = 1
+position = Vector2(500, -255)
+scale = Vector2(0.8, 0.215)
+texture = ExtResource("38_41om8")
+
+[node name="TreeLine2" type="Sprite2D" parent="BackgroundLayersZoomedIn"]
+texture_filter = 1
+position = Vector2(633, -243)
+scale = Vector2(0.71, 0.71)
+texture = ExtResource("40_abmio")
+
+[node name="Foreground" type="Sprite2D" parent="BackgroundLayersZoomedIn"]
+texture_filter = 1
+position = Vector2(0, 61)
+scale = Vector2(1.385, 1.385)
+texture = ExtResource("38_iv2pe")
+
+[node name="TreeLine1" type="Sprite2D" parent="BackgroundLayersZoomedIn"]
+texture_filter = 1
+position = Vector2(-26, -135.18)
+scale = Vector2(3.235, 2.715)
+texture = ExtResource("41_pmqxb")
 
 [connection signal="pressed" from="UILayer/ReturnToClubhouseButton" to="." method="_on_return_to_clubhouse_pressed"]

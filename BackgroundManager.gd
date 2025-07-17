@@ -252,6 +252,117 @@ var background_themes = {
 				"repeat_vertical": false
 			}
 		]
+	},
+	"driving_range": {
+		"layers": [
+			{
+				"name": "Sky",
+				"texture_path": "res://Backgrounds/sky_gradient.png",
+				"parallax_factor": 8.0,  # EXTREME - hyperspeed movement (furthest away)
+				"z_index": -300,
+				"scale": Vector2(2.0, 1.0),
+				"repeat_horizontal": true,
+				"repeat_vertical": false
+			},
+			{
+				"name": "Mountains",
+				"texture_path": "res://Backgrounds/distant_mountains.png",
+				"parallax_factor": 6.5,  # EXTREME - hyperspeed parallax
+				"z_index": -250,
+				"scale": Vector2(1.5, 1.0),
+				"repeat_horizontal": true,
+				"repeat_vertical": false,
+				"custom_y_position": 2800  # Closer Y position for tighter spacing
+			},
+			{
+				"name": "Horizon",
+				"texture_path": "res://Backgrounds/horizon.png",
+				"parallax_factor": 6.5,  # Same as mountains
+				"z_index": -266,
+				"scale": Vector2(100.0, 100.0),
+				"repeat_horizontal": true,
+				"repeat_vertical": false,
+				"custom_y_position": 1480  # Aligned with top of grid map (10 rows * 48 cell size)
+			},
+			{
+				"name": "DistantHill",
+				"texture_path": "res://Backgrounds/distant_hill.png",
+				"parallax_factor": 5.5,  # In front of mountains
+				"z_index": -220,
+				"scale": Vector2(1.4, 1.0),
+				"repeat_horizontal": true,
+				"repeat_vertical": false,
+				"custom_y_position": -700  # Closer Y position for tighter spacing
+			},
+			{
+				"name": "Hill",
+				"texture_path": "res://Backgrounds/hill.png",
+				"parallax_factor": 5.2,  # In front of distant hill
+				"z_index": -190,
+				"scale": Vector2(0.9, 0.3),
+				"repeat_horizontal": true,
+				"repeat_vertical": false
+			},
+			{
+				"name": "City",
+				"texture_path": "res://Backgrounds/city_skyline.png",
+				"parallax_factor": 5.0,  # Between hill layers
+				"z_index": -210,
+				"scale": Vector2(1.2, 1.0),
+				"repeat_horizontal": true,
+				"repeat_vertical": false,
+				"custom_y_position": -600  # Closer Y position for tighter spacing
+			},
+			{
+				"name": "Clouds",
+				"texture_path": "res://Backgrounds/clouds.png",
+				"parallax_factor": 9.0,  # EXTREME - very high hyperspeed parallax
+				"z_index": -200,
+				"scale": Vector2(1.3, 1.0),
+				"repeat_horizontal": true,
+				"repeat_vertical": false,
+				"custom_y_position": -900  # Closer Y position for tighter spacing
+			},
+			{
+				"name": "TreeLine3",
+				"texture_path": "res://Backgrounds/tree_line_3.png",
+				"parallax_factor": 2.5,  # EXTREME - medium-high hyperspeed parallax
+				"z_index": -120,
+				"scale": Vector2(1.1, 1.0),
+				"repeat_horizontal": false,
+				"repeat_vertical": false,
+				"custom_y_position": -600  # Closer Y position for tighter spacing
+			},
+			{
+				"name": "TreeLine2",
+				"texture_path": "res://Backgrounds/tree_line_2.png",
+				"parallax_factor": 1.5,  # EXTREME - medium hyperspeed parallax
+				"z_index": -100,
+				"scale": Vector2(0.9, 0.9),
+				"repeat_horizontal": true,
+				"repeat_vertical": false,
+				"custom_y_position": -580  # Closer Y position for tighter spacing
+			},
+			{
+				"name": "Foreground",
+				"texture_path": "res://Backgrounds/foreground.png",
+				"parallax_factor": 0.5,  # Between TreeLine2 and TreeLine1
+				"z_index": -85,
+				"scale": Vector2(1.8, 1.8),
+				"repeat_horizontal": true,
+				"repeat_vertical": false,
+				"custom_y_position": -400  # Closer Y position for tighter spacing
+			},
+			{
+				"name": "TreeLine1",
+				"texture_path": "res://Backgrounds/tree_line_1.png",
+				"parallax_factor": 0.0,  # No parallax (static) - TreeLine1 stays fixed
+				"z_index": -80,
+				"scale": Vector2(1.0, 1.0),
+				"repeat_horizontal": true,
+				"repeat_vertical": false
+			}
+		]
 	}
 }
 
@@ -259,6 +370,15 @@ var background_themes = {
 var current_theme: String = ""
 var parallax_system: Node2D = null
 var background_container: Node2D = null
+var use_existing_layers: bool = false
+var existing_layers_node: Node2D = null
+
+# Vertical parallax for Driving Range
+var vertical_parallax_enabled: bool = false
+var camera_reference: Camera2D = null
+var driving_range_zoom_min: float = 0.6  # Zoom out limit
+var driving_range_zoom_max: float = 3.0  # Zoom in limit
+var vertical_parallax_layers: Array = []  # Store layer data for vertical parallax
 
 func _ready():
 	# Create background container
@@ -288,9 +408,84 @@ func set_theme(theme_name: String) -> void:
 	current_theme = theme_name
 	var theme_data = background_themes[theme_name]
 	
-	# Create background layers
-	create_theme_layers(theme_data)
+	# Check if we should use existing layers
+	if use_existing_layers and existing_layers_node:
+		setup_existing_layers(theme_data)
+	else:
+		# Create background layers
+		create_theme_layers(theme_data)
+	
 	theme_changed.emit(theme_name)
+
+func set_use_existing_layers(enabled: bool, layers_node: Node2D = null) -> void:
+	"""
+	Configure the background manager to use pre-existing layers from a scene
+	
+	Parameters:
+	- enabled: Whether to use existing layers instead of creating them
+	- layers_node: The Node2D containing the background sprite layers
+	"""
+	use_existing_layers = enabled
+	existing_layers_node = layers_node
+	print("BackgroundManager: Use existing layers set to ", enabled)
+
+func setup_existing_layers(theme_data: Dictionary) -> void:
+	"""Set up background layers using pre-existing sprites from the scene"""
+	if not existing_layers_node:
+		print("ERROR: No existing layers node provided!")
+		return
+	
+	print("Setting up existing background layers...")
+	
+	# Clear any existing layers in parallax system
+	parallax_system.clear_all_layers()
+	
+	# Get all sprite children from the existing layers node
+	var sprites = []
+	for child in existing_layers_node.get_children():
+		if child is Sprite2D:
+			sprites.append(child)
+	
+	print("Found ", sprites.size(), " existing sprite layers")
+	
+	# Match existing sprites with theme data
+	for layer_data in theme_data.layers:
+		var layer_name = layer_data.get("name", "")
+		var matching_sprite = null
+		
+		# Find matching sprite by name
+		for sprite in sprites:
+			if sprite.name == layer_name:
+				matching_sprite = sprite
+				break
+		
+		if matching_sprite:
+			print("Setting up existing layer: ", layer_name)
+			
+			# Preserve editor settings - only apply z_index and parallax effects
+			matching_sprite.z_index = layer_data.get("z_index", -100)
+			
+			# Use the sprite's current position and scale from the editor
+			var editor_position = matching_sprite.position
+			var editor_scale = matching_sprite.scale
+			
+			print("  - Using editor position: ", editor_position)
+			print("  - Using editor scale: ", editor_scale)
+			
+			# Add to parallax system using editor position as base
+			parallax_system.add_background_layer(
+				matching_sprite,
+				layer_data.get("parallax_factor", 0.0),
+				layer_data.get("repeat_horizontal", true),
+				layer_data.get("repeat_vertical", false),
+				editor_position  # Use editor position as base position
+			)
+		else:
+			print("WARNING: No matching sprite found for layer: ", layer_name)
+			# Create fallback layer if needed
+			create_background_layer(layer_data)
+	
+	print("✓ Existing background layers setup complete")
 
 func create_theme_layers(theme_data: Dictionary) -> void:
 	"""Create all layers for a theme"""
@@ -394,6 +589,135 @@ func set_camera_reference(camera: Camera2D) -> void:
 	"""Set camera reference for the parallax system"""
 	if parallax_system:
 		parallax_system.set_camera_reference(camera)
+	
+	# Store camera reference for vertical parallax
+	camera_reference = camera
+
+func enable_vertical_parallax(enabled: bool) -> void:
+	"""Enable or disable vertical parallax for Driving Range"""
+	vertical_parallax_enabled = enabled
+	print("BackgroundManager: Vertical parallax ", "enabled" if enabled else "disabled")
+	
+	if enabled:
+		# Start the vertical parallax update process
+		set_process(true)
+	else:
+		# Stop the vertical parallax update process
+		set_process(false)
+
+func cleanup_vertical_parallax() -> void:
+	"""Clean up vertical parallax when leaving Driving Range"""
+	enable_vertical_parallax(false)
+	vertical_parallax_layers.clear()
+	print("BackgroundManager: Vertical parallax cleaned up")
+
+func _process(delta: float) -> void:
+	"""Process vertical parallax updates"""
+	if vertical_parallax_enabled and camera_reference and vertical_parallax_layers.size() > 0:
+		update_vertical_parallax()
+
+func update_vertical_parallax() -> void:
+	"""Update vertical positions of background layers based on camera zoom"""
+	if not camera_reference or not existing_layers_node:
+		return
+	
+	var current_zoom = camera_reference.zoom.x  # Assuming uniform zoom
+	var zoom_ratio = (current_zoom - driving_range_zoom_min) / (driving_range_zoom_max - driving_range_zoom_min)
+	zoom_ratio = clamp(zoom_ratio, 0.0, 1.0)
+	
+	# Update each layer's vertical position
+	for layer_data in vertical_parallax_layers:
+		var sprite = layer_data.sprite
+		var zoomed_out_y = layer_data.zoomed_out_y
+		var zoomed_in_y = layer_data.zoomed_in_y
+		var vertical_factor = layer_data.vertical_factor
+		var anchor_to_grid = layer_data.anchor_to_grid
+		
+		if sprite:
+			if anchor_to_grid:
+				# For anchored layers (like TreeLine1), keep them at the grid top position
+				sprite.position.y = 0  # Grid top is at Y=0
+			else:
+				# Calculate target Y position based on zoom
+				var target_y = lerp(zoomed_out_y, zoomed_in_y, zoom_ratio)
+				
+				# Apply vertical parallax factor (layers closer to camera move more)
+				var parallax_y = target_y + (target_y - zoomed_out_y) * vertical_factor * zoom_ratio
+				
+				# Update sprite Y position (preserve X position)
+				sprite.position.y = parallax_y
+
+func setup_driving_range_vertical_parallax() -> void:
+	"""Set up vertical parallax specifically for Driving Range"""
+	if not existing_layers_node:
+		print("ERROR: No existing layers node for vertical parallax setup!")
+		return
+	
+	print("Setting up Driving Range vertical parallax...")
+	
+	# Clear previous layer data
+	vertical_parallax_layers.clear()
+	
+	# Calculate world map grid boundaries
+	# Driving Range grid: 250x10 cells, cell_size = 48
+	var grid_top_y = 0  # Top of the world map grid
+	var grid_bottom_y = 10 * 48  # Bottom of the world map grid (480)
+	
+	# Get the zoomed in reference node
+	var zoomed_in_reference = existing_layers_node.get_parent().get_node_or_null("BackgroundLayersZoomedIn")
+	if not zoomed_in_reference:
+		print("WARNING: BackgroundLayersZoomedIn not found! Using fallback positions.")
+	
+	# Define layer names to process
+	var layer_names = ["Sky", "Mountains", "Horizon", "DistantHill", "City", "Hill", "Clouds", "TreeLine3", "TreeLine2", "Foreground", "TreeLine1"]
+	
+	# Find sprites and set up vertical parallax data
+	for sprite_name in layer_names:
+		# Find the sprite in the existing layers node (zoomed in position)
+		var sprite = existing_layers_node.get_node_or_null(sprite_name)
+		if not sprite:
+			print("  - WARNING: Sprite not found for vertical parallax: ", sprite_name)
+			continue
+		
+		# Get zoomed in position (current editor position)
+		var zoomed_in_y = sprite.position.y
+		
+		# Get zoomed out position from reference node
+		var zoomed_out_y = zoomed_in_y  # Fallback to current position
+		var anchor_to_grid = false
+		var vertical_factor = 0.0
+		
+		if zoomed_in_reference:
+			var zoomed_out_sprite = zoomed_in_reference.get_node_or_null(sprite_name)
+			if zoomed_out_sprite:
+				zoomed_out_y = zoomed_out_sprite.position.y
+				print("  - Found zoomed out position for ", sprite_name, ": ", zoomed_out_y)
+			else:
+				print("  - WARNING: Zoomed out sprite not found: ", sprite_name)
+		
+		# Special handling for TreeLine1 (anchor to grid)
+		if sprite_name == "TreeLine1":
+			anchor_to_grid = true
+			vertical_factor = 0.0
+			zoomed_in_y = grid_top_y  # Always anchor to grid top
+		else:
+			# Calculate vertical factor based on distance from TreeLine1
+			var distance_from_tree = abs(zoomed_out_y - grid_top_y)
+			vertical_factor = clamp(distance_from_tree / 2000.0, 0.0, 1.0)  # Normalize to 0-1 range
+		
+		# Create layer data
+		var layer_data = {
+			"sprite": sprite,
+			"zoomed_out_y": zoomed_out_y,
+			"zoomed_in_y": zoomed_in_y,
+			"vertical_factor": vertical_factor,
+			"anchor_to_grid": anchor_to_grid
+		}
+		
+		vertical_parallax_layers.append(layer_data)
+		print("  - Set up vertical parallax for ", sprite_name, ": ", zoomed_out_y, " -> ", zoomed_in_y, " (factor: ", vertical_factor, ", anchored: ", anchor_to_grid, ")")
+	
+	print("✓ Driving Range vertical parallax setup complete with ", vertical_parallax_layers.size(), " layers")
 
 func set_world_grid_center(world_center: Vector2) -> void:
 	"""Set the world grid center for parallax calculations"""

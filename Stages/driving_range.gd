@@ -15,12 +15,12 @@ signal driving_range_completed
 @onready var card_play_sound: AudioStreamPlayer2D = $CardPlaySound
 @onready var birds_tweeting_sound: AudioStreamPlayer2D = $BirdsTweeting
 @onready var obstacle_layer = $ObstacleLayer
-@onready var camera := $GameCamera
+@onready var camera := $DrivingRangeCamera
 @onready var map_manager := $MapManager
 @onready var build_map := $BuildMap
 @onready var draw_club_cards_button: Control = $UILayer/DrawClubCards
 @onready var power_meter: Control = $UILayer/PowerMeter
-@onready var launch_manager = $LaunchManager
+@onready var launch_manager = $DrivingRangeLaunchManager
 @onready var background_manager: Node = $BackgroundManager
 
 # Driving Range specific variables
@@ -35,6 +35,29 @@ var camera_container: Control
 # Club selection variables
 var movement_buttons := []
 var selected_club: String = ""
+
+# Game state variables
+var game_phase := "setup"  # setup, draw_clubs, aiming, launch, ball_flying, distance_dialog
+var current_shot_distance := 0.0
+var current_record_distance := 0.0
+var shots_taken := 0
+var max_shots := 10  # Number of shots per session
+
+# Auto-aiming variables
+var aiming_circle: Control = null
+var chosen_landing_spot: Vector2 = Vector2.ZERO
+var max_shot_distance: float = 800.0
+
+# Distance dialog
+var drive_distance_dialog: Control = null
+var distance_dialog_scene = preload("res://UI/DrivingRangeDistanceDialog.tscn")
+
+# Return to clubhouse button
+var return_button: Button = null
+
+
+
+# Club data for driving range
 var club_data = {
 	"Driver": {
 		"max_distance": 1200.0,
@@ -121,25 +144,6 @@ var available_club_cards: Array[CardData] = [
 	preload("res://Cards/IceClub.tres"),
 	preload("res://Cards/GrenadeLauncherClubCard.tres")
 ]
-
-# Game state variables
-var game_phase := "setup"  # setup, draw_clubs, aiming, launch, ball_flying, distance_dialog
-var current_shot_distance := 0.0
-var current_record_distance := 0.0
-var shots_taken := 0
-var max_shots := 10  # Number of shots per session
-
-# Auto-aiming variables
-var aiming_circle: Control = null
-var chosen_landing_spot: Vector2 = Vector2.ZERO
-var max_shot_distance: float = 800.0
-
-# Distance dialog
-var drive_distance_dialog: Control = null
-var distance_dialog_scene = preload("res://UI/DrivingRangeDistanceDialog.tscn")
-
-# Return to clubhouse button
-var return_button: Button = null
 
 # Required variables for build_map setup
 var obstacle_map: Dictionary = {}
@@ -251,10 +255,10 @@ func setup_driving_range():
 	else:
 		print("ERROR: build_map is null!")
 	
-	# Build the map from layout
+	# Build the map from layout using custom driving range function
 	map_manager.load_map_data(DrivingRangeLayout.LAYOUT)
 	if build_map:
-		build_map.build_map_from_layout_with_randomization(map_manager.level_layout)
+		build_driving_range_map(map_manager.level_layout)
 	else:
 		print("ERROR: build_map is null, cannot build map!")
 	
@@ -262,13 +266,31 @@ func setup_driving_range():
 	place_player_on_tee()
 	
 	# Set up camera
-	position_camera_on_player()
+	setup_driving_range_camera()
 	
-	# Set up background
+	# Set up custom driving range background using existing layers
 	if background_manager:
+		# Add camera to the camera group for background system compatibility
+		camera.add_to_group("camera")
+		
 		background_manager.set_camera_reference(camera)
-		background_manager.set_theme("course1")
-		print("✓ Background manager initialized with course1 theme")
+		
+		# Get the BackgroundLayers node from the scene
+		var background_layers = get_node_or_null("BackgroundLayers")
+		if background_layers:
+			# Configure background manager to use existing layers
+			background_manager.set_use_existing_layers(true, background_layers)
+			background_manager.set_theme("driving_range")
+			
+			# Disable vertical parallax for now to prevent glitching
+			# background_manager.setup_driving_range_vertical_parallax()
+			# background_manager.enable_vertical_parallax(true)
+			
+			print("✓ Background manager initialized with existing driving_range layers")
+		else:
+			# Fallback to creating layers with code
+			background_manager.set_theme("driving_range")
+			print("✓ Background manager initialized with driving_range theme (code-created layers)")
 	else:
 		print("ERROR: background_manager is null!")
 	
@@ -396,14 +418,36 @@ func setup_character_image():
 	else:
 		print("ERROR: Could not load character texture for character:", Global.selected_character)
 
-func position_camera_on_player():
-	"""Position camera on the player"""
-	if player_node and camera:
-		var sprite = player_node.get_node_or_null("Sprite2D")
-		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
-		var player_center = player_node.global_position + player_size / 2
-		camera.position = player_center
-		print("Camera positioned on player")
+func setup_driving_range_camera():
+	"""Setup the driving range camera"""
+	if not camera:
+		print("ERROR: Cannot setup camera - camera is null")
+		return
+	
+	if not player_node:
+		print("ERROR: Cannot setup camera - player_node is null")
+		return
+	
+	# Calculate player center position
+	var sprite = player_node.get_node_or_null("Sprite2D")
+	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
+	var player_center = player_node.global_position + player_size / 2
+	
+	# Setup the driving range camera
+	camera.setup(player_center, camera_container)
+	camera.position_on_player()
+	
+	# Make this camera the current camera
+	camera.make_current()
+	
+	# Connect camera signals
+	camera.camera_returned_to_player.connect(_on_camera_returned_to_player)
+	
+	print("DrivingRangeCamera setup complete")
+
+func _on_camera_returned_to_player():
+	"""Handle camera returning to player"""
+	print("Camera returned to player - ready for next shot")
 
 func start_driving_range_session():
 	"""Start a new driving range session"""
@@ -425,6 +469,7 @@ func start_new_shot():
 	
 	print("Starting shot", shots_taken + 1, "of", max_shots)
 	game_phase = "draw_clubs"
+	print("DEBUG: Game phase set to:", game_phase)
 	
 	# Place new ball on tee
 	place_ball_on_tee()
@@ -439,25 +484,42 @@ func place_ball_on_tee():
 		print("ERROR: launch_manager is null!")
 		return
 	
-	# Remove existing ball
-	if launch_manager.golf_ball:
-		launch_manager.golf_ball.queue_free()
-		launch_manager.golf_ball = null
+	# Remove existing ball if it exists
+	var existing_ball = camera_container.get_node_or_null("GolfBall")
+	if existing_ball:
+		existing_ball.queue_free()
 	
 	# Create new ball
 	var ball_scene = preload("res://GolfBall.tscn")
-	launch_manager.golf_ball = ball_scene.instantiate()
+	var new_ball = ball_scene.instantiate()
+	new_ball.name = "GolfBall"  # Give it a name for easy access
 	
 	# Position ball on tee
 	var ball_position = Vector2(player_grid_pos.x * cell_size + cell_size / 2, 
 							   player_grid_pos.y * cell_size + cell_size / 2)
-	launch_manager.golf_ball.position = ball_position
-	launch_manager.golf_ball.cell_size = cell_size
-	launch_manager.golf_ball.map_manager = map_manager
+	new_ball.position = ball_position
+	new_ball.cell_size = cell_size
+	new_ball.map_manager = map_manager
+	
+	# Ensure ball is properly initialized for launch
+	if new_ball.has_method("reset_ball_state"):
+		new_ball.reset_ball_state()
+	
+	# Set ball properties to ensure it's available for launch
+	if "landed_flag" in new_ball:
+		new_ball.landed_flag = false
+	if "in_flight" in new_ball:
+		new_ball.in_flight = false
+	if "velocity" in new_ball:
+		new_ball.velocity = Vector2.ZERO
 	
 	# Add ball to camera container
-	camera_container.add_child(launch_manager.golf_ball)
-	launch_manager.golf_ball.add_to_group("balls")
+	camera_container.add_child(new_ball)
+	new_ball.add_to_group("balls")
+	
+	# Set ball reference in launch manager
+	launch_manager.set_ball(new_ball)
+	launch_manager.set_ball_in_flight(false)
 	
 	print("New ball placed on tee")
 
@@ -472,6 +534,7 @@ func show_draw_club_cards_button():
 func _on_draw_club_cards_pressed():
 	"""Handle draw club cards button press"""
 	print("Draw Club Cards button pressed")
+	print("DEBUG: Current game phase:", game_phase)
 	draw_club_cards()
 
 func draw_club_cards():
@@ -483,10 +546,22 @@ func draw_club_cards():
 		print("ERROR: movement_buttons_container is null!")
 		return
 	
+	print("DEBUG: movement_buttons_container found:", movement_buttons_container.name)
+	print("DEBUG: movement_buttons_container mouse_filter before:", movement_buttons_container.mouse_filter)
+	
 	# Clear existing buttons
 	for child in movement_buttons_container.get_children():
 		child.queue_free()
 	movement_buttons.clear()
+	
+	# Fix the mouse_filter to allow interactions
+	movement_buttons_container.mouse_filter = Control.MOUSE_FILTER_PASS
+	print("DEBUG: movement_buttons_container mouse_filter after:", movement_buttons_container.mouse_filter)
+	
+	# Reset container positioning for proper display
+	movement_buttons_container.position = Vector2(400, 500)  # Center of screen
+	movement_buttons_container.scale = Vector2.ONE  # Normal scale
+	print("DEBUG: Container repositioned to:", movement_buttons_container.position, "scale:", movement_buttons_container.scale)
 	
 	# Generate 2 random club cards
 	var remaining_cards = available_club_cards.duplicate()
@@ -498,11 +573,15 @@ func draw_club_cards():
 			selected_cards.append(remaining_cards[random_index])
 			remaining_cards.remove_at(random_index)
 	
+	print("DEBUG: Selected cards:", selected_cards.map(func(card): return card.name))
+	
 	# Create club selection buttons
 	for i in range(selected_cards.size()):
 		var club_card = selected_cards[i]
 		var club_name = club_card.name
 		var club_info = club_data.get(club_name, {})
+		
+		print("DEBUG: Creating button for club:", club_name)
 		
 		var btn := TextureButton.new()
 		btn.name = "ClubButton%d" % i
@@ -513,6 +592,11 @@ func draw_club_cards():
 		btn.focus_mode = Control.FOCUS_NONE
 		btn.z_index = 10
 		
+		# Position buttons side by side
+		btn.position = Vector2(i * 120, 0)  # 120 pixels apart
+		
+		print("DEBUG: Button created - mouse_filter:", btn.mouse_filter, "name:", btn.name, "position:", btn.position)
+		
 		# Add hover effect
 		var overlay := ColorRect.new()
 		overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -521,18 +605,29 @@ func draw_club_cards():
 		overlay.visible = false
 		btn.add_child(overlay)
 		
-		btn.mouse_entered.connect(func(): overlay.visible = true)
-		btn.mouse_exited.connect(func(): overlay.visible = false)
+		btn.mouse_entered.connect(func(): 
+			print("DEBUG: Mouse entered club button:", club_name)
+			overlay.visible = true
+		)
+		btn.mouse_exited.connect(func(): 
+			print("DEBUG: Mouse exited club button:", club_name)
+			overlay.visible = false
+		)
 		btn.pressed.connect(func(): _on_club_card_pressed(club_name, club_info, btn))
 		
 		movement_buttons_container.add_child(btn)
 		movement_buttons.append(btn)
+		
+		print("DEBUG: Button added to container. Container children count:", movement_buttons_container.get_child_count())
 	
 	draw_club_cards_button.visible = false
-	print("Club cards drawn and displayed")
+	print("DEBUG: Club cards drawn and displayed. Total buttons:", movement_buttons.size())
+	print("DEBUG: Container children:", movement_buttons_container.get_children().map(func(child): return child.name))
 
 func _on_club_card_pressed(club_name: String, club_info: Dictionary, button: TextureButton):
 	"""Handle club card selection"""
+	print("DEBUG: Club card pressed! Club:", club_name, "Button:", button.name)
+	
 	selected_club = club_name
 	max_shot_distance = club_info.get("max_distance", 600.0)
 	card_click_sound.play()
@@ -545,13 +640,24 @@ func _on_club_card_pressed(club_name: String, club_info: Dictionary, button: Tex
 			child.queue_free()
 	movement_buttons.clear()
 	
-	# Enter aiming phase with auto-aiming
-	enter_aiming_phase()
+	# Auto-set aiming position and go straight to launch phase
+	var sprite = player_node.get_node_or_null("Sprite2D")
+	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
+	var player_center = player_node.global_position + player_size / 2
+	
+	# Calculate auto-aim position (straight to the right at max distance)
+	chosen_landing_spot = player_center + Vector2(max_shot_distance, 0)
+	
+	# Create aiming circle for visual feedback
+	create_aiming_circle(chosen_landing_spot)
+	
+	# Go straight to launch phase
+	enter_launch_phase()
 
 func enter_aiming_phase():
-	"""Enter aiming phase with auto-aiming"""
+	"""Enter aiming phase with auto-aiming - skip manual aiming"""
 	game_phase = "aiming"
-	print("Entering aiming phase with auto-aiming")
+	print("Entering aiming phase with auto-aiming - skipping manual aiming")
 	
 	# Auto-place aiming circle at max distance to the right
 	var sprite = player_node.get_node_or_null("Sprite2D")
@@ -561,10 +667,10 @@ func enter_aiming_phase():
 	# Calculate auto-aim position (straight to the right at max distance)
 	chosen_landing_spot = player_center + Vector2(max_shot_distance, 0)
 	
-	# Create aiming circle
+	# Create aiming circle (optional - for visual feedback)
 	create_aiming_circle(chosen_landing_spot)
 	
-	# Enter launch phase immediately
+	# Skip manual aiming and go straight to launch phase
 	enter_launch_phase()
 
 func create_aiming_circle(position: Vector2):
@@ -610,18 +716,17 @@ func enter_launch_phase():
 		print("ERROR: launch_manager is null!")
 		return
 	
-	# Set up launch manager
-	launch_manager.camera_container = camera_container
-	launch_manager.ui_layer = ui_layer
-	launch_manager.player_node = player_node
-	launch_manager.cell_size = cell_size
-	launch_manager.chosen_landing_spot = chosen_landing_spot
-	launch_manager.selected_club = selected_club
-	launch_manager.club_data = club_data
+	# Set up specialized DrivingRangeLaunchManager
+	launch_manager.setup(camera, camera_container, ui_layer, power_meter, map_manager, cell_size, player_grid_pos)
+	launch_manager.set_launch_parameters(chosen_landing_spot, selected_club, club_data)
 	
 	# Connect launch manager signals
 	launch_manager.ball_landed.connect(_on_golf_ball_landed)
 	launch_manager.ball_out_of_bounds.connect(_on_golf_ball_out_of_bounds)
+	
+	# Connect to ball launched signal to start tracking
+	if launch_manager.has_signal("ball_launched"):
+		launch_manager.ball_launched.connect(_on_ball_launched)
 	
 	# Start height selection
 	launch_manager.enter_launch_phase()
@@ -635,13 +740,17 @@ func _on_golf_ball_landed(tile: Vector2i):
 	var sprite = player_node.get_node_or_null("Sprite2D")
 	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
 	var player_center = player_node.global_position + player_size / 2
-	var ball_position = launch_manager.golf_ball.global_position
+	var ball = camera_container.get_node_or_null("GolfBall")
+	var ball_position = ball.global_position if ball else Vector2.ZERO
 	current_shot_distance = player_center.distance_to(ball_position)
 	
 	print("Drive distance:", current_shot_distance, "pixels")
 	
-	# Follow ball with camera
-	follow_ball_with_camera()
+	# Stop ball tracking and focus camera on landing position
+	if camera and camera.has_method("stop_ball_tracking"):
+		camera.stop_ball_tracking()
+	if camera and camera.has_method("focus_on_ball_landing"):
+		camera.focus_on_ball_landing(ball_position)
 	
 	# Wait for ball to stop, then show distance dialog
 	var timer = get_tree().create_timer(1.0)
@@ -653,16 +762,16 @@ func _on_golf_ball_out_of_bounds():
 	current_shot_distance = 0.0
 	show_drive_distance_dialog()
 
-func follow_ball_with_camera():
-	"""Follow the ball with the camera"""
-	if not launch_manager or not launch_manager.golf_ball or not camera:
-		print("ERROR: Cannot follow ball - missing required components")
-		return
+func _on_ball_launched(ball: Node2D):
+	"""Handle ball launch - start camera tracking"""
+	print("Ball launched - starting camera tracking")
+	game_phase = "ball_flying"
 	
-	var ball_position = launch_manager.golf_ball.global_position
-	var tween = create_tween()
-	tween.tween_property(camera, "position", ball_position, 1.0)
-	print("Camera following ball")
+	# Start ball tracking with the new camera
+	if camera and camera.has_method("start_ball_tracking"):
+		camera.start_ball_tracking()
+
+
 
 func show_drive_distance_dialog():
 	"""Show the drive distance dialog"""
@@ -688,7 +797,18 @@ func show_drive_distance_dialog():
 		current_record_distance = current_shot_distance
 		save_driving_range_record()
 	
+	# Add dialog to UI layer and ensure proper positioning
 	ui_layer.add_child(drive_distance_dialog)
+	
+	# Ensure dialog is properly centered and visible
+	drive_distance_dialog.visible = true
+	drive_distance_dialog.z_index = 1000  # Ensure it's on top
+	
+	# Force layout update to ensure anchors work correctly
+	drive_distance_dialog.queue_redraw()
+	drive_distance_dialog.force_update_transform()
+	
+	print("Drive distance dialog added and positioned")
 
 func _on_drive_distance_dialog_closed():
 	"""Handle drive distance dialog closing"""
@@ -708,12 +828,8 @@ func _on_drive_distance_dialog_closed():
 
 func tween_camera_back_to_player():
 	"""Tween camera back to player position"""
-	if player_node and camera:
-		var sprite = player_node.get_node_or_null("Sprite2D")
-		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
-		var player_center = player_node.global_position + player_size / 2
-		var tween = create_tween()
-		tween.tween_property(camera, "position", player_center, 1.0)
+	if camera and camera.has_method("return_to_player"):
+		camera.return_to_player()
 		print("Camera returning to player")
 
 func show_session_complete_dialog():
@@ -734,14 +850,43 @@ func show_session_complete_dialog():
 func _on_session_complete_confirmed():
 	"""Handle session complete confirmation"""
 	print("Session complete confirmed")
+	
+	# Clean up camera tracking
+	cleanup_camera_tracking()
+	
+	# Remove camera from group
+	if camera and camera.is_in_group("camera"):
+		camera.remove_from_group("camera")
+	
+	# Clean up vertical parallax before leaving
+	if background_manager:
+		background_manager.cleanup_vertical_parallax()
+	
 	# Return to main menu
 	get_tree().change_scene_to_file("res://Main.tscn")
 
 func _on_return_to_clubhouse_pressed():
 	"""Handle return to clubhouse button press"""
 	print("Return to clubhouse button pressed")
+	
+	# Clean up camera tracking
+	cleanup_camera_tracking()
+	
+	# Remove camera from group
+	if camera and camera.is_in_group("camera"):
+		camera.remove_from_group("camera")
+	
+	# Clean up vertical parallax before leaving
+	if background_manager:
+		background_manager.cleanup_vertical_parallax()
+	
 	# Return to main menu
 	get_tree().change_scene_to_file("res://Main.tscn")
+
+func cleanup_camera_tracking():
+	"""Clean up camera tracking resources"""
+	if camera and camera.has_method("cleanup"):
+		camera.cleanup()
 
 func update_hud():
 	"""Update the HUD display"""
@@ -790,12 +935,18 @@ func save_driving_range_record():
 
 func _input(event):
 	"""Handle input events"""
-	if game_phase == "aiming":
-		# Auto-aiming is handled automatically
-		pass
-	elif game_phase == "launch":
+	if game_phase == "launch":
 		# Launch manager handles input
 		launch_manager.handle_input(event)
+	elif game_phase == "draw_clubs":
+		# Debug input during club selection phase
+		if event is InputEventMouseButton and event.pressed:
+			print("DEBUG: Mouse button pressed during draw_clubs phase - Button:", event.button_index, "Position:", event.position)
+			print("DEBUG: movement_buttons_container visible:", movement_buttons_container.visible)
+			print("DEBUG: movement_buttons_container mouse_filter:", movement_buttons_container.mouse_filter)
+			print("DEBUG: movement_buttons_container children count:", movement_buttons_container.get_child_count())
+			for child in movement_buttons_container.get_children():
+				print("DEBUG: Child:", child.name, "mouse_filter:", child.mouse_filter, "visible:", child.visible)
 
 func _on_power_meter_changed(power_value: float):
 	"""Handle power meter value changes"""
@@ -805,3 +956,269 @@ func _on_sweet_spot_hit():
 	"""Handle sweet spot hit"""
 	print("Driving Range: Sweet spot hit!")
 	# You can add visual/audio feedback here
+
+func build_driving_range_map(layout: Array) -> void:
+	"""Custom build map function for driving range - no StoneWall layers"""
+	print("Building Driving Range map...")
+	
+	# Clear existing objects
+	build_map.clear_existing_objects()
+	
+	# Build base tiles
+	build_map.build_map_from_layout_base(layout, false)  # No pin for driving range
+	
+	# Get random positions for objects (excluding stone walls)
+	var object_positions = get_driving_range_object_positions(layout)
+	
+	# Place objects at positions
+	place_driving_range_objects(object_positions, layout)
+	
+	# Place TreeLineVert borders
+	build_map.place_treeline_vert_borders(layout)
+	
+	print("✓ Driving Range map built successfully")
+
+func get_driving_range_object_positions(layout: Array) -> Dictionary:
+	"""Get object positions for driving range (no stone walls)"""
+	var positions = {
+		"trees": [],
+		"shop": Vector2i.ZERO,
+		"gang_members": [],
+		"oil_drums": [],
+		"stone_walls": [],  # Empty for driving range
+		"boulders": [],
+		"bushes": [],
+		"grass": [],
+		"police": [],
+		"zombies": [],
+		"squirrels": [],
+		"bonfires": [],
+		"suitcase": Vector2i.ZERO,
+		"wraiths": []
+	}
+	
+	# Use difficulty tier spawning
+	var npc_counts = Global.get_difficulty_tier_npc_counts(0)  # Driving range is hole 0
+	
+	randomize()
+	var random_seed_value = 0 * 1000 + randi()  # Driving range seed
+	seed(random_seed_value)
+	
+	# Get valid positions for trees and other objects
+	var valid_positions: Array = []
+	for y in layout.size():
+		for x in layout[y].size():
+			var pos = Vector2i(x, y)
+			if build_map.is_valid_position_for_object(pos, layout):
+				valid_positions.append(pos)
+	
+	# Place trees (fewer for driving range)
+	var num_trees = 4  # Reduced from 8
+	var trees_placed = 0
+	var placed_objects: Array = []
+	
+	while trees_placed < num_trees and valid_positions.size() > 0:
+		var tree_index = randi() % valid_positions.size()
+		var tree_pos = valid_positions[tree_index]
+		var valid = true
+		for placed_pos in placed_objects:
+			var distance = max(abs(tree_pos.x - placed_pos.x), abs(tree_pos.y - placed_pos.y))
+			if distance < 8:
+				valid = false
+				break
+		if valid:
+			positions.trees.append(tree_pos)
+			placed_objects.append(tree_pos)
+			trees_placed += 1
+		valid_positions.remove_at(tree_index)
+	
+	# Place boulders (fewer for driving range)
+	var num_boulders = 2  # Reduced from 4
+	var boulders_placed = 0
+	while boulders_placed < num_boulders and valid_positions.size() > 0:
+		var boulder_index = randi() % valid_positions.size()
+		var boulder_pos = valid_positions[boulder_index]
+		var valid = true
+		for placed_pos in placed_objects:
+			var distance = max(abs(boulder_pos.x - placed_pos.x), abs(boulder_pos.y - placed_pos.y))
+			if distance < 6:
+				valid = false
+				break
+		if valid:
+			positions.boulders.append(boulder_pos)
+			placed_objects.append(boulder_pos)
+			boulders_placed += 1
+		valid_positions.remove_at(boulder_index)
+	
+	# Place bushes (fewer for driving range)
+	var num_bushes = 3  # Reduced from 6
+	var bushes_placed = 0
+	while bushes_placed < num_bushes and valid_positions.size() > 0:
+		var bush_index = randi() % valid_positions.size()
+		var bush_pos = valid_positions[bush_index]
+		var valid = true
+		for placed_pos in placed_objects:
+			var distance = max(abs(bush_pos.x - placed_pos.x), abs(bush_pos.y - placed_pos.y))
+			if distance < 4:
+				valid = false
+				break
+		if valid:
+			positions.bushes.append(bush_pos)
+			placed_objects.append(bush_pos)
+			bushes_placed += 1
+		valid_positions.remove_at(bush_index)
+	
+	# Place grass (reduced for driving range)
+	var num_grass = 15  # Reduced from 30
+	var grass_placed = 0
+	
+	# Find base tiles that are adjacent to rough tiles
+	var rough_adjacent_positions: Array = []
+	for pos in valid_positions:
+		var is_adjacent_to_rough = false
+		for dy in range(-1, 2):
+			for dx in range(-1, 2):
+				if dx == 0 and dy == 0:
+					continue
+				var check_pos = pos + Vector2i(dx, dy)
+				if check_pos.y >= 0 and check_pos.y < layout.size() and check_pos.x >= 0 and check_pos.x < layout[check_pos.y].size():
+					if layout[check_pos.y][check_pos.x] == "R":
+						is_adjacent_to_rough = true
+						break
+			if is_adjacent_to_rough:
+				break
+		if is_adjacent_to_rough:
+			rough_adjacent_positions.append(pos)
+	
+	# Place grass patches
+	while grass_placed < num_grass and rough_adjacent_positions.size() > 0:
+		var grass_index = randi() % rough_adjacent_positions.size()
+		var grass_pos = rough_adjacent_positions[grass_index]
+		var valid = true
+		for placed_pos in placed_objects:
+			var distance = max(abs(grass_pos.x - placed_pos.x), abs(grass_pos.y - placed_pos.y))
+			if distance < 2:  # Closer spacing for grass
+				valid = false
+				break
+		if valid:
+			positions.grass.append(grass_pos)
+			placed_objects.append(grass_pos)
+			grass_placed += 1
+		rough_adjacent_positions.remove_at(grass_index)
+	
+	return positions
+
+func place_driving_range_objects(object_positions: Dictionary, layout: Array) -> void:
+	"""Place objects for driving range (no stone walls)"""
+	
+	# Get TreeManager for random tree variations
+	var tree_manager = get_node_or_null("/root/TreeManager")
+	if not tree_manager:
+		var TreeManager = preload("res://Obstacles/TreeManager.gd")
+		tree_manager = TreeManager.new()
+		get_tree().root.add_child(tree_manager)
+		tree_manager.name = "TreeManager"
+	
+	# Place Trees
+	for tree_pos in object_positions.trees:
+		var scene: PackedScene = object_scene_map["T"]
+		if scene == null:
+			push_error("🚫 Tree scene is null")
+			continue
+		var tree: Node2D = scene.instantiate() as Node2D
+		if tree == null:
+			push_error("❌ Tree instantiation failed at (%d,%d)" % [tree_pos.x, tree_pos.y])
+			continue
+		
+		# Apply random tree variation
+		var tree_data = tree_manager.get_random_tree_data()
+		if tree_data and tree.has_method("set_tree_data"):
+			tree.set_tree_data(tree_data)
+		elif tree_data and "tree_data" in tree:
+			tree.tree_data = tree_data
+		
+		var world_pos: Vector2 = Vector2(tree_pos.x, tree_pos.y) * cell_size
+		tree.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
+		if tree.has_meta("grid_position") or "grid_position" in tree:
+			tree.set("grid_position", tree_pos)
+		else:
+			push_warning("⚠️ Tree missing 'grid_position'. Type: %s" % tree.get_class())
+		
+		tree.add_to_group("trees")
+		tree.add_to_group("collision_objects")
+		
+		build_map.ysort_objects.append({"node": tree, "grid_pos": tree_pos})
+		obstacle_layer.add_child(tree)
+		if tree.has_method("blocks") and tree.blocks():
+			build_map.obstacle_map[tree_pos] = tree
+	
+	# Place Boulders
+	for boulder_pos in object_positions.boulders:
+		var scene: PackedScene = object_scene_map["BOULDER"]
+		if scene == null:
+			push_error("🚫 Boulder scene is null")
+			continue
+		var boulder: Node2D = scene.instantiate() as Node2D
+		if boulder == null:
+			push_error("❌ Boulder instantiation failed at (%d,%d)" % [boulder_pos.x, boulder_pos.y])
+			continue
+		var world_pos: Vector2 = Vector2(boulder_pos.x, boulder_pos.y) * cell_size
+		boulder.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
+		boulder.set_meta("grid_position", boulder_pos)
+		boulder.add_to_group("boulders")
+		boulder.add_to_group("collision_objects")
+		build_map.ysort_objects.append({"node": boulder, "grid_pos": boulder_pos})
+		obstacle_layer.add_child(boulder)
+	
+	# Place Bushes
+	var bush_manager = get_node_or_null("/root/BushManager")
+	if not bush_manager:
+		var BushManager = preload("res://Obstacles/BushManager.gd")
+		bush_manager = BushManager.new()
+		get_tree().root.add_child(bush_manager)
+		bush_manager.name = "BushManager"
+	
+	for bush_pos in object_positions.bushes:
+		var scene: PackedScene = object_scene_map["BUSH"]
+		if scene == null:
+			push_error("🚫 Bush scene is null")
+			continue
+		var bush: Node2D = scene.instantiate() as Node2D
+		if bush == null:
+			push_error("❌ Bush instantiation failed at (%d,%d)" % [bush_pos.x, bush_pos.y])
+			continue
+		
+		# Apply random bush variation
+		var bush_data = bush_manager.get_random_bush_data()
+		if bush_data and bush.has_method("set_bush_data"):
+			bush.set_bush_data(bush_data)
+		elif bush_data and "bush_data" in bush:
+			bush.bush_data = bush_data
+		
+		var world_pos: Vector2 = Vector2(bush_pos.x, bush_pos.y) * cell_size
+		bush.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
+		bush.set_meta("grid_position", bush_pos)
+		bush.add_to_group("bushes")
+		bush.add_to_group("collision_objects")
+		build_map.ysort_objects.append({"node": bush, "grid_pos": bush_pos})
+		obstacle_layer.add_child(bush)
+	
+	# Place Grass
+	for grass_pos in object_positions.grass:
+		var scene: PackedScene = object_scene_map["GRASS"]
+		if scene == null:
+			push_error("🚫 Grass scene is null")
+			continue
+		var grass: Node2D = scene.instantiate() as Node2D
+		if grass == null:
+			push_error("❌ Grass instantiation failed at (%d,%d)" % [grass_pos.x, grass_pos.y])
+			continue
+		var world_pos: Vector2 = Vector2(grass_pos.x, grass_pos.y) * cell_size
+		grass.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
+		grass.set_meta("grid_position", grass_pos)
+		grass.add_to_group("grass")
+		grass.add_to_group("collision_objects")
+		build_map.ysort_objects.append({"node": grass, "grid_pos": grass_pos})
+		obstacle_layer.add_child(grass)
+	
+	build_map.update_all_ysort_z_indices()

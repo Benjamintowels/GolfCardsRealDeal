@@ -1986,3 +1986,74 @@ func set_landed_flag(landed: bool) -> void:
 		has_emitted_landed_signal = false
 		final_landing_tile = Vector2i.ZERO
 		print("Ball landed flag reset by NPC push")
+
+func reset_ball_state() -> void:
+	"""Reset the ball state for a new shot (for driving range)"""
+	# Reset all flight-related variables
+	velocity = Vector2.ZERO
+	z = 0.0
+	vz = 0.0
+	landed_flag = false
+	
+	# Reset bounce and roll mechanics
+	bounce_count = 0
+	is_rolling = false
+	initial_height = 0.0
+	first_bounce_height = 0.0
+	
+	# Reset height resistance
+	height_resistance_factor = 1.0
+	is_applying_height_resistance = false
+	initial_height_percentage = 0.0
+	
+	# Reset spin variables
+	spin = 0.0
+	spin_progress = 0.0
+	original_launch_direction = Vector2.ZERO
+	spin_strength_category = 0
+	time_percentage = -1.0
+	
+	# Reset special effects
+	sticky_shot_active = false
+	bouncey_shot_active = false
+	explosive_shot_active = false
+	fire_club_active = false
+	ice_club_active = false
+	
+	# Reset element system
+	current_element = null
+	if element_sprite:
+		element_sprite.texture = null
+	
+	# Reset landing system
+	remove_landing_highlight()
+	has_emitted_landed_signal = false
+	final_landing_tile = Vector2i.ZERO
+	
+	# Reset collision system
+	last_wall_collision_time = 0.0
+	last_player_collision_time = 0.0
+	player_collision_count = 0
+	rolling_collision_enabled = true
+	
+	# Reset BallHop system
+	ballhop_cooldown = 0.0
+	
+	# Reset tile system
+	current_tile_type = ""
+	last_tile_type = ""
+	current_tile_friction = 0.60
+	
+	# Reset visual effects
+	if sprite:
+		sprite.scale = base_scale
+	if shadow:
+		shadow.scale = shadow_base_scale
+	
+	# Reset fire/ice spreading
+	last_fire_tile = Vector2i.ZERO
+	fire_tiles_created.clear()
+	last_ice_tile = Vector2i.ZERO
+	ice_tiles_created.clear()
+	
+	print("GolfBall: Ball state reset for new shot")

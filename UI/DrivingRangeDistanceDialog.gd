@@ -18,19 +18,55 @@ func _ready():
 
 func set_distance(distance: float):
 	"""Set the distance value"""
-	distance_label.text = "%d pixels" % distance
+	if distance_label:
+		distance_label.text = "%d pixels" % distance
+	else:
+		print("ERROR: distance_label is null in set_distance")
+		# Try to get the node manually as fallback
+		var fallback_label = get_node_or_null("DialogBox/DistanceLabel")
+		if fallback_label:
+			fallback_label.text = "%d pixels" % distance
+		else:
+			print("ERROR: Could not find DistanceLabel node")
 
 func set_record_message(is_new_record: bool):
 	"""Set the record message visibility"""
-	record_label.visible = is_new_record
+	if record_label:
+		record_label.visible = is_new_record
+	else:
+		print("ERROR: record_label is null in set_record_message")
+		# Try to get the node manually as fallback
+		var fallback_label = get_node_or_null("DialogBox/RecordLabel")
+		if fallback_label:
+			fallback_label.visible = is_new_record
+		else:
+			print("ERROR: Could not find RecordLabel node")
 
 func set_shot_counter(shot_number: int, max_shots: int):
 	"""Set the shot counter"""
-	shot_label.text = "Shot %d of %d" % [shot_number, max_shots]
+	if shot_label:
+		shot_label.text = "Shot %d of %d" % [shot_number, max_shots]
+	else:
+		print("ERROR: shot_label is null in set_shot_counter")
+		# Try to get the node manually as fallback
+		var fallback_label = get_node_or_null("DialogBox/ShotLabel")
+		if fallback_label:
+			fallback_label.text = "Shot %d of %d" % [shot_number, max_shots]
+		else:
+			print("ERROR: Could not find ShotLabel node")
 
 func set_continue_instruction():
 	"""Set the continue instruction"""
-	instruction_label.text = "Click anywhere to continue"
+	if instruction_label:
+		instruction_label.text = "Click anywhere to continue"
+	else:
+		print("ERROR: instruction_label is null in set_continue_instruction")
+		# Try to get the node manually as fallback
+		var fallback_label = get_node_or_null("DialogBox/InstructionLabel")
+		if fallback_label:
+			fallback_label.text = "Click anywhere to continue"
+		else:
+			print("ERROR: Could not find InstructionLabel node")
 
 func show_dialog(distance: float, is_new_record: bool, shot_number: int, max_shots: int):
 	"""Show the distance dialog with the given information"""
