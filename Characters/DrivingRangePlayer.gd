@@ -33,6 +33,11 @@ var is_in_launch_mode: bool = false  # Track if we're in launch mode (ball flyin
 # Player facing direction tracking
 var current_facing_direction: Vector2i = Vector2i(1, 0)  # Start facing right (1, 0) = right, (-1, 0) = left
 
+# Swing sound references
+var swing_strong_sound: AudioStreamPlayer2D
+var swing_med_sound: AudioStreamPlayer2D
+var swing_soft_sound: AudioStreamPlayer2D
+
 func _ready():
 	print("=== DRIVING RANGE PLAYER _READY FUNCTION CALLED ===")
 	print("Player name:", name)
@@ -52,7 +57,40 @@ func _ready():
 					print("[DrivingRangePlayer.gd] Found character sprite for highlight:", character_sprite, "Initial modulate:", character_sprite.modulate)
 					break
 	
+	# Setup swing sound references
+	setup_swing_sounds()
+	
 	print("[DrivingRangePlayer.gd] Player ready")
+
+func setup_swing_sounds():
+	"""Setup swing sound references"""
+	swing_strong_sound = get_node_or_null("SwingStrong")
+	swing_med_sound = get_node_or_null("SwingMed")
+	swing_soft_sound = get_node_or_null("SwingSoft")
+	
+	if swing_strong_sound and swing_med_sound and swing_soft_sound:
+		print("✓ DrivingRangePlayer swing sounds setup complete")
+	else:
+		print("⚠ Some swing sounds not found in DrivingRangePlayer")
+
+func play_swing_sound(power: float) -> void:
+	"""Play swing sound based on power level - same logic as main course"""
+	if not swing_strong_sound or not swing_med_sound or not swing_soft_sound:
+		print("⚠ Swing sounds not available in DrivingRangePlayer")
+		return
+	
+	var power_percentage = (power - 300.0) / (1200.0 - 300.0)  # Using hardcoded values since constants are removed
+	power_percentage = clamp(power_percentage, 0.0, 1.0)
+	
+	if power_percentage >= 0.7:  # Strong swing (70%+ power)
+		swing_strong_sound.play()
+		print("Playing strong swing sound from DrivingRangePlayer")
+	elif power_percentage >= 0.4:  # Medium swing (40-70% power)
+		swing_med_sound.play()
+		print("Playing medium swing sound from DrivingRangePlayer")
+	else:  # Soft swing (0-40% power)
+		swing_soft_sound.play()
+		print("Playing soft swing sound from DrivingRangePlayer")
 
 func setup(grid_size_param: Vector2i, cell_size_param: int, base_mobility_param: int, obstacle_map_param: Dictionary):
 	"""Setup the player with grid parameters"""

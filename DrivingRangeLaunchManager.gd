@@ -64,8 +64,38 @@ var height_options: Array[float] = [0.0, 25.0, 50.0, 75.0, 100.0, 125.0, 150.0, 
 var power_buttons: Array[Button] = []
 var power_options: Array[float] = [25.0, 50.0, 75.0, 100.0]
 
+# Swing sound references
+var swing_strong_sound: AudioStreamPlayer2D
+var swing_med_sound: AudioStreamPlayer2D
+var swing_soft_sound: AudioStreamPlayer2D
+var player_node: Node2D = null  # Reference to the player for swing sounds
+
 func _ready():
 	print("DrivingRangeLaunchManager initialized")
+
+func setup_swing_sounds():
+	"""Setup swing sound references from the player"""
+	# Find the player node in the scene
+	var balls = get_tree().get_nodes_in_group("balls")
+	for ball in balls:
+		if is_instance_valid(ball):
+			# Look for the player in the camera container
+			var camera_container = ball.get_parent()
+			if camera_container:
+				for child in camera_container.get_children():
+					if child.has_method("play_swing_sound"):
+						player_node = child
+						print("✓ Found player node for swing sounds")
+						return
+	
+	print("⚠ Player node not found for swing sounds")
+
+func play_swing_sound(power: float) -> void:
+	"""Play swing sound based on power level - delegate to player"""
+	if player_node and player_node.has_method("play_swing_sound"):
+		player_node.play_swing_sound(power)
+	else:
+		print("⚠ Player node not available for swing sounds")
 
 func _process(delta: float):
 	if is_charging:
@@ -147,7 +177,7 @@ func _process(delta: float):
 				value_label.text = str(int(launch_height))
 
 func setup(camera_ref: Camera2D, camera_container_ref: Control, ui_layer_ref: Control, 
-		   power_meter_ref: Control, map_manager_ref: Node, cell_size_val: int, player_pos: Vector2i):
+		   power_meter_ref: Control, map_manager_ref: Node, cell_size_val: int, player_pos: Vector2i, player_ref: Node2D = null):
 	"""Setup the launch manager with required references"""
 	camera = camera_ref
 	camera_container = camera_container_ref
@@ -156,6 +186,10 @@ func setup(camera_ref: Camera2D, camera_container_ref: Control, ui_layer_ref: Co
 	map_manager = map_manager_ref
 	cell_size = cell_size_val
 	player_grid_pos = player_pos
+	player_node = player_ref
+	
+	# Setup swing sounds
+	setup_swing_sounds()
 	
 	print("DrivingRangeLaunchManager setup complete")
 
@@ -529,6 +563,9 @@ func launch_golf_ball(launch_direction: Vector2, final_power: float, height: flo
 	# Connect to ball's out_of_bounds signal
 	if golf_ball.has_signal("out_of_bounds"):
 		golf_ball.out_of_bounds.connect(_on_ball_out_of_bounds)
+	
+	# Play swing sound based on power level
+	play_swing_sound(final_power)
 	
 	# Launch the ball using the ball's launch method
 	golf_ball.launch(launch_direction, final_power, height, launch_spin, spin_strength_category)

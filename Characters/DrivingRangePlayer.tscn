@@ -1,6 +1,31 @@
-[gd_scene load_steps=2 format=3 uid="uid://driving_range_player"]
+[gd_scene load_steps=7 format=3 uid="uid://cqm2oqcwtvby0"]
 
-[ext_resource type="Script" path="res://Characters/DrivingRangePlayer.gd" id="1_driving_player"]
+[ext_resource type="Script" uid="uid://b0neio1pi3s51" path="res://Characters/DrivingRangePlayer.gd" id="1_driving_player"]
+[ext_resource type="AudioStream" uid="uid://cqm2ebplq8wlo" path="res://Sounds/BallHop.mp3" id="2_p6sxi"]
+[ext_resource type="AudioStream" uid="uid://cb8sa18x713vc" path="res://Sounds/SwingSoft.mp3" id="3_n4a14"]
+[ext_resource type="AudioStream" uid="uid://btlp8x1wjnfoc" path="res://Sounds/SwingMed.mp3" id="4_u612c"]
+[ext_resource type="AudioStream" uid="uid://dp8fikarw3m2b" path="res://Sounds/SwingStrong.mp3" id="5_ef34d"]
+[ext_resource type="AudioStream" uid="uid://bths4mynl4e58" path="res://Sounds/SwingMiss.mp3" id="6_4ua6a"]
 
 [node name="DrivingRangePlayer" type="CharacterBody2D"]
-script = ExtResource("1_driving_player") 
+script = ExtResource("1_driving_player")
+
+[node name="BallHop" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("2_p6sxi")
+volume_db = -10.254
+
+[node name="SwingSoft" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("3_n4a14")
+volume_db = -10.254
+
+[node name="SwingMed" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("4_u612c")
+volume_db = -10.254
+
+[node name="SwingStrong" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("5_ef34d")
+volume_db = -10.254
+
+[node name="SwingMiss" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("6_4ua6a")
+volume_db = -10.254

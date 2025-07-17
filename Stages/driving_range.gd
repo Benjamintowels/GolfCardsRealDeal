@@ -727,7 +727,7 @@ func enter_launch_phase():
 		return
 	
 	# Set up specialized DrivingRangeLaunchManager
-	launch_manager.setup(camera, camera_container, ui_layer, power_meter, map_manager, cell_size, player_grid_pos)
+	launch_manager.setup(camera, camera_container, ui_layer, power_meter, map_manager, cell_size, player_grid_pos, player_node)
 	launch_manager.set_launch_parameters(chosen_landing_spot, selected_club, club_data)
 	
 	# Ensure camera is ready for tracking by resetting its state
