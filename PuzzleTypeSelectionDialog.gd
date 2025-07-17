@@ -116,12 +116,24 @@ func show_puzzle_selection():
 	# Load left symbol
 	if left_puzzle.symbol_scene:
 		var symbol_instance = left_puzzle.symbol_scene.instantiate()
+		# Look for the Sprite2D node (it might be named after the symbol type)
+		var sprite_node = null
 		if symbol_instance.has_node("Sprite2D"):
-			var sprite = symbol_instance.get_node("Sprite2D")
-			left_symbol.texture = sprite.texture
-			print("🎯 PUZZLE SELECTION: Left symbol loaded")
+			sprite_node = symbol_instance.get_node("Sprite2D")
+		elif symbol_instance.has_node("ScoreSymbol"):
+			sprite_node = symbol_instance.get_node("ScoreSymbol")
+		elif symbol_instance.has_node("GeneratorSymbol"):
+			sprite_node = symbol_instance.get_node("GeneratorSymbol")
+		elif symbol_instance.has_node("MobSymbol"):
+			sprite_node = symbol_instance.get_node("MobSymbol")
+		elif symbol_instance.has_node("MinibossSymbol"):
+			sprite_node = symbol_instance.get_node("MinibossSymbol")
+		
+		if sprite_node and sprite_node.texture:
+			left_symbol.texture = sprite_node.texture
+			print("🎯 PUZZLE SELECTION: Left symbol loaded - texture size:", sprite_node.texture.get_size())
 		else:
-			print("🎯 PUZZLE SELECTION: ERROR - Left symbol has no Sprite2D node!")
+			print("🎯 PUZZLE SELECTION: ERROR - Left symbol has no valid sprite node or texture!")
 		symbol_instance.queue_free()
 	else:
 		print("🎯 PUZZLE SELECTION: ERROR - Left puzzle has no symbol_scene!")
@@ -134,12 +146,24 @@ func show_puzzle_selection():
 	# Load right symbol
 	if right_puzzle.symbol_scene:
 		var symbol_instance = right_puzzle.symbol_scene.instantiate()
+		# Look for the Sprite2D node (it might be named after the symbol type)
+		var sprite_node = null
 		if symbol_instance.has_node("Sprite2D"):
-			var sprite = symbol_instance.get_node("Sprite2D")
-			right_symbol.texture = sprite.texture
-			print("🎯 PUZZLE SELECTION: Right symbol loaded")
+			sprite_node = symbol_instance.get_node("Sprite2D")
+		elif symbol_instance.has_node("ScoreSymbol"):
+			sprite_node = symbol_instance.get_node("ScoreSymbol")
+		elif symbol_instance.has_node("GeneratorSymbol"):
+			sprite_node = symbol_instance.get_node("GeneratorSymbol")
+		elif symbol_instance.has_node("MobSymbol"):
+			sprite_node = symbol_instance.get_node("MobSymbol")
+		elif symbol_instance.has_node("MinibossSymbol"):
+			sprite_node = symbol_instance.get_node("MinibossSymbol")
+		
+		if sprite_node and sprite_node.texture:
+			right_symbol.texture = sprite_node.texture
+			print("🎯 PUZZLE SELECTION: Right symbol loaded - texture size:", sprite_node.texture.get_size())
 		else:
-			print("🎯 PUZZLE SELECTION: ERROR - Right symbol has no Sprite2D node!")
+			print("🎯 PUZZLE SELECTION: ERROR - Right symbol has no valid sprite node or texture!")
 		symbol_instance.queue_free()
 	else:
 		print("🎯 PUZZLE SELECTION: ERROR - Right puzzle has no symbol_scene!")

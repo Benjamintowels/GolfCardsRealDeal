@@ -41,6 +41,16 @@ func _process(delta):
 	if miniboss_reference and not miniboss_reference.is_alive and is_active:
 		deactivate_dome()
 
+func get_y_sort_point() -> float:
+	"""Get the Y-sort reference point for the ForceFieldDome"""
+	# Use the YSortPoint marker if available
+	var ysort_point = get_node_or_null("YSortPoint")
+	if ysort_point:
+		return ysort_point.global_position.y
+	else:
+		# Fallback to global position if no YSortPoint marker
+		return global_position.y
+
 func update_z_index_for_ysort():
 	"""Update the ForceFieldDome's z_index for proper Y-sorting"""
 	# Force update the Ysort using the global system

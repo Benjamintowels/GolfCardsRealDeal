@@ -885,14 +885,7 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 				if layout[y][x] == "F":  # Fairway tile
 					miniboss_fairway_positions.append(Vector2i(x, y))
 		
-		# Find pin position for dome placement
-		var pin_positions: Array = []
-		for y in layout.size():
-			for x in layout[y].size():
-				if layout[y][x] == "G":  # Green tile (where pin is)
-					pin_positions.append(Vector2i(x, y))
-		
-		if miniboss_fairway_positions.size() > 0 and pin_positions.size() > 0:
+		if miniboss_fairway_positions.size() > 0:
 			# Place miniboss on a fairway tile (not too close to pin)
 			var miniboss_pos = Vector2i.ZERO
 			var valid_miniboss_positions: Array = []
@@ -906,13 +899,20 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 						valid = false
 						break
 				
-				# Check distance from pin (don't place too close)
+				# Check distance from any green tile (don't place too close to potential pin areas)
 				if valid:
-					for pin_pos in pin_positions:
-						var distance_to_pin = max(abs(fairway_pos.x - pin_pos.x), abs(fairway_pos.y - pin_pos.y))
-						if distance_to_pin < 3:  # At least 3 tiles from pin
-							valid = false
+					var too_close_to_green = false
+					for y in layout.size():
+						for x in layout[y].size():
+							if layout[y][x] == "G":  # Green tile
+								var distance_to_green = max(abs(fairway_pos.x - x), abs(fairway_pos.y - y))
+								if distance_to_green < 3:  # At least 3 tiles from any green
+									too_close_to_green = true
+									break
+						if too_close_to_green:
 							break
+					if too_close_to_green:
+						valid = false
 				
 				if valid:
 					valid_miniboss_positions.append(fairway_pos)
@@ -922,15 +922,11 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 				var miniboss_index = randi() % valid_miniboss_positions.size()
 				miniboss_pos = valid_miniboss_positions[miniboss_index]
 				
-				# Place force field dome at pin position (center of green)
-				var dome_pos = pin_positions[0]  # Use first pin position
-				
 				positions["miniboss_puzzle"] = {
-					"miniboss_pos": miniboss_pos,
-					"dome_pos": dome_pos
+					"miniboss_pos": miniboss_pos
 				}
 				
-				print("🗡️ MINIBOSS PUZZLE: Miniboss at", miniboss_pos, "Dome at", dome_pos)
+				print("🗡️ MINIBOSS PUZZLE: Miniboss at", miniboss_pos, "Dome will be placed at actual pin position")
 			else:
 				print("❌ MINIBOSS PUZZLE: No valid miniboss positions found")
 		else:
@@ -1853,8 +1849,8 @@ func _place_miniboss_puzzle_system(object_positions: Dictionary, layout: Array):
 	var puzzle_data = object_positions.miniboss_puzzle
 	print("✓ Miniboss puzzle data found:", puzzle_data)
 	
-	if not puzzle_data.has("miniboss_pos") or not puzzle_data.has("dome_pos"):
-		print("❌ Missing required puzzle data - miniboss_pos or dome_pos")
+	if not puzzle_data.has("miniboss_pos"):
+		print("❌ Missing required puzzle data - miniboss_pos")
 		return
 	
 	# Place Miniboss (Wraith)
@@ -1895,9 +1891,16 @@ func _place_miniboss_puzzle_system(object_positions: Dictionary, layout: Array):
 	ysort_objects.append({"node": miniboss, "grid_pos": miniboss_pos})
 	obstacle_layer.add_child(miniboss)
 	
-	# Place Force Field Dome
-	var dome_pos = puzzle_data.dome_pos
-	print("✓ Placing force field dome at:", dome_pos)
+	# Place Force Field Dome at the ACTUAL pin position
+	var actual_pin_pos = Global.saved_pin_position
+	if actual_pin_pos == Vector2i.ZERO:
+		# Fallback to the calculated position if Global.saved_pin_position is not set
+		actual_pin_pos = puzzle_data.get("dome_pos", Vector2i.ZERO)
+		print("⚠️ Using fallback dome position:", actual_pin_pos)
+	else:
+		print("✓ Using actual pin position for dome:", actual_pin_pos)
+	
+	print("✓ Placing force field dome at:", actual_pin_pos)
 	
 	var dome_scene: PackedScene = object_scene_map["FORCE_FIELD_DOME"]
 	if dome_scene == null:
@@ -1906,21 +1909,21 @@ func _place_miniboss_puzzle_system(object_positions: Dictionary, layout: Array):
 	
 	var dome: Node2D = dome_scene.instantiate() as Node2D
 	if dome == null:
-		push_error("❌ ForceFieldDome instantiation failed at (%d,%d)" % [dome_pos.x, dome_pos.y])
+		push_error("❌ ForceFieldDome instantiation failed at (%d,%d)" % [actual_pin_pos.x, actual_pin_pos.y])
 		return
 	
-	var dome_world_pos: Vector2 = Vector2(dome_pos.x, dome_pos.y) * cell_size
+	var dome_world_pos: Vector2 = Vector2(actual_pin_pos.x, actual_pin_pos.y) * cell_size
 	dome.position = dome_world_pos + Vector2(cell_size / 2, cell_size / 2)
 	
 	# Set the grid_position property
-	dome.set_meta("grid_position", dome_pos)
+	dome.set_meta("grid_position", actual_pin_pos)
 	
 	# Add dome to groups for smart optimization
 	dome.add_to_group("interactables")
 	dome.add_to_group("collision_objects")
 	dome.add_to_group("force_field_dome")
 	
-	ysort_objects.append({"node": dome, "grid_pos": dome_pos})
+	ysort_objects.append({"node": dome, "grid_pos": actual_pin_pos})
 	obstacle_layer.add_child(dome)
 	
 	# Connect miniboss reference to dome
@@ -1939,5 +1942,5 @@ func _place_miniboss_puzzle_system(object_positions: Dictionary, layout: Array):
 	
 	print("=== MINIBOSS PUZZLE PLACEMENT COMPLETE ===")
 	print("  - Miniboss (Wraith) placed at:", miniboss_pos)
-	print("  - Force field dome placed at:", dome_pos)
+	print("  - Force field dome placed at:", actual_pin_pos, "(actual pin position)")
 	print("  - Miniboss reference connected to dome")

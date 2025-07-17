@@ -229,6 +229,8 @@ func update_all_objects_y_sort(ysort_objects: Array):
 			object_type = "objects"
 		elif node.name == "Bonfire" or (node.get_script() and "bonfire.gd" in str(node.get_script().get_path())):
 			object_type = "objects"
+		elif node.name == "ForceFieldDome" or (node.get_script() and "force_field_dome.gd" in str(node.get_script().get_path())):
+			object_type = "objects"
 		elif "Player" in node.name or "GangMember" in node.name or "Police" in node.name or "Wraith" in node.name:
 			object_type = "characters"
 		elif node.is_in_group("grass_elements") or (node.get_script() and "summer_grass.gd" in str(node.get_script().get_path())):

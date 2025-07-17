@@ -14,7 +14,7 @@ script = ExtResource("1_qav2u")
 [node name="ForceFieldDomeSprite" type="Sprite2D" parent="."]
 z_index = 120
 texture_filter = 1
-position = Vector2(80, 22)
+position = Vector2(79, -66)
 texture = ExtResource("1_r88e3")
 
 [node name="TopHeight" type="Marker2D" parent="."]
@@ -27,6 +27,7 @@ position = Vector2(0, -16)
 position = Vector2(-1, 90)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D"]
+position = Vector2(-1, -88)
 scale = Vector2(3.21, 1.105)
 shape = SubResource("CircleShape2D_r88e3")
 
