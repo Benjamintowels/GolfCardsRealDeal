@@ -64,6 +64,10 @@ var player_manager: PlayerManager
 const CameraManager := preload("res://CameraManager.gd")
 var camera_manager: CameraManager
 
+# UI manager
+const UIManager := preload("res://UIManager.gd")
+var ui_manager: UIManager
+
 var is_placing_player := true
 
 var obstacle_map: Dictionary = {}  # Vector2i -> BaseObstacle
@@ -126,7 +130,7 @@ var gimme_ball: Node2D = null  # Reference to the ball that's in gimme range
 # Camera following variables
 var camera_following_ball := false
 var drive_distance := 0.0
-var drive_distance_dialog: Control = null
+# drive_distance_dialog moved to UIManager
 
 # Swing sound effects
 var swing_strong_sound: AudioStreamPlayer2D
@@ -264,9 +268,7 @@ var max_charge_time := 3.0  # Maximum time to fully charge (varies by distance)
 var ysort_objects := [] # Array of {node: Node2D, grid_pos: Vector2i}
 
 # Shop interaction variables
-var shop_dialog: Control = null
-var shop_overlay: Control = null
-var mid_game_shop_overlay: Control = null
+# shop_dialog, shop_overlay, mid_game_shop_overlay moved to UIManager
 
 # Smart Performance Optimizer
 var smart_optimizer: Node
@@ -278,7 +280,7 @@ var suitcase_node: Node2D = null  # Reference to the SuitCase node
 # Puzzle type system variables
 var current_puzzle_type: String = "score"  # Default puzzle type
 var next_puzzle_type: String = "score"     # Puzzle type for next hole
-var puzzle_type_dialog: Control = null     # Puzzle type selection dialog
+# puzzle_type_dialog moved to UIManager
 
 var has_started := false
 
@@ -595,6 +597,11 @@ func _ready() -> void:
 	camera_manager = CameraManager.new()
 	add_child(camera_manager)
 	camera_manager.setup(camera, player_manager, grid_manager, background_manager, cell_size)
+	
+	# Initialize UIManager
+	ui_manager = UIManager.new()
+	add_child(ui_manager)
+	ui_manager.setup($UILayer, self, player_manager, grid_manager, camera_manager, deck_manager, movement_controller, attack_handler, weapon_handler, launch_manager)
 	
 	# Starter equipment removed for basic loadout testing
 	print("Course: No starter equipment - basic loadout mode")
@@ -2446,26 +2453,30 @@ func transition_camera_to_player() -> void:
 	camera_manager.transition_camera_to_player()
 
 func show_turn_message(message: String, duration: float) -> void:
-	"""Show a turn message for the specified duration"""
-	var message_label := Label.new()
-	message_label.name = "TurnMessageLabel"
-	message_label.text = message
-	message_label.add_theme_font_size_override("font_size", 48)
-	message_label.add_theme_color_override("font_color", Color.YELLOW)
-	message_label.add_theme_constant_override("outline_size", 4)
-	message_label.add_theme_color_override("font_outline_color", Color.BLACK)
-	
-	# Center the message on screen
-	var viewport_size = get_viewport_rect().size
-	message_label.position = Vector2(viewport_size.x / 2 - 150, viewport_size.y / 2 - 50)
-	message_label.z_index = 1000
-	$UILayer.add_child(message_label)
-	
-	# Remove message after duration
-	var timer = get_tree().create_timer(duration)
-	await timer.timeout
-	if is_instance_valid(message_label):
-		message_label.queue_free()
+	"""Show turn message"""
+	if ui_manager:
+		ui_manager.show_turn_message(message, duration)
+	else:
+		# Fallback implementation when UIManager isn't ready
+		var message_label := Label.new()
+		message_label.name = "TurnMessageLabel"
+		message_label.text = message
+		message_label.add_theme_font_size_override("font_size", 48)
+		message_label.add_theme_color_override("font_color", Color.YELLOW)
+		message_label.add_theme_constant_override("outline_size", 4)
+		message_label.add_theme_color_override("font_outline_color", Color.BLACK)
+		
+		# Center the message on screen
+		var viewport_size = get_viewport_rect().size
+		message_label.position = Vector2(viewport_size.x / 2 - 150, viewport_size.y / 2 - 50)
+		message_label.z_index = 1000
+		$UILayer.add_child(message_label)
+		
+		# Remove message after duration
+		var timer = get_tree().create_timer(duration)
+		await timer.timeout
+		if is_instance_valid(message_label):
+			message_label.queue_free()
 
 func register_existing_gang_members() -> void:
 	"""Register any existing GangMembers in the scene with the Entities system"""
@@ -2652,75 +2663,10 @@ func show_tee_selection_instruction() -> void:
 	$UILayer.add_child(instruction_label)
 
 func show_drive_distance_dialog() -> void:
-	print("=== SHOWING DRIVE DISTANCE DIALOG ===")
-	print("Drive distance: ", drive_distance, " pixels")
-	if drive_distance_dialog:
-		print("Clearing existing drive distance dialog")
-		drive_distance_dialog.queue_free()
+	"""Show drive distance dialog"""
+	ui_manager.show_drive_distance_dialog(drive_distance)
 	
-	drive_distance_dialog = Control.new()
-	drive_distance_dialog.name = "DriveDistanceDialog"
-	drive_distance_dialog.size = get_viewport_rect().size
-	drive_distance_dialog.z_index = 500  # Very high z-index to appear on top
-	drive_distance_dialog.mouse_filter = Control.MOUSE_FILTER_STOP
-	
-	var background := ColorRect.new()
-	background.color = Color(0, 0, 0, 0.7)
-	background.size = drive_distance_dialog.size
-	background.mouse_filter = Control.MOUSE_FILTER_STOP  # Make sure it can receive input
-	drive_distance_dialog.add_child(background)
-	background.gui_input.connect(_on_drive_distance_dialog_input)
-	var dialog_box := ColorRect.new()
-	dialog_box.color = Color(0.2, 0.2, 0.2, 0.9)
-	dialog_box.size = Vector2(400, 200)
-	dialog_box.position = (drive_distance_dialog.size - dialog_box.size) / 2  # Center the dialog
-	dialog_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	drive_distance_dialog.add_child(dialog_box)
-	var title_label := Label.new()
-	title_label.text = "Shot Distance"
-	title_label.add_theme_font_size_override("font_size", 28)
-	title_label.add_theme_color_override("font_color", Color.YELLOW)
-	title_label.add_theme_constant_override("outline_size", 2)
-	title_label.add_theme_color_override("font_outline_color", Color.BLACK)
-	title_label.position = Vector2(150, 20)
-	title_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	dialog_box.add_child(title_label)
-	var distance_label := Label.new()
-	distance_label.text = "%d pixels" % drive_distance
-	distance_label.add_theme_font_size_override("font_size", 36)
-	distance_label.add_theme_color_override("font_color", Color.WHITE)
-	distance_label.add_theme_constant_override("outline_size", 2)
-	distance_label.add_theme_color_override("font_outline_color", Color.BLACK)
-	distance_label.position = Vector2(150, 80)
-	distance_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	dialog_box.add_child(distance_label)
-	var instruction_label := Label.new()
-	instruction_label.text = "Click anywhere to continue"
-	instruction_label.add_theme_font_size_override("font_size", 18)
-	instruction_label.add_theme_color_override("font_color", Color.LIGHT_GRAY)
-	instruction_label.position = Vector2(120, 150)
-	instruction_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	dialog_box.add_child(instruction_label)
-	$UILayer.add_child(drive_distance_dialog)
-	
-func _on_drive_distance_dialog_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		print("=== DRIVE DISTANCE DIALOG CLICKED ===")
-		if drive_distance_dialog:
-			print("Dismissing drive distance dialog")
-			drive_distance_dialog.queue_free()
-			drive_distance_dialog = null
-		
-		# Check if gimme is active
-		if gimme_active:
-			print("=== GIMME DIALOG DISMISSED - COMPLETING HOLE ===")
-			complete_gimme_hole()
-		else:
-			print("Setting game phase to 'move' and showing draw cards button")
-			game_phase = "move"
-			_update_player_mouse_facing_state()
-			draw_cards_button.visible = true
-			# Camera tween is already handled in the ball landing logic, so we don't need to call it here
+# Drive distance dialog input handling moved to UIManager
 
 func setup_swing_sounds() -> void:
 	swing_strong_sound = $SwingStrong
@@ -2805,18 +2751,8 @@ func _on_golf_ball_out_of_bounds():
 	_update_player_mouse_facing_state()
 
 func show_out_of_bounds_dialog():
-	var dialog = AcceptDialog.new()
-	dialog.title = "Out of Bounds!"
-	dialog.dialog_text = "Your ball went out of bounds!\n\nPenalty: +1 stroke\nYour ball has been returned to where you took the shot from.\n\nClick to select your club for the penalty shot."
-	dialog.add_theme_font_size_override("font_size", 18)
-	dialog.add_theme_color_override("font_color", Color.RED)
-	dialog.position = Vector2(400, 300)
-	$UILayer.add_child(dialog)
-	dialog.popup_centered()
-	dialog.confirmed.connect(func():
-		dialog.queue_free()
-		enter_draw_cards_phase()  # Go directly to club selection
-	)
+	"""Show out of bounds dialog"""
+	ui_manager.show_out_of_bounds_dialog()
 
 func reset_player_to_tee():
 	for y in map_manager.level_layout.size():
@@ -3171,303 +3107,44 @@ func _on_grenade_sand_landing() -> void:
 	)
 
 func show_sand_landing_dialog():
-	var dialog = AcceptDialog.new()
-	dialog.title = "Sand Trap!"
-	dialog.dialog_text = "Your ball landed in a sand trap!\n\nThis is a valid shot - no penalty.\nYou'll take your next shot from here."
-	dialog.add_theme_font_size_override("font_size", 18)
-	dialog.add_theme_color_override("font_color", Color.ORANGE)
-	dialog.position = Vector2(400, 300)
-	$UILayer.add_child(dialog)
-	dialog.popup_centered()
-	dialog.confirmed.connect(func():
-		dialog.queue_free()
-	)
+	"""Show sand landing dialog"""
+	ui_manager.show_sand_landing_dialog()
 
 func show_hole_completion_dialog():
 	"""Show dialog when the ball goes in the hole"""
-	print("=== SHOW_HOLE_COMPLETION_DIALOG CALLED ===")
-	print("Current hole:", current_hole)
-	print("Hole score:", hole_score)
-	
-	# Play hole complete sound
-	var hole_complete_sound = $HoleComplete
-	if hole_complete_sound and hole_complete_sound.stream:
-		hole_complete_sound.play()
-		print("Playing hole complete sound")
-	
-	# Give $Looty reward for completing the hole
-	var looty_reward = Global.give_hole_completion_reward()
-	
-	round_scores.append(hole_score)
-	var hole_par = GolfCourseLayout.get_hole_par(current_hole)
-	var score_vs_par = hole_score - hole_par
-	var score_text = "Hole %d Complete!\n\n" % (current_hole + 1)
-	score_text += "Hole Score: %d strokes\n" % hole_score
-	score_text += "Par: %d\n" % hole_par
-	score_text += "Reward: %d $Looty\n" % looty_reward
-	if score_vs_par == 0:
-		score_text += "Score: Par ✓\n"
-	elif score_vs_par == 1:
-		score_text += "Score: Bogey (+1)\n"
-	elif score_vs_par == 2:
-		score_text += "Score: Double Bogey (+2)\n"
-	elif score_vs_par == -1:
-		score_text += "Score: Birdie (-1) ✓\n"
-	elif score_vs_par == -2:
-		score_text += "Score: Eagle (-2) ✓\n"
-	else:
-		score_text += "Score: %+d\n" % score_vs_par
-	var total_round_score = 0
-	for score in round_scores:
-		total_round_score += score
-	var total_par = 0
-	if is_back_9_mode:
-		total_par = GolfCourseLayout.get_back_nine_par()
-	else:
-		total_par = GolfCourseLayout.get_front_nine_par()
-	var round_vs_par = total_round_score - total_par
-	
-	score_text += "\nRound Progress: %d/%d holes\n" % [current_hole + 1, NUM_HOLES]
-	score_text += "Round Score: %d\n" % total_round_score
-	score_text += "Round vs Par: %+d\n" % round_vs_par
-	var round_end_hole = 0
-	if is_back_9_mode:
-		round_end_hole = back_9_start_hole + NUM_HOLES - 1  # Hole 18 (index 17)
-	else:
-		round_end_hole = NUM_HOLES - 1  # Hole 9 (index 8)
-	if current_hole < round_end_hole:
-		score_text += "\nClick to continue to the next hole."
-	else:
-		score_text += "\nClick to see your final round score!"
-	# Create custom dialog with Scorecard background
-	var dialog = Control.new()
-	dialog.name = "HoleCompletionDialog"
-	dialog.set_anchors_and_offsets_preset(Control.PRESET_CENTER)  # Center the dialog
-	dialog.custom_minimum_size = Vector2(600, 400)
-	dialog.z_index = 1000
-	
-
-	
-	# Use Scorecard scene as the main background
-	var scorecard_scene = preload("res://UI/Scorecard.tscn")
-	var scorecard_instance = scorecard_scene.instantiate()
-	scorecard_instance.position = Vector2(50, 50)  # Position within the dialog
-	scorecard_instance.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Don't block mouse events
-	dialog.add_child(scorecard_instance)
-	
-	# Add score text label
-	var score_label = Label.new()
-	score_label.text = score_text
-	score_label.add_theme_font_size_override("font_size", 16)
-	score_label.add_theme_color_override("font_color", Color.WHITE)
-	score_label.add_theme_constant_override("outline_size", 2)
-	score_label.add_theme_color_override("font_outline_color", Color.BLACK)
-	score_label.position = Vector2(156.24, -142.215)  # Use exact positioning from Control panel
-	score_label.size = Vector2(350, 309)  # Use exact size from Control panel
-	score_label.scale = Vector2(1.375, 1.375)  # Use exact scale from Control panel
-	score_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	score_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
-	score_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	dialog.add_child(score_label)
-	
-	# Add click instruction
-	var instruction_label = Label.new()
-	instruction_label.text = "Click anywhere to continue"
-	instruction_label.add_theme_font_size_override("font_size", 14)
-	instruction_label.add_theme_color_override("font_color", Color.LIGHT_GRAY)
-	instruction_label.add_theme_constant_override("outline_size", 1)
-	instruction_label.add_theme_color_override("font_outline_color", Color.BLACK)
-	instruction_label.position = Vector2(200, 350)
-	instruction_label.size = Vector2(350, 30)
-	instruction_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	dialog.add_child(instruction_label)
-	
-	# Connect input event to handle clicks
-	dialog.gui_input.connect(func(event):
-		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-			print("Dialog confirmed - cleaning up")
-			dialog.queue_free()
-			print("Hole completion dialog dismissed")
-			if current_hole < round_end_hole:
-				show_reward_phase()
-			else:
-				if is_back_9_mode:
-					show_back_nine_complete_dialog()
-				else:
-					# For hole 9, show reward phase first, then front nine completion
-					show_reward_phase()
-	)
-	
-	print("UILayer exists:", $UILayer != null)
-	if $UILayer:
-		print("Adding dialog to UILayer")
-		$UILayer.add_child(dialog)
-		print("Dialog added to UILayer")
-	else:
-		print("ERROR: UILayer not found!")
-		return
-	print("Creating hole completion dialog...")
+	ui_manager.show_hole_completion_dialog()
 
 func show_reward_phase():
 	"""Show the suitcase for reward selection"""
-	print("Starting reward phase...")
-	
-	# Clear the player's hand and UI elements before showing rewards
-	if deck_manager:
-		print("Clearing player hand for reward phase - hand size before:", deck_manager.hand.size())
-		deck_manager.hand.clear()
-		print("Player hand cleared - hand size after:", deck_manager.hand.size())
-		# Update the deck display to reflect the cleared hand
-		update_deck_display()
-	
-	# Clear any movement buttons that might still be visible
-	if movement_controller:
-		movement_controller.clear_all_movement_ui()
-	if attack_handler:
-		attack_handler.clear_all_attack_ui()
-	if weapon_handler:
-		weapon_handler.clear_all_weapon_ui()
-	
-	# Create and show the suitcase
-	var suitcase_scene = preload("res://UI/SuitCase.tscn")
-	var suitcase = suitcase_scene.instantiate()
-	suitcase.name = "SuitCase"  # Give it a specific name for cleanup
-	$UILayer.add_child(suitcase)
-	
-	
-	# Connect the suitcase opened signal
-	suitcase.suitcase_opened.connect(_on_suitcase_opened)
+	ui_manager.show_reward_phase()
 
 func _on_suitcase_opened():
-	# Create and show the reward selection dialog
-	var reward_dialog_scene = preload("res://RewardSelectionDialog.tscn")
-	var reward_dialog = reward_dialog_scene.instantiate()
-	reward_dialog.name = "RewardSelectionDialog"  # Give it a specific name for cleanup
-	$UILayer.add_child(reward_dialog)
-	
-	# Connect the reward selected signal
-	reward_dialog.reward_selected.connect(_on_reward_selected)
-	reward_dialog.advance_to_next_hole.connect(_on_advance_to_next_hole)
-	
-	# Show the reward selection
-	reward_dialog.show_reward_selection()
+	"""Handle suitcase opened"""
+	ui_manager._on_suitcase_opened()
 
 func _on_reward_selected(reward_data: Resource, reward_type: String):
 	"""Handle when a reward is selected"""
-	
-	if reward_data == null:
-		print("ERROR: reward_data is null in _on_reward_selected! reward_type:", reward_type)
-		return
-	
-	if reward_type == "equipment":
-		var equip_data = reward_data as EquipmentData
-		# TODO: Apply equipment effect
-	
-	# Update HUD to reflect any changes (including $Looty balance)
-	update_deck_display()
-	
-	# Special handling for hole 9 - show front nine completion dialog
-	if current_hole == 8 and not is_back_9_mode:  # Hole 9 (index 8) in front 9 mode
-		show_front_nine_complete_dialog()
-	else:
-		# Show puzzle type selection dialog
-		show_puzzle_type_selection()
+	ui_manager._on_reward_selected(reward_data, reward_type)
 
 func _on_suitcase_reached():
 	"""Handle when the player reaches a SuitCase"""
-	print("=== SUITCASE REACHED - SHOWING SUITCASE OVERLAY ===")
-	
-	# Clear the SuitCase position to prevent multiple triggers
-	suitcase_grid_pos = Vector2i.ZERO
-	
-	# Exit movement mode
-	exit_movement_mode()
-	
-	# Show the SuitCase overlay
-	show_suitcase_overlay()
+	ui_manager._on_suitcase_reached()
 
 func show_suitcase_overlay():
 	"""Show the SuitCase overlay for reward selection"""
-	print("=== SHOWING SUITCASE OVERLAY ===")
-	
-	# Clear any movement buttons that might still be visible during SuitCase interaction
-	if movement_controller:
-		movement_controller.clear_all_movement_ui()
-	if attack_handler:
-		attack_handler.clear_all_attack_ui()
-	if weapon_handler:
-		weapon_handler.clear_all_weapon_ui()
-	
-	# Create and show the SuitCase overlay
-	var suitcase_scene = preload("res://UI/SuitCase.tscn")
-	var suitcase = suitcase_scene.instantiate()
-	suitcase.name = "MapSuitCaseOverlay"  # Give it a specific name for cleanup
-	$UILayer.add_child(suitcase)
-	
-	# Connect the suitcase opened signal
-	suitcase.suitcase_opened.connect(_on_map_suitcase_opened)
+	ui_manager.show_suitcase_overlay()
 
 func _on_map_suitcase_opened():
 	"""Handle when the map SuitCase is opened"""
-	print("=== MAP SUITCASE OPENED - SHOWING REWARDS ===")
-	
-	# Show the reward selection dialog
-	show_suitcase_reward_selection()
+	ui_manager._on_map_suitcase_opened()
 
 func show_suitcase_reward_selection():
 	"""Show reward selection dialog for SuitCase"""
-	# Create and show the reward selection dialog
-	var reward_dialog_scene = preload("res://RewardSelectionDialog.tscn")
-	var reward_dialog = reward_dialog_scene.instantiate()
-	reward_dialog.name = "SuitCaseRewardDialog"  # Give it a specific name for cleanup
-	$UILayer.add_child(reward_dialog)
-	
-	# Connect the reward selected signal
-	reward_dialog.reward_selected.connect(_on_suitcase_reward_selected)
-	
-	# Show the reward selection without the advance button
-	reward_dialog.show_reward_selection()
-	
-	# Remove the advance button for SuitCase rewards
-	var advance_button = reward_dialog.get_node_or_null("RewardContainer/AdvanceButton")
-	if advance_button:
-		advance_button.queue_free()
+	ui_manager.show_suitcase_reward_selection()
 
 func _on_suitcase_reward_selected(reward_data: Resource, reward_type: String):
 	"""Handle when a SuitCase reward is selected"""
-	print("=== SUITCASE REWARD SELECTED ===")
-	
-	# Play reward sound
-	var reward_sound = AudioStreamPlayer.new()
-	reward_sound.stream = preload("res://Sounds/Reward.mp3")
-	reward_sound.volume_db = -8.0  # Lower volume by -8 dB
-	add_child(reward_sound)
-	reward_sound.play()
-	
-	# Handle the reward directly without calling _on_reward_selected (which includes hole transition)
-	if reward_type == "card":
-		add_card_to_current_deck(reward_data)
-	elif reward_type == "equipment":
-		add_equipment_to_manager(reward_data)
-	elif reward_type == "bag_upgrade":
-		apply_bag_upgrade(reward_data)
-	elif reward_type == "looty":
-		add_looty_reward(reward_data)
-	
-	# Update HUD to reflect any changes (including $Looty balance)
-	update_deck_display()
-	
-	# Clear the reward dialog and SuitCase overlay
-	var existing_reward_dialog = $UILayer.get_node_or_null("SuitCaseRewardDialog")
-	if existing_reward_dialog:
-		existing_reward_dialog.queue_free()
-	
-	var existing_map_suitcase_overlay = $UILayer.get_node_or_null("MapSuitCaseOverlay")
-	if existing_map_suitcase_overlay:
-		existing_map_suitcase_overlay.queue_free()
-	
-	# Resume gameplay (don't transition to next hole)
-	print("SuitCase reward selection complete - resuming gameplay")
+	ui_manager._on_suitcase_reward_selected(reward_data, reward_type)
 
 func add_card_to_current_deck(card_data: CardData):
 	"""Add a card to the CurrentDeckManager"""
@@ -3508,50 +3185,11 @@ func _on_advance_to_next_hole():
 
 func show_puzzle_type_selection():
 	"""Show the puzzle type selection dialog"""
-	
-	print("🎯 PUZZLE SELECTION: show_puzzle_type_selection() called")
-	
-	# Clean up any existing puzzle type dialog
-	if puzzle_type_dialog:
-		puzzle_type_dialog.queue_free()
-	
-	# Wait a frame to ensure any previous dialogs are fully cleaned up
-	await get_tree().process_frame
-	
-	# Create and show puzzle type selection dialog
-	var puzzle_dialog_scene = preload("res://PuzzleTypeSelectionDialog.tscn")
-	puzzle_type_dialog = puzzle_dialog_scene.instantiate()
-	puzzle_type_dialog.name = "PuzzleTypeSelectionDialog"
-	$UILayer.add_child(puzzle_type_dialog)
-	
-	print("🎯 PUZZLE SELECTION: Dialog added to UILayer")
-	
-	# Wait a frame to ensure the dialog is properly added
-	await get_tree().process_frame
-	
-	# Connect the puzzle type selection signal
-	puzzle_type_dialog.puzzle_type_selected.connect(_on_puzzle_type_selected)
-	
-	# Show the dialog
-	puzzle_type_dialog.show_puzzle_selection()
-	
-	print("🎯 PUZZLE SELECTION: Dialog created and shown")
+	ui_manager.show_puzzle_type_selection()
 
 func _on_puzzle_type_selected(puzzle_type: String):
 	"""Handle when a puzzle type is selected"""
-	
-	print("🎯 PUZZLE SELECTION: Selected puzzle type:", puzzle_type)
-	
-	# Set the puzzle type for the next hole
-	next_puzzle_type = puzzle_type
-	
-	# Clean up the dialog
-	if puzzle_type_dialog:
-		puzzle_type_dialog.queue_free()
-		puzzle_type_dialog = null
-	
-	# Fade to next hole with the selected puzzle type
-	FadeManager.fade_to_black(func(): reset_for_next_hole(), 0.5)
+	ui_manager._on_puzzle_type_selected(puzzle_type)
 
 func reset_for_next_hole():
 	print("=== ADVANCING TO HOLE", current_hole + 2, "===")
@@ -3672,169 +3310,16 @@ func _connect_pin_signals():
 		print("Pin not found when trying to connect gimme signals!")
 
 func show_course_complete_dialog():
-	var dialog = AcceptDialog.new()
-	dialog.title = "Course Complete!"
-	dialog.dialog_text = "Congratulations! You've finished all holes!\n\nTotal Score: %d strokes\n" % total_score
-	dialog.add_theme_font_size_override("font_size", 20)
-	dialog.add_theme_color_override("font_color", Color.CYAN)
-	dialog.position = Vector2(400, 300)
-	$UILayer.add_child(dialog)
-	dialog.popup_centered()
-	dialog.confirmed.connect(func():
-		dialog.queue_free()
-		get_tree().reload_current_scene()
-	)
+	"""Show course completion dialog"""
+	ui_manager.show_course_complete_dialog()
 
 func show_front_nine_complete_dialog():
-	var total_round_score = 0
-	for score in round_scores:
-		total_round_score += score
-	
-	var total_par = GolfCourseLayout.get_front_nine_par()
-	var round_vs_par = total_round_score - total_par
-	var score_text = "Front 9 Complete!\n\n"
-	score_text += "Hole-by-Hole Scores:\n"
-	
-	for i in range(round_scores.size()):
-		var hole_score = round_scores[i]
-		var hole_par = GolfCourseLayout.get_hole_par(i)
-		var hole_vs_par = hole_score - hole_par
-		score_text += "Hole %d: %d strokes" % [i + 1, hole_score]
-		if hole_vs_par == 0:
-			score_text += " (Par)"
-		elif hole_vs_par == 1:
-			score_text += " (+1)"
-		elif hole_vs_par == 2:
-			score_text += " (+2)"
-		elif hole_vs_par == -1:
-			score_text += " (-1)"
-		elif hole_vs_par == -2:
-			score_text += " (-2)"
-		else:
-			score_text += " (%+d)" % hole_vs_par
-		score_text += "\n"
-	
-	score_text += "\nFinal Round Score: %d strokes\n" % total_round_score
-	score_text += "Course Par: %d\n" % total_par
-	
-	if round_vs_par == 0:
-		score_text += "Final Result: Even Par ✓\n"
-	elif round_vs_par > 0:
-		score_text += "Final Result: %+d (Over Par)\n" % round_vs_par
-	else:
-		score_text += "Final Result: %+d (Under Par) ✓\n" % round_vs_par
-	
-	score_text += "\nClick to continue to the Mid-Game Shop!"
-	
-	var dialog = AcceptDialog.new()
-	dialog.title = "Front 9 Complete!"
-	dialog.dialog_text = score_text
-	dialog.add_theme_font_size_override("font_size", 16)
-	dialog.add_theme_color_override("font_color", Color.CYAN)
-	dialog.position = Vector2(400, 300)
-	$UILayer.add_child(dialog)
-	dialog.popup_centered()
-	dialog.confirmed.connect(func():
-		dialog.queue_free()
-		# Clear the player's hand when completing front 9
-		if deck_manager:
-			print("Clearing player hand for front 9 completion - hand size before:", deck_manager.hand.size())
-			deck_manager.hand.clear()
-			print("Player hand cleared - hand size after:", deck_manager.hand.size())
-			update_deck_display()
-			# Clear any movement buttons that might still be visible
-			if movement_controller:
-				movement_controller.clear_all_movement_ui()
-			if attack_handler:
-				attack_handler.clear_all_attack_ui()
-			if weapon_handler:
-				weapon_handler.clear_all_weapon_ui()
-		
-		# Clean up any crowd instances
-		var crowd_instances = get_tree().get_nodes_in_group("crowd")
-		for crowd in crowd_instances:
-			if crowd.has_method("stop_cheering"):
-				crowd.stop_cheering()
-			crowd.queue_free()
-		# Show mid-game shop overlay instead of changing scenes
-		show_mid_game_shop_overlay()
-	)
+	"""Show front nine completion dialog"""
+	ui_manager.show_front_nine_complete_dialog()
 
 func show_back_nine_complete_dialog():
-	"""Show final round score dialog for back 9 completion"""
-	var total_round_score = 0
-	for score in round_scores:
-		total_round_score += score
-	
-	var total_par = GolfCourseLayout.get_back_nine_par()
-	var round_vs_par = total_round_score - total_par
-	
-	if current_hole == 17:  # 18th hole completed
-		var total_18_hole_score = total_round_score
-		Global.final_18_hole_score = total_18_hole_score
-		FadeManager.fade_to_black(func(): get_tree().change_scene_to_file("res://EndScene.tscn"), 0.5)
-		return
-	
-	var score_text = "Back 9 Complete!\n\n"
-	score_text += "Hole-by-Hole Scores:\n"
-	
-	for i in range(round_scores.size()):
-		var hole_score = round_scores[i]
-		var hole_par = GolfCourseLayout.get_hole_par(back_9_start_hole + i)
-		var hole_vs_par = hole_score - hole_par
-		
-		score_text += "Hole %d: %d strokes" % [back_9_start_hole + i + 1, hole_score]
-		if hole_vs_par == 0:
-			score_text += " (Par)"
-		elif hole_vs_par == 1:
-			score_text += " (+1)"
-		elif hole_vs_par == 2:
-			score_text += " (+2)"
-		elif hole_vs_par == -1:
-			score_text += " (-1)"
-		elif hole_vs_par == -2:
-			score_text += " (-2)"
-		else:
-			score_text += " (%+d)" % hole_vs_par
-		score_text += "\n"
-	
-	score_text += "\nFinal Round Score: %d strokes\n" % total_round_score
-	score_text += "Course Par: %d\n" % total_par
-	
-	if round_vs_par == 0:
-		score_text += "Final Result: Even Par ✓\n"
-	elif round_vs_par > 0:
-		score_text += "Final Result: %+d (Over Par)\n" % round_vs_par
-	else:
-		score_text += "Final Result: %+d (Under Par) ✓\n" % round_vs_par
-	
-	score_text += "\nClick to return to main menu."
-	
-	var dialog = AcceptDialog.new()
-	dialog.title = "Back 9 Complete!"
-	dialog.dialog_text = score_text
-	dialog.add_theme_font_size_override("font_size", 16)
-	dialog.add_theme_color_override("font_color", Color.CYAN)
-	dialog.position = Vector2(400, 300)
-	$UILayer.add_child(dialog)
-	dialog.popup_centered()
-	dialog.confirmed.connect(func():
-		dialog.queue_free()
-		# Clear the player's hand when completing back 9
-		if deck_manager:
-			print("Clearing player hand for back 9 completion - hand size before:", deck_manager.hand.size())
-			deck_manager.hand.clear()
-			print("Player hand cleared - hand size after:", deck_manager.hand.size())
-			update_deck_display()
-			# Clear any movement buttons that might still be visible
-			if movement_controller:
-				movement_controller.clear_all_movement_ui()
-			if attack_handler:
-				attack_handler.clear_all_attack_ui()
-			if weapon_handler:
-				weapon_handler.clear_all_weapon_ui()
-		get_tree().reload_current_scene()
-	)
+	"""Show back nine completion dialog"""
+	ui_manager.show_back_nine_complete_dialog()
 
 func update_hole_and_score_display():
 	if hud:
@@ -4231,143 +3716,39 @@ func check_and_show_gimme_button():
 
 func show_gimme_button():
 	"""Show the gimme button"""
-	print("=== SHOWING GIMME BUTTON ===")
-	
-	# Get the gimme scene and button
-	gimme_scene = $UILayer/Gimme
-	if gimme_scene:
+	if ui_manager:
+		ui_manager.show_gimme_button()
+	elif gimme_scene:
 		gimme_scene.visible = true
-		print("Gimme button made visible")
-		
-		# Connect the button press signal if not already connected
-		var gimme_button = gimme_scene.get_node_or_null("GimmeButton")
-		if gimme_button:
-			print("GimmeButton found:", gimme_button.name)
-			print("GimmeButton type:", gimme_button.get_class())
-			print("GimmeButton mouse_filter:", gimme_button.mouse_filter)
-			print("GimmeButton disabled:", gimme_button.disabled)
-			print("GimmeButton visible:", gimme_button.visible)
-			
-			if not gimme_button.pressed.is_connected(_on_gimme_button_pressed):
-				gimme_button.pressed.connect(_on_gimme_button_pressed)
-				print("Gimme button signal connected")
-			else:
-				print("Gimme button signal already connected")
-		else:
-			print("ERROR: Could not find GimmeButton within Gimme scene")
-	else:
-		print("ERROR: Could not find Gimme scene")
+		print("Gimme button shown (direct access)")
 
 func hide_gimme_button():
 	"""Hide the gimme button"""
-	if gimme_scene:
+	if ui_manager:
+		ui_manager.hide_gimme_button()
+	elif gimme_scene:
 		gimme_scene.visible = false
-		print("Gimme button hidden")
+		print("Gimme button hidden (direct access)")
 
 func _on_gimme_button_pressed():
 	"""Handle gimme button press"""
-	print("=== GIMME BUTTON PRESSED ===")
-	print("Gimme button was successfully clicked!")
-	
-	# Hide the gimme button
-	hide_gimme_button()
-	
-	# Trigger the gimme sequence
-	trigger_gimme_sequence()
+	ui_manager._on_gimme_button_pressed()
 
 func show_draw_club_cards_button() -> void:
 	"""Show the 'Draw Club Cards' button when player is on an active ball tile"""
-	game_phase = "ball_tile_choice"
-	_update_player_mouse_facing_state()
-	print("Player is on ball tile - showing 'Draw Club Cards' button")
-	
-	# Note: ReachBallButton usage no longer prevents club card drawing
-	
-	# Show the "Draw Club Cards" button
-	draw_club_cards_button.visible = true
-	
-	# Exit movement mode but don't automatically enter launch phase
-	movement_controller.exit_movement_mode()
-	update_deck_display()
-	
-	# Camera follows player to ball position using managed tween
-	var sprite = player_manager.get_player_node().get_node_or_null("Sprite2D")
-	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
-	var player_center = player_manager.get_player_node().global_position + player_size / 2
-	create_camera_tween(player_center, 1.0)
+	ui_manager.show_draw_club_cards_button()
 
 func show_shop_entrance_dialog():
-	if shop_dialog:
-		shop_dialog.queue_free()
-	
-	shop_dialog = Control.new()
-	shop_dialog.name = "ShopEntranceDialog"
-	shop_dialog.size = get_viewport_rect().size
-	shop_dialog.z_index = 500
-	shop_dialog.mouse_filter = Control.MOUSE_FILTER_STOP
-	
-	var background := ColorRect.new()
-	background.color = Color(0, 0, 0, 0.7)
-	background.size = shop_dialog.size
-	background.mouse_filter = Control.MOUSE_FILTER_STOP
-	shop_dialog.add_child(background)
-	
-	var dialog_box := ColorRect.new()
-	dialog_box.color = Color(0.2, 0.2, 0.2, 0.9)
-	dialog_box.size = Vector2(400, 200)
-	dialog_box.position = (shop_dialog.size - dialog_box.size) / 2  # Center the dialog
-	dialog_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	shop_dialog.add_child(dialog_box)
-	
-	var title_label := Label.new()
-	title_label.text = "Golf Shop"
-	title_label.add_theme_font_size_override("font_size", 28)
-	title_label.add_theme_color_override("font_color", Color.YELLOW)
-	title_label.add_theme_constant_override("outline_size", 2)
-	title_label.add_theme_color_override("font_outline_color", Color.BLACK)
-	title_label.position = Vector2(150, 20)
-	title_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	dialog_box.add_child(title_label)
-	
-	var question_label := Label.new()
-	question_label.text = "Would you like to enter the shop?"
-	question_label.add_theme_font_size_override("font_size", 18)
-	question_label.add_theme_color_override("font_color", Color.WHITE)
-	question_label.position = Vector2(100, 80)
-	question_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	dialog_box.add_child(question_label)
-	
-	var yes_button := Button.new()
-	yes_button.text = "Yes"
-	yes_button.size = Vector2(80, 40)
-	yes_button.position = Vector2(120, 140)
-	yes_button.pressed.connect(_on_shop_enter_yes)
-	dialog_box.add_child(yes_button)
-	
-	var no_button := Button.new()
-	no_button.text = "No"
-	no_button.size = Vector2(80, 40)
-	no_button.position = Vector2(220, 140)
-	no_button.pressed.connect(_on_shop_enter_no)
-	dialog_box.add_child(no_button)
-	
-	$UILayer.add_child(shop_dialog)
-	print("Shop entrance dialog created")
+	"""Show shop entrance dialog"""
+	ui_manager.show_shop_entrance_dialog()
 
 func _on_shop_enter_yes():
-	# Instead of changing scenes, overlay the shop UI
-	show_shop_overlay()
+	"""Handle shop enter yes button"""
+	ui_manager._on_shop_enter_yes()
 
 func show_shop_overlay():
-	print("=== SHOWING SHOP OVERLAY ===")
-	var shop_scene = preload("res://Shop/ShopInterior.tscn")
-	var shop_instance = shop_scene.instantiate()
-	$UILayer.add_child(shop_instance)
-	shop_instance.z_index = 1000
-	get_tree().paused = true
-	shop_overlay = shop_instance
-	shop_instance.connect("shop_closed", _on_shop_overlay_return)
-	print("=== SHOP OVERLAY SHOWN ===")
+	"""Show shop overlay"""
+	ui_manager.show_shop_overlay()
 
 func get_camera_offset() -> Vector2:
 	"""Get the camera offset for positioning world objects"""
@@ -4383,52 +3764,7 @@ func on_etherdash_complete():
 
 func _on_shop_overlay_return():
 	"""Handle returning from shop overlay"""
-	print("=== REMOVING SHOP OVERLAY ===")
-	
-	# Check if we're in mid-game shop mode
-	if is_mid_game_shop_mode():
-		# Return to MidGameShop overlay - just remove the shop interior
-		if shop_overlay and is_instance_valid(shop_overlay):
-			shop_overlay.queue_free()
-			shop_overlay = null
-		
-		# Reset the mid-game shop mode flag
-		Global.in_mid_game_shop_mode = false
-		
-		# Show the mid-game shop overlay again
-		show_mid_game_shop_overlay()
-		
-		print("=== RETURNED TO MID-GAME SHOP OVERLAY ===")
-		return
-	
-	# Normal shop return flow
-	# Unpause the game
-	get_tree().paused = false
-	
-	# Remove the shop overlay
-	if shop_overlay and is_instance_valid(shop_overlay):
-		shop_overlay.queue_free()
-		shop_overlay = null
-	
-	# Clear any shop dialog that might still be present
-	if shop_dialog:
-		shop_dialog.queue_free()
-		shop_dialog = null
-	
-	# Reset shop entrance detection
-	shop_entrance_detected = false
-	
-	# Update Y-sort for all objects to ensure proper layering
-	Global.update_all_objects_y_sort(ysort_objects)
-	
-	# Exit movement mode
-	exit_movement_mode()
-	
-	# Update HUD to reflect any changes (including $Looty balance from shop purchases)
-	update_deck_display()
-	
-
-	print("=== SHOP OVERLAY REMOVED ===")
+	ui_manager._on_shop_overlay_return()
 
 func is_mid_game_shop_mode() -> bool:
 	"""Check if we're currently in mid-game shop mode"""
@@ -4437,21 +3773,7 @@ func is_mid_game_shop_mode() -> bool:
 
 func show_mid_game_shop_overlay():
 	"""Show the mid-game shop as an overlay"""
-	print("=== SHOWING MID-GAME SHOP OVERLAY ===")
-	
-	# Create and show the mid-game shop overlay
-	var mid_game_shop_scene = preload("res://MidGameShop.tscn")
-	var mid_game_shop_instance = mid_game_shop_scene.instantiate()
-	$UILayer.add_child(mid_game_shop_instance)
-	mid_game_shop_instance.z_index = 1000
-	
-	# Store reference to the overlay
-	mid_game_shop_overlay = mid_game_shop_instance
-	
-	# Pause the game while shop is open
-	get_tree().paused = true
-	
-	print("=== MID-GAME SHOP OVERLAY SHOWN ===")
+	ui_manager.show_mid_game_shop_overlay()
 
 func enter_shop():
 	"""Enter the shop from the mid-game shop overlay"""
@@ -4459,9 +3781,6 @@ func enter_shop():
 	
 	# Set a flag to indicate we're in mid-game shop mode
 	Global.in_mid_game_shop_mode = true
-	
-	# Clear the mid-game shop overlay reference since we're entering the actual shop
-	mid_game_shop_overlay = null
 	
 	# Show the shop overlay
 	show_shop_overlay()
@@ -4474,21 +3793,6 @@ func continue_to_hole_10():
 	
 	# Reset the mid-game shop mode flag
 	Global.in_mid_game_shop_mode = false
-	
-	# Remove the mid-game shop overlay if it exists
-	if mid_game_shop_overlay and is_instance_valid(mid_game_shop_overlay):
-		mid_game_shop_overlay.queue_free()
-		mid_game_shop_overlay = null
-	
-	# Also remove any shop overlay that might be active
-	if shop_overlay and is_instance_valid(shop_overlay):
-		shop_overlay.queue_free()
-		shop_overlay = null
-	
-	# Clear any shop dialog that might be present
-	if shop_dialog:
-		shop_dialog.queue_free()
-		shop_dialog = null
 	
 	# Clear any reward dialog that might be present
 	var existing_reward_dialog = $UILayer.get_node_or_null("RewardSelectionDialog")
@@ -4565,24 +3869,13 @@ func load_hole_10():
 	print("=== HOLE 10 LOADED AND READY ===")
 
 func _on_shop_enter_no():
-	if shop_dialog:
-		shop_dialog.queue_free()
-		shop_dialog = null
-	
-	shop_entrance_detected = false
-	
-	# Update Y-sort for all objects to ensure proper layering
-	Global.update_all_objects_y_sort(ysort_objects)
-	
-	exit_movement_mode()
+	"""Handle shop enter no button"""
+	ui_manager._on_shop_enter_no()
 
 
 
 func _on_shop_under_construction_input(event: InputEvent):
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		if shop_dialog:
-			shop_dialog.queue_free()
-			shop_dialog = null
 		restore_game_state()
 		shop_entrance_detected = false
 		
@@ -6147,129 +5440,11 @@ func should_show_drive_distance_dialog(is_first_shot: bool = false) -> bool:
 
 func show_draw_cards_button_for_turn_start() -> void:
 	"""Show the DrawCardsButton at the start of a player turn instead of automatically drawing cards"""
-	print("=== SHOWING DRAW CARDS BUTTON FOR TURN START ===")
-	
-	# Clear block when starting a new player turn (after world turn ends or is skipped)
-	clear_block()
-	
-	# Deactivate ghost mode when starting a new player turn
-	if ghost_mode_active:
-		deactivate_ghost_mode()
-	
-	# Deactivate vampire mode when starting a new player turn
-	if vampire_mode_active:
-		deactivate_vampire_mode()
-	
-	# Reset ReachBallButton flag for new turn
-	used_reach_ball_button = false
-	print("ReachBallButton flag reset for new turn")
-	
-	# Set waiting_for_player_to_reach_ball back to true for new turn if there's a ball to reach
-	if ball_landing_tile != Vector2i.ZERO:
-		waiting_for_player_to_reach_ball = true
-		print("waiting_for_player_to_reach_ball set to true for new turn")
-	
-	# Check if this ball is in gimme range
-	check_and_show_gimme_button()
-	
-	# Show the DrawCardsButton instead of automatically drawing cards
-	draw_cards_button.visible = true
-	
-	# Set game phase to indicate we're waiting for player to draw cards
-	game_phase = "waiting_for_draw"
-	
-	print("DrawCardsButton shown for turn start. Game phase:", game_phase)
+	ui_manager.show_draw_cards_button_for_turn_start()
 
 func show_pause_menu():
-	"""Show the pause menu dialog with End Round, Quit Game, and Cancel options"""
-	# Don't show if already showing a dialog
-	if get_tree().get_nodes_in_group("pause_menu").size() > 0:
-		return
-	
-	# Create the pause menu dialog
-	var pause_dialog = Control.new()
-	pause_dialog.name = "PauseMenu"
-	pause_dialog.add_to_group("pause_menu")
-	pause_dialog.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	pause_dialog.z_index = 3000
-	pause_dialog.mouse_filter = Control.MOUSE_FILTER_STOP
-	
-	# Background
-	var background = ColorRect.new()
-	background.color = Color(0, 0, 0, 0.8)
-	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	background.mouse_filter = Control.MOUSE_FILTER_STOP
-	pause_dialog.add_child(background)
-	
-	# Main container
-	var main_container = Control.new()
-	main_container.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	main_container.custom_minimum_size = Vector2(400, 300)
-	main_container.position = Vector2(-200, -150)
-	main_container.z_index = 3000
-	pause_dialog.add_child(main_container)
-	
-	# Panel background
-	var panel = ColorRect.new()
-	panel.color = Color(0.2, 0.2, 0.2, 0.95)
-	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	main_container.add_child(panel)
-	
-	# Border
-	var border = ColorRect.new()
-	border.color = Color(0.8, 0.8, 0.8, 0.6)
-	border.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	border.position = Vector2(-2, -2)
-	border.size += Vector2(4, 4)
-	border.z_index = -1
-	main_container.add_child(border)
-	
-	# Title
-	var title = Label.new()
-	title.text = "Pause Menu"
-	title.add_theme_font_size_override("font_size", 28)
-	title.add_theme_color_override("font_color", Color.WHITE)
-	title.add_theme_constant_override("outline_size", 2)
-	title.add_theme_color_override("font_outline_color", Color.BLACK)
-	title.position = Vector2(150, 30)
-	title.size = Vector2(100, 40)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	main_container.add_child(title)
-	
-	# Button container
-	var button_container = VBoxContainer.new()
-	button_container.position = Vector2(100, 100)
-	button_container.size = Vector2(200, 150)
-	button_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	main_container.add_child(button_container)
-	
-	# End Round button
-	var end_round_button = Button.new()
-	end_round_button.text = "End Round"
-	end_round_button.size = Vector2(200, 40)
-	end_round_button.pressed.connect(_on_pause_end_round_pressed.bind(pause_dialog))
-	button_container.add_child(end_round_button)
-	
-	# Quit Game button
-	var quit_game_button = Button.new()
-	quit_game_button.text = "Quit Game"
-	quit_game_button.size = Vector2(200, 40)
-	quit_game_button.pressed.connect(_on_quit_game_pressed)
-	button_container.add_child(quit_game_button)
-	
-	# Cancel button
-	var cancel_button = Button.new()
-	cancel_button.text = "Cancel"
-	cancel_button.size = Vector2(200, 40)
-	cancel_button.pressed.connect(_on_cancel_pause_pressed.bind(pause_dialog))
-	button_container.add_child(cancel_button)
-	
-	# Add to UI layer
-	var ui_layer = get_node_or_null("UILayer")
-	if ui_layer:
-		ui_layer.add_child(pause_dialog)
-	else:
-		add_child(pause_dialog)
+	"""Show pause menu"""
+	ui_manager.show_pause_menu()
 
 func _on_pause_end_round_pressed(pause_dialog: Control):
 	"""Handle End Round button press from pause menu"""
