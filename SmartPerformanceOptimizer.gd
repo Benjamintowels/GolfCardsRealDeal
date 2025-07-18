@@ -119,7 +119,7 @@ func update_essential_systems(course_instance):
 		course_instance.launch_manager.selected_club = course_instance.selected_club
 		course_instance.launch_manager.club_data = course_instance.club_data
 	
-	course_instance.launch_manager.player_stats = course_instance.player_stats
+	course_instance.launch_manager.player_stats = course_instance.player_manager.get_player_stats()
 	
 	# Update ball state for Y-sorting (including knives)
 	if course_instance.launch_manager.golf_ball and is_instance_valid(course_instance.launch_manager.golf_ball):
@@ -272,7 +272,7 @@ func update_nearby_collision_objects(course_instance):
 	elif course_instance.launch_manager.throwing_knife and is_instance_valid(course_instance.launch_manager.throwing_knife) and course_instance.launch_manager.is_shuriken_mode:
 		check_position = course_instance.launch_manager.throwing_knife.global_position
 	else:
-		check_position = course_instance.player_node.global_position if course_instance.player_node else Vector2.ZERO
+		check_position = course_instance.player_manager.get_player_node().global_position if course_instance.player_manager.get_player_node() else Vector2.ZERO
 	
 	# Get all collision objects
 	var collision_objects = get_tree().get_nodes_in_group("collision_objects")
@@ -443,7 +443,7 @@ func should_redraw_grid(event: InputEvent) -> bool:
 func redraw_grid(course_instance):
 	"""Redraw the grid when necessary"""
 	# Update flashlight center
-	if course_instance.player_node:
+	if course_instance.player_manager.get_player_node():
 		course_instance.player_flashlight_center = course_instance.get_flashlight_center()
 	
 	# Redraw grid tiles

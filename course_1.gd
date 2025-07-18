@@ -56,6 +56,10 @@ const EquipmentManager := preload("res://EquipmentManager.gd")
 const GridManager := preload("res://GridManager.gd")
 var grid_manager: GridManager
 
+# Player manager
+const PlayerManager := preload("res://PlayerManager.gd")
+var player_manager: PlayerManager
+
 var is_placing_player := true
 
 var obstacle_map: Dictionary = {}  # Vector2i -> BaseObstacle
@@ -65,15 +69,11 @@ var turn_count: int = 1
 var fire_tiles_that_damaged_player: Array[Vector2i] = []  # Track which fire tiles have already damaged player this turn
 var cell_size: int = 48 # This will be set by the main script
 
-var player_node: Node2D
-var player_grid_pos := Vector2i(25, 25)
-
 # Club selection variables (separate from movement)
 var movement_buttons := []
 
 var is_panning := false
 var pan_start_pos := Vector2.ZERO
-var camera_offset := Vector2.ZERO
 var camera_snap_back_pos := Vector2.ZERO
 
 var flashlight_radius := 150.0
@@ -88,14 +88,6 @@ var deck_manager: DeckManager
 var club_inventory: Array[CardData] = []
 var movement_inventory: Array[CardData] = []
 var pending_inventory_card: CardData = null
-
-var player_stats = {} # Will be set after character selection
-
-var CHARACTER_STATS = {
-	1: { "name": "Layla", "base_mobility": 3 },
-	2: { "name": "Benny", "base_mobility": 2 },
-	3: { "name": "Clark", "base_mobility": 1 }
-}
 
 var game_phase := "tee_select" # Possible: tee_select, draw_cards, aiming, launch, ball_flying, move, etc.
 var hole_score := 0
@@ -448,7 +440,7 @@ func update_reach_ball_button_visibility() -> void:
 	# 2. We're waiting for player to reach the ball
 	# 3. Player is not currently on the ball tile
 	var is_player_turn = game_phase in ["move", "waiting_for_draw", "draw_cards"]
-	var player_not_on_ball = player_grid_pos != ball_landing_tile
+	var player_not_on_ball = player_manager.get_player_grid_pos() != ball_landing_tile
 	var should_show = is_player_turn and waiting_for_player_to_reach_ball and player_not_on_ball
 	
 	if should_show and not reach_ball_button.visible:
@@ -517,6 +509,10 @@ func _ready() -> void:
 	grid_manager = GridManager.new()
 	add_child(grid_manager)
 	
+	# Initialize player manager
+	player_manager = PlayerManager.new()
+	add_child(player_manager)
+	
 	call_deferred("fix_ui_layers")
 	display_selected_character()
 	if end_round_button:
@@ -549,10 +545,21 @@ func _ready() -> void:
 	grid_manager.tile_mouse_exited.connect(_on_tile_mouse_exited)
 	grid_manager.tile_input.connect(_on_tile_input)
 	
-	create_player()
+	# Setup player manager
+	player_manager.setup(
+		grid_manager.get_grid_size(),
+		cell_size,
+		obstacle_map,
+		ysort_objects,
+		shop_grid_pos,
+		health_bar,
+		block_health_bar
+	)
+	
+	player_manager.create_player()
 	launch_manager.set("camera_container", grid_manager.get_camera_container())
 	launch_manager.ui_layer = $UILayer
-	launch_manager.player_node = player_node
+	launch_manager.player_node = player_manager.get_player_node()
 	launch_manager.cell_size = cell_size
 	launch_manager.camera = camera
 	launch_manager.card_effect_handler = card_effect_handler
@@ -590,35 +597,35 @@ func _ready() -> void:
 	
 	# Setup attack handler first (before movement controller)
 	attack_handler.setup(
-		player_node,
+		player_manager.get_player_node(),
 		grid_manager.get_grid_tiles(),
 		grid_manager.get_grid_size(),
 		cell_size,
 		obstacle_map,
-		player_grid_pos,
-		player_stats,
+		player_manager.get_player_grid_pos(),
+		player_manager.get_player_stats(),
 		movement_buttons_container,  # Reuse the same container for now
 		card_click_sound,
 		card_play_sound,
 		card_stack_display,
 		deck_manager,
 		card_effect_handler,
-		player_node.get_node_or_null("KickSound"),  # Add KickSound reference
-		player_node.get_node_or_null("PunchB"),  # Add PunchB sound reference
-		player_node.get_node_or_null("AssassinDash"),  # Add AssassinDash sound reference
-		player_node.get_node_or_null("AssassinCut"),  # Add AssassinCut sound reference
+		player_manager.get_player_node().get_node_or_null("KickSound"),  # Add KickSound reference
+		player_manager.get_player_node().get_node_or_null("PunchB"),  # Add PunchB sound reference
+		player_manager.get_player_node().get_node_or_null("AssassinDash"),  # Add AssassinDash sound reference
+		player_manager.get_player_node().get_node_or_null("AssassinCut"),  # Add AssassinCut sound reference
 		movement_buttons_container  # Pass CardRow reference for animation
 	)
 	
 	# Setup weapon handler after attack handler
 	weapon_handler.setup(
-		player_node,
+		player_manager.get_player_node(),
 		grid_manager.get_grid_tiles(),
 		grid_manager.get_grid_size(),
 		cell_size,
 		obstacle_map,
-		player_grid_pos,
-		player_stats,
+		player_manager.get_player_grid_pos(),
+		player_manager.get_player_stats(),
 		camera,
 		card_click_sound,
 		card_play_sound,
@@ -630,13 +637,13 @@ func _ready() -> void:
 	
 	# Setup movement controller last (after attack and weapon handlers are ready)
 	movement_controller.setup(
-		player_node,
+		player_manager.get_player_node(),
 		grid_manager.get_grid_tiles(),
 		grid_manager.get_grid_size(),
 		cell_size,
 		obstacle_map,
-		player_grid_pos,
-		player_stats,
+		player_manager.get_player_grid_pos(),
+		player_manager.get_player_stats(),
 		movement_buttons_container,
 		card_click_sound,
 		card_play_sound,
@@ -846,8 +853,9 @@ func adjust_background_positioning() -> void:
 		entities.re_register_all_npcs()
 	
 	# Initialize player mouse facing system
-	if player_node and player_node.has_method("set_camera_reference"):
-		player_node.set_camera_reference(camera)
+	var player = player_manager.get_player_node()
+	if player and player.has_method("set_camera_reference"):
+		player.set_camera_reference(camera)
 		_update_player_mouse_facing_state()
 	
 	# Play birds tweeting sound when course loads
@@ -887,7 +895,7 @@ func _input(event: InputEvent) -> void:
 				print("Course: Mouse click detected over bag area at", mouse_pos)
 				print("Course: Bag rect:", bag_rect)
 				bag.debug_bag_state()
-	
+
 	# Handle weapon mode input first
 	if weapon_handler and weapon_handler.handle_input(event):
 		return
@@ -988,7 +996,7 @@ func _input(event: InputEvent) -> void:
 		camera.position = new_position
 		pan_start_pos = event.position
 
-	if player_node:
+	if player_manager.get_player_node():
 		player_flashlight_center = get_flashlight_center()
 
 	# Grid tiles are static with smart optimization - no need to redraw
@@ -1008,98 +1016,17 @@ func draw_flashlight_effect() -> void:
 		draw_circle(flashlight_pos, radius, Color(1, 1, 1, alpha * 0.1))
 
 func get_flashlight_center() -> Vector2:
-	if not player_node:
+	if not player_manager.get_player_node():
 		return Vector2.ZERO
-	var sprite = player_node.get_node_or_null("Sprite2D")
+	var sprite = player_manager.get_player_node().get_node_or_null("Sprite2D")
 	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
-	var player_center = player_node.global_position + player_size / 2
+	var player_center = player_manager.get_player_node().global_position + player_size / 2
 	var mouse_pos: Vector2 = get_viewport().get_mouse_position()
 	var dir: Vector2 = mouse_pos - player_center
 	var dist: float = dir.length()
 	if dist > flashlight_radius:
 		dir = dir.normalized() * flashlight_radius
 	return player_center + dir
-
-
-
-func create_player() -> void:
-	player_stats = Global.CHARACTER_STATS.get(Global.selected_character, {})
-	
-	# Initialize health bar with character stats
-	if health_bar:
-		var max_hp = player_stats.get("max_hp", 100)
-		var current_hp = player_stats.get("current_hp", max_hp)
-		health_bar.set_health(current_hp, max_hp)
-		print("Health bar initialized: %d/%d HP" % [current_hp, max_hp])
-	
-	if player_node and is_instance_valid(player_node):
-		player_node.set_grid_position(player_grid_pos, ysort_objects, shop_grid_pos)
-		player_node.visible = true
-		update_player_position()
-		return
-
-	var player_scene = preload("res://Characters/Player1.tscn")
-	player_node = player_scene.instantiate()
-	player_node.name = "Player"
-	
-	# Add player to groups for smart optimization
-	player_node.add_to_group("players")
-	player_node.add_to_group("collision_objects")
-	
-	grid_manager.get_grid_container().add_child(player_node)
-
-	var char_scene_path = ""
-	var char_scale = Vector2.ONE  # Default scale - no scaling needed since sprites are properly sized
-	var char_offset = Vector2.ZERO  # Default offset
-	match Global.selected_character:
-		1:
-			char_scene_path = "res://Characters/LaylaChar.tscn"
-			char_scale = Vector2.ONE  # No scaling needed
-			char_offset = Vector2.ZERO  # No offset needed
-		2:
-			char_scene_path = "res://Characters/BennyChar.tscn"
-			char_scale = Vector2.ONE  # No scaling needed
-			char_offset = Vector2.ZERO  # No offset needed
-		3:
-			char_scene_path = "res://Characters/ClarkChar.tscn"
-			char_scale = Vector2.ONE  # No scaling needed
-			char_offset = Vector2.ZERO  # No offset needed
-		_:
-			char_scene_path = "res://Characters/BennyChar.tscn" # Default to Benny if unknown
-			char_scale = Vector2.ONE  # No scaling needed
-			char_offset = Vector2.ZERO  # No offset needed
-	if char_scene_path != "":
-		var char_scene = load(char_scene_path)
-		if char_scene:
-			var char_instance = char_scene.instantiate()
-			char_instance.scale = char_scale  # Apply the scale
-			char_instance.position = char_offset  # Apply the offset
-			player_node.add_child(char_instance)
-			
-			# Setup meditation system after character scene is added
-			if player_node.has_method("setup_meditation_after_character"):
-				player_node.setup_meditation_after_character()
-
-	var base_mobility = player_stats.get("base_mobility", 0)
-	player_node.setup(grid_manager.get_grid_size(), cell_size, base_mobility, obstacle_map)
-	
-	player_node.set_grid_position(player_grid_pos, ysort_objects, shop_grid_pos)
-
-	player_node.player_clicked.connect(_on_player_input)
-	player_node.moved_to_tile.connect(_on_player_moved_to_tile)
-
-	update_player_position()
-	if player_node:
-		player_node.visible = false
-
-func update_player_stats_from_equipment() -> void:
-	"""Update player stats to reflect equipment buffs"""
-	player_stats = Global.CHARACTER_STATS.get(Global.selected_character, {})
-	
-	if player_node and is_instance_valid(player_node):
-		var base_mobility = player_stats.get("base_mobility", 0)
-		player_node.setup(grid_manager.get_grid_size(), cell_size, base_mobility, obstacle_map)
-		print("Updated player stats with equipment buffs:", player_stats)
 
 func take_damage(amount: int) -> void:
 	"""Player takes damage and updates health bar"""
@@ -1149,15 +1076,6 @@ func heal_player(amount: int) -> void:
 		Global.CHARACTER_STATS[Global.selected_character]["current_hp"] = health_bar.current_hp
 		print("Player healed %d HP. Current HP: %d" % [amount, health_bar.current_hp])
 
-func get_player_health() -> Dictionary:
-	"""Get current player health info"""
-	if health_bar:
-		return {
-			"current_hp": health_bar.current_hp,
-			"max_hp": health_bar.max_hp,
-			"is_alive": health_bar.is_alive()
-		}
-	return {"current_hp": 0, "max_hp": 0, "is_alive": false}
 
 # Block system methods
 func activate_block(amount: int) -> void:
@@ -1179,7 +1097,7 @@ func activate_block(amount: int) -> void:
 func switch_to_block_sprite() -> void:
 	"""Switch Benny character to block sprite"""
 	print("=== SWITCH TO BLOCK SPRITE CALLED ===")
-	if not player_node:
+	if not player_manager.get_player_node():
 		print("✗ No player node found")
 		return
 	
@@ -1188,7 +1106,7 @@ func switch_to_block_sprite() -> void:
 	var block_sprite = null
 	
 	print("Searching for sprites in player node children...")
-	for child in player_node.get_children():
+	for child in player_manager.get_player_node().get_children():
 		print("  Child:", child.name, "Type:", child.get_class())
 		if child is Node2D:
 			for grandchild in child.get_children():
@@ -1223,14 +1141,14 @@ func switch_to_block_sprite() -> void:
 
 func switch_to_normal_sprite() -> void:
 	"""Switch Benny character back to normal sprite"""
-	if not player_node or Global.selected_character != 2:  # Only for Benny
+	if not player_manager.get_player_node() or Global.selected_character != 2:  # Only for Benny
 		return
 	
 	# Find the normal character sprite and block sprite in the player node
 	var normal_sprite = null
 	var block_sprite = null
 	
-	for child in player_node.get_children():
+	for child in player_manager.get_player_node().get_children():
 		if child is Node2D:
 			for grandchild in child.get_children():
 				if grandchild is Sprite2D and grandchild.name == "Sprite2D":
@@ -1250,14 +1168,14 @@ func switch_to_normal_sprite() -> void:
 
 func update_block_sprite_flip() -> void:
 	"""Update the block sprite's flip_h state to match the normal sprite"""
-	if not player_node or Global.selected_character != 2 or not block_active:  # Only for Benny when blocking
+	if not player_manager.get_player_node() or Global.selected_character != 2 or not block_active:  # Only for Benny when blocking
 		return
 	
 	# Find the normal character sprite and block sprite in the player node
 	var normal_sprite = null
 	var block_sprite = null
 	
-	for child in player_node.get_children():
+	for child in player_manager.get_player_node().get_children():
 		if child is Node2D:
 			for grandchild in child.get_children():
 				if grandchild is Sprite2D and grandchild.name == "Sprite2D":
@@ -1374,12 +1292,12 @@ func _on_player_input(event: InputEvent) -> void:
 
 func update_camera_to_player() -> void:
 	"""Update camera to follow player's current position (called during movement animation)"""
-	if not player_node:
+	if not player_manager.get_player_node():
 		return
 	
-	var sprite = player_node.get_node_or_null("Sprite2D")
+	var sprite = player_manager.get_player_node().get_node_or_null("Sprite2D")
 	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
-	var player_center: Vector2 = player_node.global_position + player_size / 2
+	var player_center: Vector2 = player_manager.get_player_node().global_position + player_size / 2
 	
 	# Update camera snap back position
 	camera_snap_back_pos = player_center
@@ -1394,12 +1312,12 @@ func update_camera_to_player() -> void:
 
 func smooth_camera_to_player() -> void:
 	"""Smoothly tween camera to player's final position (called after movement animation completes)"""
-	if not player_node:
+	if not player_manager.get_player_node():
 		return
 	
-	var sprite = player_node.get_node_or_null("Sprite2D")
+	var sprite = player_manager.get_player_node().get_node_or_null("Sprite2D")
 	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
-	var player_center: Vector2 = player_node.global_position + player_size / 2
+	var player_center: Vector2 = player_manager.get_player_node().global_position + player_size / 2
 	
 	# Update camera snap back position
 	camera_snap_back_pos = player_center
@@ -1414,20 +1332,20 @@ func smooth_camera_to_player() -> void:
 		zoom_timer.timeout.connect(func(): camera.zoom_in_after_movement())
 
 func update_player_position() -> void:
-	if not player_node:
+	if not player_manager.get_player_node():
 		return
-	var sprite = player_node.get_node_or_null("Sprite2D")
+	var sprite = player_manager.get_player_node().get_node_or_null("Sprite2D")
 	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
 
-	player_node.set_grid_position(player_grid_pos, ysort_objects)
+	player_manager.get_player_node().set_grid_position(player_manager.get_player_grid_pos(), ysort_objects)
 	
-	var player_center: Vector2 = player_node.global_position + player_size / 2
+	var player_center: Vector2 = player_manager.get_player_node().global_position + player_size / 2
 	camera_snap_back_pos = player_center
 	
 	# Only create ball if player is properly placed (not during initial setup)
 	if not is_placing_player:
 		# Create or update ball at tile center for all shots
-		var tile_center: Vector2 = Vector2(player_grid_pos.x * cell_size + cell_size/2, player_grid_pos.y * cell_size + cell_size/2) + grid_manager.get_camera_container().global_position
+		var tile_center: Vector2 = Vector2(player_manager.get_player_grid_pos().x * cell_size + cell_size/2, player_manager.get_player_grid_pos().y * cell_size + cell_size/2) + grid_manager.get_camera_container().global_position
 		create_or_update_ball_at_player_center(tile_center)
 	
 	if not is_placing_player:
@@ -1464,7 +1382,7 @@ func create_or_update_ball_at_player_center(player_center: Vector2) -> void:
 		return
 	
 
-	
+
 	# No ball exists - create a new one at player center
 	var ball_scene = preload("res://GolfBall.tscn")
 	var ball = ball_scene.instantiate()
@@ -1546,7 +1464,7 @@ func _on_tile_input(event: InputEvent, x: int, y: int) -> void:
 	# Handle right-click for EtherDash cancellation
 	if event is InputEventMouseButton and event.pressed and not is_panning and event.button_index == MOUSE_BUTTON_RIGHT:
 		# Check if we're in EtherDash mode
-		if player_node and player_node.is_etherdash_mode:
+		if player_manager.get_player_node() and player_manager.get_player_node().is_etherdash_mode:
 			print("Right-click detected during EtherDash - cancelling EtherDash mode")
 			# Use the same completion method to ensure card is discarded
 			on_etherdash_complete()
@@ -1569,8 +1487,8 @@ func _on_tile_input(event: InputEvent, x: int, y: int) -> void:
 					ongoing_tween.kill()
 					remove_meta("pin_to_tee_tween")
 				
-				player_grid_pos = clicked
-				create_player()  # This will reuse existing player or create new one
+				player_manager.set_player_grid_pos(clicked)
+				player_manager.create_player()  # This will reuse existing player or create new one
 				is_placing_player = false
 				
 				# Update player position and create ball
@@ -1582,10 +1500,10 @@ func _on_tile_input(event: InputEvent, x: int, y: int) -> void:
 			else:
 				pass # Please select a Tee Box to start your round.
 		else:
-			if player_node.has_method("can_move_to"):
-				print("player_node.can_move_to(clicked):", player_node.can_move_to(clicked))
+			if player_manager.get_player_node().has_method("can_move_to"):
+				print("player_manager.get_player_node().can_move_to(clicked):", player_manager.get_player_node().can_move_to(clicked))
 			else:
-				print("player_node does not have can_move_to method")
+				print("player_manager.get_player_node() does not have can_move_to method")
 			
 			if movement_controller.handle_tile_click(x, y):
 				# Movement was successful, no need to do anything else here
@@ -1611,7 +1529,7 @@ func start_round_after_tee_selection() -> void:
 	# Reset global turn counter for new round
 	Global.reset_global_turn()
 	
-	player_stats = Global.CHARACTER_STATS.get(Global.selected_character, {})
+	player_manager.set_player_stats(Global.CHARACTER_STATS.get(Global.selected_character, {}))
 	
 	deck_manager.initialize_separate_decks()
 	print("Separate decks initialized - Club cards:", deck_manager.club_draw_pile.size(), "Action cards:", deck_manager.action_draw_pile.size())
@@ -1621,13 +1539,13 @@ func start_round_after_tee_selection() -> void:
 	hole_score = 0
 	
 	# Enable player movement animations after player is properly placed on tee
-	if player_node and player_node.has_method("enable_animations"):
-		player_node.enable_animations()
+	if player_manager.get_player_node() and player_manager.get_player_node().has_method("enable_animations"):
+		player_manager.get_player_node().enable_animations()
 		print("Player movement animations enabled after tee placement")
 	
 	enter_draw_cards_phase()  # Start with club selection phase
 	
-	print("Round started! Player at position:", player_grid_pos)
+	print("Round started! Player at position:", player_manager.get_player_grid_pos())
 
 func show_power_meter():
 	launch_manager.show_power_meter()
@@ -1646,7 +1564,7 @@ func show_aiming_circle():
 		aiming_circle.queue_free()
 	
 	var base_circle_size = 50.0
-	var strength_modifier = player_stats.get("strength", 0)
+	var strength_modifier = player_manager.get_player_stats().get("strength", 0)
 	var strength_multiplier = 1.0 + (strength_modifier * 0.15)  # +15% size per strength point
 	var adjusted_circle_size = base_circle_size * strength_multiplier
 	
@@ -1692,12 +1610,12 @@ func hide_aiming_circle():
 	remove_ghost_ball()
 
 func update_aiming_circle():
-	if not aiming_circle or not player_node:
+	if not aiming_circle or not player_manager.get_player_node():
 		return
 	
-	var sprite = player_node.get_node_or_null("Sprite2D")
+	var sprite = player_manager.get_player_node().get_node_or_null("Sprite2D")
 	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
-	var player_center = player_node.global_position + player_size / 2
+	var player_center = player_manager.get_player_node().global_position + player_size / 2
 	var mouse_pos = camera.get_global_mouse_position()
 	var direction = (mouse_pos - player_center).normalized()
 	var distance = player_center.distance_to(mouse_pos)
@@ -1799,8 +1717,8 @@ func _on_golf_ball_landed(tile: Vector2i):
 		smart_optimizer.update_game_state("move", false, false, false)
 	
 	# Re-enable player collision shape after ball lands
-	if player_node and player_node.has_method("enable_collision_shape"):
-		player_node.enable_collision_shape()
+	if player_manager.get_player_node() and player_manager.get_player_node().has_method("enable_collision_shape"):
+		player_manager.get_player_node().enable_collision_shape()
 	
 	# Check if the ball still exists (if not, it went in the hole)
 	if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball):
@@ -1809,7 +1727,7 @@ func _on_golf_ball_landed(tile: Vector2i):
 		waiting_for_player_to_reach_ball = true
 		
 		# Check if player is already on the landing tile
-		if player_grid_pos == ball_landing_tile:
+		if player_manager.get_player_grid_pos() == ball_landing_tile:
 			print("Player is already on the ball landing tile - checking for gimme and showing buttons")
 			# Player is already on the ball tile - remove landing highlight
 			if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball) and launch_manager.golf_ball.has_method("remove_landing_highlight"):
@@ -1832,9 +1750,9 @@ func _on_golf_ball_landed(tile: Vector2i):
 			else:
 				# Player needs to move to the ball - show drive distance dialog on every shot
 				if should_show_drive_distance_dialog(is_first_shot):
-					var sprite = player_node.get_node_or_null("Sprite2D")
+					var sprite = player_manager.get_player_node().get_node_or_null("Sprite2D")
 					var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
-					var player_center = player_node.global_position + player_size / 2
+					var player_center = player_manager.get_player_node().global_position + player_size / 2
 					var player_start_pos = player_center
 					var ball_landing_pos = launch_manager.golf_ball.global_position
 					drive_distance = player_start_pos.distance_to(ball_landing_pos)
@@ -1849,9 +1767,9 @@ func _on_golf_ball_landed(tile: Vector2i):
 				else:
 					print("Not a tee shot or first shot - skipping drive distance dialog")
 					# Tween camera back to player even when skipping dialog
-					var sprite = player_node.get_node_or_null("Sprite2D")
+					var sprite = player_manager.get_player_node().get_node_or_null("Sprite2D")
 					var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
-					var player_center = player_node.global_position + player_size / 2
+					var player_center = player_manager.get_player_node().global_position + player_size / 2
 					create_camera_tween(player_center, 0.8)
 					game_phase = "move"
 					_update_player_mouse_facing_state()
@@ -2116,7 +2034,7 @@ func _end_turn_logic() -> void:
 		show_turn_message("Extra Turn!", 2.0)
 		
 		# Continue with normal turn flow without World Turn
-		if waiting_for_player_to_reach_ball and player_grid_pos == ball_landing_tile:
+		if waiting_for_player_to_reach_ball and player_manager.get_player_grid_pos() == ball_landing_tile:
 			if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball) and launch_manager.golf_ball.has_method("remove_landing_highlight"):
 				launch_manager.golf_ball.remove_landing_highlight()
 			
@@ -2150,7 +2068,7 @@ func _continue_after_world_turn() -> void:
 	print("=== CONTINUING AFTER WORLD TURN ===")
 	
 	# Continue with normal turn flow
-	if waiting_for_player_to_reach_ball and player_grid_pos == ball_landing_tile:
+	if waiting_for_player_to_reach_ball and player_manager.get_player_grid_pos() == ball_landing_tile:
 		if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball) and launch_manager.golf_ball.has_method("remove_landing_highlight"):
 			launch_manager.golf_ball.remove_landing_highlight()
 		
@@ -2161,7 +2079,7 @@ func _continue_after_world_turn() -> void:
 func start_npc_turn_sequence() -> void:
 	"""Handle the NPC turn sequence with priority-based turns for visible NPCs"""
 	print("=== STARTING NPC TURN SEQUENCE ===")
-	print("Player grid position: ", player_grid_pos)
+	print("Player grid position: ", player_manager.get_player_grid_pos())
 	
 	# Debug: Check for golf balls in the scene
 	var golf_balls = get_tree().get_nodes_in_group("golf_balls")
@@ -2195,7 +2113,7 @@ func start_npc_turn_sequence() -> void:
 		show_turn_message("Your Turn", 2.0)
 		
 		# Continue with normal turn flow
-		if waiting_for_player_to_reach_ball and player_grid_pos == ball_landing_tile:
+		if waiting_for_player_to_reach_ball and player_manager.get_player_grid_pos() == ball_landing_tile:
 			if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball) and launch_manager.golf_ball.has_method("remove_landing_highlight"):
 				launch_manager.golf_ball.remove_landing_highlight()
 			
@@ -2223,7 +2141,7 @@ func start_npc_turn_sequence() -> void:
 		end_turn_button.get_node("TextureButton").mouse_filter = Control.MOUSE_FILTER_STOP
 		
 		# Continue with normal turn flow
-		if waiting_for_player_to_reach_ball and player_grid_pos == ball_landing_tile:
+		if waiting_for_player_to_reach_ball and player_manager.get_player_grid_pos() == ball_landing_tile:
 			if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball) and launch_manager.golf_ball.has_method("remove_landing_highlight"):
 				launch_manager.golf_ball.remove_landing_highlight()
 			
@@ -2294,7 +2212,7 @@ func start_npc_turn_sequence() -> void:
 	end_turn_button.get_node("TextureButton").mouse_filter = Control.MOUSE_FILTER_STOP
 	
 	# Continue with normal turn flow
-	if waiting_for_player_to_reach_ball and player_grid_pos == ball_landing_tile:
+	if waiting_for_player_to_reach_ball and player_manager.get_player_grid_pos() == ball_landing_tile:
 		if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball) and launch_manager.golf_ball.has_method("remove_landing_highlight"):
 			launch_manager.golf_ball.remove_landing_highlight()
 		
@@ -2351,7 +2269,7 @@ func get_visible_npcs_by_priority() -> Array[Node]:
 				continue
 			
 			var npc_pos = npc.get_grid_position()
-			var distance = player_grid_pos.distance_to(npc_pos)
+			var distance = player_manager.get_player_grid_pos().distance_to(npc_pos)
 			
 			# Check if this is a squirrel that can detect balls
 			var script_path = npc.get_script().resource_path if npc.get_script() else ""
@@ -2481,7 +2399,7 @@ func find_nearest_visible_npc() -> Node:
 				continue
 			
 			var npc_pos = npc.get_grid_position()
-			var distance = player_grid_pos.distance_to(npc_pos)
+			var distance = player_manager.get_player_grid_pos().distance_to(npc_pos)
 			
 			print("NPC ", npc.name, " at distance ", distance, " from player (frozen: ", is_frozen, ", will thaw: ", will_thaw_this_turn, ")")
 			
@@ -2589,11 +2507,11 @@ func transition_camera_to_npc(npc: Node) -> void:
 
 func transition_camera_to_player() -> void:
 	"""Transition camera back to the player"""
-	if not player_node:
+	if not player_manager.get_player_node():
 		print("ERROR: No player node found for camera transition")
 		return
 	
-	var player_center = player_node.global_position
+	var player_center = player_manager.get_player_node().global_position
 	print("Transitioning camera back to player at position: ", player_center)
 	create_camera_tween(player_center, 1.0)
 	await current_camera_tween.finished
@@ -2680,8 +2598,8 @@ func _find_squirrels_recursive(node: Node, squirrels: Array) -> void:
 
 func get_player_reference() -> Node:
 	"""Get the player reference for NPCs to use"""
-	print("get_player_reference called - player_node: ", player_node.name if player_node else "None")
-	return player_node
+	print("get_player_reference called - player_manager.get_player_node(): ", player_manager.get_player_node().name if player_manager.get_player_node() else "None")
+	return player_manager.get_player_node()
 
 
 
@@ -2695,8 +2613,8 @@ func give_extra_turn() -> void:
 	print("Player given extra turn! Extra turns remaining:", extra_turns_remaining)
 	
 	# Play coffee sound effect
-	if player_node:
-		var coffee_sound = player_node.get_node_or_null("Coffee")
+	if player_manager.get_player_node():
+		var coffee_sound = player_manager.get_player_node().get_node_or_null("Coffee")
 		if coffee_sound and coffee_sound.stream:
 			coffee_sound.play()
 			print("Playing coffee sound effect")
@@ -2709,7 +2627,7 @@ func advance_fire_tiles() -> void:
 	for fire_tile in fire_tiles:
 		if is_instance_valid(fire_tile) and fire_tile.has_method("advance_turn"):
 			fire_tile.advance_turn()
-	
+
 	# Check for fire damage at end of world turn
 	check_player_fire_damage()
 
@@ -2932,8 +2850,8 @@ func _on_golf_ball_out_of_bounds():
 		print("Ball in flight state reset to false (out of bounds)")
 	
 	# Re-enable player collision shape after ball goes out of bounds
-	if player_node and player_node.has_method("enable_collision_shape"):
-		player_node.enable_collision_shape()
+	if player_manager.get_player_node() and player_manager.get_player_node().has_method("enable_collision_shape"):
+		player_manager.get_player_node().enable_collision_shape()
 	
 	hole_score += 1
 	if launch_manager.golf_ball:
@@ -2947,11 +2865,11 @@ func _on_golf_ball_out_of_bounds():
 	ball_landing_tile = shot_start_grid_pos
 	ball_landing_position = Vector2(shot_start_grid_pos.x * cell_size + cell_size/2, shot_start_grid_pos.y * cell_size + cell_size/2)
 	waiting_for_player_to_reach_ball = true
-	player_grid_pos = shot_start_grid_pos
+	player_manager.set_player_grid_pos(shot_start_grid_pos)
 	update_player_position()
 	
 	# Force create a new ball at the player's tile center position for the penalty shot
-	var tile_center: Vector2 = Vector2(player_grid_pos.x * cell_size + cell_size/2, player_grid_pos.y * cell_size + cell_size/2) + grid_manager.get_camera_container().global_position
+	var tile_center: Vector2 = Vector2(player_manager.get_player_grid_pos().x * cell_size + cell_size/2, player_manager.get_player_grid_pos().y * cell_size + cell_size/2) + grid_manager.get_camera_container().global_position
 	force_create_ball_at_position(tile_center)
 	
 	game_phase = "draw_cards"
@@ -2975,10 +2893,10 @@ func reset_player_to_tee():
 	for y in map_manager.level_layout.size():
 		for x in map_manager.level_layout[y].size():
 			if map_manager.get_tile_type(x, y) == "Tee":
-				player_grid_pos = Vector2i(x, y)
+				player_manager.set_player_grid_pos(Vector2i(x, y))
 				update_player_position()
 				return
-	player_grid_pos = Vector2i(25, 25)
+	player_manager.set_player_grid_pos(Vector2i(25, 25))
 	update_player_position()
 
 func enter_launch_phase() -> void:
@@ -3000,15 +2918,15 @@ func enter_aiming_phase() -> void:
 		smart_optimizer.update_game_state("aiming", false, true, false)
 	
 	# Set the shot start position to where the player currently is
-	shot_start_grid_pos = player_grid_pos
+	shot_start_grid_pos = player_manager.get_player_grid_pos()
 	print("Shot started from position:", shot_start_grid_pos)
 	
 	show_aiming_circle()
 	create_ghost_ball()
 	show_aiming_instruction()
-	var sprite = player_node.get_node_or_null("Sprite2D")
+	var sprite = player_manager.get_player_node().get_node_or_null("Sprite2D")
 	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
-	var player_center = player_node.global_position + player_size / 2
+	var player_center = player_manager.get_player_node().global_position + player_size / 2
 	create_camera_tween(player_center, 1.0)
 	
 	# Zoom out when entering aiming phase for better visibility
@@ -3092,7 +3010,7 @@ func draw_cards_for_shot(card_count: int = 5) -> void:
 		waiting_for_player_to_reach_ball = true
 		print("waiting_for_player_to_reach_ball set to true for new turn")
 	
-	var card_draw_modifier = player_stats.get("card_draw", 0)
+	var card_draw_modifier = player_manager.get_player_stats().get("card_draw", 0)
 	var final_card_count = card_count + card_draw_modifier
 	final_card_count = max(1, final_card_count)
 	print("Final card count (with modifier):", final_card_count)
@@ -3136,8 +3054,8 @@ func _on_golf_ball_sand_landing():
 	if should_hide_weapon:
 		weapon_handler.hide_weapon()
 	# Re-enable player collision shape after ball lands in sand
-	if player_node and player_node.has_method("enable_collision_shape"):
-		player_node.enable_collision_shape()
+	if player_manager.get_player_node() and player_manager.get_player_node().has_method("enable_collision_shape"):
+		player_manager.get_player_node().enable_collision_shape()
 	
 	if launch_manager.golf_ball and map_manager:
 		var final_tile = Vector2i(floor(launch_manager.golf_ball.position.x / cell_size), floor(launch_manager.golf_ball.position.y / cell_size))
@@ -3190,8 +3108,8 @@ func _on_grenade_landed(final_tile: Vector2i) -> void:
 	var pause_timer = get_tree().create_timer(1.0)
 	pause_timer.timeout.connect(func():
 		# After pause, tween camera back to player
-		if player_node and camera:
-			create_camera_tween(player_node.global_position, 0.5, Tween.TRANS_LINEAR)
+		if player_manager.get_player_node() and camera:
+			create_camera_tween(player_manager.get_player_node().global_position, 0.5, Tween.TRANS_LINEAR)
 			current_camera_tween.tween_callback(func():
 				# Exit grenade mode and reset camera following after tween completes
 				if launch_manager:
@@ -3242,8 +3160,8 @@ func _on_grenade_out_of_bounds() -> void:
 	game_phase = "move"
 	
 	# Tween camera back to player immediately
-	if player_node and camera:
-		create_camera_tween(player_node.global_position, 0.5, Tween.TRANS_LINEAR)
+	if player_manager.get_player_node() and camera:
+		create_camera_tween(player_manager.get_player_node().global_position, 0.5, Tween.TRANS_LINEAR)
 		current_camera_tween.tween_callback(func():
 			# Exit grenade mode and reset camera following after tween completes
 			if launch_manager:
@@ -3300,8 +3218,8 @@ func _on_grenade_sand_landing() -> void:
 	var pause_timer = get_tree().create_timer(1.0)
 	pause_timer.timeout.connect(func():
 		# After pause, tween camera back to player
-		if player_node and camera:
-			create_camera_tween(player_node.global_position, 0.5, Tween.TRANS_LINEAR)
+		if player_manager.get_player_node() and camera:
+			create_camera_tween(player_manager.get_player_node().global_position, 0.5, Tween.TRANS_LINEAR)
 			current_camera_tween.tween_callback(func():
 				# Exit grenade mode and reset camera following after tween completes
 				if launch_manager:
@@ -3767,11 +3685,11 @@ func reset_for_next_hole():
 	if current_hole > round_end_hole:
 		return
 		
-	if player_node and is_instance_valid(player_node):
+	if player_manager.get_player_node() and is_instance_valid(player_manager.get_player_node()):
 		# Disable animations before hiding player for next hole
-		if player_node.has_method("disable_animations"):
-			player_node.disable_animations()
-		player_node.visible = false
+		if player_manager.get_player_node().has_method("disable_animations"):
+			player_manager.get_player_node().disable_animations()
+		player_manager.get_player_node().visible = false
 	
 	# Apply the selected puzzle type for this hole
 	current_puzzle_type = next_puzzle_type
@@ -4066,9 +3984,9 @@ func enter_draw_cards_phase() -> void:
 	
 	draw_club_cards_button.visible = true
 	
-	var sprite = player_node.get_node_or_null("Sprite2D")
+	var sprite = player_manager.get_player_node().get_node_or_null("Sprite2D")
 	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
-	var player_center = player_node.global_position + player_size / 2
+	var player_center = player_manager.get_player_node().global_position + player_size / 2
 	var tween := get_tree().create_tween()
 	tween.tween_property(camera, "position", player_center, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	
@@ -4091,7 +4009,7 @@ func draw_club_cards() -> void:
 	
 	# Calculate how many club cards we need to draw
 	var base_club_count = 2  # Default number of clubs to show
-	var card_draw_modifier = player_stats.get("card_draw", 0)
+	var card_draw_modifier = player_manager.get_player_stats().get("card_draw", 0)
 	var final_club_count = base_club_count + card_draw_modifier
 	
 	# Actually draw club cards to hand first - draw enough for the selection
@@ -4252,7 +4170,7 @@ func draw_club_cards() -> void:
 func _on_club_card_pressed(club_name: String, club_info: Dictionary, button: TextureButton) -> void:
 	selected_club = club_name
 	var base_max_distance = club_info.get("max_distance", 600.0)  # Default fallback distance
-	var strength_modifier = player_stats.get("strength", 0)
+	var strength_modifier = player_manager.get_player_stats().get("strength", 0)
 	var strength_multiplier = 1.0 + (strength_modifier * 0.1)  # Same multiplier as power calculation
 	max_shot_distance = base_max_distance * strength_multiplier
 	card_click_sound.play()
@@ -4312,7 +4230,7 @@ func clear_temporary_club():
 
 
 func _on_player_moved_to_tile(new_grid_pos: Vector2i) -> void:
-	player_grid_pos = new_grid_pos
+	player_manager.set_player_grid_pos(new_grid_pos)
 	movement_controller.update_player_position(new_grid_pos)
 	attack_handler.update_player_position(new_grid_pos)
 	
@@ -4320,22 +4238,22 @@ func _on_player_moved_to_tile(new_grid_pos: Vector2i) -> void:
 	check_player_fire_damage()
 	
 	# Check for SuitCase interaction
-	if suitcase_grid_pos != Vector2i.ZERO and player_grid_pos == suitcase_grid_pos:
+	if suitcase_grid_pos != Vector2i.ZERO and player_manager.get_player_grid_pos() == suitcase_grid_pos:
 		print("=== SUITCASE REACHED ===")
-		print("Player grid position:", player_grid_pos)
+		print("Player grid position:", player_manager.get_player_grid_pos())
 		print("SuitCase grid position:", suitcase_grid_pos)
 		_on_suitcase_reached()
 		return  # Don't exit movement mode yet
 	
-	if player_grid_pos == shop_grid_pos and not shop_entrance_detected:
+	if player_manager.get_player_grid_pos() == shop_grid_pos and not shop_entrance_detected:
 		print("=== SHOP ENTRANCE DETECTED ===")
-		print("Player grid position:", player_grid_pos)
+		print("Player grid position:", player_manager.get_player_grid_pos())
 		print("Shop grid position:", shop_grid_pos)
 		print("Shop entrance detected flag:", shop_entrance_detected)
 		shop_entrance_detected = true
 		show_shop_entrance_dialog()
 		return  # Don't exit movement mode yet
-	elif player_grid_pos != shop_grid_pos:
+	elif player_manager.get_player_grid_pos() != shop_grid_pos:
 		if shop_entrance_detected:
 			print("Player moved away from shop entrance")
 		shop_entrance_detected = false
@@ -4343,7 +4261,7 @@ func _on_player_moved_to_tile(new_grid_pos: Vector2i) -> void:
 	update_player_position()
 	
 	# Check if player is on an active ball tile
-	if waiting_for_player_to_reach_ball and player_grid_pos == ball_landing_tile:
+	if waiting_for_player_to_reach_ball and player_manager.get_player_grid_pos() == ball_landing_tile:
 		# Player is on the ball tile - remove landing highlight
 		if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball) and launch_manager.golf_ball.has_method("remove_landing_highlight"):
 			launch_manager.golf_ball.remove_landing_highlight()
@@ -4355,10 +4273,10 @@ func _on_player_moved_to_tile(new_grid_pos: Vector2i) -> void:
 		show_draw_club_cards_button()
 	else:
 		# Check if this is EtherDash movement - don't exit movement mode if more moves are available
-		if player_node.is_etherdash_mode and player_node.etherdash_moves_remaining > 0:
+		if player_manager.get_player_node().is_etherdash_mode and player_manager.get_player_node().etherdash_moves_remaining > 0:
 			print("EtherDash movement completed - more moves available, staying in movement mode")
 			# Update movement highlights for next move
-			movement_controller.valid_movement_tiles = player_node.valid_movement_tiles.duplicate()
+			movement_controller.valid_movement_tiles = player_manager.get_player_node().valid_movement_tiles.duplicate()
 			movement_controller.show_movement_highlights()
 		else:
 			# Normal movement - exit movement mode
@@ -4438,9 +4356,9 @@ func show_draw_club_cards_button() -> void:
 	update_deck_display()
 	
 	# Camera follows player to ball position using managed tween
-	var sprite = player_node.get_node_or_null("Sprite2D")
+	var sprite = player_manager.get_player_node().get_node_or_null("Sprite2D")
 	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
-	var player_center = player_node.global_position + player_size / 2
+	var player_center = player_manager.get_player_node().global_position + player_size / 2
 	create_camera_tween(player_center, 1.0)
 
 func show_shop_entrance_dialog():
@@ -4518,7 +4436,7 @@ func show_shop_overlay():
 
 func get_camera_offset() -> Vector2:
 	"""Get the camera offset for positioning world objects"""
-	return camera_offset
+	return grid_manager.get_camera_offset()
 
 func on_etherdash_complete():
 	"""Handle EtherDash completion - ensure card is discarded"""
@@ -4756,10 +4674,10 @@ func restore_game_state():
 				print("Object", i, ": Invalid object")
 		print("=== END PIN CREATION DEBUG (Saved Positions) ===")
 		
-		player_grid_pos = Global.saved_player_grid_pos
+		player_manager.set_player_grid_pos(Global.saved_player_manager.get_player_grid_pos())
 		update_player_position()
-		if player_node:
-			player_node.visible = true
+		if player_manager.get_player_node():
+			player_manager.get_player_node().visible = true
 		is_placing_player = false
 		ball_landing_tile = Global.saved_ball_landing_tile
 		ball_landing_position = Global.saved_ball_landing_position
@@ -4804,17 +4722,17 @@ func restore_game_state():
 		if deck_manager.hand.size() > 0:
 			create_movement_buttons()
 		update_deck_display()
-		update_player_stats_from_equipment()
-		var sprite = player_node.get_node_or_null("Sprite2D")
+		player_manager.update_player_stats_from_equipment()
+		var sprite = player_manager.get_player_node().get_node_or_null("Sprite2D")
 		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
-		var player_center = player_node.global_position + player_size / 2
+		var player_center = player_manager.get_player_node().global_position + player_size / 2
 		camera_snap_back_pos = player_center
 		create_camera_tween(player_center, 1.0)
 	else:
 		print("No saved game state found")
 
 func is_player_on_shop_tile() -> bool:
-	return player_grid_pos == shop_grid_pos
+	return player_manager.get_player_grid_pos() == shop_grid_pos
 
 
 
@@ -4847,7 +4765,7 @@ func create_ghost_ball() -> void:
 		ghost_ball_area.collision_mask = 0  # Don't collide with anything (including player)
 	
 	# Position ghost ball at tile center (same as real ball)
-	var tile_center: Vector2 = Vector2(player_grid_pos.x * cell_size + cell_size/2, player_grid_pos.y * cell_size + cell_size/2) + grid_manager.get_camera_container().global_position
+	var tile_center: Vector2 = Vector2(player_manager.get_player_grid_pos().x * cell_size + cell_size/2, player_manager.get_player_grid_pos().y * cell_size + cell_size/2) + grid_manager.get_camera_container().global_position
 	var ball_local_position = tile_center - grid_manager.get_camera_container().global_position
 	ghost_ball.position = ball_local_position
 	ghost_ball.cell_size = cell_size
@@ -4874,8 +4792,8 @@ func activate_ghost_mode() -> void:
 	print("Ghost mode activated")
 	
 	# Make player sprite transparent
-	if player_node:
-		var sprite = player_node.get_character_sprite()
+	if player_manager.get_player_node():
+		var sprite = player_manager.get_player_node().get_character_sprite()
 		if sprite:
 			# Kill any existing tween
 			if ghost_mode_tween and ghost_mode_tween.is_valid():
@@ -4904,8 +4822,8 @@ func deactivate_ghost_mode() -> void:
 	print("Ghost mode deactivated")
 	
 	# Restore player sprite visibility
-	if player_node:
-		var sprite = player_node.get_character_sprite()
+	if player_manager.get_player_node():
+		var sprite = player_manager.get_player_node().get_character_sprite()
 		if sprite:
 			# Kill any existing tween
 			if ghost_mode_tween and ghost_mode_tween.is_valid():
@@ -4938,8 +4856,8 @@ func activate_vampire_mode() -> void:
 	print("Vampire mode activated")
 	
 	# Apply dark red hue to player sprite
-	if player_node:
-		var sprite = player_node.get_character_sprite()
+	if player_manager.get_player_node():
+		var sprite = player_manager.get_player_node().get_character_sprite()
 		if sprite:
 			# Kill any existing tween
 			if vampire_mode_tween and vampire_mode_tween.is_valid():
@@ -4969,8 +4887,8 @@ func deactivate_vampire_mode() -> void:
 	print("Vampire mode deactivated")
 	
 	# Restore player sprite normal appearance
-	if player_node:
-		var sprite = player_node.get_character_sprite()
+	if player_manager.get_player_node():
+		var sprite = player_manager.get_player_node().get_character_sprite()
 		if sprite:
 			# Kill any existing tween
 			if vampire_mode_tween and vampire_mode_tween.is_valid():
@@ -5027,18 +4945,18 @@ func animate_dodge_with_hue_effect() -> void:
 	"""Animate the dodge with movement and hue effect"""
 	print("=== ANIMATING DODGE WITH HUE EFFECT ===")
 	
-	if not player_node:
+	if not player_manager.get_player_node():
 		print("✗ No player node found")
 		return
 	
 	# Get the character sprite
-	var character_sprite = player_node.get_character_sprite()
+	var character_sprite = player_manager.get_player_node().get_character_sprite()
 	if not character_sprite:
 		print("✗ No character sprite found")
 		return
 	
 	# Store original position and modulate
-	var original_position = player_node.global_position
+	var original_position = player_manager.get_player_node().global_position
 	var original_modulate = character_sprite.modulate
 	
 	# Calculate dodge direction (slightly to the side)
@@ -5049,7 +4967,7 @@ func animate_dodge_with_hue_effect() -> void:
 	dodge_tween.set_parallel(true)
 	
 	# Move to dodge position
-	dodge_tween.tween_property(player_node, "global_position", original_position + dodge_offset, 0.3)
+	dodge_tween.tween_property(player_manager.get_player_node(), "global_position", original_position + dodge_offset, 0.3)
 	dodge_tween.set_trans(Tween.TRANS_SINE)
 	dodge_tween.set_ease(Tween.EASE_OUT)
 	
@@ -5061,7 +4979,7 @@ func animate_dodge_with_hue_effect() -> void:
 	await get_tree().create_timer(0.3).timeout
 	
 	var return_tween = create_tween()
-	return_tween.tween_property(player_node, "global_position", original_position, 0.3)
+	return_tween.tween_property(player_manager.get_player_node(), "global_position", original_position, 0.3)
 	return_tween.set_trans(Tween.TRANS_SINE)
 	return_tween.set_ease(Tween.EASE_IN)
 	
@@ -5082,12 +5000,12 @@ func animate_dodge_movement() -> void:
 	"""Animate the player moving slightly out of the way"""
 	print("=== ANIMATING DODGE MOVEMENT ===")
 	
-	if not player_node:
+	if not player_manager.get_player_node():
 		print("✗ No player node found")
 		return
 	
 	# Store original position
-	var original_position = player_node.global_position
+	var original_position = player_manager.get_player_node().global_position
 	
 	# Calculate dodge direction (slightly to the side)
 	var dodge_offset = Vector2(20, 0)  # Move 20 pixels to the right
@@ -5097,7 +5015,7 @@ func animate_dodge_movement() -> void:
 	dodge_tween.set_parallel(true)
 	
 	# Move to dodge position
-	dodge_tween.tween_property(player_node, "global_position", original_position + dodge_offset, 0.3)
+	dodge_tween.tween_property(player_manager.get_player_node(), "global_position", original_position + dodge_offset, 0.3)
 	dodge_tween.set_trans(Tween.TRANS_SINE)
 	dodge_tween.set_ease(Tween.EASE_OUT)
 	
@@ -5105,7 +5023,7 @@ func animate_dodge_movement() -> void:
 	await get_tree().create_timer(0.3).timeout
 	
 	var return_tween = create_tween()
-	return_tween.tween_property(player_node, "global_position", original_position, 0.3)
+	return_tween.tween_property(player_manager.get_player_node(), "global_position", original_position, 0.3)
 	return_tween.set_trans(Tween.TRANS_SINE)
 	return_tween.set_ease(Tween.EASE_IN)
 	
@@ -5113,8 +5031,8 @@ func animate_dodge_movement() -> void:
 
 func play_dodge_sound() -> void:
 	"""Play the dodge sound effect"""
-	if player_node:
-		var dodge_sound = player_node.get_node_or_null("Dodge")
+	if player_manager.get_player_node():
+		var dodge_sound = player_manager.get_player_node().get_node_or_null("Dodge")
 		if dodge_sound and dodge_sound is AudioStreamPlayer2D:
 			dodge_sound.play()
 			print("✓ Playing dodge sound")
@@ -5133,8 +5051,8 @@ func deactivate_dodge_mode() -> void:
 	print("Dodge mode deactivated")
 	
 	# Clear the hue effect from the character sprite
-	if player_node:
-		var character_sprite = player_node.get_character_sprite()
+	if player_manager.get_player_node():
+		var character_sprite = player_manager.get_player_node().get_character_sprite()
 		if character_sprite:
 			# Restore original modulate (white, no tint)
 			character_sprite.modulate = Color.WHITE
@@ -5579,7 +5497,7 @@ func _on_scramble_complete(closest_ball_position: Vector2, closest_ball_tile: Ve
 	waiting_for_player_to_reach_ball = true
 	
 	# Check if player is already on the landing tile
-	if player_grid_pos == ball_landing_tile:
+	if player_manager.get_player_grid_pos() == ball_landing_tile:
 		print("Player is already on the scramble ball landing tile - checking for gimme and showing buttons")
 		# Player is already on the ball tile - remove landing highlight
 		if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball) and launch_manager.golf_ball.has_method("remove_landing_highlight"):
@@ -5594,9 +5512,9 @@ func _on_scramble_complete(closest_ball_position: Vector2, closest_ball_tile: Ve
 		# Player needs to move to the ball - show drive distance dialog
 		# Note: golf_ball is already set to the closest scramble ball in CardEffectHandler
 		# Show drive distance dialog for the scramble result (same as normal shots)
-		var sprite = player_node.get_node_or_null("Sprite2D")
+		var sprite = player_manager.get_player_node().get_node_or_null("Sprite2D")
 		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
-		var player_center = player_node.global_position + player_size / 2
+		var player_center = player_manager.get_player_node().global_position + player_size / 2
 		var drive_distance = player_center.distance_to(closest_ball_position)
 		
 		var dialog_timer = get_tree().create_timer(0.5)
@@ -5724,8 +5642,8 @@ func _on_ball_launched(ball: Node2D):
 			play_swing_sound(ball.get_final_power() if ball.has_method("get_final_power") else 0.0)
 		
 		# Set ball launch position for player collision delay system
-		if player_node and player_node.has_method("set_ball_launch_position"):
-			player_node.set_ball_launch_position(ball.global_position)
+		if player_manager.get_player_node() and player_manager.get_player_node().has_method("set_ball_launch_position"):
+			player_manager.get_player_node().set_ball_launch_position(ball.global_position)
 			print("Ball launch position set for player collision delay:", ball.global_position)
 		
 		# Connect ball signals
@@ -5824,8 +5742,8 @@ func _on_launch_phase_exited():
 		game_phase = "ball_flying"
 		_update_player_mouse_facing_state()
 		# Disable player collision shape during ball flight
-		if player_node and player_node.has_method("disable_collision_shape"):
-			player_node.disable_collision_shape()
+		if player_manager.get_player_node() and player_manager.get_player_node().has_method("disable_collision_shape"):
+			player_manager.get_player_node().disable_collision_shape()
 		
 		# Update smart optimizer for ball flying phase
 		if smart_optimizer:
@@ -5843,8 +5761,8 @@ func _on_charging_state_changed(charging: bool, charging_height: bool) -> void:
 
 func _on_ball_collision_detected() -> void:
 	"""Handle ball collision detection - re-enable player collision shape"""
-	if player_node and player_node.has_method("enable_collision_shape"):
-		player_node.enable_collision_shape()
+	if player_manager.get_player_node() and player_manager.get_player_node().has_method("enable_collision_shape"):
+		player_manager.get_player_node().enable_collision_shape()
 
 func _on_npc_attacked(npc: Node, damage: int) -> void:
 	"""Handle when an NPC is attacked"""
@@ -5855,13 +5773,13 @@ func _on_npc_attacked(npc: Node, damage: int) -> void:
 
 func _on_kick_attack_performed() -> void:
 	"""Handle when a kick attack is performed - trigger kick animation"""
-	if player_node and player_node.has_method("start_kick_animation"):
-		player_node.start_kick_animation()
+	if player_manager.get_player_node() and player_manager.get_player_node().has_method("start_kick_animation"):
+		player_manager.get_player_node().start_kick_animation()
 
 func _on_punchb_attack_performed() -> void:
 	"""Handle when a PunchB attack is performed - trigger punch animation"""
-	if player_node and player_node.has_method("start_punchb_animation"):
-		player_node.start_punchb_animation()
+	if player_manager.get_player_node() and player_manager.get_player_node().has_method("start_punchb_animation"):
+		player_manager.get_player_node().start_punchb_animation()
 
 func _on_ash_dog_attack_performed() -> void:
 	"""Handle when an Ash dog attack is performed - trigger ash dog animation"""
@@ -5892,8 +5810,8 @@ func _on_knife_landed(final_tile: Vector2i) -> void:
 	var pause_timer = get_tree().create_timer(1.0)
 	pause_timer.timeout.connect(func():
 		# After pause, tween camera back to player
-		if player_node and camera:
-			create_camera_tween(player_node.global_position, 0.5, Tween.TRANS_LINEAR)
+		if player_manager.get_player_node() and camera:
+			create_camera_tween(player_manager.get_player_node().global_position, 0.5, Tween.TRANS_LINEAR)
 			current_camera_tween.tween_callback(func():
 				# Exit knife mode and reset camera following after tween completes
 				if launch_manager:
@@ -5933,8 +5851,8 @@ func _on_spear_landed(final_tile: Vector2i) -> void:
 	var pause_timer = get_tree().create_timer(1.0)
 	pause_timer.timeout.connect(func():
 		# After pause, tween camera back to player
-		if player_node and camera:
-			create_camera_tween(player_node.global_position, 0.5, Tween.TRANS_LINEAR)
+		if player_manager.get_player_node() and camera:
+			create_camera_tween(player_manager.get_player_node().global_position, 0.5, Tween.TRANS_LINEAR)
 			current_camera_tween.tween_callback(func():
 				# Exit spear mode and reset camera following after tween completes
 				if launch_manager:
@@ -6048,11 +5966,11 @@ func setup_global_death_sound() -> void:
 
 func _update_player_mouse_facing_state() -> void:
 	"""Update the player's mouse facing state based on current game phase and launch state"""
-	if not player_node or not player_node.has_method("set_game_phase"):
+	if not player_manager.get_player_node() or not player_manager.get_player_node().has_method("set_game_phase"):
 		return
 	
 	# Update game phase
-	player_node.set_game_phase(game_phase)
+	player_manager.get_player_node().set_game_phase(game_phase)
 	
 	# Update launch state from LaunchManager
 	var is_charging = false
@@ -6063,15 +5981,15 @@ func _update_player_mouse_facing_state() -> void:
 		is_charging_height = launch_manager.is_charging_height
 		is_selecting_height = launch_manager.is_selecting_height
 	
-	player_node.set_launch_state(is_charging, is_charging_height, is_selecting_height)
+	player_manager.get_player_node().set_launch_state(is_charging, is_charging_height, is_selecting_height)
 	
 	# Update launch mode state
 	var is_in_launch_mode = (game_phase == "ball_flying")
-	player_node.set_launch_mode(is_in_launch_mode)
+	player_manager.get_player_node().set_launch_mode(is_in_launch_mode)
 	
 	# Set camera reference if not already set
-	if player_node.has_method("set_camera_reference") and camera:
-		player_node.set_camera_reference(camera)
+	if player_manager.get_player_node().has_method("set_camera_reference") and camera:
+		player_manager.get_player_node().set_camera_reference(camera)
 	
 	# Update block sprite flip to match normal sprite
 	update_block_sprite_flip()
@@ -6105,8 +6023,14 @@ func get_launch_manager() -> LaunchManager:
 
 func create_camera_tween(target_position: Vector2, duration: float = 0.5, transition: Tween.TransitionType = Tween.TRANS_SINE, ease: Tween.EaseType = Tween.EASE_OUT) -> void:
 	"""Create a camera tween with proper management to prevent conflicts"""
+	# Store current camera position before killing any existing tween
+	var current_camera_position = camera.position
+	
 	# Kill any existing camera tween first
 	kill_current_camera_tween()
+	
+	# Ensure camera position is maintained after killing the tween
+	camera.position = current_camera_position
 	
 	# Reset parallax layer offsets when camera is repositioned via tween
 	if background_manager:
@@ -6121,7 +6045,7 @@ func create_camera_tween(target_position: Vector2, duration: float = 0.5, transi
 	current_camera_tween.finished.connect(func(): current_camera_tween = null)
 func check_player_fire_damage() -> void:
 	"""Check if player should take fire damage from active fire tiles"""
-	if not player_node or not player_node.has_method("take_damage"):
+	if not player_manager.get_player_node() or not player_manager.get_player_node().has_method("take_damage"):
 		return
 	
 	var fire_tiles = get_tree().get_nodes_in_group("fire_tiles")
@@ -6144,10 +6068,10 @@ func check_player_fire_damage() -> void:
 		# Check if player is on the fire tile or adjacent to it
 		if _is_player_affected_by_fire_tile(fire_tile_pos):
 			# Determine damage amount
-			var damage = 30 if player_grid_pos == fire_tile_pos else 15
+			var damage = 30 if player_manager.get_player_grid_pos() == fire_tile_pos else 15
 			
 			# Apply damage to player
-			player_node.take_damage(damage)
+			player_manager.get_player_node().take_damage(damage)
 			print("Player took", damage, "fire damage from fire tile at", fire_tile_pos)
 			
 			# Play FlameOn sound effect
@@ -6176,7 +6100,7 @@ func play_flame_on_sound() -> void:
 	if sound_file:
 		temp_audio.stream = sound_file
 		temp_audio.volume_db = -5.0  # Slightly quieter for player damage
-		temp_audio.position = player_node.global_position if player_node else Vector2.ZERO
+		temp_audio.position = player_manager.get_player_node().global_position if player_manager.get_player_node() else Vector2.ZERO
 		add_child(temp_audio)
 		temp_audio.play()
 		# Remove the audio player after it finishes
@@ -6185,7 +6109,7 @@ func play_flame_on_sound() -> void:
 func _is_player_affected_by_fire_tile(fire_tile_pos: Vector2i) -> bool:
 	"""Check if player is on the fire tile or adjacent to it"""
 	# Direct hit - player is on the fire tile
-	if player_grid_pos == fire_tile_pos:
+	if player_manager.get_player_grid_pos() == fire_tile_pos:
 		return true
 	
 	# Adjacent tiles (8-directional)
@@ -6201,7 +6125,7 @@ func _is_player_affected_by_fire_tile(fire_tile_pos: Vector2i) -> bool:
 	]
 	
 	for direction in adjacent_positions:
-		if player_grid_pos == fire_tile_pos + direction:
+		if player_manager.get_player_grid_pos() == fire_tile_pos + direction:
 			return true
 	
 	return false

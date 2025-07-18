@@ -81,7 +81,7 @@ func create_card_display(card_data: CardData):
 		card_instance.set_card_data(card_data)
 	
 	# Scale to specified dimensions for inventory display
-	card_instance.scale = Vector2(1.336, 1.213)
+	card_instance.scale = Vector2(1.236, 1.113)
 	
 	# Make it non-interactive in inventory
 	card_instance.mouse_filter = Control.MOUSE_FILTER_IGNORE

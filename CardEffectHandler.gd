@@ -431,12 +431,20 @@ func teleport_player_to_ball(ball_position: Vector2):
 	var ball_local_pos = ball_position - course.grid_manager.get_camera_container().global_position
 	var ball_grid_pos = Vector2i(floor(ball_local_pos.x / course.cell_size), floor(ball_local_pos.y / course.cell_size))
 	
-	# Update the course's player grid position
-	course.player_grid_pos = ball_grid_pos
+	# Temporarily disable player animations to prevent camera conflicts during teleportation
+	var player_node = course.player_manager.get_player_node()
+	var animations_were_enabled = false
+	if player_node and player_node.has_method("disable_animations"):
+		animations_were_enabled = player_node.animations_enabled
+		player_node.disable_animations()
+		print("Temporarily disabled player animations for teleportation")
+	
+	# Update the player manager's grid position
+	course.player_manager.set_player_grid_pos(ball_grid_pos)
 	
 	# Update the player's position
-	if course.player_node and course.player_node.has_method("set_grid_position"):
-		course.player_node.set_grid_position(ball_grid_pos, course.ysort_objects)
+	if course.player_manager.get_player_node() and course.player_manager.get_player_node().has_method("set_grid_position"):
+		course.player_manager.get_player_node().set_grid_position(ball_grid_pos, course.ysort_objects)
 	
 	# Update the course's player position
 	if course.has_method("update_player_position"):
@@ -448,6 +456,15 @@ func teleport_player_to_ball(ball_position: Vector2):
 	
 	if course.attack_handler and course.attack_handler.has_method("update_player_position"):
 		course.attack_handler.update_player_position(ball_grid_pos)
+	
+	# Re-enable player animations after teleportation is complete
+	if player_node and player_node.has_method("enable_animations") and animations_were_enabled:
+		# Use a small delay to ensure the camera tween has started
+		var timer = course.get_tree().create_timer(0.1)
+		timer.timeout.connect(func():
+			player_node.enable_animations()
+			print("Re-enabled player animations after teleportation")
+		)
 	
 	print("Player teleported to ball position:", ball_grid_pos)
 

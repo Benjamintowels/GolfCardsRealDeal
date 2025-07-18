@@ -786,6 +786,13 @@ func set_grid_position(pos: Vector2i, ysort_objects: Array = [], shop_grid_pos: 
 	grid_pos = pos
 	var target_world_pos = Vector2(pos.x, pos.y) * cell_size + Vector2(cell_size / 2, cell_size / 2)
 	
+	# Add camera offset to get the correct world position
+	var course = get_tree().current_scene
+	if course and course.has_method("get_camera_offset"):
+		target_world_pos += course.get_camera_offset()
+	elif course and "camera_offset" in course:
+		target_world_pos += course.camera_offset
+	
 	# Only use animated movement if animations are enabled
 	if animations_enabled:
 		_animate_movement_to_position(target_world_pos, ysort_objects, shop_grid_pos)
