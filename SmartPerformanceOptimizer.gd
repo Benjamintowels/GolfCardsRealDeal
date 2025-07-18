@@ -115,8 +115,9 @@ func update_essential_systems(course_instance):
 	# Update LaunchManager (essential for gameplay)
 	# Don't overwrite chosen_landing_spot, selected_club, or club_data if we're in knife mode, grenade mode, or spear mode
 	if not course_instance.launch_manager.is_knife_mode and not course_instance.launch_manager.is_grenade_mode and not course_instance.launch_manager.is_spear_mode and not course_instance.launch_manager.is_shuriken_mode:
-		course_instance.launch_manager.chosen_landing_spot = course_instance.chosen_landing_spot
-		course_instance.launch_manager.selected_club = course_instance.selected_club
+		if course_instance.game_state_manager:
+			course_instance.launch_manager.chosen_landing_spot = course_instance.game_state_manager.get_chosen_landing_spot()
+			course_instance.launch_manager.selected_club = course_instance.game_state_manager.get_selected_club()
 		course_instance.launch_manager.club_data = course_instance.club_data
 	
 	course_instance.launch_manager.player_stats = course_instance.player_manager.get_player_stats()
@@ -148,7 +149,7 @@ func update_essential_systems(course_instance):
 		update_ball_state(shuriken_pos, shuriken_velocity)
 	
 	# Camera following (when ball or knife is active)
-	if course_instance.camera_following_ball:
+	if course_instance.game_state_manager and course_instance.game_state_manager.get_camera_following_ball():
 		var target_position = Vector2.ZERO
 		var has_target = false
 
@@ -190,7 +191,7 @@ func update_essential_systems(course_instance):
 		# Don't disable the course's process function as it's needed for the game loop
 	
 	# Aiming circle update (only during aiming)
-	if course_instance.is_aiming_phase and course_instance.aiming_circle:
+	if course_instance.game_state_manager and course_instance.game_state_manager.get_is_aiming_phase() and course_instance.game_state_manager.get_aiming_circle():
 		course_instance.update_aiming_circle()
 
 func should_update_ysort(current_time: float) -> bool:

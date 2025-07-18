@@ -530,16 +530,23 @@ func launch_single_scramble_ball(direction: Vector2, power: float, height: float
 	ball.add_to_group("scramble_balls")
 	
 	# Set ball properties - calculate a landing spot for proper targeting
-	ball.club_info = course.club_data[course.selected_club] if course.selected_club in course.club_data else {}
-	# Determine is_putting from club data, just like LaunchManager does
-	var is_putting = course.club_data.get(course.selected_club, {}).get("is_putter", false)
-	ball.is_putting = is_putting
+	if course.game_state_manager:
+		var selected_club = course.game_state_manager.get_selected_club()
+		ball.club_info = course.club_data[selected_club] if selected_club in course.club_data else {}
+		var is_putting = course.club_data.get(selected_club, {}).get("is_putter", false)
+		ball.is_putting = is_putting
+	else:
+		ball.club_info = {}
+		ball.is_putting = false
 	ball.time_percentage = course.charge_time / course.max_charge_time
 	
 	# Set landing spot - middle ball uses the actual chosen landing spot, others use estimated spots
 	if ball_index == 0:
 		# Middle ball (index 0) uses the actual chosen landing spot like a normal ball
-		ball.chosen_landing_spot = course.chosen_landing_spot
+		if course.game_state_manager:
+			ball.chosen_landing_spot = course.game_state_manager.get_chosen_landing_spot()
+		else:
+			ball.chosen_landing_spot = Vector2.ZERO
 	else:
 		# Side balls use estimated landing spots based on their deviated direction
 		# Calculate the landing spot in global coordinates
@@ -567,7 +574,8 @@ func launch_single_scramble_ball(direction: Vector2, power: float, height: float
 	
 	# Enable camera following for the first ball (center ball)
 	if ball_index == 0:
-		course.camera_following_ball = true
+		if course.game_state_manager:
+			course.game_state_manager.set_camera_following_ball(true)
 		course.launch_manager.golf_ball = ball  # Set as the main golf ball for camera following
 	
 	# Scramble ball launched
@@ -703,7 +711,8 @@ func complete_scramble_with_ball(ball_index: int):
 	course.waiting_for_player_to_reach_ball = true
 	
 	# Stop camera following
-	course.camera_following_ball = false
+	if course.game_state_manager:
+		course.game_state_manager.set_camera_following_ball(false)
 	
 	# Emit signal for course to handle
 	scramble_complete.emit(closest_position, closest_tile)
@@ -753,7 +762,8 @@ func clear_all_scramble_balls():
 	scramble_ball_landed_count = 0
 	
 	# Stop camera following
-	course.camera_following_ball = false
+	if course.game_state_manager:
+		course.game_state_manager.set_camera_following_ball(false)
 	
 	print("All scramble balls cleared")
 
@@ -1169,7 +1179,8 @@ func _handle_call_of_the_wild_effect(card: CardData):
 	print("RedJay tracking set up - ball:", ball_node.name, "position:", ball_node.global_position)
 	
 	# Switch camera focus to the ball
-	course.camera_following_ball = true
+	if course.game_state_manager:
+		course.game_state_manager.set_camera_following_ball(true)
 	print("Camera switched to follow ball during RedJay effect")
 	
 	# Create RedJay effect
@@ -1250,7 +1261,8 @@ func _on_redjay_effect_completed():
 	redjay_moved_ball = null # Clear the tracked ball
 	
 	# Switch camera focus back to player
-	course.camera_following_ball = false
+	if course.game_state_manager:
+		course.game_state_manager.set_camera_following_ball(false)
 	if course.has_method("smooth_camera_to_player"):
 		course.smooth_camera_to_player()
 		print("Camera switched back to player after RedJay effect")

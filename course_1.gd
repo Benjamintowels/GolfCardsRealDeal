@@ -68,13 +68,16 @@ var camera_manager: CameraManager
 const UIManager := preload("res://UIManager.gd")
 var ui_manager: UIManager
 
-var is_placing_player := true
+# Game state manager
+const GameStateManager := preload("res://GameStateManager.gd")
+var game_state_manager: GameStateManager = null
+
+# Sound manager
+const SoundManager := preload("res://SoundManager.gd")
+var sound_manager: SoundManager = null
 
 var obstacle_map: Dictionary = {}  # Vector2i -> BaseObstacle
 
-var turn_count: int = 1
-# Fire tile damage tracking
-var fire_tiles_that_damaged_player: Array[Vector2i] = []  # Track which fire tiles have already damaged player this turn
 var cell_size: int = 48 # This will be set by the main script
 
 # Club selection variables (separate from movement)
@@ -98,9 +101,6 @@ var club_inventory: Array[CardData] = []
 var movement_inventory: Array[CardData] = []
 var pending_inventory_card: CardData = null
 
-var game_phase := "tee_select" # Possible: tee_select, draw_cards, aiming, launch, ball_flying, move, etc.
-var hole_score := 0
-
 # StickyShot and card modification variables
 var sticky_shot_active := false  # Track if StickyShot effect is active
 var bouncey_shot_active := false  # Track if Bouncey effect is active
@@ -117,48 +117,7 @@ var extra_turns_remaining := 0  # Track extra turns from CoffeeCard
 var block_active := false  # Track if block is currently active
 var block_amount := 0  # Current block points
 
-# Multi-hole game loop variables
-var round_scores := []  # Array to store scores for each hole
-var round_complete := false  # Flag to track if front 9 is complete
-
-# Gimme mechanic variables
-var gimme_active := false  # Track if gimme is currently active
-var gimme_ball: Node2D = null  # Reference to the ball that's in gimme range
-
-
-
-# Camera following variables
-var camera_following_ball := false
-var drive_distance := 0.0
-# drive_distance_dialog moved to UIManager
-
-# Swing sound effects
-var swing_strong_sound: AudioStreamPlayer2D
-var swing_med_sound: AudioStreamPlayer2D
-var swing_soft_sound: AudioStreamPlayer2D
-var water_plunk_sound: AudioStreamPlayer2D
-var sand_thunk_sound: AudioStreamPlayer2D
-var trunk_thunk_sound: AudioStreamPlayer2D
-
-# Multi-shot golf variables
-var ball_landing_tile: Vector2i = Vector2i.ZERO
-var ball_landing_position: Vector2 = Vector2.ZERO
-var waiting_for_player_to_reach_ball := false
-var shot_start_grid_pos: Vector2i = Vector2i.ZERO  # Store where the shot was taken from (grid position)
-var used_reach_ball_button: bool = false  # Track if player used ReachBallButton this turn
-
-# Red circle aiming system variables
-var aiming_circle: Control = null
-var chosen_landing_spot: Vector2 = Vector2.ZERO
-var max_shot_distance: float = 800.0  # Reduced from 2000.0 to something more on-screen
-var is_aiming_phase: bool = false
-
-
-
-# Club selection variables
-var selected_club: String = ""
-var temporary_club: CardData = null  # Temporary club from BagCheck card
-var bag_check_active: bool = false  # Track if BagCheck effect is active
+# Sound effects moved to SoundManager
 var club_max_distances = {
 	"Driver": 1200.0,        # Longest distance
 	"Hybrid": 1050.0,        # Slightly less than Driver
@@ -272,17 +231,6 @@ var ysort_objects := [] # Array of {node: Node2D, grid_pos: Vector2i}
 
 # Smart Performance Optimizer
 var smart_optimizer: Node
-var shop_entrance_detected := false
-var shop_grid_pos := Vector2i(2, 4)  # Position of shop from map layout (moved left one tile, with blocked tiles around it)
-var suitcase_grid_pos := Vector2i.ZERO  # Track SuitCase position
-var suitcase_node: Node2D = null  # Reference to the SuitCase node
-
-# Puzzle type system variables
-var current_puzzle_type: String = "score"  # Default puzzle type
-var next_puzzle_type: String = "score"     # Puzzle type for next hole
-# puzzle_type_dialog moved to UIManager
-
-var has_started := false
 
 # Move these variable declarations to just before build_map_from_layout_with_randomization
 var tile_scene_map := {
@@ -423,6 +371,10 @@ func _get_tee_area_center() -> Vector2:
 	return center_world_pos
 
 func _process(delta):
+	# Early return if game_state_manager is not initialized yet
+	if not game_state_manager:
+		return
+		
 	if smart_optimizer:
 		smart_optimizer.smart_process(delta, self)
 	
@@ -431,7 +383,7 @@ func _process(delta):
 		update_block_sprite_flip()
 	
 	# Update weapon rotation if GrenadeLauncherClubCard is selected
-	if selected_club == "GrenadeLauncherClubCard" and weapon_handler:
+	if game_state_manager.get_selected_club() == "GrenadeLauncherClubCard" and weapon_handler:
 		weapon_handler.update_weapon_rotation()
 	
 	# Update ReachBallButton visibility
@@ -439,6 +391,10 @@ func _process(delta):
 
 func update_reach_ball_button_visibility() -> void:
 	"""Update the visibility of the ReachBallButton based on game state"""
+	# Early return if game_state_manager is not initialized yet
+	if not game_state_manager:
+		return
+		
 	if not reach_ball_button:
 		return
 	
@@ -446,9 +402,9 @@ func update_reach_ball_button_visibility() -> void:
 	# 1. It's the player's turn (game_phase is "move" or "waiting_for_draw")
 	# 2. We're waiting for player to reach the ball
 	# 3. Player is not currently on the ball tile
-	var is_player_turn = game_phase in ["move", "waiting_for_draw", "draw_cards"]
-	var player_not_on_ball = player_manager.get_player_grid_pos() != ball_landing_tile
-	var should_show = is_player_turn and waiting_for_player_to_reach_ball and player_not_on_ball
+	var is_player_turn = game_state_manager.get_game_phase() in ["move", "waiting_for_draw", "draw_cards"]
+	var player_not_on_ball = player_manager.get_player_grid_pos() != game_state_manager.get_ball_landing_tile()
+	var should_show = is_player_turn and game_state_manager.get_waiting_for_player_to_reach_ball() and player_not_on_ball
 	
 	if should_show and not reach_ball_button.visible:
 		reach_ball_button.show_button()
@@ -480,6 +436,14 @@ func _ready() -> void:
 	else:
 		print("Normal mode - all clubs available")
 	
+	# Initialize GameStateManager first (needed by other managers)
+	game_state_manager = GameStateManager.new()
+	add_child(game_state_manager)
+	
+	# Initialize SoundManager
+	sound_manager = SoundManager.new()
+	add_child(sound_manager)
+	
 	# Initialize card effect handler
 	var effect_handler_script = load("res://CardEffectHandler.gd")
 	card_effect_handler = effect_handler_script.new()
@@ -497,7 +461,7 @@ func _ready() -> void:
 		obstacle_map,
 		ysort_objects
 	)
-	build_map.current_hole = current_hole
+	build_map.current_hole = game_state_manager.get_current_hole_index() if game_state_manager else 0
 	build_map.card_effect_handler = card_effect_handler
 	
 	# Initialize movement controller
@@ -558,12 +522,15 @@ func _ready() -> void:
 		cell_size,
 		obstacle_map,
 		ysort_objects,
-		shop_grid_pos,
+		game_state_manager.get_shop_grid_position() if game_state_manager else Vector2i.ZERO,
 		health_bar,
 		block_health_bar
 	)
 	
 	player_manager.create_player()
+	
+	# Setup player sounds in SoundManager
+	sound_manager.setup_player_sounds(player_manager.get_player_node())
 	launch_manager.set("camera_container", grid_manager.get_camera_container())
 	launch_manager.ui_layer = $UILayer
 	launch_manager.player_node = player_manager.get_player_node()
@@ -588,6 +555,9 @@ func _ready() -> void:
 	deck_manager.deck_updated.connect(update_deck_display)
 	deck_manager.discard_recycled.connect(card_stack_display.animate_card_recycle)
 	
+	# Setup card stack sounds in SoundManager
+	sound_manager.setup_card_stack_sounds(card_stack_display)
+	
 	# Add EquipmentManager
 	var equipment_manager = EquipmentManager.new()
 	equipment_manager.name = "EquipmentManager"
@@ -602,6 +572,9 @@ func _ready() -> void:
 	ui_manager = UIManager.new()
 	add_child(ui_manager)
 	ui_manager.setup($UILayer, self, player_manager, grid_manager, camera_manager, deck_manager, movement_controller, attack_handler, weapon_handler, launch_manager)
+	
+	# Setup GameStateManager (already initialized above)
+	game_state_manager.setup(self, ui_manager, map_manager, build_map, player_manager, grid_manager, camera_manager, deck_manager, movement_controller, attack_handler, weapon_handler, launch_manager)
 	
 	# Starter equipment removed for basic loadout testing
 	print("Course: No starter equipment - basic loadout mode")
@@ -699,8 +672,11 @@ func _ready() -> void:
 		# Try to adjust positioning if needed
 		call_deferred("adjust_background_positioning")
 	
-	# Setup global death sound
-	setup_global_death_sound()
+	# Setup SoundManager
+	sound_manager.setup_ui_sounds(card_click_sound, card_play_sound, birds_tweeting_sound)
+	sound_manager.setup_swing_sounds($SwingStrong, $SwingMed, $SwingSoft)
+	sound_manager.setup_collision_sounds($WaterPlunk, $SandThunk, $TrunkThunk)
+	sound_manager.setup_global_death_sound()
 
 func adjust_background_positioning() -> void:
 	"""Adjust background layer positioning for better visibility"""
@@ -765,7 +741,7 @@ func adjust_background_positioning() -> void:
 	update_deck_display()
 	set_process_input(true)
 
-	setup_swing_sounds()
+	# Swing sounds are now handled by SoundManager
 
 	card_hand_anchor.z_index = 245  # Keep original z_index from scene file
 	card_hand_anchor.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Changed to IGNORE to allow clicks to pass through to grid tiles
@@ -806,18 +782,20 @@ func adjust_background_positioning() -> void:
 		restore_game_state()
 		return  # Skip tee selection/setup when returning from shop
 
+	if not game_state_manager:
+		print("ERROR: game_state_manager not initialized in start_round()")
+		return
+		
 	if Global.starting_back_9:
 		print("=== STARTING BACK 9 MODE ===")
-		is_back_9_mode = true
-		current_hole = back_9_start_hole  # Start at hole 10 (index 9)
+		game_state_manager.start_back_nine()
 		Global.starting_back_9 = false  # Reset the flag
-		print("Back 9 mode initialized, starting at hole:", current_hole + 1)
+		print("Back 9 mode initialized, starting at hole:", game_state_manager.get_current_hole_index())
 	else:
 		print("=== STARTING FRONT 9 MODE ===")
-		is_back_9_mode = false
-		current_hole = 0  # Start at hole 1 (index 0)
+		game_state_manager.start_front_nine()
 	
-	print("Front 9 mode initialized, starting at hole:", current_hole + 1)
+	print("Front 9 mode initialized, starting at hole:", game_state_manager.get_current_hole_index())
 	
 	# Initialize smart performance optimizer
 	var optimizer_script = load("res://SmartPerformanceOptimizer.gd")
@@ -835,23 +813,23 @@ func adjust_background_positioning() -> void:
 	
 
 
-	is_placing_player = true
+	game_state_manager.is_placing_player = true
 	highlight_tee_tiles()
 
-	map_manager.load_map_data(GolfCourseLayout.get_hole_layout(current_hole))
+	map_manager.load_map_data(GolfCourseLayout.get_hole_layout(game_state_manager.get_current_hole_index()))
 	build_map.build_map_from_layout_with_randomization(map_manager.level_layout)
 	
 	# Sync shop grid position with build_map
-	shop_grid_pos = build_map.shop_grid_pos
+	game_state_manager.set_shop_grid_position(build_map.shop_grid_pos)
 	
 	# Sync SuitCase grid position with build_map
-	suitcase_grid_pos = build_map.get_suitcase_position()
-	if suitcase_grid_pos != Vector2i.ZERO:
-		print("SuitCase placed at grid position:", suitcase_grid_pos)
+	game_state_manager.set_suitcase_grid_position(build_map.get_suitcase_position())
+	if game_state_manager.get_suitcase_grid_position() != Vector2i.ZERO:
+		print("SuitCase placed at grid position:", game_state_manager.get_suitcase_grid_position())
 	
 	# Ensure Y-sort objects are properly registered for pin detection
 	update_all_ysort_z_indices()
-	hole_score = 0
+	game_state_manager.reset_hole_score()
 	position_camera_on_pin()  # Add the camera positioning call
 
 	update_hole_and_score_display()
@@ -876,8 +854,7 @@ func adjust_background_positioning() -> void:
 		_update_player_mouse_facing_state()
 	
 	# Play birds tweeting sound when course loads
-	if birds_tweeting_sound:
-		birds_tweeting_sound.play()
+	sound_manager.play_birds_tweeting()
 
 	var complete_hole_btn := Button.new()
 	complete_hole_btn.name = "CompleteHoleButton"
@@ -894,6 +871,10 @@ func _on_complete_hole_pressed():
 	show_hole_completion_dialog()
 
 func _input(event: InputEvent) -> void:
+	# Early return if game_state_manager is not initialized yet
+	if not game_state_manager:
+		return
+		
 	# Handle escape key for pause menu
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 		show_pause_menu()
@@ -901,7 +882,7 @@ func _input(event: InputEvent) -> void:
 
 	# Debug: Log all left click events to see what phase we're in
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		print("Course: Left click detected - current game_phase:", game_phase)
+		print("Course: Left click detected - current game_phase:", game_state_manager.get_game_phase())
 	
 	# Debug: Check if bag is receiving input events
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
@@ -917,7 +898,7 @@ func _input(event: InputEvent) -> void:
 	if weapon_handler and weapon_handler.handle_input(event):
 		return
 	
-	if game_phase == "aiming":
+	if game_state_manager.get_game_phase() == "aiming":
 		if event is InputEventMouseButton:
 			if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
 				# Freeze grenade launcher if using GrenadeLauncherWeaponCard
@@ -925,22 +906,22 @@ func _input(event: InputEvent) -> void:
 					weapon_handler.freeze_grenade_launcher()
 				
 				# Freeze grenade launcher if using GrenadeLauncherClubCard
-				if selected_club == "GrenadeLauncherClubCard" and weapon_handler:
+				if game_state_manager.get_selected_club() == "GrenadeLauncherClubCard" and weapon_handler:
 					weapon_handler.freeze_grenade_launcher()
 				
-				is_aiming_phase = false
+				game_state_manager.is_aiming_phase = false
 				hide_aiming_circle()
 				hide_aiming_instruction()
 				restore_zoom_after_aiming()
 				enter_launch_phase()
 			elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
-				is_aiming_phase = false
+				game_state_manager.is_aiming_phase = false
 				hide_aiming_circle()
 				hide_aiming_instruction()
 				restore_zoom_after_aiming()
-				game_phase = "move"  # Return to move phase
+				game_state_manager.set_game_phase("move")  # Return to move phase
 				_update_player_mouse_facing_state()
-	elif game_phase == "launch":
+	elif game_state_manager.get_game_phase() == "launch":
 		# Handle launch input through LaunchManager
 		if launch_manager.handle_input(event):
 			return
@@ -1215,12 +1196,12 @@ func _on_reach_ball_pressed() -> void:
 	print("Course: Reach ball button pressed - teleporting player to ball")
 	
 	# Check if we have a valid ball position
-	if ball_landing_tile == Vector2i.ZERO:
+	if game_state_manager.get_ball_landing_tile() == Vector2i.ZERO:
 		print("No ball landing tile available")
 		return
 	
 	# Set the flag to indicate ReachBallButton was used
-	used_reach_ball_button = true
+	game_state_manager.set_used_reach_ball_button(true)
 	print("ReachBallButton used - proceeding to club card drawing")
 	
 	# Use the existing teleport functionality from CardEffectHandler
@@ -1231,13 +1212,13 @@ func _on_reach_ball_pressed() -> void:
 			ball_position = launch_manager.golf_ball.global_position
 		else:
 			# Fallback: calculate position from ball_landing_tile
-			ball_position = Vector2(ball_landing_tile.x * cell_size + cell_size/2, ball_landing_tile.y * cell_size + cell_size/2) + grid_manager.get_camera_container().global_position
+			ball_position = Vector2(game_state_manager.get_ball_landing_tile().x * cell_size + cell_size/2, game_state_manager.get_ball_landing_tile().y * cell_size + cell_size/2) + grid_manager.get_camera_container().global_position
 		
 		# Teleport the player to the ball
 		card_effect_handler.teleport_player_to_ball(ball_position)
 		
 		# Clear the waiting state since player is now at the ball
-		waiting_for_player_to_reach_ball = false
+		game_state_manager.set_waiting_for_player_to_reach_ball(false)
 		
 		# Remove ball landing highlight if it exists
 		if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball) and launch_manager.golf_ball.has_method("remove_landing_highlight"):
@@ -1263,9 +1244,9 @@ func handle_player_death() -> void:
 
 func _on_player_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		if game_phase == "move":
+		if game_state_manager.get_game_phase() == "move":
 			enter_aiming_phase()  # Start aiming phase instead of just drawing cards
-		elif game_phase == "launch":
+		elif game_state_manager.get_game_phase() == "launch":
 			if deck_manager.hand.size() == 0:
 				draw_cards_for_next_shot()  # Draw cards for shot
 			else:
@@ -1292,13 +1273,13 @@ func update_player_position() -> void:
 	var player_center: Vector2 = player_manager.get_player_node().global_position + player_size / 2
 	camera_manager.update_camera_snap_back_position(player_center)
 	
-	# Only create ball if player is properly placed (not during initial setup)
-	if not is_placing_player:
+			# Only create ball if player is properly placed (not during initial setup)
+	if not game_state_manager.is_placing_player:
 		# Create or update ball at tile center for all shots
 		var tile_center: Vector2 = Vector2(player_manager.get_player_grid_pos().x * cell_size + cell_size/2, player_manager.get_player_grid_pos().y * cell_size + cell_size/2) + grid_manager.get_camera_container().global_position
 		create_or_update_ball_at_player_center(tile_center)
 	
-	if not is_placing_player:
+	if not game_state_manager.is_placing_player:
 		# Check if there's an ongoing pin-to-tee transition
 		var ongoing_tween = get_meta("pin_to_tee_tween", null)
 		if ongoing_tween and ongoing_tween.is_valid():
@@ -1424,11 +1405,11 @@ func _on_tile_input(event: InputEvent, x: int, y: int) -> void:
 		var clicked := Vector2i(x, y)
 		
 		# Skip tile input handling during ball flying phase to allow BallHop to work
-		if game_phase == "ball_flying":
+		if game_state_manager.get_game_phase() == "ball_flying":
 			print("Course: Tile input ignored during ball flying phase - BallHop should handle this")
 			return
 		
-		if is_placing_player:
+		if game_state_manager.is_placing_player:
 			if map_manager.get_tile_type(x, y) == "Tee":
 				# Cancel any ongoing pin-to-tee transition
 				var ongoing_tween = get_meta("pin_to_tee_tween", null)
@@ -1439,13 +1420,12 @@ func _on_tile_input(event: InputEvent, x: int, y: int) -> void:
 				
 				player_manager.set_player_grid_pos(clicked)
 				player_manager.create_player()  # This will reuse existing player or create new one
-				is_placing_player = false
+				game_state_manager.is_placing_player = false
 				
 				# Update player position and create ball
 				update_player_position()
 				
-				if sand_thunk_sound and sand_thunk_sound.stream:
-					sand_thunk_sound.play()
+				sound_manager.play_sand_thunk()
 				start_round_after_tee_selection()
 			else:
 				pass # Please select a Tee Box to start your round.
@@ -1484,9 +1464,9 @@ func start_round_after_tee_selection() -> void:
 	deck_manager.initialize_separate_decks()
 	print("Separate decks initialized - Club cards:", deck_manager.club_draw_pile.size(), "Action cards:", deck_manager.action_draw_pile.size())
 
-	has_started = true
+	game_state_manager.set_has_started(true)
 	
-	hole_score = 0
+	game_state_manager.reset_hole_score()
 	
 	# Enable player movement animations after player is properly placed on tee
 	if player_manager.get_player_node() and player_manager.get_player_node().has_method("enable_animations"):
@@ -1510,19 +1490,20 @@ func hide_height_meter():
 	launch_manager.hide_height_meter()
 
 func show_aiming_circle():
-	if aiming_circle:
-		aiming_circle.queue_free()
+	if game_state_manager.get_aiming_circle():
+		game_state_manager.get_aiming_circle().queue_free()
 	
 	var base_circle_size = 50.0
 	var strength_modifier = player_manager.get_player_stats().get("strength", 0)
 	var strength_multiplier = 1.0 + (strength_modifier * 0.15)  # +15% size per strength point
 	var adjusted_circle_size = base_circle_size * strength_multiplier
 	
-	aiming_circle = Control.new()
-	aiming_circle.name = "AimingCircle"
-	aiming_circle.size = Vector2(adjusted_circle_size, adjusted_circle_size)
-	aiming_circle.z_index = 150  # Above the player but below UI
-	grid_manager.get_camera_container().add_child(aiming_circle)
+	var new_aiming_circle = Control.new()
+	new_aiming_circle.name = "AimingCircle"
+	new_aiming_circle.size = Vector2(adjusted_circle_size, adjusted_circle_size)
+	new_aiming_circle.z_index = 150  # Above the player but below UI
+	grid_manager.get_camera_container().add_child(new_aiming_circle)
+	game_state_manager.set_aiming_circle(new_aiming_circle)
 	
 	# Load the target circle texture
 	var target_circle_texture = preload("res://UI/TargetCircle.png")
@@ -1533,7 +1514,7 @@ func show_aiming_circle():
 	circle.texture = target_circle_texture
 	circle.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
 	circle.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	aiming_circle.add_child(circle)
+	game_state_manager.get_aiming_circle().add_child(circle)
 	
 	var distance_label = Label.new()
 	distance_label.name = "DistanceLabel"
@@ -1544,7 +1525,7 @@ func show_aiming_circle():
 	distance_label.add_theme_color_override("font_outline_color", Color.BLACK)
 	distance_label.position = Vector2(adjusted_circle_size + 10, adjusted_circle_size / 2 - 10)
 	distance_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	aiming_circle.add_child(distance_label)
+	game_state_manager.get_aiming_circle().add_child(distance_label)
 	
 
 	
@@ -1553,14 +1534,14 @@ func show_aiming_circle():
 
 
 func hide_aiming_circle():
-	if aiming_circle:
-		aiming_circle.queue_free()
-		aiming_circle = null
+	if game_state_manager.get_aiming_circle():
+		game_state_manager.get_aiming_circle().queue_free()
+		game_state_manager.set_aiming_circle(null)
 	
 	remove_ghost_ball()
 
 func update_aiming_circle():
-	if not aiming_circle or not player_manager.get_player_node():
+	if not game_state_manager.get_aiming_circle() or not player_manager.get_player_node():
 		return
 	
 	var sprite = player_manager.get_player_node().get_node_or_null("Sprite2D")
@@ -1571,31 +1552,30 @@ func update_aiming_circle():
 	var distance = player_center.distance_to(mouse_pos)
 	
 	# Check if this is shotgun mode and limit range to 350 pixels
-	var effective_max_distance = max_shot_distance
-	if selected_club == "ShotgunCard":
+	var effective_max_distance = game_state_manager.max_shot_distance
+	if game_state_manager.get_selected_club() == "ShotgunCard":
 		effective_max_distance = 350.0
-	elif selected_club == "SniperCard":
+	elif game_state_manager.get_selected_club() == "SniperCard":
 		effective_max_distance = 1500.0
 	
 	var clamped_distance = min(distance, effective_max_distance)
 	var clamped_position = player_center + direction * clamped_distance
 	
-	aiming_circle.global_position = clamped_position - aiming_circle.size / 2
-	
-	chosen_landing_spot = clamped_position
+	game_state_manager.get_aiming_circle().global_position = clamped_position - game_state_manager.get_aiming_circle().size / 2	
+	game_state_manager.set_chosen_landing_spot(clamped_position)
 	
 	update_ghost_ball()
 	
-	var circle = aiming_circle.get_node_or_null("CircleVisual")
-	if circle and selected_club in club_data:
-		var min_distance = club_data[selected_club]["min_distance"]
+	var circle = game_state_manager.get_aiming_circle().get_node_or_null("CircleVisual")
+	if circle and game_state_manager.get_selected_club() in club_data:
+		var min_distance = club_data[game_state_manager.get_selected_club()]["min_distance"]
 		if clamped_distance >= min_distance:
 			circle.modulate = Color(0, 1, 0, 0.8)  # Green
 		else:
 			circle.modulate = Color(1, 0, 0, 0.8)  # Red
 	
 	# Only move camera if not in shuriken mode (keep camera focused on player for shuriken)
-	if selected_club != "ShurikenCard":
+	if game_state_manager.get_selected_club() != "ShurikenCard":
 		var target_camera_pos = clamped_position
 		# Add vertical offset of -300 pixels to show player near bottom of screen and better see arc apex
 		target_camera_pos.y -= 120
@@ -1606,37 +1586,36 @@ func update_aiming_circle():
 		camera.position = new_camera_pos
 	
 	
-	var distance_label = aiming_circle.get_node_or_null("DistanceLabel")
+	var distance_label = game_state_manager.get_aiming_circle().get_node_or_null("DistanceLabel")
 	if distance_label:
 		distance_label.text = str(int(clamped_distance)) + "px"
 
 func launch_golf_ball(direction: Vector2, charged_power: float, height: float):
 	# Determine if this is a tee shot (first shot of the hole)
-	print("DEBUG: Launching ball, hole_score =", hole_score)
+	print("DEBUG: Launching ball, hole_score =", game_state_manager.get_hole_score())
 	
 	# Clear the previous ball landing information since we're taking a new shot
-	ball_landing_tile = Vector2i.ZERO
-	ball_landing_position = Vector2.ZERO
-	waiting_for_player_to_reach_ball = false
+	game_state_manager.set_ball_landing_position(Vector2i.ZERO, Vector2.ZERO)
+	game_state_manager.set_waiting_for_player_to_reach_ball(false)
 	print("Cleared ball landing information for new shot")
 	
 	launch_manager.launch_golf_ball(direction, charged_power, height, 0.0, 0)
 	
 func _on_golf_ball_landed(tile: Vector2i):
 	print("Course: Ball landed - exiting ball_flying phase!")
-	print("DEBUG: Ball landed, hole_score before increment =", hole_score)
-	var is_first_shot = (hole_score == 0)  # Check if this is the first shot before incrementing
-	hole_score += 1
-	print("DEBUG: Ball landed, hole_score after increment =", hole_score)
+	print("DEBUG: Ball landed, hole_score before increment =", game_state_manager.get_hole_score())
+	var is_first_shot = (game_state_manager.get_hole_score() == 0)  # Check if this is the first shot before incrementing
+	game_state_manager.increment_hole_score()
+	print("DEBUG: Ball landed, hole_score after increment =", game_state_manager.get_hole_score())
 	print("Turning off camera following for golf ball")
-	camera_following_ball = false
-	ball_landing_tile = tile
+	game_state_manager.set_camera_following_ball(false)
+	game_state_manager.set_ball_landing_position(tile, Vector2.ZERO)
 	
 	# Note: Gimme detection is now handled by the Pin's GimmeArea Area2D
 	# The gimme_triggered signal will be connected and handled separately
 	
 	# Hide grenade launcher weapon now that golf ball has landed (if using GrenadeLauncherClubCard)
-	print("Golf ball landed - checking weapon handler:", weapon_handler != null, " weapon_instance:", weapon_handler.weapon_instance != null if weapon_handler else "N/A", " selected_club:", selected_club)
+	print("Golf ball landed - checking weapon handler:", weapon_handler != null, " weapon_instance:", weapon_handler.weapon_instance != null if weapon_handler else "N/A", " selected_club:", game_state_manager.get_selected_club())
 	
 	# Check if we have a grenade launcher weapon instance (either by club or by weapon type)
 	var should_hide_weapon = false
@@ -1646,7 +1625,7 @@ func _on_golf_ball_landed(tile: Vector2i):
 		if weapon_scene_name and "GrenadeLauncher" in weapon_scene_name:
 			should_hide_weapon = true
 			print("Detected grenade launcher by scene name:", weapon_scene_name)
-		elif selected_club == "GrenadeLauncherClubCard":
+		elif game_state_manager.get_selected_club() == "GrenadeLauncherClubCard":
 			should_hide_weapon = true
 			print("Detected grenade launcher by club selection")
 		elif weapon_handler.selected_card and weapon_handler.selected_card.name == "GrenadeLauncherWeaponCard":
@@ -1673,11 +1652,11 @@ func _on_golf_ball_landed(tile: Vector2i):
 	# Check if the ball still exists (if not, it went in the hole)
 	if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball):
 		# Normal landing - ball still exists
-		ball_landing_position = launch_manager.golf_ball.global_position
-		waiting_for_player_to_reach_ball = true
+		game_state_manager.set_ball_landing_position(game_state_manager.get_ball_landing_tile(), launch_manager.golf_ball.global_position)
+		game_state_manager.set_waiting_for_player_to_reach_ball(true)
 		
 		# Check if player is already on the landing tile
-		if player_manager.get_player_grid_pos() == ball_landing_tile:
+		if player_manager.get_player_grid_pos() == game_state_manager.get_ball_landing_tile():
 			print("Player is already on the ball landing tile - checking for gimme and showing buttons")
 			# Player is already on the ball tile - remove landing highlight
 			if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball) and launch_manager.golf_ball.has_method("remove_landing_highlight"):
@@ -1695,7 +1674,7 @@ func _on_golf_ball_landed(tile: Vector2i):
 				# Clear the RedJay moved ball reference since the ball has now landed
 				if card_effect_handler.has_method("clear_redjay_moved_ball"):
 					card_effect_handler.clear_redjay_moved_ball()
-				game_phase = "move"
+				game_state_manager.set_game_phase("move")
 				_update_player_mouse_facing_state()
 			else:
 				# Player needs to move to the ball - show drive distance dialog on every shot
@@ -1705,14 +1684,14 @@ func _on_golf_ball_landed(tile: Vector2i):
 					var player_center = player_manager.get_player_node().global_position + player_size / 2
 					var player_start_pos = player_center
 					var ball_landing_pos = launch_manager.golf_ball.global_position
-					drive_distance = player_start_pos.distance_to(ball_landing_pos)
+					game_state_manager.set_drive_distance(player_start_pos.distance_to(ball_landing_pos))
 					var dialog_timer = get_tree().create_timer(0.5)  # Reduced from 1.5 to 0.5 second delay
 					dialog_timer.timeout.connect(func():
 						show_drive_distance_dialog()
 						# Tween camera back to player after showing drive distance dialog
 						create_camera_tween(player_center, 0.8)
 					)
-					game_phase = "move"
+					game_state_manager.set_game_phase("move")
 					_update_player_mouse_facing_state()
 				else:
 					print("Not a tee shot or first shot - skipping drive distance dialog")
@@ -1721,7 +1700,7 @@ func _on_golf_ball_landed(tile: Vector2i):
 					var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
 					var player_center = player_manager.get_player_node().global_position + player_size / 2
 					create_camera_tween(player_center, 0.8)
-					game_phase = "move"
+					game_state_manager.set_game_phase("move")
 					_update_player_mouse_facing_state()
 	else:
 		# Ball went in the hole - don't show drive distance dialog
@@ -1735,10 +1714,14 @@ func _on_golf_ball_landed(tile: Vector2i):
 
 func trigger_gimme_sequence():
 	"""Trigger the gimme sequence with animations and sounds"""
+	# Early return if game_state_manager is not initialized yet
+	if not game_state_manager:
+		return
+		
 	print("=== TRIGGERING GIMME SEQUENCE ===")
 	
 	# Set gimme as active
-	gimme_active = true
+	game_state_manager.activate_gimme(launch_manager.golf_ball)
 	
 	# Get the gimme scene
 	gimme_scene = $UILayer/Gimme
@@ -1751,50 +1734,24 @@ func trigger_gimme_sequence():
 	print("Gimme scene made visible")
 	
 	# Play the gimme sounds
-	play_gimme_sounds()
+	sound_manager.play_gimme_sounds()
 	
 	# Complete the hole with an extra stroke
 	complete_hole_with_gimme()
 
-func play_gimme_sounds():
-	"""Play the gimme sound effects"""
-	print("=== PLAYING GIMME SOUNDS ===")
-	
-	# Play SwingSoft sound
-	if swing_soft_sound:
-		swing_soft_sound.play()
-		print("Playing SwingSoft sound for gimme")
-	else:
-		print("ERROR: swing_soft_sound is null!")
-	
-	# Play HoleIn sound after SwingSoft
-	var hole_in_timer = get_tree().create_timer(0.3)
-	hole_in_timer.timeout.connect(func():
-		print("Playing HoleIn sound for gimme")
-		# Load and play HoleIn sound
-		var hole_in_sound = AudioStreamPlayer2D.new()
-		var hole_in_stream = load("res://Sounds/HoleIn.mp3")
-		if hole_in_stream:
-			hole_in_sound.stream = hole_in_stream
-			add_child(hole_in_sound)
-			hole_in_sound.play()
-			print("HoleIn sound played successfully")
-			
-			# Remove the sound player after it finishes
-			hole_in_sound.finished.connect(func():
-				hole_in_sound.queue_free()
-			)
-		else:
-			print("ERROR: Could not load HoleIn.mp3")
-	)
+# Gimme sounds function moved to SoundManager
 
 func complete_hole_with_gimme():
 	"""Complete the hole with gimme (add extra stroke and show completion)"""
+	# Early return if game_state_manager is not initialized yet
+	if not game_state_manager:
+		return
+		
 	print("=== COMPLETING GIMME HOLE ===")
 	
 	# Add extra stroke for the gimme putt
-	hole_score += 1
-	print("Added gimme stroke - final hole score:", hole_score)
+	game_state_manager.increment_hole_score()
+	print("Added gimme stroke - final hole score:", game_state_manager.get_hole_score())
 	
 	# Clear the ball
 	if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball):
@@ -1805,76 +1762,37 @@ func complete_hole_with_gimme():
 	hide_gimme_button()
 	
 	# Reset gimme state
-	gimme_active = false
-	gimme_ball = null
+	game_state_manager.deactivate_gimme()
 	
 	# Show hole completion dialog
 	show_hole_completion_dialog()
 
 func clear_gimme_state():
 	"""Clear the gimme state when appropriate (new ball launched, hole completed, etc.)"""
+	# Early return if game_state_manager is not initialized yet
+	if not game_state_manager:
+		return
+		
 	print("=== CLEARING GIMME STATE ===")
-	gimme_ball = null
-	gimme_active = false
+	game_state_manager.deactivate_gimme()
 	hide_gimme_button()
 	print("Gimme state cleared")
 
 func show_gimme_animation():
 	"""Show the gimme animation and play sounds"""
-	print("=== SHOWING GIMME ANIMATION ===")
-	
-	# Make gimme scene visible and animate it to the target position
-	gimme_scene.visible = true
-	print("Gimme scene made visible")
-	
-	# Create tween to animate gimme scene to target position
-	var tween = create_tween()
-	tween.set_parallel(true)
-	
-	# Animate position from current position (bottom of screen) to target position
-	var current_pos = gimme_scene.position
-	var target_pos = Vector2(451, 1018.0)  # Target position as specified (screen coordinates)
-	print("Animating gimme from", current_pos, "to", target_pos)
-	
-	tween.tween_property(gimme_scene, "position", target_pos, 0.8)
-	tween.tween_callback(func():
-		print("=== GIMME ANIMATION COMPLETE - PLAYING SOUNDS ===")
-		# Play SwingSoft sound
-		if swing_soft_sound:
-			swing_soft_sound.play()
-			print("Playing SwingSoft sound for gimme")
-		else:
-			print("ERROR: swing_soft_sound is null!")
-		
-		# Play HoleIn sound after SwingSoft
-		var hole_in_timer = get_tree().create_timer(0.3)
-		hole_in_timer.timeout.connect(func():
-			print("Playing HoleIn sound for gimme")
-			# Load and play HoleIn sound
-			var hole_in_sound = AudioStreamPlayer2D.new()
-			var hole_in_stream = load("res://Sounds/HoleIn.mp3")
-			if hole_in_stream:
-				hole_in_sound.stream = hole_in_stream
-				add_child(hole_in_sound)
-				hole_in_sound.play()
-				print("HoleIn sound played successfully")
-				
-				# Remove the sound player after it finishes
-				hole_in_sound.finished.connect(func():
-					hole_in_sound.queue_free()
-				)
-			else:
-				print("ERROR: Could not load HoleIn.mp3")
-		)
-	).set_delay(0.5)
+	ui_manager.show_gimme_animation()
 
 func complete_gimme_hole():
 	"""Complete the hole with gimme (add extra stroke and show completion)"""
+	# Early return if game_state_manager is not initialized yet
+	if not game_state_manager:
+		return
+		
 	print("=== COMPLETING GIMME HOLE ===")
 	
 	# Add extra stroke for the gimme putt
-	hole_score += 1
-	print("Added gimme stroke - final hole score:", hole_score)
+	game_state_manager.increment_hole_score()
+	print("Added gimme stroke - final hole score:", game_state_manager.get_hole_score())
 	
 	# Clear the ball
 	if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball):
@@ -1891,7 +1809,7 @@ func complete_gimme_hole():
 		)
 	
 	# Reset gimme state
-	gimme_active = false
+	game_state_manager.deactivate_gimme()
 	
 	# Show hole completion dialog
 	show_hole_completion_dialog()
@@ -1946,7 +1864,7 @@ func _end_turn_logic() -> void:
 	movement_controller.clear_all_movement_ui()
 	attack_handler.clear_all_attack_ui()
 	weapon_handler.clear_all_weapon_ui()
-	turn_count += 1
+	game_state_manager.increment_turn_count()
 	
 	# Increment global turn counter for turn-based spawning
 	Global.increment_global_turn()
@@ -1965,15 +1883,9 @@ func _end_turn_logic() -> void:
 	update_deck_display()
 	
 	if cards_to_discard > 0:
-		if card_stack_display.has_node("Discard"):
-			var discard_sound = card_stack_display.get_node("Discard")
-			if discard_sound and discard_sound.stream:
-				discard_sound.play()
+		sound_manager.play_discard_sound()
 	elif cards_to_discard == 0:
-		if card_stack_display.has_node("DiscardEmpty"):
-			var discard_empty_sound = card_stack_display.get_node("DiscardEmpty")
-			if discard_empty_sound and discard_empty_sound.stream:
-				discard_empty_sound.play()
+		sound_manager.play_discard_empty_sound()
 
 	# Check if player has extra turns
 	if extra_turns_remaining > 0:
@@ -1984,7 +1896,7 @@ func _end_turn_logic() -> void:
 		show_turn_message("Extra Turn!", 2.0)
 		
 		# Continue with normal turn flow without World Turn
-		if waiting_for_player_to_reach_ball and player_manager.get_player_grid_pos() == ball_landing_tile:
+		if game_state_manager.get_waiting_for_player_to_reach_ball() and player_manager.get_player_grid_pos() == game_state_manager.get_ball_landing_tile():
 			if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball) and launch_manager.golf_ball.has_method("remove_landing_highlight"):
 				launch_manager.golf_ball.remove_landing_highlight()
 			
@@ -2018,7 +1930,7 @@ func _continue_after_world_turn() -> void:
 	print("=== CONTINUING AFTER WORLD TURN ===")
 	
 	# Continue with normal turn flow
-	if waiting_for_player_to_reach_ball and player_manager.get_player_grid_pos() == ball_landing_tile:
+	if game_state_manager.get_waiting_for_player_to_reach_ball() and player_manager.get_player_grid_pos() == game_state_manager.get_ball_landing_tile():
 		if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball) and launch_manager.golf_ball.has_method("remove_landing_highlight"):
 			launch_manager.golf_ball.remove_landing_highlight()
 		
@@ -2063,7 +1975,7 @@ func start_npc_turn_sequence() -> void:
 		show_turn_message("Your Turn", 2.0)
 		
 		# Continue with normal turn flow
-		if waiting_for_player_to_reach_ball and player_manager.get_player_grid_pos() == ball_landing_tile:
+		if game_state_manager.get_waiting_for_player_to_reach_ball() and player_manager.get_player_grid_pos() == game_state_manager.get_ball_landing_tile():
 			if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball) and launch_manager.golf_ball.has_method("remove_landing_highlight"):
 				launch_manager.golf_ball.remove_landing_highlight()
 			
@@ -2091,7 +2003,7 @@ func start_npc_turn_sequence() -> void:
 		end_turn_button.get_node("TextureButton").mouse_filter = Control.MOUSE_FILTER_STOP
 		
 		# Continue with normal turn flow
-		if waiting_for_player_to_reach_ball and player_manager.get_player_grid_pos() == ball_landing_tile:
+		if game_state_manager.get_waiting_for_player_to_reach_ball() and player_manager.get_player_grid_pos() == game_state_manager.get_ball_landing_tile():
 			if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball) and launch_manager.golf_ball.has_method("remove_landing_highlight"):
 				launch_manager.golf_ball.remove_landing_highlight()
 			
@@ -2162,7 +2074,7 @@ func start_npc_turn_sequence() -> void:
 	end_turn_button.get_node("TextureButton").mouse_filter = Control.MOUSE_FILTER_STOP
 	
 	# Continue with normal turn flow
-	if waiting_for_player_to_reach_ball and player_manager.get_player_grid_pos() == ball_landing_tile:
+	if game_state_manager.get_waiting_for_player_to_reach_ball() and player_manager.get_player_grid_pos() == game_state_manager.get_ball_landing_tile():
 		if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball) and launch_manager.golf_ball.has_method("remove_landing_highlight"):
 			launch_manager.golf_ball.remove_landing_highlight()
 		
@@ -2553,13 +2465,7 @@ func give_extra_turn() -> void:
 	print("Player given extra turn! Extra turns remaining:", extra_turns_remaining)
 	
 	# Play coffee sound effect
-	if player_manager.get_player_node():
-		var coffee_sound = player_manager.get_player_node().get_node_or_null("Coffee")
-		if coffee_sound and coffee_sound.stream:
-			coffee_sound.play()
-			print("Playing coffee sound effect")
-		else:
-			print("Warning: Coffee sound not found on player")
+	sound_manager.play_player_coffee()
 
 func advance_fire_tiles() -> void:
 	"""Advance all fire tiles to the next turn"""
@@ -2580,7 +2486,7 @@ func advance_ice_tiles() -> void:
 
 func update_deck_display() -> void:
 	var hud := get_node("UILayer/HUD")
-	hud.get_node("TurnLabel").text = "Turn: %d (Global: %d)" % [turn_count, Global.global_turn_count]
+	hud.get_node("TurnLabel").text = "Turn: %d (Global: %d)" % [game_state_manager.get_turn_count(), Global.global_turn_count]
 	
 	# Show separate counts for club and action cards using the new ordered deck system
 	var club_draw_count = deck_manager.club_draw_pile.size()
@@ -2592,7 +2498,7 @@ func update_deck_display() -> void:
 	
 	hud.get_node("DrawLabel").text = "Club Draw: %d | Action Draw: %d" % [club_draw_count, action_draw_remaining]
 	hud.get_node("DiscardLabel").text = "Club Discard: %d | Action Discard: %d" % [club_discard_count, action_discard_count]
-	hud.get_node("ShotLabel").text = "Shots: %d" % hole_score
+	hud.get_node("ShotLabel").text = "Shots: %d" % game_state_manager.get_hole_score()
 	
 	# Show next spawn increase milestone
 	var next_milestone = ((Global.global_turn_count - 1) / 5 + 1) * 5
@@ -2651,40 +2557,17 @@ func _change_to_main() -> void:
 	FadeManager.fade_to_black(func(): get_tree().change_scene_to_file("res://Main.tscn"), 0.5)
 
 func show_tee_selection_instruction() -> void:
-	var instruction_label := Label.new()
-	instruction_label.name = "TeeInstructionLabel"
-	instruction_label.text = "Click on a Tee Box to start your round!"
-	instruction_label.add_theme_font_size_override("font_size", 24)
-	instruction_label.add_theme_color_override("font_color", Color.YELLOW)
-	instruction_label.add_theme_constant_override("outline_size", 2)
-	instruction_label.add_theme_color_override("font_outline_color", Color.BLACK)
-	instruction_label.position = Vector2(400, 200)
-	instruction_label.z_index = 200
-	$UILayer.add_child(instruction_label)
+	ui_manager.show_tee_selection_instruction()
 
 func show_drive_distance_dialog() -> void:
 	"""Show drive distance dialog"""
-	ui_manager.show_drive_distance_dialog(drive_distance)
+	ui_manager.show_drive_distance_dialog(game_state_manager.get_drive_distance())
 	
 # Drive distance dialog input handling moved to UIManager
 
-func setup_swing_sounds() -> void:
-	swing_strong_sound = $SwingStrong
-	swing_med_sound = $SwingMed
-	swing_soft_sound = $SwingSoft
-	water_plunk_sound = $WaterPlunk
-	sand_thunk_sound = $SandThunk
-	trunk_thunk_sound = $TrunkThunk
+# Sound functions moved to SoundManager
 
-func play_swing_sound(power: float) -> void:
-	var power_percentage = (power - 300.0) / (1200.0 - 300.0)  # Using hardcoded values since constants are removed	power_percentage = clamp(power_percentage, 0.0, 1.0)
-	
-	if power_percentage >= 0.7:  # Strong swing (70%+ power)
-		swing_strong_sound.play()
-	elif power_percentage >= 0.4:  # Medium swing (40-70% power)
-		swing_med_sound.play()
-	else:  # Soft swing (0-40% power)
-		swing_soft_sound.play()
+# Swing sound function moved to SoundManager
 
 func start_next_shot_from_ball() -> void:
 	if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball):
@@ -2699,9 +2582,8 @@ func start_next_shot_from_ball() -> void:
 
 func _on_golf_ball_out_of_bounds():
 	
-	if water_plunk_sound and water_plunk_sound.stream:
-		water_plunk_sound.play()
-	camera_following_ball = false
+	sound_manager.play_water_plunk()
+	game_state_manager.set_camera_following_ball(false)
 	
 	# Hide grenade launcher weapon now that golf ball has gone out of bounds (if using GrenadeLauncherClubCard)
 	# Check if we have a grenade launcher weapon instance (either by club or by weapon type)
@@ -2711,7 +2593,7 @@ func _on_golf_ball_out_of_bounds():
 		var weapon_scene_name = weapon_handler.weapon_instance.scene_file_path
 		if weapon_scene_name and "GrenadeLauncher" in weapon_scene_name:
 			should_hide_weapon = true
-		elif selected_club == "GrenadeLauncherClubCard":
+		elif game_state_manager.get_selected_club() == "GrenadeLauncherClubCard":
 			should_hide_weapon = true
 		elif weapon_handler.selected_card and weapon_handler.selected_card.name == "GrenadeLauncherWeaponCard":
 			should_hide_weapon = true
@@ -2728,7 +2610,7 @@ func _on_golf_ball_out_of_bounds():
 	if player_manager.get_player_node() and player_manager.get_player_node().has_method("enable_collision_shape"):
 		player_manager.get_player_node().enable_collision_shape()
 	
-	hole_score += 1
+	game_state_manager.increment_hole_score()
 	if launch_manager.golf_ball:
 		launch_manager.golf_ball.queue_free()
 		launch_manager.golf_ball = null
@@ -2737,17 +2619,16 @@ func _on_golf_ball_out_of_bounds():
 	remove_all_balls()
 	
 	show_out_of_bounds_dialog()
-	ball_landing_tile = shot_start_grid_pos
-	ball_landing_position = Vector2(shot_start_grid_pos.x * cell_size + cell_size/2, shot_start_grid_pos.y * cell_size + cell_size/2)
-	waiting_for_player_to_reach_ball = true
-	player_manager.set_player_grid_pos(shot_start_grid_pos)
+	game_state_manager.set_ball_landing_position(game_state_manager.get_shot_start_position(), Vector2(game_state_manager.get_shot_start_position().x * cell_size + cell_size/2, game_state_manager.get_shot_start_position().y * cell_size + cell_size/2))
+	game_state_manager.set_waiting_for_player_to_reach_ball(true)
+	player_manager.set_player_grid_pos(game_state_manager.get_shot_start_position())
 	update_player_position()
 	
 	# Force create a new ball at the player's tile center position for the penalty shot
 	var tile_center: Vector2 = Vector2(player_manager.get_player_grid_pos().x * cell_size + cell_size/2, player_manager.get_player_grid_pos().y * cell_size + cell_size/2) + grid_manager.get_camera_container().global_position
 	force_create_ball_at_position(tile_center)
 	
-	game_phase = "draw_cards"
+	game_state_manager.set_game_phase("draw_cards")
 	_update_player_mouse_facing_state()
 
 func show_out_of_bounds_dialog():
@@ -2774,17 +2655,17 @@ func enter_launch_phase() -> void:
 		smart_optimizer.update_game_state("launch", true, false, true)
 	
 func enter_aiming_phase() -> void:
-	game_phase = "aiming"
+	game_state_manager.set_game_phase("aiming")
 	_update_player_mouse_facing_state()
-	is_aiming_phase = true
+	game_state_manager.set_is_aiming_phase(true)
 	
 	# Update smart optimizer state
 	if smart_optimizer:
 		smart_optimizer.update_game_state("aiming", false, true, false)
 	
 	# Set the shot start position to where the player currently is
-	shot_start_grid_pos = player_manager.get_player_grid_pos()
-	print("Shot started from position:", shot_start_grid_pos)
+	game_state_manager.set_shot_start_position(player_manager.get_player_grid_pos())
+	print("Shot started from position:", game_state_manager.get_shot_start_position())
 	
 	show_aiming_circle()
 	create_ghost_ball()
@@ -2813,30 +2694,10 @@ func enter_aiming_phase() -> void:
 		camera.set_zoom_level(aiming_zoom)
 
 func show_aiming_instruction() -> void:
-	var existing_instruction = $UILayer.get_node_or_null("AimingInstructionLabel")
-	if existing_instruction:
-		existing_instruction.queue_free()
-	var instruction_label := Label.new()
-	instruction_label.name = "AimingInstructionLabel"
-	if club_data.get(selected_club, {}).get("is_putter", false):
-		instruction_label.text = "Move mouse to set landing spot\nLeft click to confirm, Right click to cancel\n(Putter: Power only, no height)"
-	else:
-		instruction_label.text = "Move mouse to set landing spot\nLeft click to confirm, Right click to cancel"
-	
-	instruction_label.add_theme_font_size_override("font_size", 18)
-	instruction_label.add_theme_color_override("font_color", Color.YELLOW)
-	instruction_label.add_theme_constant_override("outline_size", 2)
-	instruction_label.add_theme_color_override("font_outline_color", Color.BLACK)
-	
-	instruction_label.position = Vector2(400, 50)
-	instruction_label.z_index = 200
-	
-	$UILayer.add_child(instruction_label)
+	ui_manager.show_aiming_instruction()
 
 func hide_aiming_instruction() -> void:
-	var instruction_label = $UILayer.get_node_or_null("AimingInstructionLabel")
-	if instruction_label:
-		instruction_label.queue_free()
+	ui_manager.hide_aiming_instruction()
 
 func restore_zoom_after_aiming() -> void:
 	"""Restore camera zoom to the level it was at before entering aiming phase"""
@@ -2867,12 +2728,12 @@ func draw_cards_for_shot(card_count: int = 5) -> void:
 		deactivate_dodge_mode()
 	
 	# Reset ReachBallButton flag for new turn
-	used_reach_ball_button = false
+	game_state_manager.set_used_reach_ball_button(false)
 	print("ReachBallButton flag reset for new turn")
 	
 	# Set waiting_for_player_to_reach_ball back to true for new turn if there's a ball to reach
-	if ball_landing_tile != Vector2i.ZERO:
-		waiting_for_player_to_reach_ball = true
+	if game_state_manager.get_ball_landing_tile() != Vector2i.ZERO:
+		game_state_manager.set_waiting_for_player_to_reach_ball(true)
 		print("waiting_for_player_to_reach_ball set to true for new turn")
 	
 	var card_draw_modifier = player_manager.get_player_stats().get("card_draw", 0)
@@ -2898,10 +2759,9 @@ func draw_cards_for_next_shot() -> void:
 	create_movement_buttons()
 
 func _on_golf_ball_sand_landing():
-	if sand_thunk_sound and sand_thunk_sound.stream:
-		sand_thunk_sound.play()
+	sound_manager.play_sand_thunk()
 	
-	camera_following_ball = false
+	game_state_manager.set_camera_following_ball(false)
 	
 	# Hide grenade launcher weapon now that golf ball has landed in sand (if using GrenadeLauncherClubCard)
 	# Check if we have a grenade launcher weapon instance (either by club or by weapon type)
@@ -2911,7 +2771,7 @@ func _on_golf_ball_sand_landing():
 		var weapon_scene_name = weapon_handler.weapon_instance.scene_file_path
 		if weapon_scene_name and "GrenadeLauncher" in weapon_scene_name:
 			should_hide_weapon = true
-		elif selected_club == "GrenadeLauncherClubCard":
+		elif game_state_manager.get_selected_club() == "GrenadeLauncherClubCard":
 			should_hide_weapon = true
 		elif weapon_handler.selected_card and weapon_handler.selected_card.name == "GrenadeLauncherWeaponCard":
 			should_hide_weapon = true
@@ -2931,7 +2791,7 @@ func _on_grenade_landed(final_tile: Vector2i) -> void:
 	print("Grenade landed at tile:", final_tile)
 	
 	# Hide grenade launcher weapon now that grenade has landed
-	print("Grenade landed - checking weapon handler:", weapon_handler != null, " weapon_instance:", weapon_handler.weapon_instance != null if weapon_handler else "N/A", " selected_club:", selected_club)
+	print("Grenade landed - checking weapon handler:", weapon_handler != null, " weapon_instance:", weapon_handler.weapon_instance != null if weapon_handler else "N/A", " selected_club:", game_state_manager.get_selected_club())
 	
 	# Check if we have a grenade launcher weapon instance (either by club or by weapon type)
 	var should_hide_weapon = false
@@ -2941,7 +2801,7 @@ func _on_grenade_landed(final_tile: Vector2i) -> void:
 		if weapon_scene_name and "GrenadeLauncher" in weapon_scene_name:
 			should_hide_weapon = true
 			print("Detected grenade launcher by scene name:", weapon_scene_name)
-		elif selected_club == "GrenadeLauncherClubCard":
+		elif game_state_manager.get_selected_club() == "GrenadeLauncherClubCard":
 			should_hide_weapon = true
 			print("Detected grenade launcher by club selection")
 		elif weapon_handler.selected_card and weapon_handler.selected_card.name == "GrenadeLauncherWeaponCard":
@@ -2964,9 +2824,9 @@ func _on_grenade_landed(final_tile: Vector2i) -> void:
 		smart_optimizer.update_game_state("move", false, false, false)
 	
 	# Set game phase to move to allow movement cards
-	game_phase = "move"
+	game_state_manager.set_game_phase("move")
 	# Reset ReachBallButton flag when entering move phase after grenade landing
-	used_reach_ball_button = false
+	game_state_manager.set_used_reach_ball_button(false)
 	print("ReachBallButton flag reset after grenade landing")
 	
 	# Pause for 1 second to let player see where grenade landed
@@ -2982,14 +2842,14 @@ func _on_grenade_landed(final_tile: Vector2i) -> void:
 					if launch_manager:
 						launch_manager.exit_grenade_mode()
 						print("Exited grenade mode after camera tween completed")
-					camera_following_ball = false
+					game_state_manager.set_camera_following_ball(false)
 				)
 		else:
 			# Fallback if no player or camera
 			if launch_manager:
 				launch_manager.exit_grenade_mode()
 				print("Exited grenade mode (fallback)")
-			camera_following_ball = false
+			game_state_manager.set_camera_following_ball(false)
 	)
 
 func _on_grenade_out_of_bounds() -> void:
@@ -3004,7 +2864,7 @@ func _on_grenade_out_of_bounds() -> void:
 		var weapon_scene_name = weapon_handler.weapon_instance.scene_file_path
 		if weapon_scene_name and "GrenadeLauncher" in weapon_scene_name:
 			should_hide_weapon = true
-		elif selected_club == "GrenadeLauncherClubCard":
+		elif game_state_manager.get_selected_club() == "GrenadeLauncherClubCard":
 			should_hide_weapon = true
 		elif weapon_handler.selected_card and weapon_handler.selected_card.name == "GrenadeLauncherWeaponCard":
 			should_hide_weapon = true
@@ -3024,7 +2884,7 @@ func _on_grenade_out_of_bounds() -> void:
 		smart_optimizer.update_game_state("move", false, false, false)
 	
 	# Set game phase to move to allow movement cards
-	game_phase = "move"
+	game_state_manager.set_game_phase("move")
 	
 	# Tween camera back to player immediately
 	if player_manager.get_player_node() and camera:
@@ -3036,14 +2896,14 @@ func _on_grenade_out_of_bounds() -> void:
 				if launch_manager:
 					launch_manager.exit_grenade_mode()
 					print("Exited grenade mode after out of bounds")
-				camera_following_ball = false
+				game_state_manager.set_camera_following_ball(false)
 			)
 	else:
 		# Fallback if no player or camera
 		if launch_manager:
 			launch_manager.exit_grenade_mode()
 			print("Exited grenade mode (fallback)")
-		camera_following_ball = false
+		game_state_manager.set_camera_following_ball(false)
 
 func _on_grenade_sand_landing() -> void:
 	"""Handle when a grenade lands in sand"""
@@ -3057,7 +2917,7 @@ func _on_grenade_sand_landing() -> void:
 		var weapon_scene_name = weapon_handler.weapon_instance.scene_file_path
 		if weapon_scene_name and "GrenadeLauncher" in weapon_scene_name:
 			should_hide_weapon = true
-		elif selected_club == "GrenadeLauncherClubCard":
+		elif game_state_manager.get_selected_club() == "GrenadeLauncherClubCard":
 			should_hide_weapon = true
 		elif weapon_handler.selected_card and weapon_handler.selected_card.name == "GrenadeLauncherWeaponCard":
 			should_hide_weapon = true
@@ -3073,15 +2933,14 @@ func _on_grenade_sand_landing() -> void:
 			print("Exited weapon mode after grenade sand landing")
 	
 	# Play sand landing sound
-	if sand_thunk_sound and sand_thunk_sound.stream:
-		sand_thunk_sound.play()
+	sound_manager.play_sand_thunk()
 	
 	# Update smart optimizer state
 	if smart_optimizer:
 		smart_optimizer.update_game_state("move", false, false, false)
 	
 	# Set game phase to move to allow movement cards
-	game_phase = "move"
+	game_state_manager.set_game_phase("move")
 	
 	# Pause for 1 second to let player see where grenade landed
 	var pause_timer = get_tree().create_timer(1.0)
@@ -3096,14 +2955,14 @@ func _on_grenade_sand_landing() -> void:
 					if launch_manager:
 						launch_manager.exit_grenade_mode()
 						print("Exited grenade mode after sand landing")
-					camera_following_ball = false
+					game_state_manager.set_camera_following_ball(false)
 				)
 		else:
 			# Fallback if no player or camera
 			if launch_manager:
 				launch_manager.exit_grenade_mode()
 				print("Exited grenade mode (fallback)")
-			camera_following_ball = false
+			game_state_manager.set_camera_following_ball(false)
 	)
 
 func show_sand_landing_dialog():
@@ -3177,7 +3036,7 @@ func _on_advance_to_next_hole():
 	update_deck_display()
 	
 	# Special handling for hole 9 - show front nine completion dialog
-	if current_hole == 8 and not is_back_9_mode:  # Hole 9 (index 8) in front 9 mode
+	if game_state_manager.get_current_hole_index() == 8 and not game_state_manager.is_back_9_mode:  # Hole 9 (index 8) in front 9 mode
 		show_front_nine_complete_dialog()
 	else:
 		# Show puzzle type selection dialog
@@ -3192,7 +3051,7 @@ func _on_puzzle_type_selected(puzzle_type: String):
 	ui_manager._on_puzzle_type_selected(puzzle_type)
 
 func reset_for_next_hole():
-	print("=== ADVANCING TO HOLE", current_hole + 2, "===")
+	print("=== ADVANCING TO HOLE", game_state_manager.get_current_hole_index() + 2, "===")
 	
 	# Clear the player's hand when advancing to next hole
 	if deck_manager:
@@ -3247,15 +3106,15 @@ func reset_for_next_hole():
 	# Clear any existing balls from the previous hole
 	remove_all_balls()
 	
-	current_hole += 1
+	game_state_manager.increment_current_hole()
 	
 	var round_end_hole = 0
-	if is_back_9_mode:
-		round_end_hole = back_9_start_hole + NUM_HOLES - 1  # Hole 18 (index 17)
+	if game_state_manager.is_back_9_mode:
+		round_end_hole = game_state_manager.back_9_start_hole + game_state_manager.NUM_HOLES - 1  # Hole 18 (index 17)
 	else:
-		round_end_hole = NUM_HOLES - 1  # Hole 9 (index 8)
+		round_end_hole = game_state_manager.NUM_HOLES - 1  # Hole 9 (index 8)
 	
-	if current_hole > round_end_hole:
+	if game_state_manager.get_current_hole_index() > round_end_hole:
 		return
 		
 	if player_manager.get_player_node() and is_instance_valid(player_manager.get_player_node()):
@@ -3265,33 +3124,33 @@ func reset_for_next_hole():
 		player_manager.get_player_node().visible = false
 	
 	# Apply the selected puzzle type for this hole
-	current_puzzle_type = next_puzzle_type
-	print("🎯 PUZZLE TYPE: Applying puzzle type '", current_puzzle_type, "' to hole", current_hole + 1)
+	game_state_manager.set_current_puzzle_type(game_state_manager.get_next_puzzle_type())
+	print("🎯 PUZZLE TYPE: Applying puzzle type '", game_state_manager.get_current_puzzle_type(), "' to hole", game_state_manager.get_current_hole_index() + 1)
 	
-	map_manager.load_map_data(GolfCourseLayout.get_hole_layout(current_hole))
-	build_map.build_map_from_layout_with_randomization(map_manager.level_layout, current_hole, current_puzzle_type)
+	map_manager.load_map_data(GolfCourseLayout.get_hole_layout(game_state_manager.get_current_hole_index()))
+	build_map.build_map_from_layout_with_randomization(map_manager.level_layout, game_state_manager.get_current_hole_index(), game_state_manager.get_current_puzzle_type())
 	
 	# Sync shop grid position with build_map
-	shop_grid_pos = build_map.shop_grid_pos
+	game_state_manager.set_shop_grid_position(build_map.shop_grid_pos)
 	
 	# Sync SuitCase grid position with build_map
-	suitcase_grid_pos = build_map.get_suitcase_position()
-	if suitcase_grid_pos != Vector2i.ZERO:
-		print("SuitCase placed at grid position:", suitcase_grid_pos)
+	game_state_manager.set_suitcase_grid_position(build_map.get_suitcase_position())
+	if game_state_manager.get_suitcase_grid_position() != Vector2i.ZERO:
+		print("SuitCase placed at grid position:", game_state_manager.get_suitcase_grid_position())
 	
 	# Ensure Y-sort objects are properly registered for pin detection
 	update_all_ysort_z_indices()
 	
 	position_camera_on_pin()  # Add camera positioning for next hole
-	hole_score = 0
-	game_phase = "tee_select"
+	game_state_manager.reset_hole_score()
+	game_state_manager.set_game_phase("tee_select")
 	_update_player_mouse_facing_state()
-	chosen_landing_spot = Vector2.ZERO
-	selected_club = ""
+	game_state_manager.set_chosen_landing_spot(Vector2.ZERO)
+	game_state_manager.set_selected_club("")
 	update_hole_and_score_display()
 	if hud:
-		hud.get_node("ShotLabel").text = "Shots: %d" % hole_score
-	is_placing_player = true
+		hud.get_node("ShotLabel").text = "Shots: %d" % game_state_manager.get_hole_score()
+	game_state_manager.set_is_placing_player(true)
 	highlight_tee_tiles()
 	show_tee_selection_instruction()
 	# After all NPCs are spawned/registered for the new hole
@@ -3330,39 +3189,39 @@ func update_hole_and_score_display():
 			hud.add_child(label)
 		
 		var current_round_score = 0
-		for score in round_scores:
+		for score in game_state_manager.get_round_scores():
 			current_round_score += score
-		current_round_score += hole_score  # Include current hole score
+		current_round_score += game_state_manager.get_hole_score()  # Include current hole score
 		
 		var total_par_so_far = 0
-		if is_back_9_mode:
-			for i in range(back_9_start_hole, current_hole + 1):
+		if game_state_manager.is_back_9_mode:
+			for i in range(game_state_manager.back_9_start_hole, game_state_manager.get_current_hole_index() + 1):
 				total_par_so_far += GolfCourseLayout.get_hole_par(i)
 		else:
-			for i in range(current_hole + 1):
+			for i in range(game_state_manager.get_current_hole_index() + 1):
 				total_par_so_far += GolfCourseLayout.get_hole_par(i)
 		var round_vs_par = current_round_score - total_par_so_far
 		
-		label.text = "Hole: %d/%d    Round: %d (%+d)" % [current_hole+1, NUM_HOLES, current_round_score, round_vs_par]
+		label.text = "Hole: %d/%d    Round: %d (%+d)" % [game_state_manager.get_current_hole_index()+1, game_state_manager.NUM_HOLES, current_round_score, round_vs_par]
 		label.position = Vector2(10, 10)
 		label.z_index = 200
 
 func _on_draw_cards_pressed() -> void:
-	if game_phase == "draw_cards":
+	if game_state_manager.get_game_phase() == "draw_cards":
 		print("Drawing club cards for selection...")
 		if card_stack_display.has_node("CardDraw"):
 			var card_draw_sound = card_stack_display.get_node("CardDraw")
 			if card_draw_sound and card_draw_sound.stream:
 				card_draw_sound.play()
 		draw_club_cards()
-	elif game_phase == "ball_tile_choice":
+	elif game_state_manager.get_game_phase() == "ball_tile_choice":
 		print("Drawing club cards for shot from ball tile...")
 		if card_stack_display.has_node("CardDraw"):
 			var card_draw_sound = card_stack_display.get_node("CardDraw")
 			if card_draw_sound and card_draw_sound.stream:
 				card_draw_sound.play()
 		draw_club_cards()
-	elif game_phase == "waiting_for_draw":
+	elif game_state_manager.get_game_phase() == "waiting_for_draw":
 		print("Drawing cards for turn start...")
 		if card_stack_display.has_node("CardDraw"):
 			var card_draw_sound = card_stack_display.get_node("CardDraw")
@@ -3395,7 +3254,7 @@ func update_spin_indicator():
 	
 func enter_draw_cards_phase() -> void:
 	"""Enter the club selection phase where player draws club cards"""
-	game_phase = "draw_cards"
+	game_state_manager.set_game_phase("draw_cards")
 	_update_player_mouse_facing_state()
 	print("Entered draw cards phase - selecting club for shot")
 	
@@ -3443,12 +3302,12 @@ func draw_club_cards() -> void:
 		putter_help_active = deck_manager.add_virtual_putter_to_hand()
 	
 	# Check for BagCheck temporary club and add it as an extra option
-	bag_check_active = false
-	if temporary_club != null:
-		print("BagCheck temporary club detected - adding as extra option:", temporary_club.name)
+	var bag_check_active = game_state_manager.is_bag_check_active()
+	if game_state_manager.get_temporary_club() != null:
+		print("BagCheck temporary club detected - adding as extra option:", game_state_manager.get_temporary_club().name)
 		bag_check_active = true
 		# Add the temporary club to the hand temporarily for selection
-		deck_manager.hand.append(temporary_club)
+		deck_manager.hand.append(game_state_manager.get_temporary_club())
 	
 	# Then get available clubs from the hand
 	var available_clubs = deck_manager.hand.filter(func(card): return deck_manager.is_club_card(card))
@@ -3543,7 +3402,7 @@ func draw_club_cards() -> void:
 			print("Added PutterHelp indicator to putter card")
 		
 		# Add BagCheck indicator if this is the BagCheck temporary club
-		if bag_check_active and club_name == temporary_club.name:
+		if bag_check_active and club_name == game_state_manager.get_temporary_club().name:
 			# Create a small BagCheck indicator in the top-right corner
 			var bag_check_indicator = Label.new()
 			bag_check_indicator.text = "BAG"
@@ -3588,11 +3447,11 @@ func draw_club_cards() -> void:
 	
 
 func _on_club_card_pressed(club_name: String, club_info: Dictionary, button: TextureButton) -> void:
-	selected_club = club_name
+	game_state_manager.set_selected_club(club_name)
 	var base_max_distance = club_info.get("max_distance", 600.0)  # Default fallback distance
 	var strength_modifier = player_manager.get_player_stats().get("strength", 0)
 	var strength_multiplier = 1.0 + (strength_modifier * 0.1)  # Same multiplier as power calculation
-	max_shot_distance = base_max_distance * strength_multiplier
+	game_state_manager.max_shot_distance = base_max_distance * strength_multiplier
 	card_click_sound.play()
 	
 	# Special handling for GrenadeLauncherClubCard - show the weapon
@@ -3616,7 +3475,7 @@ func _on_club_card_pressed(club_name: String, club_info: Dictionary, button: Tex
 		print("Discarded selected club card:", club_name, "to club discard pile")
 	
 	# Check if this was the BagCheck temporary club and clear the effect
-	if bag_check_active and club_name == temporary_club.name:
+	if game_state_manager.is_bag_check_active() and club_name == game_state_manager.get_temporary_club().name:
 		print("BagCheck temporary club used - clearing effect")
 		clear_temporary_club()
 	
@@ -3639,13 +3498,12 @@ func _on_club_card_pressed(club_name: String, club_info: Dictionary, button: Tex
 func set_temporary_club(club_data: CardData):
 	"""Set a temporary club from BagCheck card effect"""
 	print("Course: Setting temporary club:", club_data.name)
-	temporary_club = club_data
+	game_state_manager.set_temporary_club(club_data)
 
 func clear_temporary_club():
 	"""Clear the temporary club after use"""
 	print("Course: Clearing temporary club")
-	temporary_club = null
-	bag_check_active = false
+	game_state_manager.clear_temporary_club()
 
 
 
@@ -3658,30 +3516,30 @@ func _on_player_moved_to_tile(new_grid_pos: Vector2i) -> void:
 	check_player_fire_damage()
 	
 	# Check for SuitCase interaction
-	if suitcase_grid_pos != Vector2i.ZERO and player_manager.get_player_grid_pos() == suitcase_grid_pos:
+	if game_state_manager.get_suitcase_grid_position() != Vector2i.ZERO and player_manager.get_player_grid_pos() == game_state_manager.get_suitcase_grid_position():
 		print("=== SUITCASE REACHED ===")
 		print("Player grid position:", player_manager.get_player_grid_pos())
-		print("SuitCase grid position:", suitcase_grid_pos)
+		print("SuitCase grid position:", game_state_manager.get_suitcase_grid_position())
 		_on_suitcase_reached()
 		return  # Don't exit movement mode yet
 	
-	if player_manager.get_player_grid_pos() == shop_grid_pos and not shop_entrance_detected:
+	if player_manager.get_player_grid_pos() == game_state_manager.get_shop_grid_position() and not game_state_manager.is_shop_entrance_detected():
 		print("=== SHOP ENTRANCE DETECTED ===")
 		print("Player grid position:", player_manager.get_player_grid_pos())
-		print("Shop grid position:", shop_grid_pos)
-		print("Shop entrance detected flag:", shop_entrance_detected)
-		shop_entrance_detected = true
+		print("Shop grid position:", game_state_manager.get_shop_grid_position())
+		print("Shop entrance detected flag:", game_state_manager.is_shop_entrance_detected())
+		game_state_manager.set_shop_entrance_detected(true)
 		show_shop_entrance_dialog()
 		return  # Don't exit movement mode yet
-	elif player_manager.get_player_grid_pos() != shop_grid_pos:
-		if shop_entrance_detected:
+	elif player_manager.get_player_grid_pos() != game_state_manager.get_shop_grid_position():
+		if game_state_manager.is_shop_entrance_detected():
 			print("Player moved away from shop entrance")
-		shop_entrance_detected = false
+		game_state_manager.set_shop_entrance_detected(false)
 	
 	update_player_position()
 	
 	# Check if player is on an active ball tile
-	if waiting_for_player_to_reach_ball and player_manager.get_player_grid_pos() == ball_landing_tile:
+	if game_state_manager.get_waiting_for_player_to_reach_ball() and player_manager.get_player_grid_pos() == game_state_manager.get_ball_landing_tile():
 		# Player is on the ball tile - remove landing highlight
 		if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball) and launch_manager.golf_ball.has_method("remove_landing_highlight"):
 			launch_manager.golf_ball.remove_landing_highlight()
@@ -3707,7 +3565,7 @@ func check_and_show_gimme_button():
 	print("=== CHECKING FOR GIMME BUTTON ===")
 	
 	# Check if we have a gimme ball and it's the current ball
-	if gimme_ball and gimme_ball == launch_manager.golf_ball and is_instance_valid(gimme_ball):
+	if game_state_manager.get_gimme_ball() and game_state_manager.get_gimme_ball() == launch_manager.golf_ball and is_instance_valid(game_state_manager.get_gimme_ball()):
 		print("Gimme ball found and is current ball - showing gimme button")
 		show_gimme_button()
 	else:
@@ -3753,6 +3611,10 @@ func show_shop_overlay():
 func get_camera_offset() -> Vector2:
 	"""Get the camera offset for positioning world objects"""
 	return grid_manager.get_camera_offset()
+
+func get_grid_manager() -> GridManager:
+	"""Get the grid manager for external access"""
+	return grid_manager
 
 func on_etherdash_complete():
 	"""Handle EtherDash completion - ensure card is discarded"""
@@ -3816,8 +3678,8 @@ func continue_to_hole_10():
 	get_tree().paused = false
 	
 	# Set back 9 mode and start at hole 10
-	is_back_9_mode = true
-	current_hole = back_9_start_hole  # Start at hole 10 (index 9)
+	game_state_manager.is_back_9_mode = true
+	game_state_manager.set_current_hole(game_state_manager.back_9_start_hole)  # Start at hole 10 (index 9)
 	
 	# Fade to black and load hole 10
 	FadeManager.fade_to_black(func(): load_hole_10(), 0.5)
@@ -3834,30 +3696,30 @@ func load_hole_10():
 	remove_all_balls()
 	
 	# Load hole 10 layout
-	map_manager.load_map_data(GolfCourseLayout.get_hole_layout(current_hole))
-	build_map.build_map_from_layout_with_randomization(map_manager.level_layout, current_hole)
+	map_manager.load_map_data(GolfCourseLayout.get_hole_layout(game_state_manager.get_current_hole_index()))
+	build_map.build_map_from_layout_with_randomization(map_manager.level_layout, game_state_manager.get_current_hole_index())
 	
 	# Sync shop grid position with build_map
-	shop_grid_pos = build_map.shop_grid_pos
+	game_state_manager.set_shop_grid_position(build_map.shop_grid_pos)
 	
 	# Sync SuitCase grid position with build_map
-	suitcase_grid_pos = build_map.get_suitcase_position()
-	if suitcase_grid_pos != Vector2i.ZERO:
-		print("SuitCase placed at grid position:", suitcase_grid_pos)
+	game_state_manager.set_suitcase_grid_position(build_map.get_suitcase_position())
+	if game_state_manager.get_suitcase_grid_position() != Vector2i.ZERO:
+		print("SuitCase placed at grid position:", game_state_manager.get_suitcase_grid_position())
 	
 	# Ensure Y-sort objects are properly registered for pin detection
 	update_all_ysort_z_indices()
 	
 	position_camera_on_pin()  # Add camera positioning for hole 10
-	hole_score = 0
-	game_phase = "tee_select"
+	game_state_manager.reset_hole_score()
+	game_state_manager.set_game_phase("tee_select")
 	_update_player_mouse_facing_state()
-	chosen_landing_spot = Vector2.ZERO
-	selected_club = ""
+	game_state_manager.set_chosen_landing_spot(Vector2.ZERO)
+	game_state_manager.set_selected_club("")
 	update_hole_and_score_display()
 	if hud:
-		hud.get_node("ShotLabel").text = "Shots: %d" % hole_score
-	is_placing_player = true
+		hud.get_node("ShotLabel").text = "Shots: %d" % game_state_manager.get_hole_score()
+	game_state_manager.set_is_placing_player(true)
 	highlight_tee_tiles()
 	show_tee_selection_instruction()
 	
@@ -3877,7 +3739,7 @@ func _on_shop_enter_no():
 func _on_shop_under_construction_input(event: InputEvent):
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		restore_game_state()
-		shop_entrance_detected = false
+		game_state_manager.set_shop_entrance_detected(false)
 		
 		# Update Y-sort for all objects to ensure proper layering
 		Global.update_all_objects_y_sort(ysort_objects)
@@ -3888,7 +3750,7 @@ func _on_shop_under_construction_input(event: InputEvent):
 		
 func restore_game_state():
 	if Global.saved_game_state == "shop_entrance":
-		map_manager.load_map_data(GolfCourseLayout.get_hole_layout(current_hole))
+		map_manager.load_map_data(GolfCourseLayout.get_hole_layout(game_state_manager.get_current_hole_index()))
 		build_map_from_layout_with_saved_positions(map_manager.level_layout)
 		
 		# Debug: Check if pin was created
@@ -3906,10 +3768,10 @@ func restore_game_state():
 		update_player_position()
 		if player_manager.get_player_node():
 			player_manager.get_player_node().visible = true
-		is_placing_player = false
-		ball_landing_tile = Global.saved_ball_landing_tile
-		ball_landing_position = Global.saved_ball_landing_position
-		waiting_for_player_to_reach_ball = Global.saved_waiting_for_player_to_reach_ball
+		game_state_manager.set_is_placing_player(false)
+		game_state_manager.set_ball_landing_position(Global.saved_ball_landing_tile, Global.saved_ball_landing_position)
+		game_state_manager.set_ball_landing_position(Global.saved_ball_landing_tile, Global.saved_ball_landing_position)
+		game_state_manager.set_waiting_for_player_to_reach_ball(Global.saved_waiting_for_player_to_reach_ball)
 		if Global.saved_ball_exists and Global.saved_ball_position != Vector2.ZERO:
 			if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball):
 				launch_manager.golf_ball.queue_free()
@@ -3932,8 +3794,9 @@ func restore_game_state():
 			if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball):
 				launch_manager.golf_ball.queue_free()
 				launch_manager.golf_ball = null
-		turn_count = Global.saved_current_turn
-		hole_score = Global.saved_shot_score
+		game_state_manager.set_current_hole(Global.saved_current_turn)
+		# Note: This should be handled by GameStateManager, but for now we'll set it directly
+	# game_state_manager.set_hole_score(Global.saved_shot_score)
 		# Restore global turn count for turn-based spawning
 		Global.global_turn_count = Global.saved_global_turn_count
 		# Update reward tier based on restored turn count
@@ -3941,11 +3804,11 @@ func restore_game_state():
 		deck_manager.restore_deck_state(Global.saved_deck_manager_state)
 		deck_manager.restore_discard_state(Global.saved_discard_pile_state)
 		deck_manager.restore_hand_state(Global.saved_hand_state)
-		has_started = Global.saved_has_started
+		game_state_manager.set_has_started(Global.saved_has_started)
 		if Global.get("saved_game_phase") != null:
-			game_phase = Global.saved_game_phase
+			game_state_manager.set_game_phase(Global.saved_game_phase)
 		else:
-			game_phase = "move"
+			game_state_manager.set_game_phase("move")
 		_update_player_mouse_facing_state()
 		if deck_manager.hand.size() > 0:
 			create_movement_buttons()
@@ -3960,7 +3823,7 @@ func restore_game_state():
 		print("No saved game state found")
 
 func is_player_on_shop_tile() -> bool:
-	return player_manager.get_player_grid_pos() == shop_grid_pos
+	return player_manager.get_player_grid_pos() == game_state_manager.get_shop_grid_position()
 
 
 
@@ -3998,15 +3861,15 @@ func create_ghost_ball() -> void:
 	ghost_ball.position = ball_local_position
 	ghost_ball.cell_size = cell_size
 	ghost_ball.map_manager = map_manager
-	if selected_club in club_data:
-		ghost_ball.set_club_info(club_data[selected_club])
-	ghost_ball.set_putting_mode(club_data.get(selected_club, {}).get("is_putter", false))
+	if game_state_manager.get_selected_club() in club_data:
+		ghost_ball.set_club_info(club_data[game_state_manager.get_selected_club()])
+	ghost_ball.set_putting_mode(club_data.get(game_state_manager.get_selected_club(), {}).get("is_putter", false))
 	grid_manager.get_camera_container().add_child(ghost_ball)
 	ghost_ball.add_to_group("balls")  # Add to group for collision detection
 	ghost_ball_active = true
 	# Global Y-sort will be handled by the ball's update_y_sort() method
-	if chosen_landing_spot != Vector2.ZERO:
-		ghost_ball.set_landing_spot(chosen_landing_spot)
+	if game_state_manager.get_chosen_landing_spot() != Vector2.ZERO:
+		ghost_ball.set_landing_spot(game_state_manager.get_chosen_landing_spot())
 
 func activate_ghost_mode() -> void:
 	"""Activate ghost mode - make player transparent and ignored by NPCs"""
@@ -4300,7 +4163,7 @@ func update_ghost_ball() -> void:
 		return
 	
 	# Only update the landing spot, don't reposition the ball
-	ghost_ball.set_landing_spot(chosen_landing_spot)
+	ghost_ball.set_landing_spot(game_state_manager.get_chosen_landing_spot())
 
 func remove_ghost_ball() -> void:
 	"""Remove the ghost ball from the scene"""
@@ -4311,12 +4174,8 @@ func remove_ghost_ball() -> void:
 
 
 
-var current_hole := 0  # 0-based hole index (0-8 for front 9, 9-17 for back 9)
 var total_score := 0
-const NUM_HOLES := 9  # Number of holes per round (9 for front 9, 9 for back 9)
 var is_in_pin_transition := false
-var is_back_9_mode := false  # Flag to track if we're playing back 9
-var back_9_start_hole := 9  # Starting hole for back 9 (hole 10, index 9)
 
 
 
@@ -4421,7 +4280,7 @@ func position_camera_on_pin(start_transition: bool = true):
 
 func build_map_from_layout_with_saved_positions(layout: Array) -> void:
 	"""Build map with saved object positions (for returning from shop)"""
-	print("Building map with saved positions for hole", current_hole + 1)
+	print("Building map with saved positions for hole", game_state_manager.get_current_hole_index() + 1)
 	
 	# Clear existing objects first
 	clear_existing_objects()
@@ -4451,12 +4310,12 @@ func build_map_from_layout_with_saved_positions(layout: Array) -> void:
 	build_map.place_treeline_vert_borders(layout)
 	
 	# Sync shop grid position with build_map
-	shop_grid_pos = build_map.shop_grid_pos
+	game_state_manager.set_shop_grid_position(build_map.shop_grid_pos)
 	
 	# Sync SuitCase grid position with build_map (for saved positions)
-	suitcase_grid_pos = build_map.get_suitcase_position()
-	if suitcase_grid_pos != Vector2i.ZERO:
-		print("SuitCase placed at grid position (saved positions):", suitcase_grid_pos)
+	game_state_manager.set_suitcase_grid_position(build_map.get_suitcase_position())
+	if game_state_manager.get_suitcase_grid_position() != Vector2i.ZERO:
+		print("SuitCase placed at grid position (saved positions):", game_state_manager.get_suitcase_grid_position())
 	
 	# Place pin at saved position
 	if Global.saved_pin_position != Vector2i.ZERO:
@@ -4465,7 +4324,7 @@ func build_map_from_layout_with_saved_positions(layout: Array) -> void:
 		if scene != null:
 			var pin: Node2D = scene.instantiate() as Node2D
 			var pin_id = randi()  # Generate unique ID for this pin
-			pin.name = "Pin" + str(current_hole + 1)  # Give unique name based on hole number
+			pin.name = "Pin" + str(game_state_manager.get_current_hole_index() + 1)  # Give unique name based on hole number
 			pin.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
 			# Let the global Y-sort system handle z_index
 			if pin.has_meta("grid_position") or "grid_position" in pin:
@@ -4531,41 +4390,34 @@ func _on_hole_in_one(score: int):
 
 func _on_gimme_triggered(ball: Node2D):
 	"""Handle gimme detection when ball enters gimme area"""
+	# Early return if game_state_manager is not initialized yet
+	if not game_state_manager:
+		return
+		
 	print("=== GIMME DETECTED FROM PIN AREA ===")
 	print("Ball entered gimme area:", ball.name)
 	
 	# Store the gimme ball reference for later use
 	# The gimme button will be shown when the player reaches the ball
-	gimme_ball = ball
+	game_state_manager.activate_gimme(ball)
 
 func _on_gimme_ball_exited(ball: Node2D):
 	"""Handle when ball exits gimme area"""
+	# Early return if game_state_manager is not initialized yet
+	if not game_state_manager:
+		return
+		
 	print("=== GIMME BALL EXITED ===")
 	print("Ball exited gimme area:", ball.name)
-	print("Current gimme_ball:", gimme_ball.name if gimme_ball else "null")
+	print("Current gimme_ball:", game_state_manager.get_gimme_ball().name if game_state_manager.get_gimme_ball() else "null")
 	print("Current launch_manager.golf_ball:", launch_manager.golf_ball.name if launch_manager.golf_ball else "null")
-	# Clear the gimme ball reference when the ball exits the gimme area
-	# This ensures that if the ball flies over the gimme area and lands elsewhere, 
-	# the gimme option is not available
-	if gimme_ball == ball:
-		gimme_ball = null
-		print("Cleared gimme ball reference - ball exited gimme area")
-		# Hide the gimme button if it's currently visible
-		hide_gimme_button()
-	else:
-		print("Ball that exited was not the tracked gimme ball - ignoring")
-		print("=== GIMME BALL EXITED ===")
-		print("Ball exited gimme area:", ball.name)
-		print("Current gimme_ball:", gimme_ball.name if gimme_ball else "null")
-		print("Current launch_manager.golf_ball:", launch_manager.golf_ball.name if launch_manager.golf_ball else "null")
 	
 	# Clear the gimme ball reference when the ball exits the gimme area
 	# This ensures that if the ball flies over the gimme area and lands elsewhere, 
 	# the gimme option is not available
-	if gimme_ball == ball:
-		gimme_ball = null
+	if game_state_manager.get_gimme_ball() == ball:
+		game_state_manager.deactivate_gimme()
 		print("Cleared gimme ball reference - ball exited gimme area")
-		
 		# Hide the gimme button if it's currently visible
 		hide_gimme_button()
 	else:
@@ -4669,26 +4521,28 @@ func fix_ui_layers() -> void:
 # Add this variable declaration after the existing card modification variables (around line 75)
 var card_effect_handler: Node = null
 var weapon_handler: Node = null
-var global_death_sound: AudioStreamPlayer = null
+# Global death sound moved to SoundManager
 
 # Add this function at the end of the file, before the final closing brace
 func _on_scramble_complete(closest_ball_position: Vector2, closest_ball_tile: Vector2i):
 	"""Handle completion of Florida Scramble effect"""
-	
+	# Early return if game_state_manager is not initialized yet
+	if not game_state_manager:
+		return
+		
 	# Check if the ball went in the hole (if waiting_for_player_to_reach_ball is false, it went in the hole)
-	if not waiting_for_player_to_reach_ball:
+	if not game_state_manager.get_waiting_for_player_to_reach_ball():
 		print("Scramble ball went in the hole! Triggering hole completion")
 		# Trigger hole completion dialog
 		show_hole_completion_dialog()
 		return
 	
 	# Update course state for normal scramble completion
-	ball_landing_tile = closest_ball_tile
-	ball_landing_position = closest_ball_position
-	waiting_for_player_to_reach_ball = true
+	game_state_manager.set_ball_landing_position(closest_ball_tile, closest_ball_position)
+	game_state_manager.set_waiting_for_player_to_reach_ball(true)
 	
 	# Check if player is already on the landing tile
-	if player_manager.get_player_grid_pos() == ball_landing_tile:
+	if player_manager.get_player_grid_pos() == game_state_manager.get_ball_landing_tile():
 		print("Player is already on the scramble ball landing tile - checking for gimme and showing buttons")
 		# Player is already on the ball tile - remove landing highlight
 		if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball) and launch_manager.golf_ball.has_method("remove_landing_highlight"):
@@ -4713,11 +4567,15 @@ func _on_scramble_complete(closest_ball_position: Vector2, closest_ball_tile: Ve
 			show_drive_distance_dialog()
 		)
 		
-		game_phase = "move"
+		game_state_manager.set_game_phase("move")
 		_update_player_mouse_facing_state()
 
 # LaunchManager signal handlers
 func _on_ball_launched(ball: Node2D):
+	# Early return if game_state_manager is not initialized yet
+	if not game_state_manager:
+		return
+		
 	# Clear any existing gimme state when a new ball is launched
 	clear_gimme_state()
 	
@@ -4747,7 +4605,7 @@ func _on_ball_launched(ball: Node2D):
 		ball.knife_hit_target.connect(_on_knife_hit_target)
 		
 		# Set camera following
-		camera_following_ball = true
+		game_state_manager.set_camera_following_ball(true)
 		
 	elif is_grenade:
 		# Handle grenade
@@ -4756,7 +4614,7 @@ func _on_ball_launched(ball: Node2D):
 		# Check if using GrenadeLauncherWeaponCard - play launcher sound instead of whoosh sound
 		# Note: Launcher sound is already played in WeaponHandler.launch_grenade_launcher()
 		# so we don't need to play it again here
-		if selected_club == "GrenadeLauncherClubCard":
+		if game_state_manager.get_selected_club() == "GrenadeLauncherClubCard":
 			print("GrenadeLauncherClubCard detected - launcher sound already played in WeaponHandler")
 		else:
 			# Play grenade whoosh sound when launched
@@ -4774,7 +4632,7 @@ func _on_ball_launched(ball: Node2D):
 		ball.grenade_exploded.connect(_on_grenade_exploded)
 		
 		# Set camera following
-		camera_following_ball = true
+		game_state_manager.set_camera_following_ball(true)
 		print("Camera following set to true for grenade")
 		
 	elif is_spear:
@@ -4794,7 +4652,7 @@ func _on_ball_launched(ball: Node2D):
 		ball.spear_hit_target.connect(_on_spear_hit_target)
 		
 		# Set camera following
-		camera_following_ball = true
+		game_state_manager.set_camera_following_ball(true)
 		print("Camera following set to true for spear")
 		
 	elif is_shuriken:
@@ -4816,7 +4674,7 @@ func _on_ball_launched(ball: Node2D):
 		ball.out_of_bounds.connect(_on_shuriken_out_of_bounds)
 		
 		# Set camera following
-		camera_following_ball = true
+		game_state_manager.set_camera_following_ball(true)
 		print("Camera following set to true for shuriken")
 		
 	else:
@@ -4826,11 +4684,11 @@ func _on_ball_launched(ball: Node2D):
 		# Check if using GrenadeLauncherClubCard - play launcher sound instead of swing sound
 		# Note: Launcher sound is already played in WeaponHandler.launch_grenade_launcher()
 		# so we don't need to play it again here
-		if selected_club == "GrenadeLauncherClubCard":
+		if game_state_manager.get_selected_club() == "GrenadeLauncherClubCard":
 			print("GrenadeLauncherClubCard detected - launcher sound already played in WeaponHandler")
 		else:
 			# Play normal swing sound for other clubs
-			play_swing_sound(ball.get_final_power() if ball.has_method("get_final_power") else 0.0)
+			sound_manager.play_swing_sound(ball.get_final_power() if ball.has_method("get_final_power") else 0.0)
 		
 		# Set ball launch position for player collision delay system
 		if player_manager.get_player_node() and player_manager.get_player_node().has_method("set_ball_launch_position"):
@@ -4843,7 +4701,7 @@ func _on_ball_launched(ball: Node2D):
 		ball.sand_landing.connect(_on_golf_ball_sand_landing)
 		
 		# Set camera following
-		camera_following_ball = true
+		game_state_manager.set_camera_following_ball(true)
 		print("Camera following set to true for golf ball")
 		
 		# Handle card effects
@@ -4878,7 +4736,7 @@ func _on_ball_launched(ball: Node2D):
 			next_shot_modifier = ""
 		
 		# Handle elemental club effects
-		if selected_club == "Fire Club":
+		if game_state_manager.get_selected_club() == "Fire Club":
 			# Apply Fire element to the ball
 			var fire_element = preload("res://Elements/Fire.tres")
 			ball.set_element(fire_element)
@@ -4894,7 +4752,7 @@ func _on_ball_launched(ball: Node2D):
 			ball.fire_club_active = true
 			print("Fire Club special effect: Reduced friction on grass/rough tiles")
 		
-		elif selected_club == "Ice Club":
+		elif game_state_manager.get_selected_club() == "Ice Club":
 			# Apply Ice element to the ball
 			var ice_element = preload("res://Elements/Ice.tres")
 			ball.set_element(ice_element)
@@ -4911,7 +4769,7 @@ func _on_ball_launched(ball: Node2D):
 			print("Ice Club special effect: Can pass through water tiles")
 
 func _on_launch_phase_entered():
-	game_phase = "launch"
+	game_state_manager.set_game_phase("launch")
 	_update_player_mouse_facing_state()
 
 func _on_launch_phase_exited():
@@ -4919,7 +4777,7 @@ func _on_launch_phase_exited():
 	if weapon_handler:
 		# Check if we're using a grenade launcher - don't hide it yet
 		var is_grenade_launcher = false
-		if selected_club == "GrenadeLauncherClubCard":
+		if game_state_manager.get_selected_club() == "GrenadeLauncherClubCard":
 			is_grenade_launcher = true
 		
 		if not is_grenade_launcher:
@@ -4930,7 +4788,7 @@ func _on_launch_phase_exited():
 		# If grenade mode is still active, the grenade hasn't exploded yet
 		# So we should enter ball_flying phase
 		print("Course: Entering ball_flying phase!")
-		game_phase = "ball_flying"
+		game_state_manager.set_game_phase("ball_flying")
 		_update_player_mouse_facing_state()
 		# Disable player collision shape during ball flight
 		if player_manager.get_player_node() and player_manager.get_player_node().has_method("disable_collision_shape"):
@@ -4983,8 +4841,7 @@ func _on_npc_shot(npc: Node, damage: int) -> void:
 		
 		# Play global death sound if NPC died
 		if npc.has_method("get_is_dead") and npc.get_is_dead():
-			if global_death_sound:
-				global_death_sound.play()
+				sound_manager.play_global_death_sound()
 				print("Playing global death sound")
 	else:
 		print("NPC shot: No NPC found, Damage dealt:", damage)
@@ -5010,14 +4867,14 @@ func _on_knife_landed(final_tile: Vector2i) -> void:
 					if launch_manager:
 						launch_manager.exit_knife_mode()
 						print("Exited knife mode after camera tween completed")
-					camera_following_ball = false
+					game_state_manager.set_camera_following_ball(false)
 				)
 		else:
 			# Fallback if no player or camera
 			if launch_manager:
 				launch_manager.exit_knife_mode()
 				print("Exited knife mode (fallback)")
-			camera_following_ball = false
+			game_state_manager.set_camera_following_ball(false)
 	)
 
 func _on_knife_hit_target(target: Node2D) -> void:
@@ -5053,14 +4910,14 @@ func _on_spear_landed(final_tile: Vector2i) -> void:
 					if launch_manager:
 						launch_manager.exit_spear_mode()
 						print("Exited spear mode after camera tween completed")
-					camera_following_ball = false
+					game_state_manager.set_camera_following_ball(false)
 				)
 		else:
 			# Fallback if no player or camera
 			if launch_manager:
 				launch_manager.exit_spear_mode()
 				print("Exited spear mode (fallback)")
-			camera_following_ball = false
+			game_state_manager.set_camera_following_ball(false)
 	)
 
 func _on_spear_hit_target(target: Node2D) -> void:
@@ -5085,7 +4942,7 @@ func _on_shuriken_landed(final_tile: Vector2i) -> void:
 		print("Exited weapon mode after shuriken landing")
 	
 	# Set game phase to move immediately to allow movement cards
-	game_phase = "move"
+	game_state_manager.set_game_phase("move")
 	print("Set game phase to 'move' after shuriken landing")
 	
 	# Update smart optimizer state immediately when shuriken lands
@@ -5093,7 +4950,7 @@ func _on_shuriken_landed(final_tile: Vector2i) -> void:
 		smart_optimizer.update_game_state("move", false, false, false)
 	
 	# Keep camera focused on player (don't follow shuriken)
-	camera_following_ball = false
+	game_state_manager.set_camera_following_ball(false)
 	
 	# Exit shuriken mode immediately
 	if launch_manager:
@@ -5110,7 +4967,7 @@ func _on_shuriken_hit_target(target: Node2D) -> void:
 		print("Exited weapon mode after shuriken hit target")
 	
 	# Set game phase to move immediately to allow movement cards
-	game_phase = "move"
+	game_state_manager.set_game_phase("move")
 	print("Set game phase to 'move' after shuriken hit target")
 	
 	# Play shuriken impact sound
@@ -5135,7 +4992,7 @@ func _on_shuriken_out_of_bounds() -> void:
 		smart_optimizer.update_game_state("move", false, false, false)
 	
 	# Set game phase to move to allow movement cards
-	game_phase = "move"
+	game_state_manager.set_game_phase("move")
 	
 	# Set ball in flight to false to allow movement cards
 	if launch_manager:
@@ -5148,16 +5005,9 @@ func _on_shuriken_out_of_bounds() -> void:
 		print("Exited shuriken mode after out of bounds")
 	
 	# Reset camera following
-	camera_following_ball = false
+	game_state_manager.set_camera_following_ball(false)
 
-func setup_global_death_sound() -> void:
-	"""Setup global death sound that can be heard from anywhere"""
-	global_death_sound = AudioStreamPlayer.new()
-	var death_sound = preload("res://Sounds/DeathGroan.mp3")
-	global_death_sound.stream = death_sound
-	global_death_sound.volume_db = 0.0
-	add_child(global_death_sound)
-	print("Global death sound setup complete")
+# Global death sound setup moved to SoundManager
 
 func _update_player_mouse_facing_state() -> void:
 	"""Update the player's mouse facing state based on current game phase and launch state"""
@@ -5165,7 +5015,7 @@ func _update_player_mouse_facing_state() -> void:
 		return
 	
 	# Update game phase
-	player_manager.get_player_node().set_game_phase(game_phase)
+	player_manager.get_player_node().set_game_phase(game_state_manager.get_game_phase())
 	
 	# Update launch state from LaunchManager
 	var is_charging = false
@@ -5179,7 +5029,7 @@ func _update_player_mouse_facing_state() -> void:
 	player_manager.get_player_node().set_launch_state(is_charging, is_charging_height, is_selecting_height)
 	
 	# Update launch mode state
-	var is_in_launch_mode = (game_phase == "ball_flying")
+	var is_in_launch_mode = (game_state_manager.get_game_phase() == "ball_flying")
 	player_manager.get_player_node().set_launch_mode(is_in_launch_mode)
 	
 	# Set camera reference if not already set
@@ -5193,7 +5043,7 @@ func _update_player_mouse_facing_state() -> void:
 	update_dodge_sprite_flip()
 	
 	# Hide weapon when game phase changes to move (unless GrenadeLauncherClubCard is selected)
-	if game_phase == "move" and selected_club != "GrenadeLauncherClubCard" and weapon_handler:
+	if game_state_manager.get_game_phase() == "move" and game_state_manager.get_selected_club() != "GrenadeLauncherClubCard" and weapon_handler:
 		weapon_handler.hide_weapon()
 
 
@@ -5236,7 +5086,7 @@ func check_player_fire_damage() -> void:
 		var fire_tile_pos = fire_tile.get_tile_position()
 		
 		# Check if this fire tile has already damaged the player this turn
-		if fire_tile_pos in fire_tiles_that_damaged_player:
+		if fire_tile_pos in game_state_manager.fire_tiles_that_damaged_player:
 			continue
 		
 		# Check if player is on the fire tile or adjacent to it
@@ -5249,36 +5099,16 @@ func check_player_fire_damage() -> void:
 			print("Player took", damage, "fire damage from fire tile at", fire_tile_pos)
 			
 			# Play FlameOn sound effect
-			play_flame_on_sound()
+			sound_manager.play_flame_on_sound(player_manager.get_player_node().global_position if player_manager.get_player_node() else Vector2.ZERO)
 			
 			# Mark this fire tile as having damaged the player this turn
-			fire_tiles_that_damaged_player.append(fire_tile_pos)
+			game_state_manager.fire_tiles_that_damaged_player.append(fire_tile_pos)
 			player_took_damage = true
 
 	if player_took_damage:
 		print("Player fire damage check complete - damage applied")
 
-func play_flame_on_sound() -> void:
-	"""Play the FlameOn sound effect when player takes fire damage"""
-	# Try to find an existing FlameOn sound in the scene
-	var flame_sounds = get_tree().get_nodes_in_group("flame_sounds")
-	if flame_sounds.size() > 0:
-		var flame_sound = flame_sounds[0]
-		if flame_sound and flame_sound.has_method("play"):
-			flame_sound.play()
-			return
-	
-	# Fallback: create a temporary audio player
-	var temp_audio = AudioStreamPlayer2D.new()
-	var sound_file = load("res://Sounds/FlameOn.mp3")
-	if sound_file:
-		temp_audio.stream = sound_file
-		temp_audio.volume_db = -5.0  # Slightly quieter for player damage
-		temp_audio.position = player_manager.get_player_node().global_position if player_manager.get_player_node() else Vector2.ZERO
-		add_child(temp_audio)
-		temp_audio.play()
-		# Remove the audio player after it finishes
-		temp_audio.finished.connect(func(): temp_audio.queue_free())
+# Flame on sound function moved to SoundManager
 
 func _is_player_affected_by_fire_tile(fire_tile_pos: Vector2i) -> bool:
 	"""Check if player is on the fire tile or adjacent to it"""
@@ -5306,7 +5136,7 @@ func _is_player_affected_by_fire_tile(fire_tile_pos: Vector2i) -> bool:
 
 func reset_fire_damage_tracking() -> void:
 	"""Reset the fire damage tracking at the start of each turn"""
-	fire_tiles_that_damaged_player.clear()
+	game_state_manager.fire_tiles_that_damaged_player.clear()
 
 func _clear_existing_state():
 	"""Clear any existing state to prevent dictionary conflicts when scene is reloaded"""
@@ -5359,7 +5189,7 @@ func _on_grenade_exploded(explosion_position: Vector2) -> void:
 		var weapon_scene_name = weapon_handler.weapon_instance.scene_file_path
 		if weapon_scene_name and "GrenadeLauncher" in weapon_scene_name:
 			should_hide_weapon = true
-		elif selected_club == "GrenadeLauncherClubCard":
+		elif game_state_manager.get_selected_club() == "GrenadeLauncherClubCard":
 			should_hide_weapon = true
 		elif weapon_handler.selected_card and weapon_handler.selected_card.name == "GrenadeLauncherWeaponCard":
 			should_hide_weapon = true
@@ -5383,8 +5213,8 @@ func _on_grenade_exploded(explosion_position: Vector2) -> void:
 		smart_optimizer.update_game_state("move", false, false, false)
 	
 	# Only set game phase to move if it's not already set (to avoid overriding landing handler)
-	if game_phase != "move":
-		game_phase = "move"
+	if game_state_manager.get_game_phase() != "move":
+		game_state_manager.set_game_phase("move")
 		print("Game phase set to 'move' after grenade explosion")
 	
 	# Set ball in flight to false to allow movement cards
@@ -5401,7 +5231,7 @@ func _on_grenade_exploded(explosion_position: Vector2) -> void:
 	if launch_manager:
 		launch_manager.grenade_explosion_in_progress = false
 	
-	camera_following_ball = false
+	game_state_manager.set_camera_following_ball(false)
 
 
 
@@ -5474,11 +5304,11 @@ func _on_cancel_pause_pressed(pause_dialog: Control):
 func clear_player_state():
 	"""Clear all player score and effects"""
 	# Clear round scores
-	round_scores.clear()
-	round_complete = false
+	game_state_manager.get_round_scores().clear()
+	game_state_manager.round_complete = false
 	
 	# Reset hole score
-	hole_score = 0
+	game_state_manager.reset_hole_score()
 	
 	# Clear any active effects
 	sticky_shot_active = false
@@ -5507,7 +5337,7 @@ func clear_player_state():
 	Global.current_looty = 50
 	
 	# Clear any active game states
-	game_phase = "move"
+	game_state_manager.set_game_phase("move")
 	
 	# Clear any active weapon/attack modes
 	if weapon_handler:

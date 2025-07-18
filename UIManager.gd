@@ -130,16 +130,13 @@ func _on_drive_distance_dialog_input(event: InputEvent) -> void:
 			drive_distance_dialog.queue_free()
 			drive_distance_dialog = null
 		
-		# Check if gimme is active
-		if course.gimme_active:
-			print("=== GIMME DIALOG DISMISSED - COMPLETING HOLE ===")
-			course.complete_gimme_hole()
-		else:
-			print("Setting game phase to 'move' and showing draw cards button")
-			course.game_phase = "move"
-			course._update_player_mouse_facing_state()
-			draw_cards_button.visible = true
-			# Camera tween is already handled in the ball landing logic, so we don't need to call it here
+		# Always transition to move phase after drive distance dialog
+		print("Setting game phase to 'move' and showing draw cards button")
+		if course.game_state_manager:
+			course.game_state_manager.set_game_phase("move")
+		course._update_player_mouse_facing_state()
+		draw_cards_button.visible = true
+		# Camera tween is already handled in the ball landing logic, so we don't need to call it here
 
 func show_out_of_bounds_dialog() -> void:
 	"""Show out of bounds dialog"""
@@ -173,59 +170,69 @@ func show_sand_landing_dialog() -> void:
 func show_hole_completion_dialog() -> void:
 	"""Show hole completion dialog"""
 	print("=== SHOW_HOLE_COMPLETION_DIALOG CALLED ===")
-	print("Current hole:", course.current_hole)
-	print("Hole score:", course.hole_score)
-	
+
 	# Play hole complete sound
 	var hole_complete_sound = course.get_node_or_null("HoleComplete")
 	if hole_complete_sound and hole_complete_sound.stream:
 		hole_complete_sound.play()
-		print("Playing hole complete sound")
 	
 	# Give $Looty reward for completing the hole
 	var looty_reward = Global.give_hole_completion_reward()
 	
-	course.round_scores.append(course.hole_score)
-	var hole_par = GolfCourseLayout.get_hole_par(course.current_hole)
-	var score_vs_par = course.hole_score - hole_par
-	var score_text = "Hole %d Complete!\n\n" % (course.current_hole + 1)
-	score_text += "Hole Score: %d strokes\n" % course.hole_score
-	score_text += "Par: %d\n" % hole_par
-	score_text += "Reward: %d $Looty\n" % looty_reward
-	if score_vs_par == 0:
-		score_text += "Score: Par ✓\n"
-	elif score_vs_par == 1:
-		score_text += "Score: Bogey (+1)\n"
-	elif score_vs_par == 2:
-		score_text += "Score: Double Bogey (+2)\n"
-	elif score_vs_par == -1:
-		score_text += "Score: Birdie (-1) ✓\n"
-	elif score_vs_par == -2:
-		score_text += "Score: Eagle (-2) ✓\n"
-	else:
-		score_text += "Score: %+d\n" % score_vs_par
-	var total_round_score = 0
-	for score in course.round_scores:
-		total_round_score += score
-	var total_par = 0
-	if course.is_back_9_mode:
-		total_par = GolfCourseLayout.get_back_nine_par()
-	else:
-		total_par = GolfCourseLayout.get_front_nine_par()
-	var round_vs_par = total_round_score - total_par
-	
-	score_text += "\nRound Progress: %d/%d holes\n" % [course.current_hole + 1, course.NUM_HOLES]
-	score_text += "Round Score: %d\n" % total_round_score
-	score_text += "Round vs Par: %+d\n" % round_vs_par
+	# Initialize variables with default values
+	var hole_score = 0
+	var current_hole = 0
+	var round_scores = []
+	var is_back_9_mode = false
+	var score_text = ""
 	var round_end_hole = 0
-	if course.is_back_9_mode:
-		round_end_hole = course.back_9_start_hole + course.NUM_HOLES - 1  # Hole 18 (index 17)
-	else:
-		round_end_hole = course.NUM_HOLES - 1  # Hole 9 (index 8)
-	if course.current_hole < round_end_hole:
-		score_text += "\nClick to continue to the next hole."
-	else:
-		score_text += "\nClick to see your final round score!"
+	
+	if course.game_state_manager:
+		course.game_state_manager.complete_hole()
+		hole_score = course.game_state_manager.get_hole_score()
+		current_hole = course.game_state_manager.get_current_hole_index()
+		round_scores = course.game_state_manager.get_round_scores()
+		is_back_9_mode = course.game_state_manager.is_back_9_mode
+		
+		var hole_par = GolfCourseLayout.get_hole_par(current_hole)
+		var score_vs_par = hole_score - hole_par
+		score_text = "Hole %d Complete!\n\n" % (current_hole + 1)
+		score_text += "Hole Score: %d strokes\n" % hole_score
+		score_text += "Par: %d\n" % hole_par
+		score_text += "Reward: %d $Looty\n" % looty_reward
+		if score_vs_par == 0:
+			score_text += "Score: Par ✓\n"
+		elif score_vs_par == 1:
+			score_text += "Score: Bogey (+1)\n"
+		elif score_vs_par == 2:
+			score_text += "Score: Double Bogey (+2)\n"
+		elif score_vs_par == -1:
+			score_text += "Score: Birdie (-1) ✓\n"
+		elif score_vs_par == -2:
+			score_text += "Score: Eagle (-2) ✓\n"
+		else:
+			score_text += "Score: %+d\n" % score_vs_par
+		var total_round_score = 0
+		for score in round_scores:
+			total_round_score += score
+		var total_par = 0
+		if is_back_9_mode:
+			total_par = GolfCourseLayout.get_back_nine_par()
+		else:
+			total_par = GolfCourseLayout.get_front_nine_par()
+		var round_vs_par = total_round_score - total_par
+		
+		score_text += "\nRound Progress: %d/%d holes\n" % [current_hole + 1, course.game_state_manager.NUM_HOLES]
+		score_text += "Round Score: %d\n" % total_round_score
+		score_text += "Round vs Par: %+d\n" % round_vs_par
+		if is_back_9_mode:
+			round_end_hole = course.game_state_manager.back_9_start_hole + course.game_state_manager.NUM_HOLES - 1  # Hole 18 (index 17)
+		else:
+			round_end_hole = course.game_state_manager.NUM_HOLES - 1  # Hole 9 (index 8)
+		if current_hole < round_end_hole:
+			score_text += "\nClick to continue to the next hole."
+		else:
+			score_text += "\nClick to see your final round score!"
 	
 	# Create custom dialog with Scorecard background
 	var dialog = Control.new()
@@ -264,7 +271,7 @@ func show_hole_completion_dialog() -> void:
 	background.gui_input.connect(func(event: InputEvent):
 		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 			dialog.queue_free()
-			if course.current_hole < round_end_hole:
+			if course.game_state_manager and course.game_state_manager.get_current_hole_index() < round_end_hole:
 				# Show reward selection dialog instead of calling non-existent start_next_hole
 				show_reward_phase()
 			else:
@@ -334,23 +341,6 @@ func show_shop_entrance_dialog() -> void:
 	ui_layer.add_child(shop_dialog)
 	print("Shop entrance dialog created")
 
-func _on_shop_enter_yes() -> void:
-	"""Handle shop enter yes button"""
-	show_shop_overlay()
-
-func _on_shop_enter_no() -> void:
-	"""Handle shop enter no button"""
-	if shop_dialog:
-		shop_dialog.queue_free()
-		shop_dialog = null
-	
-	course.shop_entrance_detected = false
-	
-	# Update Y-sort for all objects to ensure proper layering
-	Global.update_all_objects_y_sort(course.ysort_objects)
-	
-	course.exit_movement_mode()
-
 func show_shop_overlay() -> void:
 	"""Show shop overlay"""
 	print("=== SHOWING SHOP OVERLAY ===")
@@ -362,54 +352,6 @@ func show_shop_overlay() -> void:
 	shop_overlay = shop_instance
 	shop_instance.connect("shop_closed", _on_shop_overlay_return)
 	print("=== SHOP OVERLAY SHOWN ===")
-
-func _on_shop_overlay_return() -> void:
-	"""Handle returning from shop overlay"""
-	print("=== REMOVING SHOP OVERLAY ===")
-	
-	# Check if we're in mid-game shop mode
-	if course.is_mid_game_shop_mode():
-		# Return to MidGameShop overlay - just remove the shop interior
-		if shop_overlay and is_instance_valid(shop_overlay):
-			shop_overlay.queue_free()
-			shop_overlay = null
-		
-		# Reset the mid-game shop mode flag
-		Global.in_mid_game_shop_mode = false
-		
-		# Show the mid-game shop overlay again
-		show_mid_game_shop_overlay()
-		
-		print("=== RETURNED TO MID-GAME SHOP OVERLAY ===")
-		return
-	
-	# Normal shop return flow
-	# Unpause the game
-	course.get_tree().paused = false
-	
-	# Remove the shop overlay
-	if shop_overlay and is_instance_valid(shop_overlay):
-		shop_overlay.queue_free()
-		shop_overlay = null
-	
-	# Clear any shop dialog that might still be present
-	if shop_dialog:
-		shop_dialog.queue_free()
-		shop_dialog = null
-	
-	# Reset shop entrance detection
-	shop_entrance_detected = false
-	
-	# Update Y-sort for all objects to ensure proper layering
-	Global.update_all_objects_y_sort(course.ysort_objects)
-	
-	# Exit movement mode
-	course.exit_movement_mode()
-	
-	# Update HUD to reflect any changes (including $Looty balance from shop purchases)
-	course.update_deck_display()
-	
-	print("=== SHOP OVERLAY REMOVED ===")
 
 func show_mid_game_shop_overlay() -> void:
 	"""Show the mid-game shop as an overlay"""
@@ -428,121 +370,6 @@ func show_mid_game_shop_overlay() -> void:
 	course.get_tree().paused = true
 	
 	print("=== MID-GAME SHOP OVERLAY SHOWN ===")
-
-# ===== BUTTON MANAGEMENT =====
-
-func show_gimme_button() -> void:
-	"""Show the gimme button"""
-	print("=== SHOWING GIMME BUTTON ===")
-	
-	if gimme_scene:
-		gimme_scene.visible = true
-		print("Gimme button made visible")
-		
-		# Connect the button press signal if not already connected
-		var gimme_button = gimme_scene.get_node_or_null("GimmeButton")
-		if gimme_button:
-			print("GimmeButton found:", gimme_button.name)
-			print("GimmeButton type:", gimme_button.get_class())
-			print("GimmeButton mouse_filter:", gimme_button.mouse_filter)
-			print("GimmeButton disabled:", gimme_button.disabled)
-			print("GimmeButton visible:", gimme_button.visible)
-			
-			if not gimme_button.pressed.is_connected(_on_gimme_button_pressed):
-				gimme_button.pressed.connect(_on_gimme_button_pressed)
-				print("Gimme button signal connected")
-			else:
-				print("Gimme button signal already connected")
-		else:
-			print("ERROR: Could not find GimmeButton within Gimme scene")
-	else:
-		print("ERROR: Could not find Gimme scene")
-
-func hide_gimme_button() -> void:
-	"""Hide the gimme button"""
-	if gimme_scene:
-		gimme_scene.visible = false
-		print("Gimme button hidden")
-
-func _on_gimme_button_pressed() -> void:
-	"""Handle gimme button press"""
-	print("=== GIMME BUTTON PRESSED ===")
-	print("Gimme button was successfully clicked!")
-	
-	# Hide the gimme button
-	hide_gimme_button()
-	
-	# Trigger the gimme sequence
-	course.trigger_gimme_sequence()
-
-func _on_suitcase_reached() -> void:
-	"""Handle when the player reaches a SuitCase"""
-	print("=== SUITCASE REACHED - SHOWING SUITCASE OVERLAY ===")
-	
-	# Clear the SuitCase position to prevent multiple triggers
-	course.suitcase_grid_pos = Vector2i.ZERO
-	
-	# Exit movement mode
-	course.exit_movement_mode()
-	
-	# Show the SuitCase overlay
-	show_suitcase_overlay()
-
-func show_draw_club_cards_button() -> void:
-	"""Show the 'Draw Club Cards' button when player is on an active ball tile"""
-	course.game_phase = "ball_tile_choice"
-	course._update_player_mouse_facing_state()
-	print("Player is on ball tile - showing 'Draw Club Cards' button")
-	
-	# Show the "Draw Club Cards" button
-	draw_club_cards_button.visible = true
-	
-	# Exit movement mode but don't automatically enter launch phase
-	movement_controller.exit_movement_mode()
-	course.update_deck_display()
-	
-	# Camera follows player to ball position using managed tween
-	var sprite = player_manager.get_player_node().get_node_or_null("Sprite2D")
-	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(course.cell_size, course.cell_size)
-	var player_center = player_manager.get_player_node().global_position + player_size / 2
-	camera_manager.create_camera_tween(player_center, 1.0)
-
-func show_draw_cards_button_for_turn_start() -> void:
-	"""Show the DrawCardsButton at the start of a player turn instead of automatically drawing cards"""
-	print("=== SHOWING DRAW CARDS BUTTON FOR TURN START ===")
-	
-	# Clear block when starting a new player turn (after world turn ends or is skipped)
-	course.clear_block()
-	
-	# Deactivate ghost mode when starting a new player turn
-	if course.ghost_mode_active:
-		course.deactivate_ghost_mode()
-	
-	# Deactivate vampire mode when starting a new player turn
-	if course.vampire_mode_active:
-		course.deactivate_vampire_mode()
-	
-	# Reset ReachBallButton flag for new turn
-	course.used_reach_ball_button = false
-	print("ReachBallButton flag reset for new turn")
-	
-	# Set waiting_for_player_to_reach_ball back to true for new turn if there's a ball to reach
-	if course.ball_landing_tile != Vector2i.ZERO:
-		course.waiting_for_player_to_reach_ball = true
-		print("waiting_for_player_to_reach_ball set to true for new turn")
-	
-	# Check if this ball is in gimme range
-	course.check_and_show_gimme_button()
-	
-	# Show the DrawCardsButton instead of automatically drawing cards
-	draw_cards_button.visible = true
-	
-	# Set game phase to indicate we're waiting for player to draw cards
-	course.game_phase = "waiting_for_draw"
-	
-	print("DrawCardsButton shown for turn start. Game phase:", course.game_phase)
-
-# ===== REWARD SYSTEM =====
 
 func show_reward_phase() -> void:
 	"""Show the suitcase for reward selection"""
@@ -573,130 +400,110 @@ func show_reward_phase() -> void:
 	# Connect the suitcase opened signal
 	suitcase.suitcase_opened.connect(_on_suitcase_opened)
 
+# ===== EVENT HANDLERS =====
+
+func _on_gimme_button_pressed() -> void:
+	"""Handle gimme button press"""
+	print("=== GIMME BUTTON PRESSED ===")
+	
+	# Hide the gimme button
+	hide_gimme_button()
+	
+	# Complete the hole via gimme
+	if course.has_method("complete_gimme_hole"):
+		course.complete_gimme_hole()
+
+func _on_shop_enter_yes() -> void:
+	"""Handle shop enter yes button"""
+	print("=== ENTERING SHOP ===")
+	
+	# Set shop entrance detected flag
+	if course.game_state_manager:
+		course.game_state_manager.set_shop_entrance_detected(true)
+	
+	# Show shop overlay
+	show_shop_overlay()
+
+func _on_shop_enter_no() -> void:
+	"""Handle shop enter no button"""
+	print("=== DECLINING SHOP ENTRANCE ===")
+	
+	# Clear shop entrance detected flag
+	if course.game_state_manager:
+		course.game_state_manager.set_shop_entrance_detected(false)
+	
+	# Restore game state
+	if course.has_method("restore_game_state"):
+		course.restore_game_state()
+
+func _on_shop_overlay_return() -> void:
+	"""Handle returning from shop overlay"""
+	print("=== RETURNING FROM SHOP ===")
+	
+	# Clear shop entrance detected flag
+	if course.game_state_manager:
+		course.game_state_manager.set_shop_entrance_detected(false)
+	
+	# Restore game state
+	if course.has_method("restore_game_state"):
+		course.restore_game_state()
+
 func _on_suitcase_opened() -> void:
 	"""Handle suitcase opened"""
-	# Create and show the reward selection dialog
-	var reward_dialog_scene = preload("res://RewardSelectionDialog.tscn")
-	var reward_dialog = reward_dialog_scene.instantiate()
-	reward_dialog.name = "RewardSelectionDialog"  # Give it a specific name for cleanup
-	ui_layer.add_child(reward_dialog)
+	print("=== SUITCASE OPENED ===")
 	
-	# Connect the reward selected signal
-	reward_dialog.reward_selected.connect(_on_reward_selected)
-	reward_dialog.advance_to_next_hole.connect(_on_advance_to_next_hole)
-	
-	# Show the reward selection
-	reward_dialog.show_reward_selection()
-
-func _on_reward_selected(reward_data: Resource, reward_type: String) -> void:
-	"""Handle when a reward is selected"""
-	
-	if reward_data == null:
-		print("ERROR: reward_data is null in _on_reward_selected! reward_type:", reward_type)
-		return
-	
-	if reward_type == "equipment":
-		var equip_data = reward_data as EquipmentData
-		# TODO: Apply equipment effect
-	
-	# Update HUD to reflect any changes (including $Looty balance)
-	course.update_deck_display()
-	
-	# Special handling for hole 9 - show front nine completion dialog
-	if course.current_hole == 8 and not course.is_back_9_mode:  # Hole 9 (index 8) in front 9 mode
-		show_front_nine_complete_dialog()
-	else:
-		# Show puzzle type selection dialog
-		show_puzzle_type_selection()
-
-func _on_advance_to_next_hole() -> void:
-	"""Handle when the advance button is pressed"""
-	
-	# Update HUD to reflect any changes (including $Looty balance)
-	course.update_deck_display()
-	
-	# Special handling for hole 9 - show front nine completion dialog
-	if course.current_hole == 8 and not course.is_back_9_mode:  # Hole 9 (index 8) in front 9 mode
-		show_front_nine_complete_dialog()
-	else:
-		# Show puzzle type selection dialog
-		show_puzzle_type_selection()
-
-func _on_puzzle_type_selected(puzzle_type: String) -> void:
-	"""Handle when a puzzle type is selected"""
-	
-	print("🎯 PUZZLE SELECTION: Selected puzzle type:", puzzle_type)
-	
-	# Set the puzzle type for the next hole
-	course.next_puzzle_type = puzzle_type
-	
-	# Clean up the dialog
-	var existing_puzzle_dialog = ui_layer.get_node_or_null("PuzzleTypeSelectionDialog")
-	if existing_puzzle_dialog:
-		existing_puzzle_dialog.queue_free()
-	
-	# Fade to next hole with the selected puzzle type
-	FadeManager.fade_to_black(func(): course.reset_for_next_hole(), 0.5)
-
-func show_suitcase_overlay() -> void:
-	"""Show the SuitCase overlay for reward selection"""
-	print("=== SHOWING SUITCASE OVERLAY ===")
-	
-	# Clear any movement buttons that might still be visible during SuitCase interaction
-	if movement_controller:
-		movement_controller.clear_all_movement_ui()
-	if attack_handler:
-		attack_handler.clear_all_attack_ui()
-	if weapon_handler:
-		weapon_handler.clear_all_weapon_ui()
-	
-	# Create and show the SuitCase overlay
-	var suitcase_scene = preload("res://UI/SuitCase.tscn")
-	var suitcase = suitcase_scene.instantiate()
-	suitcase.name = "MapSuitCaseOverlay"  # Give it a specific name for cleanup
-	ui_layer.add_child(suitcase)
-	
-	# Connect the suitcase opened signal
-	suitcase.suitcase_opened.connect(_on_map_suitcase_opened)
-
-func _on_map_suitcase_opened() -> void:
-	"""Handle when the map SuitCase is opened"""
-	print("=== MAP SUITCASE OPENED - SHOWING REWARDS ===")
+	# Clear the suitcase from the UI
+	var existing_suitcase = ui_layer.get_node_or_null("SuitCase")
+	if existing_suitcase:
+		existing_suitcase.queue_free()
 	
 	# Show the reward selection dialog
 	show_suitcase_reward_selection()
 
-func show_suitcase_reward_selection() -> void:
-	"""Show reward selection dialog for SuitCase"""
-	# Create and show the reward selection dialog
-	var reward_dialog_scene = preload("res://RewardSelectionDialog.tscn")
-	var reward_dialog = reward_dialog_scene.instantiate()
-	reward_dialog.name = "SuitCaseRewardDialog"  # Give it a specific name for cleanup
-	ui_layer.add_child(reward_dialog)
+func _on_reward_selected(reward_data: Resource, reward_type: String) -> void:
+	"""Handle when a reward is selected"""
+	print("=== REWARD SELECTED ===")
+	print("Reward type:", reward_type)
 	
-	# Connect the reward selected signal
-	reward_dialog.reward_selected.connect(_on_suitcase_reward_selected)
+	# Apply the reward based on type
+	if reward_type == "card":
+		course.add_card_to_current_deck(reward_data)
+	elif reward_type == "equipment":
+		course.add_equipment_to_manager(reward_data)
+	elif reward_type == "bag_upgrade":
+		course.apply_bag_upgrade(reward_data)
+	elif reward_type == "looty":
+		course.add_looty_reward(reward_data)
 	
-	# Show the reward selection without the advance button
-	reward_dialog.show_reward_selection()
+	# Update HUD to reflect any changes (including $Looty balance)
+	course.update_deck_display()
 	
-	# Remove the advance button for SuitCase rewards
-	var advance_button = reward_dialog.get_node_or_null("RewardContainer/AdvanceButton")
-	if advance_button:
-		advance_button.queue_free()
+	# Clear the reward dialog
+	var existing_reward_dialog = ui_layer.get_node_or_null("RewardSelectionDialog")
+	if existing_reward_dialog:
+		existing_reward_dialog.queue_free()
+	
+	# Continue to next hole
+	course._on_advance_to_next_hole()
+
+func _on_suitcase_reached() -> void:
+	"""Handle when the player reaches a SuitCase"""
+	print("=== SUITCASE REACHED ===")
+	# This would handle suitcase reaching logic
+	# Implementation depends on the specific suitcase system
+
+func _on_map_suitcase_opened() -> void:
+	"""Handle when the map SuitCase is opened"""
+	print("=== MAP SUITCASE OPENED ===")
+	# This would handle map suitcase opening logic
+	# Implementation depends on the specific suitcase system
 
 func _on_suitcase_reward_selected(reward_data: Resource, reward_type: String) -> void:
 	"""Handle when a SuitCase reward is selected"""
 	print("=== SUITCASE REWARD SELECTED ===")
+	print("Reward type:", reward_type)
 	
-	# Play reward sound
-	var reward_sound = AudioStreamPlayer.new()
-	reward_sound.stream = preload("res://Sounds/Reward.mp3")
-	reward_sound.volume_db = -8.0  # Lower volume by -8 dB
-	course.add_child(reward_sound)
-	reward_sound.play()
-	
-	# Handle the reward directly without calling _on_reward_selected (which includes hole transition)
+	# Apply the reward based on type
 	if reward_type == "card":
 		course.add_card_to_current_deck(reward_data)
 	elif reward_type == "equipment":
@@ -720,6 +527,62 @@ func _on_suitcase_reward_selected(reward_data: Resource, reward_type: String) ->
 	
 	# Resume gameplay (don't transition to next hole)
 	print("SuitCase reward selection complete - resuming gameplay")
+
+func _on_puzzle_type_selected(puzzle_type: String) -> void:
+	"""Handle puzzle type selection"""
+	print("Puzzle type selected:", puzzle_type)
+	
+	# Update game state with selected puzzle type
+	if course.game_state_manager:
+		course.game_state_manager.set_next_puzzle_type(puzzle_type)
+	
+	# Clean up the dialog
+	var puzzle_dialog = ui_layer.get_node_or_null("PuzzleTypeSelectionDialog")
+	if puzzle_dialog:
+		puzzle_dialog.queue_free()
+	
+	# Reset for next hole (this will advance to the next hole and set up the new hole)
+	course.reset_for_next_hole()
+
+func show_suitcase_overlay() -> void:
+	"""Show the SuitCase overlay for reward selection"""
+	print("=== SHOWING SUITCASE OVERLAY ===")
+	
+	# Clear any movement buttons that might still be visible during SuitCase interaction
+	if movement_controller:
+		movement_controller.clear_all_movement_ui()
+	if attack_handler:
+		attack_handler.clear_all_attack_ui()
+	if weapon_handler:
+		weapon_handler.clear_all_weapon_ui()
+	
+	# Create and show the SuitCase overlay
+	var suitcase_scene = preload("res://UI/SuitCase.tscn")
+	var suitcase = suitcase_scene.instantiate()
+	suitcase.name = "MapSuitCaseOverlay"  # Give it a specific name for cleanup
+	ui_layer.add_child(suitcase)
+	
+	# Connect the suitcase opened signal
+	suitcase.suitcase_opened.connect(_on_map_suitcase_opened)
+
+func show_suitcase_reward_selection() -> void:
+	"""Show suitcase reward selection"""
+	# Create and show the reward selection dialog
+	var reward_dialog_scene = preload("res://RewardSelectionDialog.tscn")
+	var reward_dialog = reward_dialog_scene.instantiate()
+	reward_dialog.name = "SuitCaseRewardDialog"  # Give it a specific name for cleanup
+	ui_layer.add_child(reward_dialog)
+	
+	# Connect the reward selected signal to the hole completion reward handler
+	reward_dialog.reward_selected.connect(_on_reward_selected)
+	
+	# Show the reward selection without the advance button
+	reward_dialog.show_reward_selection()
+	
+	# Remove the advance button for SuitCase rewards
+	var advance_button = reward_dialog.get_node_or_null("RewardContainer/AdvanceButton")
+	if advance_button:
+		advance_button.queue_free()
 
 # ===== COMPLETION DIALOGS =====
 
@@ -750,7 +613,7 @@ func show_back_nine_complete_dialog() -> void:
 	dialog.popup_centered()
 	dialog.confirmed.connect(func():
 		dialog.queue_free()
-		course.show_course_complete_dialog()
+		show_course_complete_dialog()
 	)
 
 func show_course_complete_dialog() -> void:
@@ -876,7 +739,105 @@ func show_puzzle_type_selection() -> void:
 	# Show the puzzle type selection
 	puzzle_dialog.show_puzzle_selection()
 
+# ===== INSTRUCTION AND GUIDANCE UI =====
 
+func show_tee_selection_instruction() -> void:
+	"""Show tee selection instruction"""
+	var instruction_label := Label.new()
+	instruction_label.name = "TeeInstructionLabel"
+	instruction_label.text = "Click on a Tee Box to start your round!"
+	instruction_label.add_theme_font_size_override("font_size", 24)
+	instruction_label.add_theme_color_override("font_color", Color.YELLOW)
+	instruction_label.add_theme_constant_override("outline_size", 2)
+	instruction_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	instruction_label.position = Vector2(400, 200)
+	instruction_label.z_index = 200
+	ui_layer.add_child(instruction_label)
+
+func show_aiming_instruction() -> void:
+	"""Show aiming instruction"""
+	var existing_instruction = ui_layer.get_node_or_null("AimingInstructionLabel")
+	if existing_instruction:
+		existing_instruction.queue_free()
+	
+	var instruction_label := Label.new()
+	instruction_label.name = "AimingInstructionLabel"
+	
+	# Get club data from course
+	var club_data = course.club_data if course.has_method("get_club_data") else {}
+	var selected_club = course.game_state_manager.get_selected_club() if course.game_state_manager else ""
+	
+	if club_data.get(selected_club, {}).get("is_putter", false):
+		instruction_label.text = "Move mouse to set landing spot\nLeft click to confirm, Right click to cancel\n(Putter: Power only, no height)"
+	else:
+		instruction_label.text = "Move mouse to set landing spot\nLeft click to confirm, Right click to cancel"
+	
+	instruction_label.add_theme_font_size_override("font_size", 18)
+	instruction_label.add_theme_color_override("font_color", Color.YELLOW)
+	instruction_label.add_theme_constant_override("outline_size", 2)
+	instruction_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	
+	instruction_label.position = Vector2(400, 50)
+	instruction_label.z_index = 200
+	
+	ui_layer.add_child(instruction_label)
+
+func hide_aiming_instruction() -> void:
+	"""Hide aiming instruction"""
+	var instruction_label = ui_layer.get_node_or_null("AimingInstructionLabel")
+	if instruction_label:
+		instruction_label.queue_free()
+
+# ===== GIMME UI =====
+
+func show_gimme_animation() -> void:
+	"""Show the gimme animation"""
+	print("=== SHOWING GIMME ANIMATION ===")
+	
+	# Make gimme scene visible and animate it to the target position
+	if gimme_scene:
+		gimme_scene.visible = true
+		print("Gimme scene made visible")
+		
+		# Create tween to animate gimme scene to target position
+		var tween = course.create_tween()
+		tween.set_parallel(true)
+		
+		# Animate position from current position (bottom of screen) to target position
+		var current_pos = gimme_scene.position
+		var target_pos = Vector2(451, 1018.0)  # Target position as specified (screen coordinates)
+		print("Animating gimme from", current_pos, "to", target_pos)
+		
+		tween.tween_property(gimme_scene, "position", target_pos, 0.8)
+		tween.tween_callback(func():
+			print("=== GIMME ANIMATION COMPLETE - PLAYING SOUNDS ===")
+			# Play gimme sounds through SoundManager
+			course.sound_manager.play_gimme_sounds()
+		).set_delay(0.5)
+
+func show_gimme_button() -> void:
+	"""Show the gimme button"""
+	if gimme_scene:
+		gimme_scene.visible = true
+		print("Gimme button shown")
+
+func hide_gimme_button() -> void:
+	"""Hide the gimme button"""
+	if gimme_scene:
+		gimme_scene.visible = false
+		print("Gimme button hidden")
+
+# ===== BUTTON MANAGEMENT =====
+
+func show_draw_cards_button_for_turn_start() -> void:
+	"""Show draw cards button for turn start"""
+	if draw_cards_button:
+		draw_cards_button.visible = true
+
+func show_draw_club_cards_button() -> void:
+	"""Show draw club cards button"""
+	if draw_club_cards_button:
+		draw_club_cards_button.visible = true
 
 func cleanup() -> void:
 	"""Clean up UI manager resources"""

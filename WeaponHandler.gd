@@ -159,11 +159,14 @@ func enter_weapon_aiming_mode() -> void:
 	if selected_card and selected_card.name == "Throwing Knife" and card_effect_handler and card_effect_handler.course:
 		var course = card_effect_handler.course
 		# Set up camera to follow mouse during knife aiming
-		course.is_aiming_phase = true
+		if course.game_state_manager:
+			course.game_state_manager.set_is_aiming_phase(true)
 		
 		# Set a temporary club for knife aiming (use ThrowingKnife for character-specific range)
-		var original_club = course.selected_club
-		course.selected_club = "ThrowingKnife"
+		var original_club = ""
+		if course.game_state_manager:
+			original_club = course.game_state_manager.get_selected_club()
+			course.game_state_manager.set_selected_club("ThrowingKnife")
 		
 		# Show aiming circle with knife reticle image
 		show_knife_aiming_circle()
@@ -185,11 +188,14 @@ func enter_weapon_aiming_mode() -> void:
 	elif selected_card and selected_card.name == "GrenadeCard" and card_effect_handler and card_effect_handler.course:
 		var course = card_effect_handler.course
 		# Set up camera to follow mouse during grenade aiming
-		course.is_aiming_phase = true
+		if course.game_state_manager:
+			course.game_state_manager.set_is_aiming_phase(true)
 		
 		# Set a temporary club for grenade aiming (use GrenadeCard for character-specific range)
-		var original_club = course.selected_club
-		course.selected_club = "GrenadeCard"
+		var original_club = ""
+		if course.game_state_manager:
+			original_club = course.game_state_manager.get_selected_club()
+			course.game_state_manager.set_selected_club("GrenadeCard")
 		
 		# Show aiming circle with grenade reticle image
 		show_grenade_aiming_circle()
@@ -210,11 +216,14 @@ func enter_weapon_aiming_mode() -> void:
 	elif selected_card and selected_card.name == "GrenadeLauncherWeaponCard" and card_effect_handler and card_effect_handler.course:
 		var course = card_effect_handler.course
 		# Set up camera to follow mouse during grenade launcher aiming
-		course.is_aiming_phase = true
+		if course.game_state_manager:
+			course.game_state_manager.set_is_aiming_phase(true)
 		
 		# Set a temporary club for grenade launcher aiming (use GrenadeLauncherClubCard for character-specific range)
-		var original_club = course.selected_club
-		course.selected_club = "GrenadeLauncherClubCard"
+		var original_club = ""
+		if course.game_state_manager:
+			original_club = course.game_state_manager.get_selected_club()
+			course.game_state_manager.set_selected_club("GrenadeLauncherClubCard")
 		
 		# Show aiming circle with grenade reticle image
 		show_grenade_aiming_circle()
@@ -236,11 +245,14 @@ func enter_weapon_aiming_mode() -> void:
 	elif selected_card and selected_card.name == "ShotgunCard" and card_effect_handler and card_effect_handler.course:
 		var course = card_effect_handler.course
 		# Set up camera to follow mouse during shotgun aiming
-		course.is_aiming_phase = true
+		if course.game_state_manager:
+			course.game_state_manager.set_is_aiming_phase(true)
 		
 		# Set a temporary club for shotgun aiming (use ShotgunCard for character-specific range)
-		var original_club = course.selected_club
-		course.selected_club = "ShotgunCard"
+		var original_club = ""
+		if course.game_state_manager:
+			original_club = course.game_state_manager.get_selected_club()
+			course.game_state_manager.set_selected_club("ShotgunCard")
 		
 		# Show aiming circle with shotgun reticle image
 		show_shotgun_aiming_circle()
@@ -262,11 +274,14 @@ func enter_weapon_aiming_mode() -> void:
 	elif selected_card and selected_card.name == "SniperCard" and card_effect_handler and card_effect_handler.course:
 		var course = card_effect_handler.course
 		# Set up camera to follow mouse during sniper aiming
-		course.is_aiming_phase = true
+		if course.game_state_manager:
+			course.game_state_manager.set_is_aiming_phase(true)
 		
 		# Set a temporary club for sniper aiming (use SniperCard for character-specific range)
-		var original_club = course.selected_club
-		course.selected_club = "SniperCard"
+		var original_club = ""
+		if course.game_state_manager:
+			original_club = course.game_state_manager.get_selected_club()
+			course.game_state_manager.set_selected_club("SniperCard")
 		
 		# Show aiming circle with sniper reticle image
 		show_sniper_aiming_circle()
@@ -288,11 +303,14 @@ func enter_weapon_aiming_mode() -> void:
 	elif selected_card and selected_card.name == "ShurikenCard" and card_effect_handler and card_effect_handler.course:
 		var course = card_effect_handler.course
 		# Set up camera to stay focused on player during shuriken aiming
-		course.is_aiming_phase = true
+		if course.game_state_manager:
+			course.game_state_manager.set_is_aiming_phase(true)
 		
 		# Set a temporary club for shuriken aiming (use ShurikenCard for character-specific range)
-		var original_club = course.selected_club
-		course.selected_club = "ShurikenCard"
+		var original_club = ""
+		if course.game_state_manager:
+			original_club = course.game_state_manager.get_selected_club()
+			course.game_state_manager.set_selected_club("ShurikenCard")
 		
 		# Show aiming circle with shuriken reticle image
 		show_shuriken_aiming_circle()
@@ -328,8 +346,8 @@ func show_knife_aiming_circle() -> void:
 	course.show_aiming_circle()
 	
 	# Replace the target circle texture with knife reticle texture
-	if course.aiming_circle:
-		var circle = course.aiming_circle.get_node_or_null("CircleVisual")
+	if course.game_state_manager and course.game_state_manager.get_aiming_circle():
+		var circle = course.game_state_manager.get_aiming_circle().get_node_or_null("CircleVisual")
 		if circle:
 			var knife_reticle_texture = preload("res://UI/knifeReticle.png")
 			circle.texture = knife_reticle_texture
@@ -369,8 +387,8 @@ func show_shotgun_aiming_circle() -> void:
 	course.show_aiming_circle()
 	
 	# Replace the target circle texture with shotgun reticle texture
-	if course.aiming_circle:
-		var circle = course.aiming_circle.get_node_or_null("CircleVisual")
+	if course.game_state_manager and course.game_state_manager.get_aiming_circle():
+		var circle = course.game_state_manager.get_aiming_circle().get_node_or_null("CircleVisual")
 		if circle:
 			var shotgun_reticle_texture = preload("res://UI/Reticle.png")  # Use regular reticle for now
 			circle.texture = shotgun_reticle_texture
@@ -410,8 +428,8 @@ func show_sniper_aiming_circle() -> void:
 	course.show_aiming_circle()
 	
 	# Replace the target circle texture with sniper reticle texture
-	if course.aiming_circle:
-		var circle = course.aiming_circle.get_node_or_null("CircleVisual")
+	if course.game_state_manager and course.game_state_manager.get_aiming_circle():
+		var circle = course.game_state_manager.get_aiming_circle().get_node_or_null("CircleVisual")
 		if circle:
 			var sniper_reticle_texture = preload("res://UI/Reticle.png")  # Use regular reticle for now
 			circle.texture = sniper_reticle_texture
@@ -451,8 +469,8 @@ func show_shuriken_aiming_circle() -> void:
 	course.show_aiming_circle()
 	
 	# Replace the target circle texture with shuriken reticle texture
-	if course.aiming_circle:
-		var circle = course.aiming_circle.get_node_or_null("CircleVisual")
+	if course.game_state_manager and course.game_state_manager.get_aiming_circle():
+		var circle = course.game_state_manager.get_aiming_circle().get_node_or_null("CircleVisual")
 		if circle:
 			var shuriken_reticle_texture = preload("res://UI/Reticle.png")  # Use regular reticle for now
 			circle.texture = shuriken_reticle_texture
@@ -492,8 +510,8 @@ func show_grenade_aiming_circle() -> void:
 	course.show_aiming_circle()
 	
 	# Replace the target circle texture with grenade reticle texture
-	if course.aiming_circle:
-		var circle = course.aiming_circle.get_node_or_null("CircleVisual")
+	if course.game_state_manager and course.game_state_manager.get_aiming_circle():
+		var circle = course.game_state_manager.get_aiming_circle().get_node_or_null("CircleVisual")
 		if circle:
 			var grenade_reticle_texture = preload("res://UI/Reticle.png")  # Use regular reticle for now
 			circle.texture = grenade_reticle_texture
@@ -607,7 +625,7 @@ func freeze_grenade_launcher() -> void:
 		is_grenade_launcher = true
 	elif card_effect_handler and card_effect_handler.course:
 		var course = card_effect_handler.course
-		if course.selected_club == "GrenadeLauncherClubCard":
+		if course.game_state_manager and course.game_state_manager.get_selected_club() == "GrenadeLauncherClubCard":
 			is_grenade_launcher = true
 	
 	if not is_grenade_launcher:
@@ -634,7 +652,7 @@ func update_weapon_rotation() -> void:
 		is_grenade_launcher = true
 	elif card_effect_handler and card_effect_handler.course:
 		var course = card_effect_handler.course
-		if course.selected_club == "GrenadeLauncherClubCard":
+		if course.game_state_manager and course.game_state_manager.get_selected_club() == "GrenadeLauncherClubCard":
 			is_grenade_launcher = true
 	
 	if is_grenade_launcher and grenade_launcher_frozen:
@@ -1189,10 +1207,10 @@ func launch_throwing_knife() -> void:
 	
 	# Get the landing spot from the aiming circle if available, otherwise use mouse position
 	var landing_spot = camera.get_global_mouse_position()  # Default to mouse position
-	if card_effect_handler and card_effect_handler.course:
-		var course = card_effect_handler.course
-		if course.chosen_landing_spot != Vector2.ZERO:
-			landing_spot = course.chosen_landing_spot
+	if card_effect_handler and card_effect_handler.course and card_effect_handler.course.game_state_manager:
+		var game_state_manager = card_effect_handler.course.game_state_manager
+		if game_state_manager.get_chosen_landing_spot() != Vector2.ZERO:
+			landing_spot = game_state_manager.get_chosen_landing_spot()
 	
 	# Set up LaunchManager for knife mode
 	launch_manager.chosen_landing_spot = landing_spot
@@ -1226,10 +1244,10 @@ func launch_grenade() -> void:
 	
 	# Get the landing spot from the aiming circle if available, otherwise use mouse position
 	var landing_spot = camera.get_global_mouse_position()  # Default to mouse position
-	if card_effect_handler and card_effect_handler.course:
-		var course = card_effect_handler.course
-		if course.chosen_landing_spot != Vector2.ZERO:
-			landing_spot = course.chosen_landing_spot
+	if card_effect_handler and card_effect_handler.course and card_effect_handler.course.game_state_manager:
+		var game_state_manager = card_effect_handler.course.game_state_manager
+		if game_state_manager.get_chosen_landing_spot() != Vector2.ZERO:
+			landing_spot = game_state_manager.get_chosen_landing_spot()
 	
 	# Set up LaunchManager for grenade mode
 	launch_manager.chosen_landing_spot = landing_spot
@@ -1248,10 +1266,10 @@ func launch_grenade_launcher() -> void:
 	
 	# Get the landing spot from the aiming circle if available, otherwise use mouse position
 	var landing_spot = camera.get_global_mouse_position()  # Default to mouse position
-	if card_effect_handler and card_effect_handler.course:
-		var course = card_effect_handler.course
-		if course.chosen_landing_spot != Vector2.ZERO:
-			landing_spot = course.chosen_landing_spot
+	if card_effect_handler and card_effect_handler.course and card_effect_handler.course.game_state_manager:
+		var game_state_manager = card_effect_handler.course.game_state_manager
+		if game_state_manager.get_chosen_landing_spot() != Vector2.ZERO:
+			landing_spot = game_state_manager.get_chosen_landing_spot()
 	
 	# Set up LaunchManager for grenade launcher mode
 	launch_manager.chosen_landing_spot = landing_spot
@@ -1273,7 +1291,8 @@ func launch_grenade_launcher() -> void:
 	# Clean up aiming mode if it was active
 	if card_effect_handler and card_effect_handler.course:
 		var course = card_effect_handler.course
-		course.is_aiming_phase = false
+		if course.game_state_manager:
+			course.game_state_manager.set_is_aiming_phase(false)
 		course.hide_aiming_circle()
 		course.hide_aiming_instruction()
 		
@@ -1283,7 +1302,8 @@ func launch_grenade_launcher() -> void:
 		
 		# Restore original club if it was stored
 		if has_meta("original_club"):
-			course.selected_club = get_meta("original_club")
+			if course.game_state_manager:
+				course.game_state_manager.set_selected_club(get_meta("original_club"))
 			remove_meta("original_club")
 	
 	emit_signal("weapon_mode_exited")
@@ -1295,10 +1315,10 @@ func launch_spear() -> void:
 	
 	# Get the landing spot from the aiming circle if available, otherwise use mouse position
 	var landing_spot = camera.get_global_mouse_position()  # Default to mouse position
-	if card_effect_handler and card_effect_handler.course:
-		var course = card_effect_handler.course
-		if course.chosen_landing_spot != Vector2.ZERO:
-			landing_spot = course.chosen_landing_spot
+	if card_effect_handler and card_effect_handler.course and card_effect_handler.course.game_state_manager:
+		var game_state_manager = card_effect_handler.course.game_state_manager
+		if game_state_manager.get_chosen_landing_spot() != Vector2.ZERO:
+			landing_spot = game_state_manager.get_chosen_landing_spot()
 	
 	# Set up LaunchManager for spear mode
 	launch_manager.chosen_landing_spot = landing_spot
@@ -1350,10 +1370,10 @@ func launch_shuriken() -> void:
 	
 	# Get the landing spot from the aiming circle if available, otherwise use mouse position
 	var landing_spot = camera.get_global_mouse_position()  # Default to mouse position
-	if card_effect_handler and card_effect_handler.course:
-		var course = card_effect_handler.course
-		if course.chosen_landing_spot != Vector2.ZERO:
-			landing_spot = course.chosen_landing_spot
+	if card_effect_handler and card_effect_handler.course and card_effect_handler.course.game_state_manager:
+		var game_state_manager = card_effect_handler.course.game_state_manager
+		if game_state_manager.get_chosen_landing_spot() != Vector2.ZERO:
+			landing_spot = game_state_manager.get_chosen_landing_spot()
 	
 	# Set up LaunchManager for shuriken mode
 	launch_manager.chosen_landing_spot = landing_spot
@@ -1585,67 +1605,78 @@ func exit_weapon_mode() -> void:
 	# Clean up knife aiming mode if it was active
 	if selected_card and selected_card.name == "Throwing Knife" and card_effect_handler and card_effect_handler.course:
 		var course = card_effect_handler.course
-		course.is_aiming_phase = false
+		if course.game_state_manager:
+			course.game_state_manager.set_is_aiming_phase(false)
 		course.hide_aiming_circle()
 		course.hide_aiming_instruction()
 		
 		# Restore original club if it was stored
 		if has_meta("original_club"):
-			course.selected_club = get_meta("original_club")
+			if course.game_state_manager:
+				course.game_state_manager.set_selected_club(get_meta("original_club"))
 			remove_meta("original_club")
 	
 	# Clean up grenade aiming mode if it was active
 	if selected_card and selected_card.name == "GrenadeCard" and card_effect_handler and card_effect_handler.course:
 		var course = card_effect_handler.course
-		course.is_aiming_phase = false
+		if course.game_state_manager:
+			course.game_state_manager.set_is_aiming_phase(false)
 		course.hide_aiming_circle()
 		course.hide_aiming_instruction()
 		
 		# Restore original club if it was stored
 		if has_meta("original_club"):
-			course.selected_club = get_meta("original_club")
+			if course.game_state_manager:
+				course.game_state_manager.set_selected_club(get_meta("original_club"))
 			remove_meta("original_club")
 	
 	# Clean up grenade launcher weapon aiming mode if it was active
 	if selected_card and selected_card.name == "GrenadeLauncherWeaponCard" and card_effect_handler and card_effect_handler.course:
 		var course = card_effect_handler.course
-		course.is_aiming_phase = false
+		if course.game_state_manager:
+			course.game_state_manager.set_is_aiming_phase(false)
 		course.hide_aiming_circle()
 		course.hide_aiming_instruction()
 		
 		# Restore original club if it was stored
 		if has_meta("original_club"):
-			course.selected_club = get_meta("original_club")
+			if course.game_state_manager:
+				course.game_state_manager.set_selected_club(get_meta("original_club"))
 			remove_meta("original_club")
 	
 	# Clean up shotgun aiming mode if it was active
 	if selected_card and selected_card.name == "ShotgunCard" and card_effect_handler and card_effect_handler.course:
 		var course = card_effect_handler.course
-		course.is_aiming_phase = false
+		if course.game_state_manager:
+			course.game_state_manager.set_is_aiming_phase(false)
 		course.hide_aiming_circle()
 		course.hide_aiming_instruction()
 		
 		# Restore original club if it was stored
 		if has_meta("original_club"):
-			course.selected_club = get_meta("original_club")
+			if course.game_state_manager:
+				course.game_state_manager.set_selected_club(get_meta("original_club"))
 			remove_meta("original_club")
 	
 	# Clean up sniper aiming mode if it was active
 	if selected_card and selected_card.name == "SniperCard" and card_effect_handler and card_effect_handler.course:
 		var course = card_effect_handler.course
-		course.is_aiming_phase = false
+		if course.game_state_manager:
+			course.game_state_manager.set_is_aiming_phase(false)
 		course.hide_aiming_circle()
 		course.hide_aiming_instruction()
 		
 		# Restore original club if it was stored
 		if has_meta("original_club"):
-			course.selected_club = get_meta("original_club")
+			if course.game_state_manager:
+				course.game_state_manager.set_selected_club(get_meta("original_club"))
 			remove_meta("original_club")
 	
 	# Clean up shuriken aiming mode if it was active
 	if selected_card and selected_card.name == "ShurikenCard" and card_effect_handler and card_effect_handler.course:
 		var course = card_effect_handler.course
-		course.is_aiming_phase = false
+		if course.game_state_manager:
+			course.game_state_manager.set_is_aiming_phase(false)
 		course.hide_aiming_circle()
 		course.hide_aiming_instruction()
 		
@@ -1660,7 +1691,8 @@ func exit_weapon_mode() -> void:
 		
 		# Restore original club if it was stored
 		if has_meta("original_club"):
-			course.selected_club = get_meta("original_club")
+			if course.game_state_manager:
+				course.game_state_manager.set_selected_club(get_meta("original_club"))
 			remove_meta("original_club")
 	
 	# Input is handled by the course's _input function
@@ -1718,37 +1750,37 @@ func handle_input(event: InputEvent) -> bool:
 		# For knife mode, update aiming circle like normal shot placement
 		if selected_card and selected_card.name == "Throwing Knife" and card_effect_handler and card_effect_handler.course:
 			var course = card_effect_handler.course
-			if course.is_aiming_phase and course.aiming_circle:
+			if course.game_state_manager and course.game_state_manager.get_is_aiming_phase() and course.game_state_manager.get_aiming_circle():
 				course.update_aiming_circle()
 		
 		# For grenade mode, update aiming circle like normal shot placement
 		if selected_card and selected_card.name == "GrenadeCard" and card_effect_handler and card_effect_handler.course:
 			var course = card_effect_handler.course
-			if course.is_aiming_phase and course.aiming_circle:
+			if course.game_state_manager and course.game_state_manager.get_is_aiming_phase() and course.game_state_manager.get_aiming_circle():
 				course.update_aiming_circle()
 		
 		# For grenade launcher weapon mode, update aiming circle like normal shot placement
 		if selected_card and selected_card.name == "GrenadeLauncherWeaponCard" and card_effect_handler and card_effect_handler.course:
 			var course = card_effect_handler.course
-			if course.is_aiming_phase and course.aiming_circle:
+			if course.game_state_manager and course.game_state_manager.get_is_aiming_phase() and course.game_state_manager.get_aiming_circle():
 				course.update_aiming_circle()
 		
 		# For shotgun mode, update aiming circle like normal shot placement
 		if selected_card and selected_card.name == "ShotgunCard" and card_effect_handler and card_effect_handler.course:
 			var course = card_effect_handler.course
-			if course.is_aiming_phase and course.aiming_circle:
+			if course.game_state_manager and course.game_state_manager.get_is_aiming_phase() and course.game_state_manager.get_aiming_circle():
 				course.update_aiming_circle()
 		
 		# For sniper mode, update aiming circle like normal shot placement
 		if selected_card and selected_card.name == "SniperCard" and card_effect_handler and card_effect_handler.course:
 			var course = card_effect_handler.course
-			if course.is_aiming_phase and course.aiming_circle:
+			if course.game_state_manager and course.game_state_manager.get_is_aiming_phase() and course.game_state_manager.get_aiming_circle():
 				course.update_aiming_circle()
 		
 		# For shuriken mode, update aiming circle like normal shot placement
 		if selected_card and selected_card.name == "ShurikenCard" and card_effect_handler and card_effect_handler.course:
 			var course = card_effect_handler.course
-			if course.is_aiming_phase and course.aiming_circle:
+			if course.game_state_manager and course.game_state_manager.get_is_aiming_phase() and course.game_state_manager.get_aiming_circle():
 				course.update_aiming_circle()
 		return true
 	

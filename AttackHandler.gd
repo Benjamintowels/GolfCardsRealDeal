@@ -171,7 +171,9 @@ func _on_aoe_attack_card_pressed(card: CardData, button: TextureButton) -> void:
 
 func calculate_valid_attack_tiles() -> void:
 	valid_attack_tiles.clear()
-	print("Calculating valid attack tiles - Player at:", player_grid_pos, "Attack range:", attack_range)
+	print("=== CALCULATING VALID ATTACK TILES ===")
+	print("Player position:", player_grid_pos, "Attack range:", attack_range)
+	print("Selected card:", selected_card.name if selected_card else "None")
 
 	# Special case for Kick card - show all adjacent tiles regardless of content
 	if selected_card and selected_card.name == "Kick":
@@ -334,6 +336,7 @@ func calculate_valid_attack_tiles() -> void:
 					print("Found oil drum at attack tile:", pos)
 	
 	print("Total valid attack tiles found:", valid_attack_tiles.size())
+	print("=== END CALCULATING VALID ATTACK TILES ===")
 
 func calculate_valid_aoe_attack_tiles() -> void:
 	valid_attack_tiles.clear()
@@ -497,34 +500,10 @@ func show_attack_highlights() -> void:
 	hide_all_attack_highlights()
 	print("=== SHOWING ATTACK HIGHLIGHTS ===")
 	print("Valid attack tiles count:", valid_attack_tiles.size())
-	print("Grid tiles available:", grid_tiles != null)
-	if grid_tiles:
-		print("Grid size:", grid_tiles.size(), "x", grid_tiles[0].size() if grid_tiles.size() > 0 else "N/A")
+	print("Player position:", player_grid_pos)
 	
 	for pos in valid_attack_tiles:
-		print("Processing highlight for position:", pos)
-		# Check bounds
-		if pos.y >= grid_tiles.size() or pos.x >= grid_tiles[pos.y].size():
-			print("Position out of bounds:", pos, "Grid size:", grid_tiles.size(), "x", grid_tiles[pos.y].size() if pos.y < grid_tiles.size() else "N/A")
-			continue
-			
-		# Create orange attack highlight
-		var tile = grid_tiles[pos.y][pos.x]
-		if not tile:
-			print("No tile found at position:", pos)
-			continue
-			
-		var attack_highlight = tile.get_node_or_null("AttackHighlight")
-		if not attack_highlight:
-			attack_highlight = ColorRect.new()
-			attack_highlight.name = "AttackHighlight"
-			attack_highlight.size = tile.size
-			attack_highlight.color = Color(1, 0.5, 0, 0.6)  # Orange with more opacity
-			attack_highlight.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			attack_highlight.z_index = 200  # Much higher than movement highlights
-			tile.add_child(attack_highlight)
-			print("Created new attack highlight for tile at", pos)
-		attack_highlight.visible = true
+		grid_tiles[pos.y][pos.x].get_node("AttackHighlight").visible = true
 		print("Made attack highlight visible for tile at", pos)
 	
 	print("=== END SHOWING ATTACK HIGHLIGHTS ===")
@@ -537,12 +516,11 @@ func show_attack_highlights() -> void:
 		zoom_out_camera_for_meteor_range()
 
 func hide_all_attack_highlights() -> void:
+	print("=== HIDING ALL ATTACK HIGHLIGHTS ===")
 	for y in grid_size.y:
 		for x in grid_size.x:
-			var tile = grid_tiles[y][x]
-			var attack_highlight = tile.get_node_or_null("AttackHighlight")
-			if attack_highlight:
-				attack_highlight.visible = false
+			grid_tiles[y][x].get_node("AttackHighlight").visible = false
+	print("=== END HIDING ALL ATTACK HIGHLIGHTS ===")
 
 func animate_card_row_down() -> void:
 	"""Animate the CardRow downwards to get out of the way of range display"""
@@ -928,20 +906,42 @@ func is_position_valid_for_knockback(pos: Vector2i) -> bool:
 
 func handle_tile_mouse_entered(x: int, y: int, is_panning: bool) -> void:
 	if not is_panning and is_attack_mode:
-		var tile: Control = grid_tiles[y][x]
-		var clicked := Vector2i(x, y)
+		# Get tile from grid manager for proper access
+		var tile: Control = null
+		if card_effect_handler and card_effect_handler.course and card_effect_handler.course.has_method("get_grid_manager"):
+			var grid_manager = card_effect_handler.course.get_grid_manager()
+			if grid_manager and grid_manager.has_method("get_grid_tile"):
+				tile = grid_manager.get_grid_tile(x, y)
 		
-		if not Vector2i(x, y) in valid_attack_tiles:
-			var highlight = tile.get_node_or_null("Highlight")
-			if highlight:
-				highlight.visible = true
+		# Fallback to direct array access
+		if not tile and y < grid_tiles.size() and x < grid_tiles[y].size():
+			tile = grid_tiles[y][x]
+		
+		if tile:
+			var clicked := Vector2i(x, y)
+			
+			if not Vector2i(x, y) in valid_attack_tiles:
+				var highlight = tile.get_node_or_null("Highlight")
+				if highlight:
+					highlight.visible = true
 
 func handle_tile_mouse_exited(x: int, y: int, is_panning: bool) -> void:
 	if not is_panning:
-		var tile = grid_tiles[y][x]
-		var highlight = tile.get_node_or_null("Highlight")
-		if highlight:
-			highlight.visible = false
+		# Get tile from grid manager for proper access
+		var tile = null
+		if card_effect_handler and card_effect_handler.course and card_effect_handler.course.has_method("get_grid_manager"):
+			var grid_manager = card_effect_handler.course.get_grid_manager()
+			if grid_manager and grid_manager.has_method("get_grid_tile"):
+				tile = grid_manager.get_grid_tile(x, y)
+		
+		# Fallback to direct array access
+		if not tile and y < grid_tiles.size() and x < grid_tiles[y].size():
+			tile = grid_tiles[y][x]
+		
+		if tile:
+			var highlight = tile.get_node_or_null("Highlight")
+			if highlight:
+				highlight.visible = false
 
 func clear_all_attack_ui() -> void:
 	"""Clear all attack-related UI elements"""
@@ -998,12 +998,22 @@ func _debug_list_all_npcs() -> void:
 
 func update_player_position(new_grid_pos: Vector2i) -> void:
 	"""Update the stored player grid position"""
+	print("=== ATTACK HANDLER: UPDATING PLAYER POSITION ===")
+	print("Old position:", player_grid_pos, "New position:", new_grid_pos)
+	print("Attack mode:", is_attack_mode)
+	
 	player_grid_pos = new_grid_pos
 	
 	# If we're in attack mode, recalculate valid attack tiles with the new position
 	if is_attack_mode:
+		print("Recalculating attack tiles due to player movement")
 		calculate_valid_attack_tiles()
 		show_attack_highlights()
+		print("Attack tiles updated - new count:", valid_attack_tiles.size())
+	else:
+		print("Not in attack mode, skipping attack tile recalculation")
+	
+	print("=== END ATTACK HANDLER: UPDATING PLAYER POSITION ===")
 
 func is_in_attack_mode() -> bool:
 	return is_attack_mode

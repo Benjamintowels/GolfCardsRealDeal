@@ -1489,6 +1489,15 @@ func move_to_grid(pos: Vector2i):
 		else:
 			# Normal movement
 			set_grid_position(pos)
+			
+			# CRITICAL: Update attack handler position immediately after movement
+			var course = get_tree().current_scene
+			if course and course.has_method("get_attack_handler"):
+				var attack_handler = course.get_attack_handler()
+				if attack_handler and attack_handler.has_method("update_player_position"):
+					attack_handler.update_player_position(pos)
+					print("Attack handler player position updated immediately to:", pos)
+			
 			emit_signal("moved_to_tile", pos)
 			print("Signal emitted, ending movement mode")
 			end_movement_mode()
@@ -1516,6 +1525,14 @@ func _handle_etherdash_movement(target_pos: Vector2i):
 	# Move to the target position
 	set_grid_position(target_pos)
 	
+	# CRITICAL: Update attack handler position immediately after EtherDash movement
+	var course = get_tree().current_scene
+	if course and course.has_method("get_attack_handler"):
+		var attack_handler = course.get_attack_handler()
+		if attack_handler and attack_handler.has_method("update_player_position"):
+			attack_handler.update_player_position(target_pos)
+			print("Attack handler player position updated immediately for EtherDash to:", target_pos)
+	
 	# Create EtherDashCircle effect at destination
 	_create_etherdash_effect(target_pos)
 	
@@ -1533,9 +1550,9 @@ func _handle_etherdash_movement(target_pos: Vector2i):
 	if etherdash_moves_remaining <= 0:
 		print("EtherDash complete - ending movement mode")
 		# Signal to the course that EtherDash is complete so it can handle card discarding
-		var course = get_tree().current_scene
-		if course and course.has_method("on_etherdash_complete"):
-			course.on_etherdash_complete()
+		var current_course = get_tree().current_scene
+		if current_course and current_course.has_method("on_etherdash_complete"):
+			current_course.on_etherdash_complete()
 		else:
 			# Fallback: just end movement mode
 			end_movement_mode()
@@ -2303,6 +2320,14 @@ func animate_to_position(target_grid_pos: Vector2i, callback: Callable = Callabl
 	
 	# Update grid position immediately for collision detection
 	grid_pos = target_grid_pos
+	
+	# CRITICAL: Update attack handler position immediately for special attacks
+	var course = get_tree().current_scene
+	if course and course.has_method("get_attack_handler"):
+		var attack_handler = course.get_attack_handler()
+		if attack_handler and attack_handler.has_method("update_player_position"):
+			attack_handler.update_player_position(target_grid_pos)
+			print("Attack handler player position updated immediately for special attack to:", target_grid_pos)
 	
 	# Call callback when animation completes
 	if callback.is_valid():

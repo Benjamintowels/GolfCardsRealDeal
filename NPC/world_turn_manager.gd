@@ -303,7 +303,7 @@ func _is_npc_in_player_vision(npc: Node) -> bool:
 		print("    VISION: NPC missing get_grid_position method")
 		return false
 	
-	var player_pos = course_reference.player_grid_pos
+	var player_pos = course_reference.player_manager.get_player_grid_pos()
 	var npc_pos = npc.get_grid_position()
 	var distance = player_pos.distance_to(npc_pos)
 	
@@ -691,7 +691,7 @@ func _transition_camera_to_player() -> void:
 		await course_reference.transition_camera_to_player()
 	else:
 		# Fallback: simple camera movement to player
-		var player_pos = course_reference.player_node.global_position if course_reference.player_node else Vector2.ZERO
+		var player_pos = course_reference.player_manager.get_player_node().global_position if course_reference.player_manager and course_reference.player_manager.get_player_node() else Vector2.ZERO
 		if camera_reference.has_method("transition_to_position"):
 			await camera_reference.transition_to_position(player_pos)
 		else:

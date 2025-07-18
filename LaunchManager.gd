@@ -409,7 +409,7 @@ func enter_grenade_mode() -> void:
 	var is_grenade_launcher_weapon = false
 	if card_effect_handler and card_effect_handler.course:
 		var course = card_effect_handler.course
-		if course.selected_club == "GrenadeLauncherClubCard":
+		if course.game_state_manager and course.game_state_manager.get_selected_club() == "GrenadeLauncherClubCard":
 			is_grenade_launcher_weapon = true
 	
 	if is_grenade_launcher_weapon:
@@ -901,7 +901,9 @@ func launch_shuriken(launch_direction: Vector2, final_power: float, height: floa
 
 	# Keep camera focused on player (don't follow shuriken)
 	if card_effect_handler and card_effect_handler.course:
-		card_effect_handler.course.camera_following_ball = false
+		var course = card_effect_handler.course
+		if course.game_state_manager:
+			course.game_state_manager.set_camera_following_ball(false)
 
 	# Store reference and emit signal
 	self.throwing_knife = throwing_knife
