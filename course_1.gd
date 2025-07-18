@@ -3448,12 +3448,65 @@ func show_hole_completion_dialog():
 		score_text += "\nClick to continue to the next hole."
 	else:
 		score_text += "\nClick to see your final round score!"
-	var dialog = AcceptDialog.new()
-	dialog.title = "Hole Complete!"
-	dialog.dialog_text = score_text
-	dialog.add_theme_font_size_override("font_size", 18)
-	dialog.add_theme_color_override("font_color", Color.GREEN)
-	dialog.position = Vector2(400, 300)
+	# Create custom dialog with Scorecard background
+	var dialog = Control.new()
+	dialog.name = "HoleCompletionDialog"
+	dialog.set_anchors_and_offsets_preset(Control.PRESET_CENTER)  # Center the dialog
+	dialog.custom_minimum_size = Vector2(600, 400)
+	dialog.z_index = 1000
+	
+
+	
+	# Use Scorecard scene as the main background
+	var scorecard_scene = preload("res://UI/Scorecard.tscn")
+	var scorecard_instance = scorecard_scene.instantiate()
+	scorecard_instance.position = Vector2(50, 50)  # Position within the dialog
+	scorecard_instance.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Don't block mouse events
+	dialog.add_child(scorecard_instance)
+	
+	# Add score text label
+	var score_label = Label.new()
+	score_label.text = score_text
+	score_label.add_theme_font_size_override("font_size", 16)
+	score_label.add_theme_color_override("font_color", Color.WHITE)
+	score_label.add_theme_constant_override("outline_size", 2)
+	score_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	score_label.position = Vector2(156.24, -142.215)  # Use exact positioning from Control panel
+	score_label.size = Vector2(350, 309)  # Use exact size from Control panel
+	score_label.scale = Vector2(1.375, 1.375)  # Use exact scale from Control panel
+	score_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	score_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	score_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	dialog.add_child(score_label)
+	
+	# Add click instruction
+	var instruction_label = Label.new()
+	instruction_label.text = "Click anywhere to continue"
+	instruction_label.add_theme_font_size_override("font_size", 14)
+	instruction_label.add_theme_color_override("font_color", Color.LIGHT_GRAY)
+	instruction_label.add_theme_constant_override("outline_size", 1)
+	instruction_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	instruction_label.position = Vector2(200, 350)
+	instruction_label.size = Vector2(350, 30)
+	instruction_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	dialog.add_child(instruction_label)
+	
+	# Connect input event to handle clicks
+	dialog.gui_input.connect(func(event):
+		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+			print("Dialog confirmed - cleaning up")
+			dialog.queue_free()
+			print("Hole completion dialog dismissed")
+			if current_hole < round_end_hole:
+				show_reward_phase()
+			else:
+				if is_back_9_mode:
+					show_back_nine_complete_dialog()
+				else:
+					# For hole 9, show reward phase first, then front nine completion
+					show_reward_phase()
+	)
+	
 	print("UILayer exists:", $UILayer != null)
 	if $UILayer:
 		print("Adding dialog to UILayer")
@@ -3463,21 +3516,6 @@ func show_hole_completion_dialog():
 		print("ERROR: UILayer not found!")
 		return
 	print("Creating hole completion dialog...")
-	dialog.popup_centered()
-	print("Dialog popped up")
-	dialog.confirmed.connect(func():
-		print("Dialog confirmed - cleaning up")
-		dialog.queue_free()
-		print("Hole completion dialog dismissed")
-		if current_hole < round_end_hole:
-			show_reward_phase()
-		else:
-			if is_back_9_mode:
-				show_back_nine_complete_dialog()
-			else:
-				# For hole 9, show reward phase first, then front nine completion
-				show_reward_phase()
-	)
 
 func show_reward_phase():
 	"""Show the suitcase for reward selection"""

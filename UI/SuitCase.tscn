@@ -23,8 +23,8 @@ mouse_filter = 1
 script = ExtResource("1_script")
 
 [node name="Closed" type="Sprite2D" parent="."]
-position = Vector2(-10, 18)
-scale = Vector2(0.885, 0.885)
+position = Vector2(981.333, 330.667)
+scale = Vector2(1.82, 1.82)
 texture = ExtResource("2_q5inc")
 
 [node name="Area2D" type="Area2D" parent="Closed"]
@@ -37,6 +37,7 @@ scale = Vector2(29.34, 12.265)
 shape = SubResource("RectangleShape2D_q5inc")
 
 [node name="Open" type="Sprite2D" parent="."]
-visible = false
-position = Vector2(6, -68)
+texture_filter = 1
+position = Vector2(1008, 168)
+scale = Vector2(2.03, 2.03)
 texture = ExtResource("3_d1a3f")

@@ -1,0 +1,15 @@
+[gd_scene load_steps=3 format=3 uid="uid://yi1jxnjnp7a0"]
+
+[ext_resource type="Script" uid="uid://cuuv26ungbcg2" path="res://UI/scorecard.gd" id="1_xo602"]
+[ext_resource type="Texture2D" uid="uid://dfd1mv46rj01r" path="res://UI/TimberRidgeScoreCard.png" id="2_xo602"]
+
+[node name="Scorecard" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("1_xo602")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(276.71, -49)
+scale = Vector2(1.535, 1.256)
+texture = ExtResource("2_xo602")

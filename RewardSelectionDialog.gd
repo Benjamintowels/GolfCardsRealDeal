@@ -617,11 +617,30 @@ func add_advance_button():
 	# Create new advance button
 	var advance_button = Button.new()
 	advance_button.name = "AdvanceButton"
-	advance_button.text = "Advance to Next Hole"
+	advance_button.text = ""  # Clear text since we'll use custom background
 	advance_button.position = Vector2(325, 389.2)  # Centered below the three reward buttons
 	advance_button.size = Vector2(200, 50)
 	advance_button.pressed.connect(_on_advance_pressed)
 	reward_container.add_child(advance_button)
+	
+	# Use the AdvanceContainer scene as background
+	var advance_container_scene = preload("res://UI/AdvanceContainer.tscn")
+	var advance_container_instance = advance_container_scene.instantiate()
+	advance_container_instance.position = Vector2.ZERO
+	advance_button.add_child(advance_container_instance)
+	
+	# Add text label for the button
+	var text_label = Label.new()
+	text_label.text = "Advance to Next Hole"
+	text_label.add_theme_font_size_override("font_size", 14)
+	text_label.add_theme_color_override("font_color", Color.WHITE)
+	text_label.add_theme_constant_override("outline_size", 1)
+	text_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	text_label.position = Vector2(10, 15)
+	text_label.size = Vector2(180, 20)
+	text_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	text_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	advance_button.add_child(text_label)
 
 func _on_advance_pressed():
 	"""Handle advance button press"""
@@ -823,21 +842,11 @@ func setup_reward_button(button: Button, reward_data: Resource, reward_type: Str
 	container.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	button.add_child(container)
 	
-	# Background panel
-	var background = ColorRect.new()
-	background.color = Color(0.2, 0.2, 0.2, 0.9)
-	background.size = button.size
-	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	container.add_child(background)
-	
-	# Border
-	var border = ColorRect.new()
-	border.color = Color(0.8, 0.8, 0.8, 0.6)
-	border.size = Vector2(button.size.x + 4, button.size.y + 4)
-	border.position = Vector2(-2, -2)
-	border.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	container.add_child(border)
-	border.z_index = -1
+	# Use the new RewardContainer scene as background
+	var reward_container_scene = preload("res://UI/RewardContainer.tscn")
+	var reward_container_instance = reward_container_scene.instantiate()
+	reward_container_instance.position = Vector2.ZERO
+	container.add_child(reward_container_instance)
 	
 	if reward_type == "card":
 		var card_data = reward_data as CardData
@@ -861,18 +870,7 @@ func setup_reward_button(button: Button, reward_data: Resource, reward_type: Str
 		
 		container.add_child(card_instance)
 		
-		# Card name
-		var name_label = Label.new()
-		name_label.text = card_data.get_upgraded_name()
-		name_label.add_theme_font_size_override("font_size", 12)
-		name_label.add_theme_color_override("font_color", Color.WHITE)
-		name_label.add_theme_constant_override("outline_size", 1)
-		name_label.add_theme_color_override("font_outline_color", Color.BLACK)
-		name_label.position = Vector2(5, 95)
-		name_label.size = Vector2(140, 20)
-		name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		container.add_child(name_label)
+
 		
 	elif reward_type == "equipment":
 		var equip_data = reward_data as EquipmentData
@@ -898,18 +896,7 @@ func setup_reward_button(button: Button, reward_data: Resource, reward_type: Str
 		image_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		container.add_child(image_rect)
 		
-		# Equipment name
-		var name_label = Label.new()
-		name_label.text = equip_data.name
-		name_label.add_theme_font_size_override("font_size", 12)
-		name_label.add_theme_color_override("font_color", Color.WHITE)
-		name_label.add_theme_constant_override("outline_size", 1)
-		name_label.add_theme_color_override("font_outline_color", Color.BLACK)
-		name_label.position = Vector2(5, 15)
-		name_label.size = Vector2(90, 20)
-		name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		container.add_child(name_label)
+
 		
 	elif reward_type == "bag_upgrade":
 		var bag_data = reward_data as BagData
@@ -925,31 +912,7 @@ func setup_reward_button(button: Button, reward_data: Resource, reward_type: Str
 		image_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		container.add_child(image_rect)
 		
-		# Bag upgrade name
-		var name_label = Label.new()
-		name_label.text = "Bag Upgrade"
-		name_label.add_theme_font_size_override("font_size", 12)
-		name_label.add_theme_color_override("font_color", Color.WHITE)
-		name_label.add_theme_constant_override("outline_size", 1)
-		name_label.add_theme_color_override("font_outline_color", Color.BLACK)
-		name_label.position = Vector2(5, 95)
-		name_label.size = Vector2(90, 20)
-		name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		container.add_child(name_label)
-		
-		# Level indicator
-		var level_label = Label.new()
-		level_label.text = "Level " + str(bag_data.level)
-		level_label.add_theme_font_size_override("font_size", 10)
-		level_label.add_theme_color_override("font_color", Color.YELLOW)
-		level_label.add_theme_constant_override("outline_size", 1)
-		level_label.add_theme_color_override("font_outline_color", Color.BLACK)
-		level_label.position = Vector2(5, 110)
-		level_label.size = Vector2(90, 15)
-		level_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		level_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		container.add_child(level_label)
+
 	
 	elif reward_type == "looty":
 		button.text = ""  # Clear button text since we're using custom display
@@ -962,32 +925,7 @@ func setup_reward_button(button: Button, reward_data: Resource, reward_type: Str
 		looty_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		container.add_child(looty_icon)
 		
-		# $Looty text
-		var looty_label = Label.new()
-		looty_label.text = "$Looty"
-		looty_label.add_theme_font_size_override("font_size", 16)
-		looty_label.add_theme_color_override("font_color", Color.GOLD)
-		looty_label.add_theme_constant_override("outline_size", 2)
-		looty_label.add_theme_color_override("font_outline_color", Color.BLACK)
-		looty_label.position = Vector2(25, 25)
-		looty_label.size = Vector2(50, 30)
-		looty_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		looty_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		container.add_child(looty_label)
-		
-		# Amount
-		var amount = reward_data.get_meta("looty_amount", 15)
-		var amount_label = Label.new()
-		amount_label.text = str(amount)
-		amount_label.add_theme_font_size_override("font_size", 14)
-		amount_label.add_theme_color_override("font_color", Color.WHITE)
-		amount_label.add_theme_constant_override("outline_size", 1)
-		amount_label.add_theme_color_override("font_outline_color", Color.BLACK)
-		amount_label.position = Vector2(5, 95)
-		amount_label.size = Vector2(90, 20)
-		amount_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		amount_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		container.add_child(amount_label)
+
 	
 	# Add hover effect
 	button.mouse_entered.connect(_on_reward_button_hover.bind(button, true, reward_data, reward_type))
@@ -997,15 +935,19 @@ func _on_reward_button_hover(button: Button, is_hovering: bool, reward_data: Res
 	"""Handle reward button hover effects"""
 	var container = button.get_child(0)  # Container is first child
 	if container and container.get_child_count() > 0:
-		var background = container.get_child(0)  # Background is first child of container
-		if is_hovering:
-			background.color = Color(0.3, 0.3, 0.3, 0.9)
-			# Show InfoBox with reward info
-			show_reward_info(reward_data, reward_type)
-		else:
-			background.color = Color(0.2, 0.2, 0.2, 0.9)
-			# Hide InfoBox
-			hide_reward_info()
+		var reward_container = container.get_child(0)  # RewardContainer is first child of container
+		if reward_container and reward_container.has_node("Sprite2D"):
+			var sprite = reward_container.get_node("Sprite2D")
+			if is_hovering:
+				# Add a subtle brightness effect for hover
+				sprite.modulate = Color(1.2, 1.2, 1.2, 1.0)
+				# Show InfoBox with reward info
+				show_reward_info(reward_data, reward_type)
+			else:
+				# Reset to normal brightness
+				sprite.modulate = Color(1.0, 1.0, 1.0, 1.0)
+				# Hide InfoBox
+				hide_reward_info()
 
 func _on_left_reward_selected():
 	handle_reward_selection(left_reward_data, left_reward_type)

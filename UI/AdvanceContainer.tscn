@@ -1,0 +1,13 @@
+[gd_scene load_steps=3 format=3 uid="uid://dvpal82d11cdd"]
+
+[ext_resource type="Script" uid="uid://birkxvxj7wgcl" path="res://UI/reward_container.gd" id="1_vhxgt"]
+[ext_resource type="Texture2D" uid="uid://6roqcodb1nka" path="res://UI/AdvanceContainer.png" id="2_vhxgt"]
+
+[node name="AdvanceContainer" type="Node2D"]
+script = ExtResource("1_vhxgt")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(100, 30)
+scale = Vector2(0.385, 0.315)
+texture = ExtResource("2_vhxgt")
