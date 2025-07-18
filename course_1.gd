@@ -1370,7 +1370,7 @@ func _on_reach_ball_pressed() -> void:
 	
 	# Set the flag to indicate ReachBallButton was used
 	used_reach_ball_button = true
-	print("ReachBallButton used - club card drawing will be disabled")
+	print("ReachBallButton used - proceeding to club card drawing")
 	
 	# Use the existing teleport functionality from CardEffectHandler
 	if card_effect_handler and card_effect_handler.has_method("teleport_player_to_ball"):
@@ -1392,21 +1392,9 @@ func _on_reach_ball_pressed() -> void:
 		if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball) and launch_manager.golf_ball.has_method("remove_landing_highlight"):
 			launch_manager.golf_ball.remove_landing_highlight()
 		
-		# Check if action cards have been drawn this turn
-		var action_cards_drawn = false
-		for card in deck_manager.hand:
-			if not deck_manager.is_club_card(card):
-				action_cards_drawn = true
-				break
-		
-		if action_cards_drawn:
-			# Action cards already drawn - keep current hand and enter aiming phase directly
-			print("Action cards already drawn - keeping current hand and entering aiming phase")
-			enter_aiming_phase()
-		else:
-			# No action cards drawn yet - show DrawCardsButton for action cards
-			print("No action cards drawn yet - showing DrawCardsButton for action cards")
-			show_draw_cards_button_for_turn_start()
+		# Always show club card drawing after using reach ball button
+		print("Reach ball button used - showing club card drawing")
+		show_draw_club_cards_button()
 		
 		print("Player teleported to ball successfully")
 	else:
@@ -4210,7 +4198,7 @@ func draw_club_cards() -> void:
 			selected_clubs.append(selected_putter)
 			available_clubs.erase(selected_putter)
 			total_clubs_to_show -= 1
-	
+
 	# Select remaining clubs to fill the total count
 	var club_candidates = available_clubs.filter(func(card): return card.effect_type != "ModifyNext" and card.effect_type != "ModifyNextCard")
 	print("Club candidates for selection:", club_candidates.map(func(card): return card.name))
@@ -4490,12 +4478,7 @@ func show_draw_club_cards_button() -> void:
 	_update_player_mouse_facing_state()
 	print("Player is on ball tile - showing 'Draw Club Cards' button")
 	
-	# Check if ReachBallButton was used this turn
-	if used_reach_ball_button:
-		print("ReachBallButton was used - skipping club card drawing and entering aiming phase directly")
-		# Skip club card drawing and enter aiming phase directly
-		enter_aiming_phase()
-		return
+	# Note: ReachBallButton usage no longer prevents club card drawing
 	
 	# Show the "Draw Club Cards" button
 	draw_club_cards_button.visible = true
@@ -5623,7 +5606,6 @@ func fix_ui_layers() -> void:
 	if end_turn_button:
 		end_turn_button.z_index = 102
 		end_turn_button.mouse_filter = Control.MOUSE_FILTER_STOP
-	
 
 # Add this variable declaration after the existing card modification variables (around line 75)
 var card_effect_handler: Node = null
