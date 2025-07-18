@@ -52,6 +52,10 @@ const HealthBar := preload("res://HealthBar.gd")
 const BlockHealthBar := preload("res://BlockHealthBar.gd")
 const EquipmentManager := preload("res://EquipmentManager.gd")
 
+# Grid manager
+const GridManager := preload("res://GridManager.gd")
+var grid_manager: GridManager
+
 var is_placing_player := true
 
 var obstacle_map: Dictionary = {}  # Vector2i -> BaseObstacle
@@ -59,11 +63,7 @@ var obstacle_map: Dictionary = {}  # Vector2i -> BaseObstacle
 var turn_count: int = 1
 # Fire tile damage tracking
 var fire_tiles_that_damaged_player: Array[Vector2i] = []  # Track which fire tiles have already damaged player this turn
-var grid_size := Vector2i(50, 50)
 var cell_size: int = 48 # This will be set by the main script
-var grid_tiles = []
-var grid_container: Control
-var camera_container: Control
 
 var player_node: Node2D
 var player_grid_pos := Vector2i(25, 25)
@@ -513,6 +513,10 @@ func _ready() -> void:
 	weapon_handler = WeaponHandler.new()
 	add_child(weapon_handler)
 	
+	# Initialize grid manager
+	grid_manager = GridManager.new()
+	add_child(grid_manager)
+	
 	call_deferred("fix_ui_layers")
 	display_selected_character()
 	if end_round_button:
@@ -532,9 +536,21 @@ func _ready() -> void:
 	hide_gimme_button()
 
 
-	create_grid()
+	# Create camera container for grid manager
+	var camera_container = Control.new()
+	camera_container.name = "CameraContainer"
+	add_child(camera_container)
+	
+	# Setup grid manager
+	grid_manager.setup(Vector2i(50, 50), cell_size, camera_container)
+	
+	# Connect grid manager signals
+	grid_manager.tile_mouse_entered.connect(_on_tile_mouse_entered)
+	grid_manager.tile_mouse_exited.connect(_on_tile_mouse_exited)
+	grid_manager.tile_input.connect(_on_tile_input)
+	
 	create_player()
-	launch_manager.set("camera_container", camera_container)
+	launch_manager.set("camera_container", grid_manager.get_camera_container())
 	launch_manager.ui_layer = $UILayer
 	launch_manager.player_node = player_node
 	launch_manager.cell_size = cell_size
@@ -549,7 +565,7 @@ func _ready() -> void:
 	
 	if obstacle_layer.get_parent():
 		obstacle_layer.get_parent().remove_child(obstacle_layer)
-	camera_container.add_child(obstacle_layer)
+	grid_manager.get_camera_container().add_child(obstacle_layer)
 
 	map_manager.load_map_data(GolfCourseLayout.LEVEL_LAYOUT)
 
@@ -575,8 +591,8 @@ func _ready() -> void:
 	# Setup attack handler first (before movement controller)
 	attack_handler.setup(
 		player_node,
-		grid_tiles,
-		grid_size,
+		grid_manager.get_grid_tiles(),
+		grid_manager.get_grid_size(),
 		cell_size,
 		obstacle_map,
 		player_grid_pos,
@@ -597,8 +613,8 @@ func _ready() -> void:
 	# Setup weapon handler after attack handler
 	weapon_handler.setup(
 		player_node,
-		grid_tiles,
-		grid_size,
+		grid_manager.get_grid_tiles(),
+		grid_manager.get_grid_size(),
 		cell_size,
 		obstacle_map,
 		player_grid_pos,
@@ -615,8 +631,8 @@ func _ready() -> void:
 	# Setup movement controller last (after attack and weapon handlers are ready)
 	movement_controller.setup(
 		player_node,
-		grid_tiles,
-		grid_size,
+		grid_manager.get_grid_tiles(),
+		grid_manager.get_grid_size(),
 		cell_size,
 		obstacle_map,
 		player_grid_pos,
@@ -671,7 +687,7 @@ func adjust_background_positioning() -> void:
 	
 	# Get screen size and grid info
 	var screen_size = get_viewport().get_visible_rect().size
-	var grid_height = grid_size.y * cell_size
+	var grid_height = grid_manager.get_grid_size().y * cell_size
 	var grid_top = (screen_size.y - grid_height) / 2
 	
 	print("Screen size: ", screen_size)
@@ -692,7 +708,7 @@ func adjust_background_positioning() -> void:
 	
 	# Position each layer in world coordinates (not screen-relative)
 	# Calculate world-relative positions based on the grid dimensions
-	var total_grid_height = grid_size.y * cell_size
+	var total_grid_height = grid_manager.get_grid_size().y * cell_size
 	
 	# Position layers at the top of the world grid with proper staggering
 	# Use world-relative coordinates so they don't reset to screen center
@@ -745,7 +761,7 @@ func adjust_background_positioning() -> void:
 	end_turn_button.mouse_filter = Control.MOUSE_FILTER_STOP
 	end_turn_button.get_parent().move_child(end_turn_button, end_turn_button.get_parent().get_child_count() - 1)
 
-	grid_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	grid_manager.get_grid_container().mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	draw_cards_button.visible = false
 	draw_cards_button.get_node("TextureButton").pressed.connect(_on_draw_cards_pressed)
@@ -1004,73 +1020,7 @@ func get_flashlight_center() -> Vector2:
 		dir = dir.normalized() * flashlight_radius
 	return player_center + dir
 
-func create_grid() -> void:
-	camera_container = Control.new()
-	camera_container.name = "CameraContainer"
-	add_child(camera_container)
 
-	grid_container = Control.new()
-	grid_container.name = "GridContainer"
-	grid_container.z_index = -1  # Set grid overlay to appear behind other elements
-	camera_container.add_child(grid_container)
-
-	var total_size := Vector2(grid_size.x, grid_size.y) * cell_size
-	grid_container.size = total_size
-	camera_offset = (get_viewport_rect().size - total_size) / 2
-	camera_container.position = camera_offset
-
-	for y in grid_size.y:
-		grid_tiles.append([])
-		for x in grid_size.x:
-			var tile := create_grid_tile(x, y)
-			grid_tiles[y].append(tile)
-			grid_container.add_child(tile)
-
-func create_grid_tile(x: int, y: int) -> Control:
-	var tile := Control.new()
-	tile.name = "Tile_%d_%d" % [x, y]
-	tile.position = Vector2(x, y) * cell_size
-	tile.size = Vector2(cell_size, cell_size)
-	tile.mouse_filter = Control.MOUSE_FILTER_PASS
-	tile.z_index = -100  # Set tiles to appear behind highlights but above ground
-
-	var drawer := Control.new()
-	drawer.name = "TileDrawer"
-	drawer.size = tile.size
-	drawer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	drawer.draw.connect(_draw_tile.bind(drawer, x, y))
-	tile.add_child(drawer)
-
-	var red := ColorRect.new()
-	red.name = "Highlight"
-	red.size = tile.size
-	red.color = Color(1, 0, 0, 0.3)
-	red.visible = false
-	red.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	red.z_index = 100  # High z_index to appear above land tiles
-	tile.add_child(red)
-
-	var green := ColorRect.new()
-	green.name = "MovementHighlight"
-	green.size = tile.size
-	green.color = Color(0, 1, 0, 0.4)
-	green.visible = false
-	green.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	green.z_index = 100  # High z_index to appear above land tiles
-	tile.add_child(green)
-
-	tile.mouse_entered.connect(_on_tile_mouse_entered.bind(x, y))
-	tile.mouse_exited.connect(_on_tile_mouse_exited.bind(x, y))
-	tile.gui_input.connect(_on_tile_input.bind(x, y))
-	return tile
-	
-func _draw_tile(drawer: Control, x: int, y: int) -> void:
-	var tile_screen_pos := Vector2(x, y) * cell_size + Vector2(cell_size / 2, cell_size / 2) + camera_container.position
-	var dist := tile_screen_pos.distance_to(player_flashlight_center)
-	if dist <= flashlight_radius:
-		var alpha: float = clamp(1.0 - (dist / flashlight_radius), 0.0, 1.0)
-		drawer.draw_rect(Rect2(Vector2.ZERO, drawer.size), Color(0.1, 0.1, 0.1, alpha * 0.3), true)
-		drawer.draw_rect(Rect2(Vector2.ZERO, drawer.size), Color(0.5, 0.5, 0.5, alpha * 0.8), false, 1.0)
 
 func create_player() -> void:
 	player_stats = Global.CHARACTER_STATS.get(Global.selected_character, {})
@@ -1096,7 +1046,7 @@ func create_player() -> void:
 	player_node.add_to_group("players")
 	player_node.add_to_group("collision_objects")
 	
-	grid_container.add_child(player_node)
+	grid_manager.get_grid_container().add_child(player_node)
 
 	var char_scene_path = ""
 	var char_scale = Vector2.ONE  # Default scale - no scaling needed since sprites are properly sized
@@ -1131,7 +1081,7 @@ func create_player() -> void:
 				player_node.setup_meditation_after_character()
 
 	var base_mobility = player_stats.get("base_mobility", 0)
-	player_node.setup(grid_size, cell_size, base_mobility, obstacle_map)
+	player_node.setup(grid_manager.get_grid_size(), cell_size, base_mobility, obstacle_map)
 	
 	player_node.set_grid_position(player_grid_pos, ysort_objects, shop_grid_pos)
 
@@ -1148,7 +1098,7 @@ func update_player_stats_from_equipment() -> void:
 	
 	if player_node and is_instance_valid(player_node):
 		var base_mobility = player_stats.get("base_mobility", 0)
-		player_node.setup(grid_size, cell_size, base_mobility, obstacle_map)
+		player_node.setup(grid_manager.get_grid_size(), cell_size, base_mobility, obstacle_map)
 		print("Updated player stats with equipment buffs:", player_stats)
 
 func take_damage(amount: int) -> void:
@@ -1380,7 +1330,7 @@ func _on_reach_ball_pressed() -> void:
 			ball_position = launch_manager.golf_ball.global_position
 		else:
 			# Fallback: calculate position from ball_landing_tile
-			ball_position = Vector2(ball_landing_tile.x * cell_size + cell_size/2, ball_landing_tile.y * cell_size + cell_size/2) + camera_container.global_position
+			ball_position = Vector2(ball_landing_tile.x * cell_size + cell_size/2, ball_landing_tile.y * cell_size + cell_size/2) + grid_manager.get_camera_container().global_position
 		
 		# Teleport the player to the ball
 		card_effect_handler.teleport_player_to_ball(ball_position)
@@ -1477,7 +1427,7 @@ func update_player_position() -> void:
 	# Only create ball if player is properly placed (not during initial setup)
 	if not is_placing_player:
 		# Create or update ball at tile center for all shots
-		var tile_center: Vector2 = Vector2(player_grid_pos.x * cell_size + cell_size/2, player_grid_pos.y * cell_size + cell_size/2) + camera_container.global_position
+		var tile_center: Vector2 = Vector2(player_grid_pos.x * cell_size + cell_size/2, player_grid_pos.y * cell_size + cell_size/2) + grid_manager.get_camera_container().global_position
 		create_or_update_ball_at_player_center(tile_center)
 	
 	if not is_placing_player:
@@ -1522,7 +1472,7 @@ func create_or_update_ball_at_player_center(player_center: Vector2) -> void:
 	ball.add_to_group("balls")
 	
 	# Position the ball relative to the camera container
-	var ball_local_position = player_center - camera_container.global_position
+	var ball_local_position = player_center - grid_manager.get_camera_container().global_position
 	ball.position = ball_local_position
 	ball.cell_size = cell_size
 	ball.map_manager = map_manager
@@ -1533,7 +1483,7 @@ func create_or_update_ball_at_player_center(player_center: Vector2) -> void:
 	ball.sand_landing.connect(_on_golf_ball_sand_landing)
 	
 	# Add ball to camera container so it moves with the world
-	camera_container.add_child(ball)
+	grid_manager.get_camera_container().add_child(ball)
 
 func force_create_ball_at_position(world_position: Vector2) -> void:
 	"""Force create a new ball at the specified world position (ignores existing balls)"""
@@ -1544,7 +1494,7 @@ func force_create_ball_at_position(world_position: Vector2) -> void:
 	ball.add_to_group("balls")
 	
 	# Position the ball relative to the camera container
-	var ball_local_position = world_position - camera_container.global_position
+	var ball_local_position = world_position - grid_manager.get_camera_container().global_position
 	ball.position = ball_local_position
 	ball.cell_size = cell_size
 	ball.map_manager = map_manager
@@ -1555,7 +1505,7 @@ func force_create_ball_at_position(world_position: Vector2) -> void:
 	ball.sand_landing.connect(_on_golf_ball_sand_landing)
 	
 	# Add ball to camera container so it moves with the world
-	camera_container.add_child(ball)
+	grid_manager.get_camera_container().add_child(ball)
 	
 	# Set the launch manager's golf ball reference
 	launch_manager.golf_ball = ball
@@ -1651,9 +1601,9 @@ func start_round_after_tee_selection() -> void:
 	if instruction_label:
 		instruction_label.queue_free()
 	
-	for y in grid_size.y:
-		for x in grid_size.x:
-			grid_tiles[y][x].get_node("Highlight").visible = false
+	for y in grid_manager.get_grid_size().y:
+		for x in grid_manager.get_grid_size().x:
+			grid_manager.get_grid_tiles()[y][x].get_node("Highlight").visible = false
 	
 	# Reset character health for new round
 	Global.reset_character_health()
@@ -1704,7 +1654,7 @@ func show_aiming_circle():
 	aiming_circle.name = "AimingCircle"
 	aiming_circle.size = Vector2(adjusted_circle_size, adjusted_circle_size)
 	aiming_circle.z_index = 150  # Above the player but below UI
-	camera_container.add_child(aiming_circle)
+	grid_manager.get_camera_container().add_child(aiming_circle)
 	
 	# Load the target circle texture
 	var target_circle_texture = preload("res://UI/TargetCircle.png")
@@ -2079,16 +2029,16 @@ func complete_gimme_hole():
 	show_hole_completion_dialog()
 
 func highlight_tee_tiles():
-	for y in grid_size.y:
-		for x in grid_size.x:
-			grid_tiles[y][x].get_node("Highlight").visible = false
+	for y in grid_manager.get_grid_size().y:
+		for x in grid_manager.get_grid_size().x:
+			grid_manager.get_grid_tiles()[y][x].get_node("Highlight").visible = false
 	
-	for y in grid_size.y:
-		for x in grid_size.x:
+	for y in grid_manager.get_grid_size().y:
+		for x in grid_manager.get_grid_size().x:
 			if map_manager.get_tile_type(x, y) == "Tee":
-				grid_tiles[y][x].get_node("Highlight").visible = true
+				grid_manager.get_grid_tiles()[y][x].get_node("Highlight").visible = true
 				# Change highlight color to blue for tee tiles
-				var highlight = grid_tiles[y][x].get_node("Highlight")
+				var highlight = grid_manager.get_grid_tiles()[y][x].get_node("Highlight")
 				highlight.color = Color(0, 0.5, 1, 0.6)  # Blue with transparency
 
 func exit_movement_mode() -> void:
@@ -3001,7 +2951,7 @@ func _on_golf_ball_out_of_bounds():
 	update_player_position()
 	
 	# Force create a new ball at the player's tile center position for the penalty shot
-	var tile_center: Vector2 = Vector2(player_grid_pos.x * cell_size + cell_size/2, player_grid_pos.y * cell_size + cell_size/2) + camera_container.global_position
+	var tile_center: Vector2 = Vector2(player_grid_pos.x * cell_size + cell_size/2, player_grid_pos.y * cell_size + cell_size/2) + grid_manager.get_camera_container().global_position
 	force_create_ball_at_position(tile_center)
 	
 	game_phase = "draw_cards"
@@ -4826,11 +4776,11 @@ func restore_game_state():
 				print("✓ Ball collision mask set to:", ball_area.collision_mask)
 			launch_manager.golf_ball.collision_layer = 1
 			launch_manager.golf_ball.collision_mask = 1  # Collide with layer 1 (trees)
-			var ball_local_position = Global.saved_ball_position - camera_container.global_position
+			var ball_local_position = Global.saved_ball_position - grid_manager.get_camera_container().global_position
 			launch_manager.golf_ball.position = ball_local_position
 			launch_manager.golf_ball.cell_size = cell_size
 			launch_manager.golf_ball.map_manager = map_manager
-			camera_container.add_child(launch_manager.golf_ball)
+			grid_manager.get_camera_container().add_child(launch_manager.golf_ball)
 			launch_manager.golf_ball.add_to_group("balls")  # Add to group for collision detection
 		else:
 			if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball):
@@ -4897,15 +4847,15 @@ func create_ghost_ball() -> void:
 		ghost_ball_area.collision_mask = 0  # Don't collide with anything (including player)
 	
 	# Position ghost ball at tile center (same as real ball)
-	var tile_center: Vector2 = Vector2(player_grid_pos.x * cell_size + cell_size/2, player_grid_pos.y * cell_size + cell_size/2) + camera_container.global_position
-	var ball_local_position = tile_center - camera_container.global_position
+	var tile_center: Vector2 = Vector2(player_grid_pos.x * cell_size + cell_size/2, player_grid_pos.y * cell_size + cell_size/2) + grid_manager.get_camera_container().global_position
+	var ball_local_position = tile_center - grid_manager.get_camera_container().global_position
 	ghost_ball.position = ball_local_position
 	ghost_ball.cell_size = cell_size
 	ghost_ball.map_manager = map_manager
 	if selected_club in club_data:
 		ghost_ball.set_club_info(club_data[selected_club])
 	ghost_ball.set_putting_mode(club_data.get(selected_club, {}).get("is_putter", false))
-	camera_container.add_child(ghost_ball)
+	grid_manager.get_camera_container().add_child(ghost_ball)
 	ghost_ball.add_to_group("balls")  # Add to group for collision detection
 	ghost_ball_active = true
 	# Global Y-sort will be handled by the ball's update_y_sort() method
@@ -5342,7 +5292,7 @@ func start_pin_to_tee_transition():
 	
 	# Tween to tee area
 	var tee_center = _get_tee_area_center()
-	var tee_center_global = camera_container.position + tee_center
+	var tee_center_global = grid_manager.get_camera_container().position + tee_center
 	pin_to_tee_tween.tween_property(camera, "position", tee_center_global, 2.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	
 	# Update camera snap back position only if player hasn't been placed yet
@@ -6147,7 +6097,7 @@ func kill_current_camera_tween() -> void:
 
 func get_camera_container() -> Control:
 	"""Get the camera container for world-to-grid conversions"""
-	return camera_container
+	return grid_manager.get_camera_container()
 
 func get_launch_manager() -> LaunchManager:
 	"""Get the launch manager reference"""
@@ -6360,12 +6310,12 @@ func _on_grenade_exploded(explosion_position: Vector2) -> void:
 func get_course_bounds() -> Rect2i:
 	"""Get the bounds of the course as a Rect2i"""
 	# Return bounds based on grid_size and cell_size
-	return Rect2i(Vector2i.ZERO, grid_size)
+	return Rect2i(Vector2i.ZERO, grid_manager.get_grid_size())
 
 func is_position_walkable(pos: Vector2i) -> bool:
 	"""Check if a grid position is walkable (not occupied by obstacles)"""
 	# Check if position is within bounds
-	if pos.x < 0 or pos.x >= grid_size.x or pos.y < 0 or pos.y >= grid_size.y:
+	if pos.x < 0 or pos.x >= grid_manager.get_grid_size().x or pos.y < 0 or pos.y >= grid_manager.get_grid_size().y:
 		return false
 	
 	# Check if position is occupied by an obstacle

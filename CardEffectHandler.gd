@@ -386,7 +386,7 @@ func get_ball_position() -> Vector2:
 		# Get the ball's grid position (which is calculated correctly by the ball)
 		var ball_grid_pos = Vector2i(floor(ball.position.x / ball.cell_size), floor(ball.position.y / ball.cell_size))
 		# Convert grid position to world coordinates
-		var world_pos = Vector2(ball_grid_pos.x * course.cell_size + course.cell_size/2, ball_grid_pos.y * course.cell_size + course.cell_size/2) + course.camera_container.global_position
+		var world_pos = Vector2(ball_grid_pos.x * course.cell_size + course.cell_size/2, ball_grid_pos.y * course.cell_size + course.cell_size/2) + course.grid_manager.get_camera_container().global_position
 		return world_pos
 	
 	# Fallback: look for any ball in the scene
@@ -394,7 +394,7 @@ func get_ball_position() -> Vector2:
 	for ball in balls:
 		if is_instance_valid(ball):
 			var ball_grid_pos = Vector2i(floor(ball.position.x / ball.cell_size), floor(ball.position.y / ball.cell_size))
-			var world_pos = Vector2(ball_grid_pos.x * course.cell_size + course.cell_size/2, ball_grid_pos.y * course.cell_size + course.cell_size/2) + course.camera_container.global_position
+			var world_pos = Vector2(ball_grid_pos.x * course.cell_size + course.cell_size/2, ball_grid_pos.y * course.cell_size + course.cell_size/2) + course.grid_manager.get_camera_container().global_position
 			return world_pos
 	
 	return Vector2.ZERO
@@ -428,7 +428,7 @@ func teleport_player_to_ball(ball_position: Vector2):
 	"""Teleport the player to the ball's position"""
 	# The ball_position is already in world coordinates, so we need to convert it to grid coordinates
 	# relative to the camera container
-	var ball_local_pos = ball_position - course.camera_container.global_position
+	var ball_local_pos = ball_position - course.grid_manager.get_camera_container().global_position
 	var ball_grid_pos = Vector2i(floor(ball_local_pos.x / course.cell_size), floor(ball_local_pos.y / course.cell_size))
 	
 	# Update the course's player grid position
@@ -502,13 +502,13 @@ func launch_single_scramble_ball(direction: Vector2, power: float, height: float
 	var player_size = player_sprite.texture.get_size() * player_sprite.scale if player_sprite and player_sprite.texture else Vector2(course.cell_size, course.cell_size)
 	var player_center = course.player_node.global_position + player_size / 2
 	
-	var ball_local_position = player_center - course.camera_container.global_position
+	var ball_local_position = player_center - course.grid_manager.get_camera_container().global_position
 	ball.position = ball_local_position
 	ball.cell_size = course.cell_size
 	ball.map_manager = course.map_manager
 	
 	# Add to scene
-	course.camera_container.add_child(ball)
+	course.grid_manager.get_camera_container().add_child(ball)
 	ball.add_to_group("balls")
 	ball.add_to_group("scramble_balls")
 	
@@ -526,7 +526,7 @@ func launch_single_scramble_ball(direction: Vector2, power: float, height: float
 	else:
 		# Side balls use estimated landing spots based on their deviated direction
 		# Calculate the landing spot in global coordinates
-		var ball_global_pos = course.camera_container.global_position + ball.position
+		var ball_global_pos = course.grid_manager.get_camera_container().global_position + ball.position
 		var estimated_distance = power * 0.8  # Rough estimate of how far the ball will travel
 		var landing_spot = ball_global_pos + (direction.normalized() * estimated_distance)
 		ball.chosen_landing_spot = landing_spot

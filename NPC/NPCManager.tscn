@@ -1,6 +1,3 @@
-[gd_scene load_steps=2 format=3 uid="uid://c6dsnj8uid54g"]
-
-[ext_resource type="Script" path="res://NPC/npc_manager.gd" id="1_hyr5p"]
+[gd_scene format=3 uid="uid://c6dsnj8uid54g"]
 
 [node name="NPCManager" type="Node"]
-script = ExtResource("1_hyr5p")
