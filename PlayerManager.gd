@@ -395,6 +395,13 @@ func update_player_position() -> void:
 	# Update player's grid position reference
 	if player_node.has_method("set_grid_position"):
 		player_node.set_grid_position(player_grid_pos, ysort_objects, shop_grid_pos)
+	
+	# Update camera snap back position to player's current position
+	if course.camera_manager:
+		var sprite = player_node.get_node_or_null("Sprite2D")
+		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
+		var player_center: Vector2 = player_node.global_position + player_size / 2
+		course.camera_manager.update_camera_snap_back_position(player_center)
 
 # Special mode management
 func activate_ghost_mode() -> void:

@@ -10,10 +10,10 @@ anchors_preset = 0
 [node name="GimmeButton" type="TextureButton" parent="."]
 texture_filter = 1
 layout_mode = 0
-offset_left = 6.0
-offset_top = -15.0
-offset_right = 6.0
-offset_bottom = -15.0
+offset_left = -189.0
+offset_top = -92.0
+offset_right = 196.0
+offset_bottom = 57.0
 texture_normal = ExtResource("1_jfmcq")
 texture_pressed = ExtResource("1_jfmcq")
 texture_hover = ExtResource("2_vf5rc")

@@ -76,6 +76,14 @@ func get_default_zoom_position() -> float:
 	"""Get the current default zoom position"""
 	return default_zoom_position
 
+func get_current_max_zoom() -> float:
+	"""Get the current maximum zoom level"""
+	return current_max_zoom
+
+func get_current_min_zoom() -> float:
+	"""Get the current minimum zoom level"""
+	return current_min_zoom
+
 func set_camera_limits(left: float, right: float, top: float, bottom: float):
 	"""Set camera limits dynamically"""
 	limit_left = left

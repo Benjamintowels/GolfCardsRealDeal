@@ -158,6 +158,12 @@ func _on_gimme_area_entered(area: Area2D):
 	# Check if the area belongs to a golf ball
 	if area.get_parent() and area.get_parent().has_method("get_height"):
 		var golf_ball = area.get_parent()
+		
+		# Check if this is actually a golf ball (not a player character)
+		if not golf_ball.is_in_group("golf_balls"):
+			print("Ignoring non-golf ball object:", golf_ball.name)
+			return
+		
 		var ball_height = golf_ball.get_height()
 		
 		# Check if this is a ghost ball (ghost balls have is_ghost property set to true)
@@ -205,6 +211,11 @@ func _on_gimme_area_exited(area: Area2D):
 	# Check if the area belongs to a golf ball
 	if area.get_parent() and area.get_parent().has_method("get_height"):
 		var golf_ball = area.get_parent()
+		
+		# Check if this is actually a golf ball (not a player character)
+		if not golf_ball.is_in_group("golf_balls"):
+			print("Ignoring non-golf ball object exit:", golf_ball.name)
+			return
 		
 		# Check if this is the ball we were tracking
 		if golf_ball == current_gimme_ball:

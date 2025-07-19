@@ -192,11 +192,17 @@ func cancel_pin_to_tee_transition() -> void:
 		pin_to_tee_tween.kill()
 		pin_to_tee_tween = null
 
-func start_aiming_camera_tracking() -> void:
+func start_aiming_camera_tracking(club_distance: float = 800.0) -> void:
 	"""Start the aiming camera tracking system"""
 	aiming_tracking_active = true
-	camera_stationary = false  # Reset stationary state
-	print("CameraManager: Started aiming camera tracking")
+	
+	# If club has max distance of 750 or less, keep camera stationary
+	if club_distance <= 750.0:
+		camera_stationary = true
+		print("CameraManager: Started aiming camera tracking (stationary mode) - club distance:", club_distance)
+	else:
+		camera_stationary = false  # Reset stationary state for longer clubs
+		print("CameraManager: Started aiming camera tracking (tracking mode) - club distance:", club_distance)
 
 func stop_aiming_camera_tracking() -> void:
 	"""Stop the aiming camera tracking and return to player position"""
@@ -220,7 +226,6 @@ func stop_aiming_camera_tracking() -> void:
 func update_aiming_camera_tracking(aiming_circle_position: Vector2) -> void:
 	"""Continuous camera following - only tween when target changes significantly"""
 	if not aiming_tracking_active or not camera or camera_stationary:
-		print("Camera tracking skipped - active:", aiming_tracking_active, "camera:", camera != null, "stationary:", camera_stationary)
 		return
 	
 	# Apply camera limits if they exist

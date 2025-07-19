@@ -93,7 +93,8 @@ script = ExtResource("26_coin_explosion")
 [node name="UILayer" type="CanvasLayer" parent="."]
 
 [node name="Gimme" parent="UILayer" instance=ExtResource("13_1r40f")]
-z_index = 301
+visible = false
+z_index = 1000
 z_as_relative = false
 offset_left = 541.0
 offset_top = 367.0

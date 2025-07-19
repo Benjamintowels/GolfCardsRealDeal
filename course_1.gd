@@ -1067,6 +1067,9 @@ func _on_reach_ball_pressed() -> void:
 		if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball) and launch_manager.golf_ball.has_method("remove_landing_highlight"):
 			launch_manager.golf_ball.remove_landing_highlight()
 		
+		# Check if this ball is in gimme range
+		check_and_show_gimme_button()
+		
 		# Always show club card drawing after using reach ball button
 		print("Reach ball button used - showing club card drawing")
 		ui_manager.show_draw_club_cards_button()
@@ -1655,8 +1658,14 @@ func enter_aiming_phase() -> void:
 	player_manager.update_player_mouse_facing_state(game_state_manager, launch_manager, camera, weapon_handler)
 	game_state_manager.set_is_aiming_phase(true)
 	
-	# Start aiming camera tracking
-	camera_manager.start_aiming_camera_tracking()
+	# Get the current club's max distance for camera tracking decision
+	var selected_club = game_state_manager.get_selected_club()
+	var club_distance = 800.0  # Default fallback
+	if selected_club in club_data:
+		club_distance = club_data[selected_club].get("max_distance", 800.0)
+	
+	# Start aiming camera tracking with club distance information
+	camera_manager.start_aiming_camera_tracking(club_distance)
 	
 	# Update smart optimizer state
 	if smart_optimizer:
@@ -1682,22 +1691,41 @@ func enter_aiming_phase() -> void:
 	var player_center = player_manager.get_player_node().global_position + player_size / 2
 	camera.position = player_center
 	
-	# Zoom out when entering aiming phase for better visibility
+	# Zoom adjustment when entering aiming phase
 	if camera and camera.has_method("set_zoom_level"):
 		# Store current zoom to restore later
 		if not has_meta("pre_aiming_zoom"):
 			set_meta("pre_aiming_zoom", camera.get_current_zoom())
 		
-		# Calculate zoom out based on shot distance potential
+		# Check if this is a putter
+		var is_putter = false
+		if selected_club in club_data:
+			is_putter = club_data[selected_club].get("is_putter", false)
+		
 		var base_zoom = camera.get_default_zoom_position()
-		var zoom_out_factor = 0.3  # Zoom out by 30%
-		var aiming_zoom = base_zoom - zoom_out_factor
+		var aiming_zoom = base_zoom
 		
-		# Ensure we don't go below minimum zoom
-		if camera.has_method("current_min_zoom"):
-			aiming_zoom = max(aiming_zoom, camera.current_min_zoom)
+		if is_putter:
+			# For putters, zoom in for better precision
+			var zoom_in_factor = 0.2  # Zoom in by 20%
+			aiming_zoom = base_zoom + zoom_in_factor
+			
+			# Ensure we don't go above maximum zoom
+			if camera.has_method("get_current_max_zoom"):
+				aiming_zoom = min(aiming_zoom, camera.get_current_max_zoom())
+			
+			print("Zooming in for putter aiming from", camera.get_current_zoom(), "to", aiming_zoom)
+		else:
+			# For other clubs, zoom out for better visibility
+			var zoom_out_factor = 0.3  # Zoom out by 30%
+			aiming_zoom = base_zoom - zoom_out_factor
+			
+			# Ensure we don't go below minimum zoom
+			if camera.has_method("get_current_min_zoom"):
+				aiming_zoom = max(aiming_zoom, camera.get_current_min_zoom())
+			
+			print("Zooming out for aiming from", camera.get_current_zoom(), "to", aiming_zoom)
 		
-		print("Zooming out for aiming from", camera.get_current_zoom(), "to", aiming_zoom)
 		camera.set_zoom_level(aiming_zoom)
 
 # Aiming instruction function moved to UIManager
@@ -3537,6 +3565,38 @@ func should_show_drive_distance_dialog(is_first_shot: bool = false) -> bool:
 func show_draw_cards_button_for_turn_start() -> void:
 	"""Show the DrawCardsButton at the start of a player turn instead of automatically drawing cards"""
 	ui_manager.show_draw_cards_button_for_turn_start()
+
+func check_and_show_gimme_button() -> void:
+	"""Check and show gimme button if appropriate"""
+	ui_manager.check_and_show_gimme_button()
+
+func show_draw_club_cards_button() -> void:
+	"""Show draw club cards button"""
+	ui_manager.show_draw_club_cards_button()
+
+func complete_gimme_hole() -> void:
+	"""Complete the hole with gimme"""
+	ui_manager.complete_gimme_hole()
+
+func enter_draw_cards_phase() -> void:
+	"""Enter the draw cards phase"""
+	ui_manager.enter_draw_cards_phase()
+
+func add_looty_reward(reward_data: Resource) -> void:
+	"""Add looty reward to player's balance"""
+	# Extract the looty amount from the reward data
+	var looty_amount = 0
+	if reward_data.has_method("get_looty_amount"):
+		looty_amount = reward_data.get_looty_amount()
+	elif "looty_amount" in reward_data:
+		looty_amount = reward_data.looty_amount
+	else:
+		print("ERROR: Could not determine looty amount from reward data")
+		return
+	
+	# Add the looty to the player's balance
+	Global.add_looty(looty_amount)
+	print("Added", looty_amount, "$Looty to player balance")
 
 func show_pause_menu():
 	"""Show pause menu"""

@@ -59,6 +59,18 @@ func setup(ui_layer_ref: CanvasLayer, course_ref: Node, player_mgr: Node, grid_m
 	gimme_scene = ui_layer.get_node_or_null("Gimme")
 	movement_buttons_container = ui_layer.get_node_or_null("CardHandAnchor/CardRow")
 	
+	# Connect gimme button signal
+	if gimme_scene:
+		var gimme_button = gimme_scene.get_node_or_null("GimmeButton")
+		if gimme_button:
+			gimme_button.pressed.connect(_on_gimme_button_pressed)
+			print("=== GIMME BUTTON SIGNAL CONNECTED ===")
+			print("Gimme button found and signal connected")
+		else:
+			print("ERROR: Could not find GimmeButton in gimme_scene")
+	else:
+		print("ERROR: gimme_scene is null during setup")
+	
 	print("UIManager setup complete")
 
 # ===== DIALOG MANAGEMENT =====
@@ -313,13 +325,17 @@ func show_reward_phase() -> void:
 func _on_gimme_button_pressed() -> void:
 	"""Handle gimme button press"""
 	print("=== GIMME BUTTON PRESSED ===")
+	print("Gimme button press detected!")
 	
 	# Hide the gimme button
 	hide_gimme_button()
 	
 	# Complete the hole via gimme
 	if course.has_method("complete_gimme_hole"):
+		print("Calling course.complete_gimme_hole()")
 		course.complete_gimme_hole()
+	else:
+		print("ERROR: course does not have complete_gimme_hole method")
 
 func _on_shop_enter_yes() -> void:
 	"""Handle shop enter yes button"""
@@ -719,13 +735,49 @@ func show_gimme_button() -> void:
 	"""Show the gimme button"""
 	if gimme_scene:
 		gimme_scene.visible = true
-		print("Gimme button shown")
+		print("=== GIMME BUTTON SHOWN ===")
+		print("Gimme scene visible:", gimme_scene.visible)
+		print("Gimme scene position:", gimme_scene.position)
+		print("Gimme scene z_index:", gimme_scene.z_index)
+	else:
+		print("ERROR: gimme_scene is null")
 
 func hide_gimme_button() -> void:
 	"""Hide the gimme button"""
 	if gimme_scene:
 		gimme_scene.visible = false
-		print("Gimme button hidden")
+		print("=== GIMME BUTTON HIDDEN ===")
+		print("Gimme scene visible:", gimme_scene.visible)
+	else:
+		print("ERROR: gimme_scene is null")
+
+func check_and_show_gimme_button() -> void:
+	"""Check if gimme button should be shown and show it if appropriate"""
+	# Early return if game_state_manager is not initialized yet
+	if not course.game_state_manager:
+		return
+		
+	print("=== CHECKING GIMME BUTTON VISIBILITY ===")
+	
+	# Check if gimme is active and player is on the ball tile
+	var is_gimme_active = course.game_state_manager.is_gimme_active()
+	var player_on_ball_tile = player_manager.get_player_grid_pos() == course.game_state_manager.get_ball_landing_tile()
+	var waiting_for_player = course.game_state_manager.get_waiting_for_player_to_reach_ball()
+	
+	print("Gimme active:", is_gimme_active)
+	print("Player on ball tile:", player_on_ball_tile)
+	print("Waiting for player:", waiting_for_player)
+	
+	# Show gimme button if:
+	# 1. Gimme is active (ball is in gimme range)
+	# 2. Player is on the ball tile
+	# (The waiting_for_player check is not needed since we want to show gimme whether player just reached the ball or used reach ball button)
+	if is_gimme_active and player_on_ball_tile:
+		print("=== SHOWING GIMME BUTTON ===")
+		show_gimme_button()
+	else:
+		print("=== HIDING GIMME BUTTON ===")
+		hide_gimme_button()
 
 # ===== BUTTON MANAGEMENT =====
 
