@@ -827,6 +827,31 @@ func show_draw_club_cards_button() -> void:
 	if draw_club_cards_button:
 		draw_club_cards_button.visible = true
 
+func enter_draw_cards_phase() -> void:
+	"""Enter the draw cards phase - start with club selection"""
+	# Set game phase to draw_cards instead of launch to prevent immediate ball launch
+	course.game_state_manager.set_game_phase("draw_cards")
+	
+	# Show the draw club cards button to start the phase
+	show_draw_club_cards_button()
+
+func show_aiming_circle() -> void:
+	"""Show the aiming circle for shot direction"""
+	if course.game_state_manager and course.game_state_manager.get_aiming_circle_manager():
+		course.game_state_manager.get_aiming_circle_manager().show_aiming_circle()
+
+func hide_aiming_circle() -> void:
+	"""Hide the aiming circle"""
+	if course.game_state_manager and course.game_state_manager.get_aiming_circle_manager():
+		course.game_state_manager.get_aiming_circle_manager().hide_aiming_circle()
+
+func update_aiming_circle() -> void:
+	"""Update the aiming circle position and rotation"""
+	if course.game_state_manager and course.game_state_manager.get_aiming_circle_manager():
+		var manager = course.game_state_manager.get_aiming_circle_manager()
+		if manager and manager.has_method("update_aiming_circle_position"):
+			manager.update_aiming_circle_position(course.player_manager.get_player_node().global_position)
+
 func cleanup() -> void:
 	"""Clean up UI manager resources"""
 	# Clear all dialogs and overlays
@@ -857,13 +882,23 @@ func handle_player_input(event: InputEvent, game_state_manager: Node, course: No
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		if game_state_manager.get_game_phase() == "move":
 			course.enter_aiming_phase()  # Start aiming phase instead of just drawing cards
+		elif game_state_manager.get_game_phase() == "draw_cards":
+			# In draw_cards phase, clicking should draw cards and transition to club_selection phase
+			if course.deck_manager.hand.size() == 0:
+				course.draw_cards_for_next_shot()  # Draw cards for shot
+			else:
+				pass # Already have cards in draw_cards phase - ready to take shot
+		elif game_state_manager.get_game_phase() == "club_selection":
+			# In club_selection phase, clicking should show club selection UI
+			# This is handled by the draw club cards button, so no action needed here
+			pass
 		elif game_state_manager.get_game_phase() == "launch":
 			if course.deck_manager.hand.size() == 0:
 				course.draw_cards_for_next_shot()  # Draw cards for shot
 			else:
 				pass # Already have cards in launch phase - ready to take shot
 		else:
-			pass # Player clicked but not in move or launch phase
+			pass # Player clicked but not in move, draw_cards, club_selection, or launch phase
 
 func update_deck_display() -> void:
 	"""Update the deck display to show current deck state"""

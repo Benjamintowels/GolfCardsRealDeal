@@ -840,11 +840,9 @@ func update_player_position_with_ball_creation(course: Node) -> void:
 	var player_center: Vector2 = get_player_node().global_position + player_size / 2
 	course.camera_manager.update_camera_snap_back_position(player_center)
 	
-	# Only create ball if player is properly placed (not during initial setup)
-	if not course.game_state_manager.is_placing_player:
-		# Create or update ball at tile center for all shots
-		var tile_center: Vector2 = Vector2(get_player_grid_pos().x * course.cell_size + course.cell_size/2, get_player_grid_pos().y * course.cell_size + course.cell_size/2) + course.grid_manager.get_camera_container().global_position
-		course.create_or_update_ball_at_player_center(tile_center)
+	# Create ball at tile center for all shots (including initial tee placement)
+	var tile_center: Vector2 = Vector2(get_player_grid_pos().x * course.cell_size + course.cell_size/2, get_player_grid_pos().y * course.cell_size + course.cell_size/2) + course.grid_manager.get_camera_container().global_position
+	course.launch_manager.create_or_update_ball_at_player_center(tile_center, course)
 	
 	if not course.game_state_manager.is_placing_player:
 		# Check if there's an ongoing pin-to-tee transition

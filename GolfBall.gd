@@ -435,6 +435,10 @@ func _process(delta):
 	if landed_flag:
 		return
 	
+	# Debug: Check if ball has unexpected velocity
+	if velocity.length() > 0.1 and not is_rolling and z <= current_ground_level:
+		print("WARNING: Ball has unexpected velocity: ", velocity, " at position: ", position)
+	
 	# Update BallHop cooldown
 	if ballhop_cooldown > 0.0:
 		ballhop_cooldown -= delta

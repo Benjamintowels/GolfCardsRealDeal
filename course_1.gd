@@ -479,7 +479,6 @@ func _ready() -> void:
 	add_child(player_manager)
 	
 	call_deferred("fix_ui_layers")
-	ui_manager.display_selected_character()
 	if end_round_button:
 		end_round_button.pressed.connect(_on_end_round_pressed)
 	
@@ -492,9 +491,6 @@ func _ready() -> void:
 	# Connect reach ball button
 	if reach_ball_button:
 		reach_ball_button.reach_ball_pressed.connect(_on_reach_ball_pressed)
-	
-	# Initialize gimme button state
-	ui_manager.hide_gimme_button()
 
 
 	# Create camera container for grid manager
@@ -547,7 +543,6 @@ func _ready() -> void:
 
 	deck_manager = DeckManager.new()
 	add_child(deck_manager)
-	deck_manager.deck_updated.connect(ui_manager.update_deck_display)
 	deck_manager.discard_recycled.connect(card_stack_display.animate_card_recycle)
 	
 	# Setup card stack sounds in SoundManager
@@ -567,6 +562,15 @@ func _ready() -> void:
 	ui_manager = UIManager.new()
 	add_child(ui_manager)
 	ui_manager.setup($UILayer, self, player_manager, grid_manager, camera_manager, deck_manager, movement_controller, attack_handler, weapon_handler, launch_manager)
+	
+	# Display selected character after UIManager is initialized
+	ui_manager.display_selected_character()
+	
+	# Initialize gimme button state after UIManager is initialized
+	ui_manager.hide_gimme_button()
+	
+	# Connect deck manager signals after UIManager is initialized
+	deck_manager.deck_updated.connect(ui_manager.update_deck_display)
 	
 	# Setup GameStateManager (already initialized above)
 	game_state_manager.setup(self, ui_manager, map_manager, build_map, player_manager, grid_manager, camera_manager, deck_manager, movement_controller, attack_handler, weapon_handler, launch_manager)
@@ -892,8 +896,18 @@ func _input(event: InputEvent) -> void:
 		return
 	
 	if game_state_manager.get_game_phase() == "aiming":
-		if event is InputEventMouseButton:
+		if event is InputEventMouseMotion:
+			# Update aiming circle position to follow mouse
+			var mouse_pos = camera.get_global_mouse_position()
+			if game_state_manager.get_aiming_circle_manager():
+				game_state_manager.get_aiming_circle_manager().update_aiming_circle_position(mouse_pos)
+		elif event is InputEventMouseButton:
 			if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+				# Set the chosen landing spot to the current aiming circle position
+				var mouse_pos = camera.get_global_mouse_position()
+				game_state_manager.set_chosen_landing_spot(mouse_pos)
+				print("Chosen landing spot set to:", mouse_pos)
+				
 				# Freeze grenade launcher if using GrenadeLauncherWeaponCard
 				if weapon_handler and weapon_handler.selected_card and weapon_handler.selected_card.name == "GrenadeLauncherWeaponCard":
 					weapon_handler.freeze_grenade_launcher()
@@ -906,6 +920,9 @@ func _input(event: InputEvent) -> void:
 				ui_manager.hide_aiming_circle()
 				ui_manager.hide_aiming_instruction()
 				camera_manager.restore_zoom_after_aiming(self)
+				
+				# Set the chosen landing spot in the LaunchManager
+				launch_manager.chosen_landing_spot = mouse_pos
 				launch_manager.enter_launch_phase()
 			elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
 				game_state_manager.is_aiming_phase = false
@@ -1608,9 +1625,15 @@ func enter_aiming_phase() -> void:
 	game_state_manager.set_shot_start_position(player_manager.get_player_grid_pos())
 	print("Shot started from position:", game_state_manager.get_shot_start_position())
 	
+	# Create aiming circle at mouse position
+	var mouse_pos = camera.get_global_mouse_position()
+	create_aiming_circle(mouse_pos)
+	
 	ui_manager.show_aiming_circle()
 	launch_manager.create_ghost_ball()
 	ui_manager.show_aiming_instruction()
+	
+	# Create camera tween to player position for aiming
 	var sprite = player_manager.get_player_node().get_node_or_null("Sprite2D")
 	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
 	var player_center = player_manager.get_player_node().global_position + player_size / 2
@@ -1638,9 +1661,38 @@ func enter_aiming_phase() -> void:
 
 # Hide aiming instruction function moved to UIManager
 
+func show_aiming_circle() -> void:
+	"""Show the aiming circle"""
+	if game_state_manager.get_aiming_circle_manager():
+		game_state_manager.get_aiming_circle_manager().show_aiming_circle()
+
+func hide_aiming_circle() -> void:
+	"""Hide the aiming circle"""
+	if game_state_manager.get_aiming_circle_manager():
+		game_state_manager.get_aiming_circle_manager().hide_aiming_circle()
+
+func update_aiming_circle() -> void:
+	"""Update the aiming circle position and rotation"""
+	if game_state_manager.get_aiming_circle_manager():
+		var manager = game_state_manager.get_aiming_circle_manager()
+		if manager and manager.has_method("update_aiming_circle_position"):
+			manager.update_aiming_circle_position(player_manager.get_player_node().global_position)
+
 # Zoom restoration moved to CameraManager
 
 # Card drawing functions moved to DeckManager
+
+func create_aiming_circle(position: Vector2) -> void:
+	"""Create the aiming circle at the specified position"""
+	# Create AimingCircleManager if it doesn't exist
+	if not game_state_manager.get_aiming_circle_manager():
+		var aiming_circle_manager = preload("res://AimingCircleManager.tscn").instantiate()
+		camera.add_child(aiming_circle_manager)
+		game_state_manager.set_aiming_circle_manager(aiming_circle_manager)
+	
+	# Create the aiming circle using the manager
+	game_state_manager.get_aiming_circle_manager().create_aiming_circle(position, int(game_state_manager.max_shot_distance))
+	print("Aiming circle created at:", position)
 	
 
 # Start shot sequence function moved to GameStateManager
@@ -1652,6 +1704,11 @@ func draw_cards_for_next_shot() -> void:
 			card_draw_sound.play()
 	deck_manager.draw_cards_for_shot(5, player_manager, game_state_manager)  # This now includes character modifiers
 	create_movement_buttons()
+	
+	# Transition from draw_cards phase to club_selection phase after drawing cards
+	if game_state_manager.get_game_phase() == "draw_cards":
+		game_state_manager.set_game_phase("club_selection")
+		print("Transitioned from draw_cards to club_selection phase after drawing cards")
 
 func _on_golf_ball_sand_landing():
 	sound_manager.play_sand_thunk()
@@ -3498,3 +3555,33 @@ func clear_player_state():
 		movement_controller.clear_all_movement_ui()
 	
 	print("Player state cleared")
+
+func _update_player_mouse_facing_state():
+	"""Update player facing direction based on mouse position"""
+	if not player_manager or not player_manager.get_player_node():
+		return
+	
+	var player = player_manager.get_player_node()
+	var mouse_pos = get_global_mouse_position()
+	var player_pos = player.global_position
+	
+	# Calculate direction from player to mouse
+	var direction = mouse_pos - player_pos
+	
+	# Update player facing direction
+	if player.has_method("update_facing_direction"):
+		player.update_facing_direction(direction)
+	elif player.has_method("set_facing_direction"):
+		# Determine facing direction based on mouse position
+		if abs(direction.x) > abs(direction.y):
+			# Horizontal movement is greater
+			if direction.x > 0:
+				player.set_facing_direction("right")
+			else:
+				player.set_facing_direction("left")
+		else:
+			# Vertical movement is greater
+			if direction.y > 0:
+				player.set_facing_direction("down")
+			else:
+				player.set_facing_direction("up")

@@ -1,8 +1,10 @@
 class_name GameStateManager
 extends Node
 
+const AimingCircleManager = preload("res://AimingCircleManager.gd")
+
 # Game phase management
-var game_phase := "tee_select" # Possible: tee_select, draw_cards, aiming, launch, ball_flying, move, etc.
+var game_phase := "tee_select" # Possible: tee_select, draw_cards, club_selection, aiming, launch, ball_flying, move, etc.
 
 # Hole and round management
 var current_hole := 0  # 0-based hole index (0-8 for front 9, 9-17 for back 9)
@@ -34,7 +36,7 @@ var drive_distance := 0.0
 
 # Camera and aiming variables
 var camera_following_ball := false
-var aiming_circle: Control = null
+var aiming_circle_manager: AimingCircleManager = null
 var chosen_landing_spot: Vector2 = Vector2.ZERO
 var max_shot_distance: float = 800.0  # Reduced from 2000.0 to something more on-screen
 var is_aiming_phase: bool = false
@@ -380,13 +382,19 @@ func get_has_started() -> bool:
 	"""Get the has started flag"""
 	return has_started
 
-func set_aiming_circle(circle: Control) -> void:
-	"""Set the aiming circle reference"""
-	aiming_circle = circle
+func set_aiming_circle_manager(manager: AimingCircleManager) -> void:
+	"""Set the aiming circle manager reference"""
+	aiming_circle_manager = manager
+
+func get_aiming_circle_manager() -> AimingCircleManager:
+	"""Get the aiming circle manager reference"""
+	return aiming_circle_manager
 
 func get_aiming_circle() -> Control:
-	"""Get the aiming circle reference"""
-	return aiming_circle
+	"""Get the aiming circle reference (for backward compatibility)"""
+	if aiming_circle_manager:
+		return aiming_circle_manager.get_aiming_circle()
+	return null
 
 func set_chosen_landing_spot(spot: Vector2) -> void:
 	"""Set the chosen landing spot"""

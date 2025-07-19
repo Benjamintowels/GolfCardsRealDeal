@@ -1,5 +1,7 @@
 extends Control
 
+const AimingCircleManager = preload("res://AimingCircleManager.gd")
+
 # Driving Range Minigame
 signal driving_range_completed
 
@@ -45,6 +47,7 @@ var max_shots := 10  # Number of shots per session
 
 # Auto-aiming variables
 var aiming_circle: Control = null
+var aiming_circle_manager: AimingCircleManager = null
 var chosen_landing_spot: Vector2 = Vector2.ZERO
 var max_shot_distance: float = 800.0
 
@@ -685,35 +688,13 @@ func enter_aiming_phase():
 
 func create_aiming_circle(position: Vector2):
 	"""Create the aiming circle at the specified position"""
-	if aiming_circle:
-		aiming_circle.queue_free()
+	# Create AimingCircleManager if it doesn't exist
+	if not aiming_circle_manager:
+		aiming_circle_manager = preload("res://AimingCircleManager.tscn").instantiate()
+		camera_container.add_child(aiming_circle_manager)
 	
-	aiming_circle = Control.new()
-	aiming_circle.name = "AimingCircle"
-	aiming_circle.position = position - Vector2(25, 25)  # Center the circle
-	aiming_circle.z_index = 100
-	
-	# Create circle visual
-	var circle := ColorRect.new()
-	circle.name = "CircleVisual"
-	circle.size = Vector2(50, 50)
-	circle.color = Color(1, 0, 0, 0.8)
-	circle.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	aiming_circle.add_child(circle)
-	
-	# Add distance label
-	var distance_label := Label.new()
-	distance_label.name = "DistanceLabel"
-	distance_label.text = str(int(max_shot_distance)) + "px"
-	distance_label.add_theme_font_size_override("font_size", 12)
-	distance_label.add_theme_color_override("font_color", Color.WHITE)
-	distance_label.add_theme_constant_override("outline_size", 1)
-	distance_label.add_theme_color_override("font_outline_color", Color.BLACK)
-	distance_label.position = Vector2(0, 55)
-	distance_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	aiming_circle.add_child(distance_label)
-	
-	camera_container.add_child(aiming_circle)
+	# Create the aiming circle using the manager
+	aiming_circle_manager.create_aiming_circle(position, int(max_shot_distance))
 	print("Aiming circle created at:", position)
 
 func enter_launch_phase():

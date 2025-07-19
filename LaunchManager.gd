@@ -157,6 +157,7 @@ func _process(delta: float):
 
 func enter_launch_phase() -> void:
 	"""Enter the launch phase for taking a shot"""
+	print("LaunchManager: enter_launch_phase called")
 	emit_signal("launch_phase_entered")
 	charge_time = 0.0
 	original_aim_mouse_pos = camera.get_global_mouse_position()
@@ -188,11 +189,13 @@ func enter_launch_phase() -> void:
 	else:
 		if not is_putting:
 			# Start with height selection phase
+			print("LaunchManager: Starting height selection phase for club:", selected_club)
 			show_height_meter()
 			# Start at club's min height instead of 0
 			var club_min_height = club_data.get(selected_club, {}).get("min_height", 0.0)
 			launch_height = club_min_height
 			is_selecting_height = true
+			print("LaunchManager: Height selection activated - is_selecting_height:", is_selecting_height, " launch_height:", launch_height)
 			# Emit signal to notify about height selection phase
 			emit_signal("charging_state_changed", is_charging, is_charging_height)
 		else:
@@ -213,6 +216,12 @@ func enter_launch_phase() -> void:
 	var player_center = player_node.global_position + player_size / 2
 	var tween := get_tree().create_tween()
 	tween.tween_property(camera, "position", player_center, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	
+	# Create a ball at the player position for launching
+	var course = card_effect_handler.course if card_effect_handler else null
+	if course:
+		create_or_update_ball_at_player_center(player_center, course)
+		print("LaunchManager: Ball created/updated for launch phase")
 	
 	# Spin indicator removed
 	pass
@@ -1147,8 +1156,11 @@ func hide_height_meter():
 func handle_input(event: InputEvent) -> bool:
 	"""Handle input events for launch mechanics. Returns true if event was handled."""
 	
+	print("LaunchManager: handle_input called with event type:", event.get_class())
+	
 	# Check if a ball is available for launch - if not, don't allow new launches
 	if not is_ball_available_for_launch():
+		print("LaunchManager: No ball available for launch")
 		return false
 	
 	if event is InputEventMouseButton:
@@ -1249,6 +1261,7 @@ func handle_input(event: InputEvent) -> bool:
 			return true
 	
 	elif event is InputEventMouseMotion:
+		print("LaunchManager: Mouse motion detected - is_selecting_height:", is_selecting_height, " is_charging:", is_charging, " is_charging_height:", is_charging_height)
 		if is_selecting_height:
 			# Handle height selection with mouse up/down movement
 			var mouse_delta = event.relative
@@ -1261,6 +1274,8 @@ func handle_input(event: InputEvent) -> bool:
 			# Clamp height to club's specific range
 			var old_height = launch_height
 			launch_height = clamp(launch_height + height_change, club_min_height, club_max_height)
+			
+			print("LaunchManager: Height selection - delta:", mouse_delta, " height_change:", height_change, " old_height:", old_height, " new_height:", launch_height)
 			
 			# Emit signal if height actually changed
 			if old_height != launch_height:
@@ -1554,6 +1569,9 @@ func is_ball_available_for_launch() -> bool:
 	# Also check for any balls in the scene
 	var balls = get_tree().get_nodes_in_group("balls")
 	for ball in balls:
+		# Skip GhostBalls as they are just preview balls and shouldn't block launching
+		if ball.name == "GhostBall":
+			continue
 		if is_instance_valid(ball):
 			if ball.has_method("is_in_flight"):
 				if ball.is_in_flight():
@@ -1643,6 +1661,7 @@ func create_or_update_ball_at_player_center(player_center: Vector2, course: Node
 	
 	if existing_ball:
 		# Ball already exists - don't recreate it, just update its properties
+		print("Ball already exists, not creating new one")
 		return
 
 	# No ball exists - create a new one at player center
@@ -1657,6 +1676,13 @@ func create_or_update_ball_at_player_center(player_center: Vector2, course: Node
 	ball.cell_size = course.cell_size
 	ball.map_manager = course.map_manager
 	
+	# Ensure ball is properly initialized with zero velocity
+	ball.velocity = Vector2.ZERO
+	ball.vz = 0.0
+	ball.z = 0.0
+	ball.landed_flag = false
+	ball.is_rolling = false
+	
 	# Connect ball signals using the existing function names
 	ball.landed.connect(course._on_golf_ball_landed)
 	ball.out_of_bounds.connect(course._on_golf_ball_out_of_bounds)
@@ -1664,6 +1690,17 @@ func create_or_update_ball_at_player_center(player_center: Vector2, course: Node
 	
 	# Add ball to camera container so it moves with the world
 	course.grid_manager.get_camera_container().add_child(ball)
+	
+	# Set the launch manager's golf ball reference
+	golf_ball = ball
+	
+	print("Created new ball at player center with zero velocity - ball.velocity = ", ball.velocity)
+	
+	# Double-check that the ball has zero velocity after creation
+	if ball.velocity.length() > 0.1:
+		print("ERROR: Ball was created with non-zero velocity: ", ball.velocity)
+		ball.velocity = Vector2.ZERO
+		print("Reset ball velocity to zero")
 
 func force_create_ball_at_position(world_position: Vector2, course: Node) -> void:
 	"""Force create a new ball at the specified world position (ignores existing balls)"""
@@ -1679,6 +1716,13 @@ func force_create_ball_at_position(world_position: Vector2, course: Node) -> voi
 	ball.cell_size = course.cell_size
 	ball.map_manager = course.map_manager
 	
+	# Ensure ball is properly initialized with zero velocity
+	ball.velocity = Vector2.ZERO
+	ball.vz = 0.0
+	ball.z = 0.0
+	ball.landed_flag = false
+	ball.is_rolling = false
+	
 	# Connect ball signals using the existing function names
 	ball.landed.connect(course._on_golf_ball_landed)
 	ball.out_of_bounds.connect(course._on_golf_ball_out_of_bounds)
@@ -1690,7 +1734,7 @@ func force_create_ball_at_position(world_position: Vector2, course: Node) -> voi
 	# Set the launch manager's golf ball reference
 	golf_ball = ball
 	
-	print("Force created new ball at position:", world_position)
+	print("Force created new ball at position:", world_position, " with zero velocity")
 
 func enter_launch_phase_from_course() -> void:
 	"""Enter the launch phase for taking a shot (called from course)"""
