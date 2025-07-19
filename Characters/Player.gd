@@ -793,12 +793,6 @@ func set_grid_position(pos: Vector2i, ysort_objects: Array = [], shop_grid_pos: 
 	elif course and "camera_offset" in course:
 		target_world_pos += course.camera_offset
 	
-	print("=== SET GRID POSITION DEBUG ===")
-	print("Grid position:", pos)
-	print("Target world position:", target_world_pos)
-	print("Current player position:", self.position)
-	print("=== END SET GRID POSITION DEBUG ===")
-	
 	# Only use animated movement if animations are enabled
 	if animations_enabled:
 		_animate_movement_to_position(target_world_pos, ysort_objects, shop_grid_pos)
@@ -1496,27 +1490,20 @@ func move_to_grid(pos: Vector2i):
 			# Normal movement
 			set_grid_position(pos)
 			
-			# CRITICAL: Update attack handler position immediately after movement
+			# Update attack handler position immediately after movement
 			var course = get_tree().current_scene
 			if course and course.has_method("get_attack_handler"):
 				var attack_handler = course.get_attack_handler()
 				if attack_handler and attack_handler.has_method("update_player_position"):
 					attack_handler.update_player_position(pos)
-					print("Attack handler player position updated immediately to:", pos)
 			
 			emit_signal("moved_to_tile", pos)
-			print("Signal emitted, ending movement mode")
 			end_movement_mode()
-			print("Movement mode ended")
 	else:
 		print("Movement is invalid - cannot move to this position")
-	print("=== END PLAYER.GD MOVE_TO_GRID DEBUG ===")
 
 func _handle_etherdash_movement(target_pos: Vector2i):
 	"""Handle EtherDash movement with visual effects and multiple move logic"""
-	print("=== ETHERDASH MOVEMENT ===")
-	print("Moving from", grid_pos, "to", target_pos)
-	print("Moves remaining:", etherdash_moves_remaining)
 	
 	# Create EtherDashCircle effect at starting position
 	_create_etherdash_effect(grid_pos)
@@ -1531,13 +1518,12 @@ func _handle_etherdash_movement(target_pos: Vector2i):
 	# Move to the target position
 	set_grid_position(target_pos)
 	
-	# CRITICAL: Update attack handler position immediately after EtherDash movement
+	# Update attack handler position immediately after EtherDash movement
 	var course = get_tree().current_scene
 	if course and course.has_method("get_attack_handler"):
 		var attack_handler = course.get_attack_handler()
 		if attack_handler and attack_handler.has_method("update_player_position"):
 			attack_handler.update_player_position(target_pos)
-			print("Attack handler player position updated immediately for EtherDash to:", target_pos)
 	
 	# Create EtherDashCircle effect at destination
 	_create_etherdash_effect(target_pos)
@@ -1547,14 +1533,12 @@ func _handle_etherdash_movement(target_pos: Vector2i):
 	
 	# Decrease moves remaining
 	etherdash_moves_remaining -= 1
-	print("EtherDash moves remaining:", etherdash_moves_remaining)
 	
 	# Restore original movement duration
 	movement_duration = original_duration
 	
 	# If no moves remaining, end EtherDash mode
 	if etherdash_moves_remaining <= 0:
-		print("EtherDash complete - ending movement mode")
 		# Signal to the course that EtherDash is complete so it can handle card discarding
 		var current_course = get_tree().current_scene
 		if current_course and current_course.has_method("on_etherdash_complete"):
@@ -1565,7 +1549,6 @@ func _handle_etherdash_movement(target_pos: Vector2i):
 	else:
 		# Recalculate valid movement tiles for next move
 		calculate_valid_movement_tiles()
-		print("EtherDash continuing - recalculated valid tiles")
 
 func _create_etherdash_effect(position: Vector2i):
 	"""Create EtherDashCircle effect at the specified grid position"""
@@ -2309,30 +2292,18 @@ func is_currently_punching() -> bool:
 func animate_to_position(target_grid_pos: Vector2i, callback: Callable = Callable()) -> void:
 	"""Animate player movement to a target grid position"""
 	
-	print("=== ANIMATE TO POSITION DEBUG ===")
-	print("Target grid position:", target_grid_pos)
-	print("Current player position:", self.position)
-	print("Current player grid position:", grid_pos)
-	
 	# Calculate world position from grid position (same as set_grid_position)
 	var target_world_pos = Vector2(target_grid_pos.x, target_grid_pos.y) * cell_size + Vector2(cell_size / 2, cell_size / 2)
-	print("Base world position (no camera offset):", target_world_pos)
 	
-	# Add camera offset to get the correct world position (CRITICAL FIX)
+	# Add camera offset to get the correct world position
 	var course = get_tree().current_scene
 	var camera_offset = Vector2.ZERO
 	if course and course.has_method("get_camera_offset"):
 		camera_offset = course.get_camera_offset()
 		target_world_pos += camera_offset
-		print("Camera offset applied:", camera_offset)
 	elif course and "camera_offset" in course:
 		camera_offset = course.camera_offset
 		target_world_pos += camera_offset
-		print("Camera offset applied (direct):", camera_offset)
-	else:
-		print("No camera offset found!")
-	
-	print("Final target world position:", target_world_pos)
 	
 	# Use faster animation for PunchB attacks (3x faster)
 	var animation_duration = movement_duration / 3.0
@@ -2346,12 +2317,11 @@ func animate_to_position(target_grid_pos: Vector2i, callback: Callable = Callabl
 	# Update Y-sorting during movement
 	movement_tween.tween_callback(update_z_index_for_ysort.bind([], Vector2i.ZERO))
 	
-	# CRITICAL: Update attack handler position immediately for special attacks
+	# Update attack handler position immediately for special attacks
 	if course and course.has_method("get_attack_handler"):
 		var attack_handler = course.get_attack_handler()
 		if attack_handler and attack_handler.has_method("update_player_position"):
 			attack_handler.update_player_position(target_grid_pos)
-			print("Attack handler player position updated immediately for special attack to:", target_grid_pos)
 	
 	# Call callback when animation completes
 	if callback.is_valid():
@@ -2360,17 +2330,13 @@ func animate_to_position(target_grid_pos: Vector2i, callback: Callable = Callabl
 	# Update grid position and course position when animation completes (at the very end)
 	movement_tween.tween_callback(func():
 		grid_pos = target_grid_pos
-		print("Grid position updated to:", grid_pos, "after animation to:", target_world_pos)
 		
 		# Update the course's player position reference
 		if course and course.has_method("get_player_manager"):
 			var player_manager = course.get_player_manager()
 			if player_manager and player_manager.has_method("set_player_grid_pos"):
 				player_manager.set_player_grid_pos(target_grid_pos)
-				print("Course player position updated to:", target_grid_pos)
 	)
-	
-	print("=== END ANIMATE TO POSITION DEBUG ===")
 
 func _setup_jump_animation() -> void:
 	"""Setup the jump animation system"""

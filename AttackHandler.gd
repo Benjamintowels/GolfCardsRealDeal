@@ -126,211 +126,59 @@ func create_attack_buttons() -> void:
 	# This function is kept for compatibility but doesn't create separate buttons
 	pass
 
-func _on_attack_card_pressed(card: CardData, button: TextureButton) -> void:
-	print("=== ATTACK CARD PRESSED ===")
-	print("Card:", card.name, "Effect type:", card.effect_type)
-	print("Card in hand:", deck_manager.hand.has(card))
-	print("Attack handler setup check - card_effect_handler:", card_effect_handler != null)
-	print("Attack handler setup check - deck_manager:", deck_manager != null)
-	
-	if selected_card == card:
-		print("Card already selected, returning")
-		return
-	card_click_sound.play()
-	hide_all_attack_highlights()
-	valid_attack_tiles.clear()
-
-	is_attack_mode = true
-	active_button = button
+func _on_attack_card_pressed(card: CardData) -> void:
+	"""Handle when an attack card is pressed"""
 	selected_card = card
-	attack_range = card.get_effective_strength()
-	print("Attack range set to:", attack_range)
-
+	attack_damage = card.damage
+	attack_range = card.range
+	
+	# Enter attack mode
+	is_attack_mode = true
+	
+	# Calculate valid attack tiles
 	calculate_valid_attack_tiles()
+	
+	# Show attack highlights
 	show_attack_highlights()
 	
-	emit_signal("attack_mode_entered")
-	emit_signal("card_selected", card)
-	print("=== END ATTACK CARD PRESSED ===")
+	# Animate CardRow up to get out of the way of range display
+	animate_card_row_up()
 
-func _on_aoe_attack_card_pressed(card: CardData, button: TextureButton) -> void:
-	print("=== AOE ATTACK CARD PRESSED ===")
-	print("Card:", card.name, "Effect type:", card.effect_type)
-	print("Card in hand:", deck_manager.hand.has(card))
-	print("Attack handler setup check - card_effect_handler:", card_effect_handler != null)
-	print("Attack handler setup check - deck_manager:", deck_manager != null)
-	
-	if selected_card == card:
-		print("Card already selected, returning")
-		return
-	card_click_sound.play()
-	hide_all_attack_highlights()
-	valid_attack_tiles.clear()
-
-	is_attack_mode = true
-	active_button = button
+func _on_aoe_attack_card_pressed(card: CardData) -> void:
+	"""Handle when an AOE attack card is pressed"""
 	selected_card = card
-	attack_range = card.get_effective_strength()
-	print("AOE attack range set to:", attack_range)
-
+	attack_damage = card.damage
+	attack_range = card.range
+	
+	# Enter attack mode
+	is_attack_mode = true
+	
+	# Calculate valid AOE attack tiles
 	calculate_valid_aoe_attack_tiles()
+	
+	# Show attack highlights
 	show_attack_highlights()
 	
-	emit_signal("attack_mode_entered")
-	emit_signal("card_selected", card)
-	print("=== END AOE ATTACK CARD PRESSED ===")
+	# Animate CardRow up to get out of the way of range display
+	animate_card_row_up()
 
 func calculate_valid_attack_tiles() -> void:
 	valid_attack_tiles.clear()
-	print("=== CALCULATING VALID ATTACK TILES ===")
-	print("Player position:", player_grid_pos, "Attack range:", attack_range)
-	print("Selected card:", selected_card.name if selected_card else "None")
-
-	# Special case for Kick card - show all adjacent tiles regardless of content
-	if selected_card and selected_card.name == "Kick":
-		print("Kick card detected - showing all adjacent tiles")
-		for y in grid_size.y:
-			for x in grid_size.x:
-				var pos := Vector2i(x, y)
-				if calculate_grid_distance(player_grid_pos, pos) <= attack_range and pos != player_grid_pos:
-					valid_attack_tiles.append(pos)
-					print("Added adjacent tile for Kick card at:", pos)
-		print("Total adjacent tiles for Kick card:", valid_attack_tiles.size())
-		return
-
-	# Special case for Punch card - show all tiles in cross pattern regardless of content
-	if selected_card and selected_card.name == "Punch":
-		print("Punch card detected - showing all tiles in cross pattern")
-		var cross_positions = []
-		
-		# Add positions in cross pattern: up, down, left, right (no diagonals)
-		for distance in range(1, attack_range + 1):
-			# Up
-			var up_pos = Vector2i(player_grid_pos.x, player_grid_pos.y - distance)
-			if up_pos.y >= 0:
-				cross_positions.append(up_pos)
-			
-			# Down
-			var down_pos = Vector2i(player_grid_pos.x, player_grid_pos.y + distance)
-			if down_pos.y < grid_size.y:
-				cross_positions.append(down_pos)
-			
-			# Left
-			var left_pos = Vector2i(player_grid_pos.x - distance, player_grid_pos.y)
-			if left_pos.x >= 0:
-				cross_positions.append(left_pos)
-			
-			# Right
-			var right_pos = Vector2i(player_grid_pos.x + distance, player_grid_pos.y)
-			if right_pos.x < grid_size.x:
-				cross_positions.append(right_pos)
-		
-		# Add all cross positions to valid attack tiles (regardless of content)
-		for pos in cross_positions:
-			valid_attack_tiles.append(pos)
-			print("Added cross pattern tile for Punch card at:", pos)
-		
-		print("Total cross pattern tiles for Punch card:", valid_attack_tiles.size())
-		return
-
-	# Special case for PunchB card - show all tiles in cross pattern regardless of content
-	if selected_card and selected_card.name == "PunchB":
-		print("PunchB card detected - showing all tiles in cross pattern")
-		var cross_positions = []
-		
-		# Add positions in cross pattern: up, down, left, right (no diagonals)
-		for distance in range(1, attack_range + 1):
-			# Up
-			var up_pos = Vector2i(player_grid_pos.x, player_grid_pos.y - distance)
-			if up_pos.y >= 0:
-				cross_positions.append(up_pos)
-			
-			# Down
-			var down_pos = Vector2i(player_grid_pos.x, player_grid_pos.y + distance)
-			if down_pos.y < grid_size.y:
-				cross_positions.append(down_pos)
-			
-			# Left
-			var left_pos = Vector2i(player_grid_pos.x - distance, player_grid_pos.y)
-			if left_pos.x >= 0:
-				cross_positions.append(left_pos)
-			
-			# Right
-			var right_pos = Vector2i(player_grid_pos.x + distance, player_grid_pos.y)
-			if right_pos.x < grid_size.x:
-				cross_positions.append(right_pos)
-		
-		# Add all cross positions to valid attack tiles (regardless of content)
-		for pos in cross_positions:
-			valid_attack_tiles.append(pos)
-			print("Added cross pattern tile for PunchB card at:", pos)
-		
-		print("Total cross pattern tiles for PunchB card:", valid_attack_tiles.size())
-		return
-
-	# Special case for AttackDog card - show all tiles within range regardless of content
-	if selected_card and selected_card.name == "AttackDog":
-		print("AttackDog card detected - showing all tiles within range")
-		for y in grid_size.y:
-			for x in grid_size.x:
-				var pos := Vector2i(x, y)
-				if calculate_grid_distance(player_grid_pos, pos) <= attack_range and pos != player_grid_pos:
-					valid_attack_tiles.append(pos)
-					print("Added tile for AttackDog card at:", pos)
-		print("Total tiles for AttackDog card:", valid_attack_tiles.size())
-		return
-
-	# Special case for AssassinDash card - show cross pattern but only if tile behind enemy is available
-	if selected_card and selected_card.name == "AssassinDash":
-		print("AssassinDash card detected - showing cross pattern with behind-enemy validation")
-		
-		var cross_positions = []
-		
-		# Add positions in cross pattern: up, down, left, right (no diagonals)
-		for distance in range(1, attack_range + 1):
-			# Up
-			var up_pos = Vector2i(player_grid_pos.x, player_grid_pos.y - distance)
-			if up_pos.y >= 0:
-				cross_positions.append(up_pos)
-			
-			# Down
-			var down_pos = Vector2i(player_grid_pos.x, player_grid_pos.y + distance)
-			if down_pos.y < grid_size.y:
-				cross_positions.append(down_pos)
-			
-			# Left
-			var left_pos = Vector2i(player_grid_pos.x - distance, player_grid_pos.y)
-			if left_pos.x >= 0:
-				cross_positions.append(left_pos)
-			
-			# Right
-			var right_pos = Vector2i(player_grid_pos.x + distance, player_grid_pos.y)
-			if right_pos.x < grid_size.x:
-				cross_positions.append(right_pos)
-		
-		# Check each cross position for NPCs and validate behind-enemy tiles
-		for pos in cross_positions:
-			if has_npc_at_position(pos):
-				# Calculate the position behind the enemy (opposite direction from player)
-				var direction = pos - player_grid_pos
-				var behind_enemy_pos = pos + direction
-				
-				# Check if the tile behind the enemy is available
-				if is_position_valid_for_assassin_dash(behind_enemy_pos):
-					valid_attack_tiles.append(pos)
-					print("Added AssassinDash target at:", pos, "with valid behind-enemy tile at:", behind_enemy_pos)
-				else:
-					print("Skipped AssassinDash target at:", pos, "- behind-enemy tile not available at:", behind_enemy_pos)
-		
-		print("Total valid AssassinDash targets:", valid_attack_tiles.size())
-		return
-
-	# DEBUG: Print all oil drum grid positions
+	
+	# Get grid size from the course
+	var grid_size = Vector2i(100, 100)  # Default grid size
+	if card_effect_handler and card_effect_handler.course:
+		if card_effect_handler.course.has_method("get_grid_size"):
+			grid_size = card_effect_handler.course.get_grid_size()
+		elif "grid_size" in card_effect_handler.course:
+			grid_size = card_effect_handler.course.grid_size
+	
+	# Get all interactables for oil drum detection
 	var interactables = get_tree().get_nodes_in_group("interactables")
-	print("Found", interactables.size(), "interactables in group")
+	
 	for interactable in interactables:
 		if is_instance_valid(interactable) and interactable.has_method("get_grid_position") and interactable.name.begins_with("OilDrum"):
-			print("OIL DRUM DEBUG: Oil drum '", interactable.name, "' at grid position:", interactable.get_grid_position())
+			pass  # Oil drum found, continue processing
 
 	for y in grid_size.y:
 		for x in grid_size.x:
@@ -340,14 +188,9 @@ func calculate_valid_attack_tiles() -> void:
 				# Check if there's an NPC at this position
 				if has_npc_at_position(pos):
 					valid_attack_tiles.append(pos)
-					print("Found valid attack tile at:", pos)
 				# Check if there's an oil drum at this position (for KickB card)
 				elif has_oil_drum_at_position(pos):
 					valid_attack_tiles.append(pos)
-					print("Found oil drum at attack tile:", pos)
-	
-	print("Total valid attack tiles found:", valid_attack_tiles.size())
-	print("=== END CALCULATING VALID ATTACK TILES ===")
 
 func calculate_valid_aoe_attack_tiles() -> void:
 	valid_attack_tiles.clear()
@@ -400,18 +243,13 @@ func calculate_grid_distance(a: Vector2i, b: Vector2i) -> int:
 func has_npc_at_position(pos: Vector2i) -> bool:
 	"""Check if there's an NPC at the given grid position"""
 	if not card_effect_handler or not card_effect_handler.course:
-		print("No card_effect_handler or course found for NPC check at:", pos)
 		return false
 	
 	var entities = card_effect_handler.course.get_node_or_null("Entities")
 	if not entities:
-		print("No Entities found for NPC check at:", pos)
 		return false
 	
 	var npcs = entities.get_npcs()
-	print("=== NPC DETECTION DEBUG ===")
-	print("Checking for NPC at position:", pos)
-	print("Total NPCs in Entities:", npcs.size())
 	
 	for npc in npcs:
 		if is_instance_valid(npc):
@@ -420,28 +258,19 @@ func has_npc_at_position(pos: Vector2i) -> bool:
 			# Try to get grid position using different methods
 			if npc.has_method("get_grid_position"):
 				npc_pos = npc.get_grid_position()
-				print("NPC:", npc.name, "at position:", npc_pos, "(using get_grid_position)")
 			elif "grid_position" in npc:
 				npc_pos = npc.grid_position
-				print("NPC:", npc.name, "at position:", npc_pos, "(using grid_position property)")
 			elif "grid_pos" in npc:
 				npc_pos = npc.grid_pos
-				print("NPC:", npc.name, "at position:", npc_pos, "(using grid_pos property)")
 			else:
 				# Fallback: calculate grid position from world position
 				var world_pos = npc.global_position
 				var cell_size_used = cell_size if "cell_size" in npc else 48
 				npc_pos = Vector2i(floor(world_pos.x / cell_size_used), floor(world_pos.y / cell_size_used))
-				print("NPC:", npc.name, "at position:", npc_pos, "(calculated from world position)")
 			
 			if npc_pos == pos:
-				print("✓ Found NPC at position:", pos, "NPC:", npc.name)
 				return true
-		else:
-			print("✗ Invalid NPC reference:", npc)
 	
-	print("✗ No NPC found at position:", pos)
-	print("=== END NPC DETECTION DEBUG ===")
 	return false
 
 func get_npc_at_position(pos: Vector2i) -> Node:
@@ -509,15 +338,9 @@ func get_npc_at_position(pos: Vector2i) -> Node:
 
 func show_attack_highlights() -> void:
 	hide_all_attack_highlights()
-	print("=== SHOWING ATTACK HIGHLIGHTS ===")
-	print("Valid attack tiles count:", valid_attack_tiles.size())
-	print("Player position:", player_grid_pos)
 	
 	for pos in valid_attack_tiles:
 		grid_tiles[pos.y][pos.x].get_node("AttackHighlight").visible = true
-		print("Made attack highlight visible for tile at", pos)
-	
-	print("=== END SHOWING ATTACK HIGHLIGHTS ===")
 	
 	# Animate CardRow down to get out of the way of range display
 	animate_card_row_down()
@@ -527,11 +350,9 @@ func show_attack_highlights() -> void:
 		zoom_out_camera_for_meteor_range()
 
 func hide_all_attack_highlights() -> void:
-	print("=== HIDING ALL ATTACK HIGHLIGHTS ===")
-	for y in grid_size.y:
-		for x in grid_size.x:
+	for y in grid_tiles.size():
+		for x in grid_tiles[y].size():
 			grid_tiles[y][x].get_node("AttackHighlight").visible = false
-	print("=== END HIDING ALL ATTACK HIGHLIGHTS ===")
 
 func animate_card_row_down() -> void:
 	"""Animate the CardRow downwards to get out of the way of range display"""
@@ -638,42 +459,23 @@ func restore_camera_zoom_after_meteor() -> void:
 		print("No pre-meteor zoom level stored - skipping restoration")
 
 func exit_attack_mode() -> void:
-	print("=== EXITING ATTACK MODE ===")
-	
-	# Restore camera zoom if it was changed for meteor range
-	restore_camera_zoom_after_meteor()
-	
-	print("Selected card:", selected_card.name if selected_card else "None")
-	print("Card in hand:", deck_manager.hand.has(selected_card) if selected_card else "N/A")
-	print("Hand contents:", deck_manager.hand.map(func(c): return c.name))
+	"""Exit attack mode and clean up"""
 	is_attack_mode = false
-	hide_all_attack_highlights()
-	valid_attack_tiles.clear()
-	# Animate CardRow back to original position
-	animate_card_row_up()
-	if selected_card:
-		print("AttackHandler: Exiting attack mode with card:", selected_card.name)
-		print("AttackHandler: Card in hand:", deck_manager.hand.has(selected_card))
-		if deck_manager.hand.has(selected_card):
-			print("AttackHandler: Discarding attack card from hand:", selected_card.name)
-			deck_manager.discard(selected_card)
-			card_stack_display.animate_card_discard(selected_card.name)
-			emit_signal("card_discarded", selected_card)
-		else:
-			print("AttackHandler: Card not in hand:", selected_card.name)
-	print("=== END EXITING ATTACK MODE ===")
-	# Clean up the button directly
-	if active_button and active_button.is_inside_tree():
-		if movement_controller and movement_controller.has_method("get_movement_buttons_container"):
-			var container = movement_controller.get_movement_buttons_container()
-			if container and container.has_node(NodePath(active_button.name)):
-				container.remove_child(active_button)
-		active_button.queue_free()
-		# Also remove from movement controller's button list if it exists
-		if movement_controller and movement_controller.has_method("remove_button_from_list"):
-			movement_controller.remove_button_from_list(active_button)
-	active_button = null
 	selected_card = null
+	active_button = null
+	valid_attack_tiles.clear()
+	
+	# Hide all attack highlights
+	hide_all_attack_highlights()
+	
+	# Animate CardRow back to normal position
+	animate_card_row_up()
+	
+	# Restore camera zoom if it was changed for Meteor
+	if selected_card and selected_card.name == "Meteor":
+		restore_camera_zoom_after_meteor()
+	
+	# Emit signal
 	emit_signal("attack_mode_exited")
 
 func handle_tile_click(x: int, y: int) -> bool:
@@ -695,84 +497,61 @@ func handle_tile_click(x: int, y: int) -> bool:
 			return false
 	
 	if is_attack_mode and clicked in valid_attack_tiles:
-		print("=== ATTACK TILE CLICK DEBUG ===")
-		print("Selected card:", selected_card.name if selected_card else "None")
-		print("Card name check:", selected_card.name == "Kick" if selected_card else "N/A")
-		
 		# Check if this is a KickB card attack on an oil drum
 		if selected_card and selected_card.name == "Kick":
-			print("Kick card detected - checking for oil drum at:", clicked)
 			var oil_drum = get_oil_drum_at_position(clicked)
 			if oil_drum:
-				print("✓ Oil drum found - performing KickB attack!")
 				perform_kickb_attack_on_oil_drum(oil_drum, clicked)
 				card_play_sound.play()
 				return true
-			else:
-				print("✗ No oil drum found at position:", clicked)
 		
 		# Check if this is a PunchB card attack
 		if selected_card and selected_card.name == "PunchB":
-			print("PunchB card detected - checking for target at:", clicked)
 			var npc = get_npc_at_position(clicked)
 			var oil_drum = get_oil_drum_at_position(clicked)
 			
 			if npc:
-				print("✓ NPC found - performing PunchB attack!")
 				perform_punchb_attack_on_npc(npc, clicked)
 				card_play_sound.play()
 				return true
 			elif oil_drum:
-				print("✓ Oil drum found - performing PunchB attack!")
 				perform_punchb_attack_on_oil_drum(oil_drum, clicked)
 				card_play_sound.play()
 				return true
 			else:
-				print("✗ No valid target found at position:", clicked)
 				return false
 		
 		# Check if this is an AttackDog card attack
 		if selected_card and selected_card.name == "AttackDog":
-			print("AttackDog card detected - checking for target at:", clicked)
 			var npc = get_npc_at_position(clicked)
 			
 			if npc:
-				print("✓ NPC found - performing AttackDog attack!")
 				perform_attackdog_attack_on_npc(npc, clicked)
 				card_play_sound.play()
 				return true
 			else:
-				print("✗ No NPC found at position:", clicked)
 				return false
 
 		# Check if this is an AssassinDash card attack
 		if selected_card and selected_card.name == "AssassinDash":
-			print("AssassinDash card detected - checking for target at:", clicked)
 			var npc = get_npc_at_position(clicked)
 			
 			if npc:
-				print("✓ NPC found - performing AssassinDash attack!")
 				perform_assassin_dash_attack_on_npc(npc, clicked)
 				card_play_sound.play()
 				return true
 			else:
-				print("✗ No NPC found at position:", clicked)
 				return false
-		
-
 		
 		# Check for normal NPC attack
 		var npc = get_npc_at_position(clicked)
 		if npc:
-			print("Performing attack on NPC at:", clicked)
 			perform_attack(npc, clicked)
 			card_play_sound.play()
 			return true
 		else:
-			print("No NPC found at attack position:", clicked)
 			return false
 	else:
-		print("Invalid attack tile or not in attack mode - Clicked:", clicked, "Valid tiles:", valid_attack_tiles, "Attack mode:", is_attack_mode)
 		return false
 
 func perform_attack(npc: Node, target_pos: Vector2i) -> void:
@@ -965,85 +744,23 @@ func get_attack_cards_for_inventory() -> Array[CardData]:
 	"""Get all attack cards from the current hand"""
 	return deck_manager.hand.filter(func(card): return card.effect_type == "Attack")
 
-func _debug_list_all_npcs() -> void:
-	"""Debug function to list all NPCs and their positions"""
-	print("=== DEBUG: LISTING ALL NPCs ===")
-	
-	if not card_effect_handler or not card_effect_handler.course:
-		print("No card_effect_handler or course found")
-		return
-	
-	var entities = card_effect_handler.course.get_node_or_null("Entities")
-	if not entities:
-		print("No Entities found")
-		return
-	
-	var npcs = entities.get_npcs()
-	print("Total NPCs in Entities:", npcs.size())
-	
-	for i in range(npcs.size()):
-		var npc = npcs[i]
-		if is_instance_valid(npc):
-			var npc_pos = Vector2i.ZERO
-			
-			# Try to get grid position using different methods
-			if npc.has_method("get_grid_position"):
-				npc_pos = npc.get_grid_position()
-				print("NPC", i, ":", npc.name, "at position:", npc_pos, "(using get_grid_position)")
-			elif "grid_position" in npc:
-				npc_pos = npc.grid_position
-				print("NPC", i, ":", npc.name, "at position:", npc_pos, "(using grid_position property)")
-			elif "grid_pos" in npc:
-				npc_pos = npc.grid_pos
-				print("NPC", i, ":", npc.name, "at position:", npc_pos, "(using grid_pos property)")
-			else:
-				# Fallback: calculate grid position from world position
-				var world_pos = npc.global_position
-				var cell_size_used = cell_size if "cell_size" in npc else 48
-				npc_pos = Vector2i(floor(world_pos.x / cell_size_used), floor(world_pos.y / cell_size_used))
-				print("NPC", i, ":", npc.name, "at position:", npc_pos, "(calculated from world position)")
-		else:
-			print("NPC", i, ": Invalid NPC reference:", npc)
-	
-	print("=== END DEBUG: LISTING ALL NPCs ===")
-
 func _on_player_moved_to_tile(new_grid_pos: Vector2i) -> void:
 	"""Handle player movement to update attack highlights"""
-	print("=== ATTACK HANDLER: PLAYER MOVED TO TILE ===")
-	print("New player position:", new_grid_pos)
-	print("Attack mode:", is_attack_mode)
-	
 	player_grid_pos = new_grid_pos
 	
 	# If we're in attack mode, recalculate valid attack tiles with the new position
 	if is_attack_mode:
-		print("Recalculating attack tiles due to player movement")
 		calculate_valid_attack_tiles()
 		show_attack_highlights()
-		print("Attack tiles updated - new count:", valid_attack_tiles.size())
-	else:
-		print("Not in attack mode, skipping attack tile recalculation")
-	
-	print("=== END ATTACK HANDLER: PLAYER MOVED TO TILE ===")
 
 func update_player_position(new_grid_pos: Vector2i) -> void:
 	"""Update the stored player grid position"""
-	print("=== ATTACK HANDLER: UPDATING PLAYER POSITION ===")
-	print("Old position:", player_grid_pos, "New position:", new_grid_pos)
-	print("Attack mode:", is_attack_mode)
-	
 	player_grid_pos = new_grid_pos
 	
 	# If we're in attack mode, recalculate valid attack tiles with the new position
 	if is_attack_mode:
-		print("Recalculating attack tiles due to player movement")
 		calculate_valid_attack_tiles()
 		show_attack_highlights()
-		print("Attack tiles updated - new count:", valid_attack_tiles.size())
-	else:
-		print("Not in attack mode, skipping attack tile recalculation")
-	
-	print("=== END ATTACK HANDLER: UPDATING PLAYER POSITION ===")
 
 func is_in_attack_mode() -> bool:
 	return is_attack_mode
