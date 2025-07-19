@@ -115,6 +115,14 @@ var extra_turns_remaining := 0  # Track extra turns from CoffeeCard
 # var block_active := false  # Track if block is currently active
 # var block_amount := 0  # Current block points
 
+# Player grid position property for compatibility with other systems
+var player_grid_pos: Vector2i:
+	get:
+		return player_manager.get_player_grid_pos() if player_manager else Vector2i.ZERO
+	set(value):
+		if player_manager:
+			player_manager.set_player_grid_pos(value)
+
 # Sound effects moved to SoundManager
 var club_max_distances = {
 	"Driver": 1200.0,        # Longest distance
@@ -1050,6 +1058,13 @@ func _draw() -> void:
 
 
 # Block system methods moved to PlayerManager
+
+func activate_block(amount: int) -> void:
+	"""Activate block system - delegate to PlayerManager"""
+	if player_manager:
+		player_manager.activate_block(amount)
+	else:
+		print("Warning: PlayerManager not available for block activation")
 
 func _on_damage_button_pressed() -> void:
 	"""Handle damage button press"""

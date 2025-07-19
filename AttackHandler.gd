@@ -1464,8 +1464,8 @@ func perform_punchb_attack_immediate_no_animation(npc: Node, target_pos: Vector2
 	# Emit signal
 	emit_signal("npc_attacked", npc, punchb_damage)
 	
-	# Exit attack mode
-	exit_attack_mode()
+	# NOTE: Do NOT exit attack mode here - let the movement callback handle it
+	# This allows the player to move back to original position before exiting
 
 func perform_punchb_attack_immediate_oil_drum_no_animation(oil_drum: Node, target_pos: Vector2i) -> void:
 	"""Perform PunchB attack immediately on oil drum without triggering animation (animation already playing)"""
@@ -1519,9 +1519,8 @@ func perform_punchb_attack_with_movement(npc: Node, target_pos: Vector2i, origin
 				player_node.animate_to_position(original_player_pos, func():
 					# Update player grid position
 					player_grid_pos = original_player_pos
-					# Update the course's player position reference
-					if card_effect_handler and card_effect_handler.course:
-						card_effect_handler.course.player_grid_pos = original_player_pos
+					# Exit attack mode after returning to original position
+					exit_attack_mode()
 				)
 			)
 		)
@@ -1553,9 +1552,8 @@ func perform_punchb_attack_with_movement_oil_drum(oil_drum: Node, target_pos: Ve
 				player_node.animate_to_position(original_player_pos, func():
 					# Update player grid position
 					player_grid_pos = original_player_pos
-					# Update the course's player position reference
-					if card_effect_handler and card_effect_handler.course:
-						card_effect_handler.course.player_grid_pos = original_player_pos
+					# Exit attack mode after returning to original position
+					exit_attack_mode()
 				)
 			)
 		)

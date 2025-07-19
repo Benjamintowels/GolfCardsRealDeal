@@ -1103,6 +1103,9 @@ func _ready():
 	# Connect to area_entered signal for collision detection
 	var area2d = get_node_or_null("Area2D")
 	if area2d:
+		# Set up collision layers for proper detection
+		area2d.collision_layer = 1  # Ball is on layer 1
+		area2d.collision_mask = 1   # Ball detects objects on layer 1
 		area2d.connect("area_entered", _on_area_entered)
 		area2d.connect("area_exited", _on_area_exited)
 	

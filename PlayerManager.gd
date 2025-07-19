@@ -229,7 +229,10 @@ func switch_to_block_sprite() -> void:
 	print("Searching for sprites in player node children...")
 	for child in player_node.get_children():
 		print("  Child:", child.name, "Type:", child.get_class())
-		if child is Node2D:
+		# The character scene (BennyChar) is a child of the player node
+		if child.name == "BennyChar" or child.name == "LaylaChar" or child.name == "ClarkChar":
+			print("  Found character scene:", child.name)
+			# Look for sprites within the character scene
 			for grandchild in child.get_children():
 				print("    Grandchild:", grandchild.name, "Type:", grandchild.get_class())
 				if grandchild is Sprite2D and grandchild.name == "Sprite2D":
@@ -238,8 +241,7 @@ func switch_to_block_sprite() -> void:
 				elif grandchild is Sprite2D and grandchild.name == "BennyBlock":
 					block_sprite = grandchild
 					print("    ✓ Found block sprite:", grandchild.name)
-			if normal_sprite and block_sprite:
-				break
+			break
 	
 	print("Normal sprite found:", normal_sprite != null)
 	print("Block sprite found:", block_sprite != null)
@@ -264,14 +266,15 @@ func switch_to_normal_sprite() -> void:
 	var block_sprite = null
 	
 	for child in player_node.get_children():
-		if child is Node2D:
+		# The character scene (BennyChar) is a child of the player node
+		if child.name == "BennyChar" or child.name == "LaylaChar" or child.name == "ClarkChar":
+			# Look for sprites within the character scene
 			for grandchild in child.get_children():
 				if grandchild is Sprite2D and grandchild.name == "Sprite2D":
 					normal_sprite = grandchild
 				elif grandchild is Sprite2D and grandchild.name == "BennyBlock":
 					block_sprite = grandchild
-			if normal_sprite and block_sprite:
-				break
+			break
 	
 	if normal_sprite and block_sprite:
 		# Show normal sprite, hide block sprite
@@ -289,7 +292,9 @@ func update_block_sprite_flip() -> void:
 	# Find the block sprite
 	var block_sprite = null
 	for child in player_node.get_children():
-		if child is Node2D:
+		# The character scene (BennyChar) is a child of the player node
+		if child.name == "BennyChar" or child.name == "LaylaChar" or child.name == "ClarkChar":
+			# Look for sprites within the character scene
 			for grandchild in child.get_children():
 				if grandchild is Sprite2D and grandchild.name == "BennyBlock":
 					block_sprite = grandchild
