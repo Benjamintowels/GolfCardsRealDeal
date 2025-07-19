@@ -178,7 +178,8 @@ var club_data = {
 		"min_distance": 100.0,    # Same as old Putter settings
 		"trailoff_forgiveness": 0.2,  # Same as old Putter settings
 		"min_height": 20.0,       # Highest min height for pitching wedge
-		"max_height": 400.0       # Highest max height for pitching wedge
+		"max_height": 400.0,      # Highest max height for pitching wedge
+		"is_putter": true  # Flag to identify this as a putter-like club
 	},
 	"Fire Club": {
 		"max_distance": 900.0,
@@ -919,7 +920,29 @@ func _input(event: InputEvent) -> void:
 			# Update aiming camera tracking - use the constrained aiming circle position
 			camera_manager.update_aiming_camera_tracking(constrained_pos)
 		elif event is InputEventMouseButton:
-			if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+			# Handle mouse wheel for club cycling during aiming
+			print("Mouse button event in aiming phase:", event.button_index, "pressed:", event.pressed)
+			if event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:
+				game_state_manager.cycle_to_next_club()
+				update_club_display()
+				# Update aiming circle with new club distance
+				var selected_club = game_state_manager.get_selected_club()
+				var club_distance = club_data.get(selected_club, {}).get("max_distance", 600.0)
+				if game_state_manager.get_aiming_circle_manager():
+					game_state_manager.get_aiming_circle_manager().set_max_distance(int(club_distance))
+				print("Cycled to next club:", selected_club, "max_distance:", club_distance)
+				return  # Prevent zoom handling
+			elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed:
+				game_state_manager.cycle_to_previous_club()
+				update_club_display()
+				# Update aiming circle with new club distance
+				var selected_club = game_state_manager.get_selected_club()
+				var club_distance = club_data.get(selected_club, {}).get("max_distance", 600.0)
+				if game_state_manager.get_aiming_circle_manager():
+					game_state_manager.get_aiming_circle_manager().set_max_distance(int(club_distance))
+				print("Cycled to previous club:", selected_club, "max_distance:", club_distance)
+				return  # Prevent zoom handling
+			elif event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
 				# Set the chosen landing spot to the current constrained aiming circle position
 				var mouse_pos = camera.get_global_mouse_position()
 				var constrained_pos = mouse_pos
@@ -951,6 +974,10 @@ func _input(event: InputEvent) -> void:
 				launch_manager.chosen_landing_spot = constrained_pos
 				# Remove the ghost ball before entering launch phase
 				launch_manager.remove_ghost_ball()
+				
+				# Clean up club cycling system
+				cleanup_club_cycling_system()
+				
 				launch_manager.enter_launch_phase()
 			elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
 				game_state_manager.is_aiming_phase = false
@@ -963,6 +990,10 @@ func _input(event: InputEvent) -> void:
 				
 				# Remove the ghost ball when canceling aiming
 				launch_manager.remove_ghost_ball()
+				
+				# Clean up club cycling system
+				cleanup_club_cycling_system()
+				
 				game_state_manager.set_game_phase("move")  # Return to move phase
 				player_manager.update_player_mouse_facing_state(game_state_manager, launch_manager, camera, weapon_handler)
 	elif game_state_manager.get_game_phase() == "launch":
@@ -1658,6 +1689,9 @@ func enter_aiming_phase() -> void:
 	player_manager.update_player_mouse_facing_state(game_state_manager, launch_manager, camera, weapon_handler)
 	game_state_manager.set_is_aiming_phase(true)
 	
+	# Update club display to show current selection
+	update_club_display()
+	
 	# Get the current club's max distance for camera tracking decision
 	var selected_club = game_state_manager.get_selected_club()
 	var club_distance = 800.0  # Default fallback
@@ -2235,8 +2269,6 @@ func draw_club_cards() -> void:
 		child.queue_free()
 	movement_buttons.clear()
 	
-	# Note: BagCheck temporary club will be handled after normal club drawing
-	
 	# Clear existing action cards from hand before drawing club cards
 	var cards_to_remove: Array[CardData] = []
 	for card in deck_manager.hand:
@@ -2246,214 +2278,154 @@ func draw_club_cards() -> void:
 	for card in cards_to_remove:
 		deck_manager.discard(card)
 	
-	# Calculate how many club cards we need to draw
-	var base_club_count = 2  # Default number of clubs to show
-	var card_draw_modifier = player_manager.get_player_stats().get("card_draw", 0)
-	var final_club_count = base_club_count + card_draw_modifier
+	# NEW SYSTEM: Draw exactly 5 basic clubs in order (Putter, PitchingWedge, Iron, Wood, Driver)
+	var basic_clubs = [
+		preload("res://Cards/Putter.tres"),
+		preload("res://Cards/PitchingWedge.tres"),
+		preload("res://Cards/Iron.tres"),
+		preload("res://Cards/Wood.tres"),
+		preload("res://Cards/Driver.tres")
+	]
 	
-	# Actually draw club cards to hand first - draw enough for the selection
-	deck_manager.draw_club_cards_to_hand(final_club_count)
+	# Add the 5 basic clubs to hand
+	for club in basic_clubs:
+		deck_manager.hand.append(club)
 	
-	# Check for PutterHelp equipment and add an extra putter card if equipped
-	var equipment_manager = get_node_or_null("EquipmentManager")
-	var putter_help_active = false
-	if equipment_manager and equipment_manager.has_putter_help():
-		print("PutterHelp equipment detected - adding virtual putter card")
-		putter_help_active = deck_manager.add_virtual_putter_to_hand()
+	# Store the available clubs for cycling during aiming
+	game_state_manager.set_available_clubs(basic_clubs)
 	
-	# Check for BagCheck temporary club and add it as an extra option
-	var bag_check_active = game_state_manager.is_bag_check_active()
-	if game_state_manager.get_temporary_club() != null:
-		print("BagCheck temporary club detected - adding as extra option:", game_state_manager.get_temporary_club().name)
-		bag_check_active = true
-		# Add the temporary club to the hand temporarily for selection
-		deck_manager.hand.append(game_state_manager.get_temporary_club())
+	# Set default club to Iron (index 2)
+	game_state_manager.set_current_club_index(2)
+	game_state_manager.set_selected_club("Iron")
 	
-	# Then get available clubs from the hand
-	var available_clubs = deck_manager.hand.filter(func(card): return deck_manager.is_club_card(card))
-	if Global.putt_putt_mode:
-		available_clubs = available_clubs.filter(func(card): 
-			var club_info = club_data.get(card.name, {})
-			return club_info.get("is_putter", false)
-		)
-	
-	# Calculate how many clubs we should show total (including virtual putter and BagCheck if active)
-	var total_clubs_to_show = final_club_count
-	if putter_help_active:
-		total_clubs_to_show += 1  # Add one more slot for the virtual putter
-		print("PutterHelp active - total clubs to show:", total_clubs_to_show)
-	if bag_check_active:
-		total_clubs_to_show += 1  # Add one more slot for the BagCheck club
-		print("BagCheck active - total clubs to show:", total_clubs_to_show)
-	
-	total_clubs_to_show = max(1, min(total_clubs_to_show, available_clubs.size()))
-	print("Available clubs in hand:", available_clubs.map(func(card): return card.name))
-	print("Total clubs to show:", total_clubs_to_show)
-	var selected_clubs: Array[CardData] = []
-	var bonus_cards: Array[CardData] = []
-	
-	if not Global.putt_putt_mode:
-		var putters = available_clubs.filter(func(card): 
-			var club_info = club_data.get(card.name, {})
-			return club_info.get("is_putter", false)
-		)
-		
-		# Always include at least one putter if available
-		if putters.size() > 0:
-			var random_putter_index = randi() % putters.size()
-			var selected_putter = putters[random_putter_index]
-			selected_clubs.append(selected_putter)
-			available_clubs.erase(selected_putter)
-			total_clubs_to_show -= 1
-
-	# Select remaining clubs to fill the total count
-	var club_candidates = available_clubs.filter(func(card): return card.effect_type != "ModifyNext" and card.effect_type != "ModifyNextCard")
-	print("Club candidates for selection:", club_candidates.map(func(card): return card.name))
-	for i in range(total_clubs_to_show):
-		if club_candidates.size() > 0:
-			var random_index = randi() % club_candidates.size()
-			selected_clubs.append(club_candidates[random_index])
-			club_candidates.remove_at(random_index)
-	
-	print("Final selected clubs:", selected_clubs.map(func(card): return card.name))
-	
-	var modify_next_candidates = available_clubs.filter(func(card): return card.effect_type == "ModifyNext")
-	if force_stickyshot_bonus:
-		for card in modify_next_candidates:
-			if card.name == "Sticky Shot":
-				bonus_cards.append(card)
-				break
-		force_stickyshot_bonus = false
-	elif modify_next_candidates.size() > 0:
-		if randi() % 2 == 0:
-			var random_index = randi() % modify_next_candidates.size()
-			bonus_cards.append(modify_next_candidates[random_index])
-	
-	if bonus_cards.size() > 0:
-		print("Bonus cards:", bonus_cards.map(func(card): return card.name))
-	
-	var all_cards = selected_clubs + bonus_cards
-	for i in all_cards.size():
-		var club_card = all_cards[i]
+	# Create display buttons for all 5 clubs (non-clickable)
+	for i in range(basic_clubs.size()):
+		var club_card = basic_clubs[i]
 		var club_name = club_card.name
 		var club_info = club_data.get(club_name, {})
-		var max_distance = club_info.get("max_distance", 0)
 		
 		var btn := TextureButton.new()
 		btn.name = "ClubButton%d" % i
-		btn.texture_normal = club_card.image  # Use the actual card image
+		btn.texture_normal = club_card.image
 		btn.custom_minimum_size = Vector2(100, 140)
 		btn.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
 		
-		# Add PutterHelp indicator if this is a putter card and PutterHelp is active
-		if putter_help_active and club_name == "Putter":
-			# Create a small equipment indicator in the top-right corner
-			var equipment_indicator = TextureRect.new()
-			var putter_help_equipment = preload("res://Equipment/PutterHelp.tres")
-			equipment_indicator.texture = putter_help_equipment.image
-			equipment_indicator.custom_minimum_size = Vector2(20, 20)
-			equipment_indicator.size = Vector2(20, 20)
-			equipment_indicator.position = Vector2(btn.custom_minimum_size.x - 25, 5)
-			equipment_indicator.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-			equipment_indicator.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-			equipment_indicator.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			equipment_indicator.z_index = 1  # Ensure it appears on top
-			btn.add_child(equipment_indicator)
-			print("Added PutterHelp indicator to putter card")
-		
-		# Add BagCheck indicator if this is the BagCheck temporary club
-		if bag_check_active and club_name == game_state_manager.get_temporary_club().name:
-			# Create a small BagCheck indicator in the top-right corner
-			var bag_check_indicator = Label.new()
-			bag_check_indicator.text = "BAG"
-			bag_check_indicator.add_theme_font_size_override("font_size", 8)
-			bag_check_indicator.add_theme_color_override("font_color", Color.YELLOW)
-			bag_check_indicator.add_theme_constant_override("outline_size", 1)
-			bag_check_indicator.add_theme_color_override("font_outline_color", Color.BLACK)
-			bag_check_indicator.position = Vector2(btn.custom_minimum_size.x - 25, 5)
-			bag_check_indicator.size = Vector2(20, 20)
-			bag_check_indicator.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			bag_check_indicator.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-			bag_check_indicator.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			bag_check_indicator.z_index = 1  # Ensure it appears on top
-			btn.add_child(bag_check_indicator)
-			print("Added BagCheck indicator to temporary club card")
-		
-		btn.mouse_filter = Control.MOUSE_FILTER_STOP
+		# Make buttons non-clickable - they're just for display
+		btn.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		btn.focus_mode = Control.FOCUS_NONE
 		btn.z_index = 10
 		
-		var overlay := ColorRect.new()
-		overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		overlay.color = Color(1, 0.84, 0, 0.25)
-		overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
-		overlay.visible = false
-		btn.add_child(overlay)
+		# Add selection indicator (highlight current club)
+		var selection_indicator := ColorRect.new()
+		selection_indicator.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		selection_indicator.color = Color(0, 1, 0, 0.3) if i == 2 else Color(0, 0, 0, 0.1)  # Green for Iron (default), gray for others
+		selection_indicator.set_anchors_preset(Control.PRESET_FULL_RECT)
+		btn.add_child(selection_indicator)
 		
-		btn.mouse_entered.connect(func(): overlay.visible = true)
-		btn.mouse_exited.connect(func(): overlay.visible = false)
-		
-		if club_card.effect_type == "ModifyNext":
-			btn.pressed.connect(func(): card_effect_handler.handle_modify_next_card(club_card))
-		elif club_card.effect_type == "ModifyNextCard":
-			btn.pressed.connect(func(): card_effect_handler.handle_modify_next_card_card(club_card))
-		else:
-			btn.pressed.connect(func(): _on_club_card_pressed(club_name, club_info, btn))
+		# Store reference to selection indicator for updating during cycling
+		btn.set_meta("selection_indicator", selection_indicator)
+		btn.set_meta("club_index", i)
 		
 		movement_buttons_container.add_child(btn)
 		movement_buttons.append(btn)
 	
 	draw_club_cards_button.visible = false
+	print("Drew 5 basic clubs: Putter, PitchingWedge, Iron, Wood, Driver")
+	print("Default club set to Iron")
 	
-
-func _on_club_card_pressed(club_name: String, club_info: Dictionary, button: TextureButton) -> void:
-	game_state_manager.set_selected_club(club_name)
-	var base_max_distance = club_info.get("max_distance", 600.0)  # Default fallback distance
-	var strength_modifier = player_manager.get_player_stats().get("strength", 0)
-	var strength_multiplier = 1.0 + (strength_modifier * 0.1)  # Same multiplier as power calculation
-	game_state_manager.max_shot_distance = base_max_distance * strength_multiplier
-	card_click_sound.play()
-	
-	# Special handling for GrenadeLauncherClubCard - show the weapon
-	if club_name == "GrenadeLauncherClubCard" and weapon_handler:
-		weapon_handler.show_grenade_launcher_weapon()
-	else:
-		# Hide weapon if switching to a different club
-		if weapon_handler:
-			weapon_handler.hide_weapon()
-	
-	# Find the selected club card
-	var selected_card = null
-	for card in deck_manager.hand:
-		if card.name == club_name:
-			selected_card = card
-			break
-	
-	# Discard the selected club card
-	if selected_card:
-		deck_manager.discard(selected_card)
-		print("Discarded selected club card:", club_name, "to club discard pile")
-	
-	# Check if this was the BagCheck temporary club and clear the effect
-	if game_state_manager.is_bag_check_active() and club_name == game_state_manager.get_temporary_club().name:
-		print("BagCheck temporary club used - clearing effect")
-		clear_temporary_club()
-	
-	# Discard all remaining club cards from hand to club discard pile
-	var remaining_club_cards: Array[CardData] = []
+	# Discard all club cards from hand since they're now available for cycling
+	var club_cards_to_discard: Array[CardData] = []
 	for card in deck_manager.hand:
 		if deck_manager.is_club_card(card):
-			remaining_club_cards.append(card)
+			club_cards_to_discard.append(card)
 	
-	print("DeckManager: Found", remaining_club_cards.size(), "remaining club cards to discard")
-	for card in remaining_club_cards:
+	for card in club_cards_to_discard:
 		deck_manager.discard(card)
-		print("Discarded remaining club card:", card.name, "to club discard pile")
+		print("Discarded club card for cycling system:", card.name)
 	
+	# Enter aiming phase after drawing clubs
+	print("About to enter aiming phase...")
+	enter_aiming_phase()
+	print("Aiming phase entered successfully")
+	
+
+func update_club_display() -> void:
+	"""Update the club display to show the currently selected club"""
+	var current_index = game_state_manager.get_current_club_index()
+	
+	# Update selection indicators on all club buttons
+	for i in range(movement_buttons.size()):
+		var button = movement_buttons[i]
+		var selection_indicator = button.get_meta("selection_indicator")
+		if selection_indicator:
+			# Green for selected club, gray for others
+			selection_indicator.color = Color(0, 1, 0, 0.3) if i == current_index else Color(0, 0, 0, 0.1)
+	
+	# Update the selected club and max distance
+	var selected_club_name = game_state_manager.get_selected_club()
+	var club_info = club_data.get(selected_club_name, {})
+	var base_max_distance = club_info.get("max_distance", 600.0)
+	var strength_modifier = player_manager.get_player_stats().get("strength", 0)
+	var strength_multiplier = 1.0 + (strength_modifier * 0.1)
+	game_state_manager.max_shot_distance = base_max_distance * strength_multiplier
+	
+	# Update camera zoom based on selected club
+	update_camera_zoom_for_club(selected_club_name, club_info)
+	
+	print("Updated club display - selected:", selected_club_name, "max_distance:", game_state_manager.max_shot_distance)
+
+func update_camera_zoom_for_club(club_name: String, club_info: Dictionary) -> void:
+	"""Update camera zoom based on the selected club"""
+	if not camera or not camera.has_method("set_zoom_level"):
+		return
+	
+	# Get base zoom from camera
+	var base_zoom = camera.get_default_zoom_position()
+	var aiming_zoom = base_zoom
+	
+	# Check if this is a putter
+	var is_putter = club_info.get("is_putter", false)
+	var club_distance = club_info.get("max_distance", 600.0)
+	
+	if is_putter:
+		# For putters, zoom in for better precision
+		var zoom_in_factor = 0.2  # Zoom in by 20%
+		aiming_zoom = base_zoom + zoom_in_factor
+		
+		# Ensure we don't go above maximum zoom
+		if camera.has_method("get_current_max_zoom"):
+			aiming_zoom = min(aiming_zoom, camera.get_current_max_zoom())
+		
+		print("Zooming in for putter from", camera.get_current_zoom(), "to", aiming_zoom)
+	elif club_distance > 550.0:
+		# For clubs over 550 distance, zoom out for better visibility
+		var zoom_out_factor = 0.3  # Zoom out by 30%
+		aiming_zoom = base_zoom - zoom_out_factor
+		
+		# Ensure we don't go below minimum zoom
+		if camera.has_method("get_current_min_zoom"):
+			aiming_zoom = max(aiming_zoom, camera.get_current_min_zoom())
+		
+		print("Zooming out for long-range club from", camera.get_current_zoom(), "to", aiming_zoom)
+	else:
+		# For clubs 550 or less distance, keep normal zoom
+		aiming_zoom = base_zoom
+		print("Keeping normal zoom for short-range club:", aiming_zoom)
+	
+	# Apply the zoom change
+	camera.set_zoom_level(aiming_zoom)
+
+func cleanup_club_cycling_system() -> void:
+	"""Clean up the club cycling system after taking a shot"""
+	# Clear the available clubs
+	game_state_manager.set_available_clubs([])
+	
+	# Clear the club display buttons
 	for child in movement_buttons_container.get_children():
 		child.queue_free()
 	movement_buttons.clear()
-	enter_aiming_phase()
+	
+	print("Cleaned up club cycling system")
 
 func set_temporary_club(club_data: CardData):
 	"""Set a temporary club from BagCheck card effect"""

@@ -46,6 +46,10 @@ var selected_club: String = ""
 var temporary_club: CardData = null  # Temporary club from BagCheck card
 var bag_check_active: bool = false  # Track if BagCheck effect is active
 
+# Club cycling system variables
+var available_clubs: Array = []  # Available clubs for cycling
+var current_club_index: int = 2  # Default to Iron (index 2)
+
 # Puzzle type system variables
 var current_puzzle_type: String = "score"  # Default puzzle type
 var next_puzzle_type: String = "score"     # Puzzle type for next hole
@@ -288,6 +292,43 @@ func clear_temporary_club() -> void:
 func is_bag_check_active() -> bool:
 	"""Check if bag check is active"""
 	return bag_check_active
+
+# ===== CLUB CYCLING SYSTEM =====
+
+func set_available_clubs(clubs: Array) -> void:
+	"""Set the available clubs for cycling"""
+	available_clubs = clubs
+
+func get_available_clubs() -> Array:
+	"""Get the available clubs for cycling"""
+	return available_clubs
+
+func set_current_club_index(index: int) -> void:
+	"""Set the current club index"""
+	current_club_index = index
+	if available_clubs.size() > index:
+		selected_club = available_clubs[index].name
+
+func get_current_club_index() -> int:
+	"""Get the current club index"""
+	return current_club_index
+
+func cycle_to_next_club() -> void:
+	"""Cycle to the next club"""
+	print("cycle_to_next_club called - available_clubs size:", available_clubs.size())
+	if available_clubs.size() > 0:
+		current_club_index = (current_club_index + 1) % available_clubs.size()
+		selected_club = available_clubs[current_club_index].name
+		print("Cycled to club:", selected_club, "at index:", current_club_index)
+	else:
+		print("No available clubs to cycle through")
+
+func cycle_to_previous_club() -> void:
+	"""Cycle to the previous club"""
+	if available_clubs.size() > 0:
+		current_club_index = (current_club_index - 1 + available_clubs.size()) % available_clubs.size()
+		selected_club = available_clubs[current_club_index].name
+		print("Cycled to club:", selected_club, "at index:", current_club_index)
 
 # ===== PUZZLE TYPE SYSTEM =====
 

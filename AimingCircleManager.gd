@@ -82,6 +82,13 @@ func set_player_position(pos: Vector2) -> void:
 	"""Set the player position for distance calculations"""
 	player_position = pos
 
+func set_max_distance(distance: int) -> void:
+	"""Set the maximum distance for the aiming circle"""
+	max_distance = float(distance)
+	if distance_label:
+		distance_label.text = str(distance) + "px"
+	print("AimingCircleManager: Updated max distance to", distance)
+
 func update_aiming_circle_position(global_position: Vector2, local_position: Vector2) -> void:
 	"""Update the aiming circle position with distance validation"""
 	if aiming_circle:

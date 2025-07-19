@@ -35,6 +35,12 @@ func _ready():
 
 func _input(event):
 	if event is InputEventMouseButton:
+		# Check if we're in aiming phase - if so, don't handle zoom
+		var game_state_manager = get_tree().current_scene.get_node_or_null("GameStateManager")
+		if game_state_manager and game_state_manager.get_is_aiming_phase():
+			# In aiming phase, let the course handle mouse wheel for club cycling
+			return
+		
 		if event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed:
 			# Zoom in (inverted from original)
 			set_zoom_level(target_zoom - zoom_speed)

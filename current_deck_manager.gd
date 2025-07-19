@@ -27,9 +27,12 @@ var starter_deck: Array[CardData] = [
 	preload("res://Cards/BlockB.tres"),
 	preload("res://Cards/BlockB.tres"),
 	
-	# Club cards
+	# Club cards - 5 basic clubs in order
 	preload("res://Cards/Putter.tres"),        # Putter
-	preload("res://Cards/Wooden.tres")         # Wooden club
+	preload("res://Cards/PitchingWedge.tres"), # PitchingWedge
+	preload("res://Cards/Iron.tres"),          # Iron
+	preload("res://Cards/Wood.tres"),          # Wood
+	preload("res://Cards/Driver.tres")         # Driver
 ]
 
 func _ready():
