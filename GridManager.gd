@@ -87,7 +87,7 @@ func create_grid_tile(x: int, y: int) -> Control:
 	orange.color = Color(1, 0.2, 0, 0.8)  # Bright red-orange with high opacity
 	orange.visible = false
 	orange.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	orange.z_index = 2000  # Very high z_index to ensure visibility above everything
+	orange.z_index = 100  # Below players (~1000+) but above tiles (-100)
 	tile.add_child(orange)
 
 	tile.mouse_entered.connect(_on_tile_mouse_entered.bind(x, y))

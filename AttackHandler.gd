@@ -103,6 +103,17 @@ func setup(
 	# Store the original position of the CardRow for animation
 	if card_row:
 		card_row_original_position = card_row.position
+	
+	# Connect to player's position signal to update attack highlights when player moves
+	if player_node and player_node.has_signal("moved_to_tile"):
+		# Disconnect any existing connection to avoid duplicates
+		if player_node.moved_to_tile.is_connected(_on_player_moved_to_tile):
+			player_node.moved_to_tile.disconnect(_on_player_moved_to_tile)
+		# Connect to the player's moved_to_tile signal
+		player_node.moved_to_tile.connect(_on_player_moved_to_tile)
+		print("AttackHandler: Connected to player moved_to_tile signal")
+	else:
+		print("AttackHandler: Warning - player node or moved_to_tile signal not found")
 
 # Reference to movement controller for button cleanup
 var movement_controller: Node = null
@@ -995,6 +1006,25 @@ func _debug_list_all_npcs() -> void:
 			print("NPC", i, ": Invalid NPC reference:", npc)
 	
 	print("=== END DEBUG: LISTING ALL NPCs ===")
+
+func _on_player_moved_to_tile(new_grid_pos: Vector2i) -> void:
+	"""Handle player movement to update attack highlights"""
+	print("=== ATTACK HANDLER: PLAYER MOVED TO TILE ===")
+	print("New player position:", new_grid_pos)
+	print("Attack mode:", is_attack_mode)
+	
+	player_grid_pos = new_grid_pos
+	
+	# If we're in attack mode, recalculate valid attack tiles with the new position
+	if is_attack_mode:
+		print("Recalculating attack tiles due to player movement")
+		calculate_valid_attack_tiles()
+		show_attack_highlights()
+		print("Attack tiles updated - new count:", valid_attack_tiles.size())
+	else:
+		print("Not in attack mode, skipping attack tile recalculation")
+	
+	print("=== END ATTACK HANDLER: PLAYER MOVED TO TILE ===")
 
 func update_player_position(new_grid_pos: Vector2i) -> void:
 	"""Update the stored player grid position"""
