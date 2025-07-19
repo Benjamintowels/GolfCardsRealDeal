@@ -1697,7 +1697,7 @@ func enter_aiming_phase() -> void:
 		if not has_meta("pre_aiming_zoom"):
 			set_meta("pre_aiming_zoom", camera.get_current_zoom())
 		
-		# Check if this is a putter
+		# Check if this is a putter (reuse existing club_distance variable)
 		var is_putter = false
 		if selected_club in club_data:
 			is_putter = club_data[selected_club].get("is_putter", false)
@@ -1715,8 +1715,8 @@ func enter_aiming_phase() -> void:
 				aiming_zoom = min(aiming_zoom, camera.get_current_max_zoom())
 			
 			print("Zooming in for putter aiming from", camera.get_current_zoom(), "to", aiming_zoom)
-		else:
-			# For other clubs, zoom out for better visibility
+		elif club_distance > 550.0:
+			# For clubs over 550 distance, zoom out for better visibility
 			var zoom_out_factor = 0.3  # Zoom out by 30%
 			aiming_zoom = base_zoom - zoom_out_factor
 			
@@ -1724,7 +1724,11 @@ func enter_aiming_phase() -> void:
 			if camera.has_method("get_current_min_zoom"):
 				aiming_zoom = max(aiming_zoom, camera.get_current_min_zoom())
 			
-			print("Zooming out for aiming from", camera.get_current_zoom(), "to", aiming_zoom)
+			print("Zooming out for long-range aiming from", camera.get_current_zoom(), "to", aiming_zoom)
+		else:
+			# For clubs 550 or less distance, keep normal zoom
+			aiming_zoom = base_zoom
+			print("Keeping normal zoom for short-range aiming:", aiming_zoom)
 		
 		camera.set_zoom_level(aiming_zoom)
 
