@@ -1669,6 +1669,18 @@ func _on_golf_ball_out_of_bounds():
 	game_state_manager.set_ball_landing_position(game_state_manager.get_shot_start_position(), Vector2(game_state_manager.get_shot_start_position().x * cell_size + cell_size/2, game_state_manager.get_shot_start_position().y * cell_size + cell_size/2))
 	game_state_manager.set_waiting_for_player_to_reach_ball(true)
 	player_manager.set_player_grid_pos(game_state_manager.get_shot_start_position())
+	
+	# Immediately position camera on player's current position before updating player position
+	if player_manager.get_player_node():
+		var sprite = player_manager.get_player_node().get_node_or_null("Sprite2D")
+		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
+		var player_center: Vector2 = player_manager.get_player_node().global_position + player_size / 2
+		
+		# Immediately position camera on player (no tween to avoid wrong position)
+		camera.position = player_center
+		camera_manager.update_camera_snap_back_position(player_center)
+		print("Camera immediately positioned on player at:", player_center)
+	
 	player_manager.update_player_position_with_ball_creation(self)
 	
 	# Force create a new ball at the player's tile center position for the penalty shot
@@ -3406,6 +3418,18 @@ func get_launch_manager() -> LaunchManager:
 func create_camera_tween(target_position: Vector2, duration: float = 0.5, transition: Tween.TransitionType = Tween.TRANS_SINE, ease: Tween.EaseType = Tween.EASE_OUT) -> void:
 	"""Create a camera tween with proper management to prevent conflicts"""
 	camera_manager.create_camera_tween(target_position, duration, transition, ease)
+
+func smooth_camera_to_player() -> void:
+	"""Smoothly tween camera to player's final position (called after movement animation completes)"""
+	camera_manager.smooth_camera_to_player()
+
+func update_camera_to_player() -> void:
+	"""Update camera to follow player's current position (called during movement animation)"""
+	camera_manager.update_camera_to_player()
+
+func transition_camera_to_player() -> void:
+	"""Transition camera back to the player"""
+	camera_manager.transition_camera_to_player()
 # Fire damage handling moved to PlayerManager
 
 func _clear_existing_state():

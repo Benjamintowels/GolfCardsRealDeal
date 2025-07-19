@@ -856,8 +856,14 @@ func update_player_position_with_ball_creation(course: Node) -> void:
 		if course.camera_manager:
 			course.camera_manager.cancel_pin_to_tee_transition()
 		
-		# Use the camera manager for tweening
-		course.camera_manager.create_camera_tween(player_center, 0.5)
+		# Only create camera tween if camera is not already at the correct position
+		# This prevents conflicts when camera has been immediately positioned (like in out-of-bounds)
+		var camera_distance = course.camera.position.distance_to(player_center)
+		if camera_distance > 5.0:  # Only tween if camera is more than 5 pixels away
+			course.camera_manager.create_camera_tween(player_center, 0.5)
+		else:
+			# Camera is already close enough, just ensure it's exactly on target
+			course.camera.position = player_center
 
 func reset_player_to_tee(map_manager: Node, course: Node) -> void:
 	"""Reset player to tee position"""
