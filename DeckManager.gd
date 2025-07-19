@@ -415,14 +415,21 @@ func draw_cards_for_shot(card_count: int, player_manager: Node, game_state_manag
 	# Deactivate dodge mode when starting a new player turn
 	player_manager.deactivate_dodge_mode()
 	
+	# Set waiting_for_player_to_reach_ball back to true for new turn if there's a ball to reach
+	# BUT only if the player didn't use the reach ball button to get there
+	if game_state_manager.get_ball_landing_tile() != Vector2i.ZERO:
+		# Check if player used reach ball button - if so, they're already at the ball
+		var used_reach_ball = game_state_manager.get_used_reach_ball_button()
+		if not used_reach_ball:
+			game_state_manager.set_waiting_for_player_to_reach_ball(true)
+			print("waiting_for_player_to_reach_ball set to true for new turn")
+		else:
+			game_state_manager.set_waiting_for_player_to_reach_ball(false)
+			print("waiting_for_player_to_reach_ball set to false - player used reach ball button")
+	
 	# Reset ReachBallButton flag for new turn
 	game_state_manager.set_used_reach_ball_button(false)
 	print("ReachBallButton flag reset for new turn")
-	
-	# Set waiting_for_player_to_reach_ball back to true for new turn if there's a ball to reach
-	if game_state_manager.get_ball_landing_tile() != Vector2i.ZERO:
-		game_state_manager.set_waiting_for_player_to_reach_ball(true)
-		print("waiting_for_player_to_reach_ball set to true for new turn")
 	
 	var card_draw_modifier = player_manager.get_player_stats().get("card_draw", 0)
 	var final_card_count = card_count + card_draw_modifier

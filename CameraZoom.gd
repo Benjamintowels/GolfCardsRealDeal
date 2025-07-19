@@ -44,9 +44,20 @@ func _input(event):
 		if event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed:
 			# Zoom in (inverted from original)
 			set_zoom_level(target_zoom - zoom_speed)
+			# Reset idle zoom timer when user manually zooms
+			_reset_idle_zoom_timer_on_manual_zoom()
 		elif event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:
 			# Zoom out (inverted from original)
 			set_zoom_level(target_zoom + zoom_speed)
+			# Reset idle zoom timer when user manually zooms
+			_reset_idle_zoom_timer_on_manual_zoom()
+
+func _reset_idle_zoom_timer_on_manual_zoom() -> void:
+	"""Reset the idle zoom timer when user manually zooms"""
+	# Find the camera manager and reset the idle timer
+	var camera_manager = get_tree().current_scene.get_node_or_null("CameraManager")
+	if camera_manager and camera_manager.has_method("handle_manual_zoom_input"):
+		camera_manager.handle_manual_zoom_input()
 
 # Public methods for external control
 func set_zoom_level(zoom_level: float):

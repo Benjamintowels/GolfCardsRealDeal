@@ -30,6 +30,13 @@ var aiming_tracking_tween: Tween = null
 var last_aiming_position: Vector2 = Vector2.ZERO  # Track last position for reference
 var camera_stationary: bool = false  # Toggle for middle mouse button
 
+# Idle zoom effect system
+var idle_zoom_timer: Timer = null
+var idle_zoom_active: bool = false
+var idle_zoom_tween: Tween = null
+var idle_zoom_duration: float = 1.0  # Time before idle zoom activates
+var idle_zoom_target: float = 3.0    # Maximum zoom level for idle effect
+
 func setup(camera_ref: Camera2D, player_mgr: Node, grid_mgr: Node, bg_mgr: Node, cell_size_param: int = 48):
 	"""Initialize the camera manager with required references"""
 	camera = camera_ref
@@ -37,6 +44,9 @@ func setup(camera_ref: Camera2D, player_mgr: Node, grid_mgr: Node, bg_mgr: Node,
 	grid_manager = grid_mgr
 	background_manager = bg_mgr
 	cell_size = cell_size_param
+	
+	# Initialize idle zoom timer
+	_setup_idle_zoom_timer()
 	
 	print("CameraManager setup complete")
 
@@ -78,7 +88,12 @@ func smooth_camera_to_player() -> void:
 	if camera and camera.has_method("zoom_in_after_movement"):
 		# Add a small delay to let the camera position tween complete first
 		var zoom_timer = get_tree().create_timer(0.4)  # Wait 0.4 seconds
-		zoom_timer.timeout.connect(func(): camera.zoom_in_after_movement())
+		zoom_timer.timeout.connect(func(): 
+			camera.zoom_in_after_movement()
+			# Start idle zoom timer after zoom in effect completes
+			var idle_timer = get_tree().create_timer(0.6)  # Wait for zoom tween to complete
+			idle_timer.timeout.connect(func(): start_idle_zoom_timer())
+		)
 
 func create_camera_tween(target_position: Vector2, duration: float = 0.5, transition: Tween.TransitionType = Tween.TRANS_SINE, ease: Tween.EaseType = Tween.EASE_OUT) -> void:
 	"""Create a camera tween with proper management to prevent conflicts"""
@@ -87,6 +102,9 @@ func create_camera_tween(target_position: Vector2, duration: float = 0.5, transi
 		print("CameraManager: Skipping camera tween during aiming phase to avoid interference")
 		camera.position = target_position
 		return
+	
+	# Reset idle zoom timer when camera moves
+	reset_idle_zoom_timer()
 	
 	# Store current camera position before killing any existing tween
 	var current_camera_position = camera.position
@@ -121,6 +139,9 @@ func transition_camera_to_npc(npc: Node) -> void:
 		print("ERROR: No NPC provided for camera transition")
 		return
 	
+	# Stop idle zoom timer during NPC interaction
+	stop_idle_zoom_timer()
+	
 	var npc_pos = npc.global_position
 	print("Transitioning camera to NPC at position: ", npc_pos)
 	create_camera_tween(npc_pos, 1.0)
@@ -136,6 +157,9 @@ func transition_camera_to_player() -> void:
 	print("Transitioning camera back to player at position: ", player_center)
 	create_camera_tween(player_center, 1.0)
 	await current_camera_tween.finished
+	
+	# Start idle zoom timer after returning to player
+	start_idle_zoom_timer()
 
 func position_camera_on_pin(pin_position: Vector2, start_transition: bool = true, get_tee_center_func: Callable = Callable()) -> void:
 	"""Position camera on pin immediately after map building"""
@@ -159,6 +183,9 @@ func position_camera_on_pin(pin_position: Vector2, start_transition: bool = true
 	# Only start the transition if requested
 	if start_transition and get_tee_center_func.is_valid():
 		start_pin_to_tee_transition(get_tee_center_func)
+		# Start idle zoom timer after pin-to-tee transition completes
+		var idle_timer = get_tree().create_timer(3.5)  # Wait for pin-to-tee transition (1.5s wait + 2.0s tween)
+		idle_timer.timeout.connect(func(): start_idle_zoom_timer())
 
 func start_pin_to_tee_transition(get_tee_center_func: Callable) -> void:
 	"""Start the pin-to-tee transition after the fade-in"""
@@ -196,6 +223,9 @@ func start_aiming_camera_tracking(club_distance: float = 800.0) -> void:
 	"""Start the aiming camera tracking system"""
 	aiming_tracking_active = true
 	
+	# Stop idle zoom timer during aiming phase
+	stop_idle_zoom_timer()
+	
 	# Cancel any existing camera tweens to prevent conflicts
 	kill_current_camera_tween()
 	cancel_pin_to_tee_transition()
@@ -226,6 +256,10 @@ func stop_aiming_camera_tracking() -> void:
 		
 		create_camera_tween(player_center, 0.8, Tween.TRANS_SINE, Tween.EASE_OUT)
 		print("CameraManager: Stopped aiming tracking, returning to player position")
+		
+		# Start idle zoom timer after returning to player
+		var idle_timer = get_tree().create_timer(1.0)  # Wait for camera return to complete
+		idle_timer.timeout.connect(func(): start_idle_zoom_timer())
 
 func update_aiming_camera_tracking(aiming_circle_position: Vector2) -> void:
 	"""Continuous camera following - only tween when target changes significantly"""
@@ -278,6 +312,9 @@ func handle_camera_panning(event: InputEvent) -> bool:
 	"""Handle camera panning input. Returns true if input was handled."""
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_MIDDLE:
 		if event.pressed:
+			# Reset idle zoom timer when user starts panning
+			reset_idle_zoom_timer()
+			
 			# Toggle camera stationary state during aiming
 			if aiming_tracking_active:
 				camera_stationary = !camera_stationary
@@ -294,8 +331,14 @@ func handle_camera_panning(event: InputEvent) -> bool:
 				# Snap back to player position when panning ends (only when not aiming)
 				var tween := get_tree().create_tween()
 				tween.tween_property(camera, "position", camera_snap_back_pos, 0.6).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+				# Start idle zoom timer after panning ends
+				var idle_timer = get_tree().create_timer(0.8)  # Wait for snap back to complete
+				idle_timer.timeout.connect(func(): start_idle_zoom_timer())
 		return true
 	elif event is InputEventMouseMotion and is_panning:
+		# Reset idle zoom timer during panning motion
+		reset_idle_zoom_timer()
+		
 		var delta: Vector2 = event.position - pan_start_pos
 		var new_position = camera.position - delta
 		
@@ -343,6 +386,12 @@ func cleanup() -> void:
 	if aiming_tracking_tween and aiming_tracking_tween.is_valid():
 		aiming_tracking_tween.kill()
 		aiming_tracking_tween = null
+	
+	# Clean up idle zoom system
+	stop_idle_zoom_timer()
+	if idle_zoom_tween and idle_zoom_tween.is_valid():
+		idle_zoom_tween.kill()
+		idle_zoom_tween = null
 
 # ===== ZOOM MANAGEMENT =====
 
@@ -354,3 +403,116 @@ func restore_zoom_after_aiming(course: Node) -> void:
 		camera.set_zoom_level(pre_aiming_zoom)
 		# Remove the stored zoom level
 		course.remove_meta("pre_aiming_zoom") 
+
+# ===== IDLE ZOOM SYSTEM =====
+
+func _setup_idle_zoom_timer() -> void:
+	"""Initialize the idle zoom timer"""
+	idle_zoom_timer = Timer.new()
+	idle_zoom_timer.wait_time = idle_zoom_duration
+	idle_zoom_timer.one_shot = true
+	idle_zoom_timer.timeout.connect(_on_idle_zoom_timeout)
+	add_child(idle_zoom_timer)
+	print("CameraManager: Idle zoom timer initialized")
+
+func start_idle_zoom_timer() -> void:
+	"""Start the idle zoom timer to track when camera should zoom in"""
+	if not idle_zoom_timer:
+		return
+	
+	# Don't start idle zoom during aiming phase
+	if aiming_tracking_active:
+		return
+	
+	# Don't start if already active
+	if idle_zoom_active:
+		return
+	
+	# Reset and start the timer
+	idle_zoom_timer.stop()
+	idle_zoom_timer.start()
+	print("CameraManager: Started idle zoom timer")
+
+func stop_idle_zoom_timer() -> void:
+	"""Stop the idle zoom timer and cancel any active idle zoom"""
+	if not idle_zoom_timer:
+		return
+	
+	idle_zoom_timer.stop()
+	
+	# Cancel any active idle zoom effect
+	if idle_zoom_active:
+		_cancel_idle_zoom_effect()
+	
+	print("CameraManager: Stopped idle zoom timer")
+
+func _on_idle_zoom_timeout() -> void:
+	"""Called when idle zoom timer expires - start the zoom effect"""
+	if not camera or not camera.has_method("set_zoom_level"):
+		return
+	
+	# Don't start idle zoom during aiming phase
+	if aiming_tracking_active:
+		return
+	
+	# Don't start if already active
+	if idle_zoom_active:
+		return
+	
+	# Start the idle zoom effect
+	_start_idle_zoom_effect()
+	print("CameraManager: Idle zoom timer expired, starting zoom effect")
+
+func _start_idle_zoom_effect() -> void:
+	"""Start the idle zoom effect - smoothly zoom to maximum zoom"""
+	if not camera or not camera.has_method("set_zoom_level"):
+		return
+	
+	idle_zoom_active = true
+	
+	# Get current zoom and target zoom
+	var current_zoom = camera.get_current_zoom()
+	var target_zoom = min(idle_zoom_target, camera.get_current_max_zoom())
+	
+	# Create smooth zoom tween
+	idle_zoom_tween = get_tree().create_tween()
+	idle_zoom_tween.set_trans(Tween.TRANS_SINE)
+	idle_zoom_tween.set_ease(Tween.EASE_IN_OUT)
+	
+	# Tween to maximum zoom over 2 seconds
+	idle_zoom_tween.tween_method(func(zoom_level: float):
+		camera.set_zoom_level(zoom_level)
+	, current_zoom, target_zoom, 2.0)
+	
+	# Clean up when tween completes
+	idle_zoom_tween.finished.connect(func():
+		idle_zoom_tween = null
+		print("CameraManager: Idle zoom effect completed")
+	)
+	
+	print("CameraManager: Started idle zoom effect from", current_zoom, "to", target_zoom)
+
+func _cancel_idle_zoom_effect() -> void:
+	"""Cancel the active idle zoom effect"""
+	if idle_zoom_tween and idle_zoom_tween.is_valid():
+		idle_zoom_tween.kill()
+		idle_zoom_tween = null
+	
+	idle_zoom_active = false
+	print("CameraManager: Cancelled idle zoom effect")
+
+func reset_idle_zoom_timer() -> void:
+	"""Reset the idle zoom timer (called when camera activity is detected)"""
+	if not idle_zoom_timer:
+		return
+	
+	# Cancel any active idle zoom effect
+	if idle_zoom_active:
+		_cancel_idle_zoom_effect()
+	
+	# Restart the timer
+	start_idle_zoom_timer()
+
+func handle_manual_zoom_input() -> void:
+	"""Handle manual zoom input from mouse wheel - reset idle timer"""
+	reset_idle_zoom_timer() 

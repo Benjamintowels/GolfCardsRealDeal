@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://cdnnc5cpa6gmp"]
+
+[ext_resource type="Script" path="res://test_idle_zoom.gd" id="1_0xqxq"]
+
+[node name="IdleZoomTest" type="Node2D"]
+script = ExtResource("1_0xqxq") 

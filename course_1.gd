@@ -1471,7 +1471,8 @@ func _continue_after_world_turn() -> void:
 	game_state_manager.reset_available_shots()
 	
 	# Continue with normal turn flow
-	if game_state_manager.get_waiting_for_player_to_reach_ball() and player_manager.get_player_grid_pos() == game_state_manager.get_ball_landing_tile():
+	# Check if player is on ball tile and there's a ball to reach (regardless of waiting flag)
+	if player_manager.get_player_grid_pos() == game_state_manager.get_ball_landing_tile() and game_state_manager.get_ball_landing_tile() != Vector2i.ZERO:
 		if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball) and launch_manager.golf_ball.has_method("remove_landing_highlight"):
 			launch_manager.golf_ball.remove_landing_highlight()
 		
@@ -1492,7 +1493,8 @@ func start_npc_turn_sequence() -> void:
 		game_state_manager.reset_available_shots()
 		
 		# Continue with normal turn flow
-		if game_state_manager.get_waiting_for_player_to_reach_ball() and player_manager.get_player_grid_pos() == game_state_manager.get_ball_landing_tile():
+		# Check if player is on ball tile and there's a ball to reach (regardless of waiting flag)
+		if player_manager.get_player_grid_pos() == game_state_manager.get_ball_landing_tile() and game_state_manager.get_ball_landing_tile() != Vector2i.ZERO:
 			if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball) and launch_manager.golf_ball.has_method("remove_landing_highlight"):
 				launch_manager.golf_ball.remove_landing_highlight()
 			
@@ -1520,7 +1522,8 @@ func start_npc_turn_sequence() -> void:
 		game_state_manager.reset_available_shots()
 		
 		# Continue with normal turn flow
-		if game_state_manager.get_waiting_for_player_to_reach_ball() and player_manager.get_player_grid_pos() == game_state_manager.get_ball_landing_tile():
+		# Check if player is on ball tile and there's a ball to reach (regardless of waiting flag)
+		if player_manager.get_player_grid_pos() == game_state_manager.get_ball_landing_tile() and game_state_manager.get_ball_landing_tile() != Vector2i.ZERO:
 			if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball) and launch_manager.golf_ball.has_method("remove_landing_highlight"):
 				launch_manager.golf_ball.remove_landing_highlight()
 			
@@ -1586,7 +1589,8 @@ func start_npc_turn_sequence() -> void:
 	game_state_manager.reset_available_shots()
 	
 	# Continue with normal turn flow
-	if game_state_manager.get_waiting_for_player_to_reach_ball() and player_manager.get_player_grid_pos() == game_state_manager.get_ball_landing_tile():
+	# Check if player is on ball tile and there's a ball to reach (regardless of waiting flag)
+	if player_manager.get_player_grid_pos() == game_state_manager.get_ball_landing_tile() and game_state_manager.get_ball_landing_tile() != Vector2i.ZERO:
 		if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball) and launch_manager.golf_ball.has_method("remove_landing_highlight"):
 			launch_manager.golf_ball.remove_landing_highlight()
 		
