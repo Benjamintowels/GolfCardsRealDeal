@@ -168,117 +168,25 @@ func show_sand_landing_dialog() -> void:
 	)
 
 func show_hole_completion_dialog() -> void:
-	"""Show hole completion dialog"""
+	"""Show hole completion dialog using the existing HoleCompletionDialog scene"""
 	print("=== SHOW_HOLE_COMPLETION_DIALOG CALLED ===")
+	
+	# Get the existing HoleCompletionDialog from the course
+	var hole_completion_dialog = course.get_node_or_null("UILayer/HoleCompletionDialog")
+	if hole_completion_dialog:
+		# Setup and show the dialog
+		hole_completion_dialog.setup_dialog(course, ui_layer)
+		hole_completion_dialog.visible = true
+		
+		# Connect to dialog closed signal for cleanup
+		if not hole_completion_dialog.dialog_closed.is_connected(_on_hole_completion_dialog_closed):
+			hole_completion_dialog.dialog_closed.connect(_on_hole_completion_dialog_closed)
+	else:
+		print("ERROR: HoleCompletionDialog not found in UILayer")
 
-	# Play hole complete sound
-	var hole_complete_sound = course.get_node_or_null("HoleComplete")
-	if hole_complete_sound and hole_complete_sound.stream:
-		hole_complete_sound.play()
-	
-	# Give $Looty reward for completing the hole
-	var looty_reward = Global.give_hole_completion_reward()
-	
-	# Initialize variables with default values
-	var hole_score = 0
-	var current_hole = 0
-	var round_scores = []
-	var is_back_9_mode = false
-	var score_text = ""
-	var round_end_hole = 0
-	
-	if course.game_state_manager:
-		course.game_state_manager.complete_hole()
-		hole_score = course.game_state_manager.get_hole_score()
-		current_hole = course.game_state_manager.get_current_hole_index()
-		round_scores = course.game_state_manager.get_round_scores()
-		is_back_9_mode = course.game_state_manager.is_back_9_mode
-		
-		var hole_par = GolfCourseLayout.get_hole_par(current_hole)
-		var score_vs_par = hole_score - hole_par
-		score_text = "Hole %d Complete!\n\n" % (current_hole + 1)
-		score_text += "Hole Score: %d strokes\n" % hole_score
-		score_text += "Par: %d\n" % hole_par
-		score_text += "Reward: %d $Looty\n" % looty_reward
-		if score_vs_par == 0:
-			score_text += "Score: Par ✓\n"
-		elif score_vs_par == 1:
-			score_text += "Score: Bogey (+1)\n"
-		elif score_vs_par == 2:
-			score_text += "Score: Double Bogey (+2)\n"
-		elif score_vs_par == -1:
-			score_text += "Score: Birdie (-1) ✓\n"
-		elif score_vs_par == -2:
-			score_text += "Score: Eagle (-2) ✓\n"
-		else:
-			score_text += "Score: %+d\n" % score_vs_par
-		var total_round_score = 0
-		for score in round_scores:
-			total_round_score += score
-		var total_par = 0
-		if is_back_9_mode:
-			total_par = GolfCourseLayout.get_back_nine_par()
-		else:
-			total_par = GolfCourseLayout.get_front_nine_par()
-		var round_vs_par = total_round_score - total_par
-		
-		score_text += "\nRound Progress: %d/%d holes\n" % [current_hole + 1, course.game_state_manager.NUM_HOLES]
-		score_text += "Round Score: %d\n" % total_round_score
-		score_text += "Round vs Par: %+d\n" % round_vs_par
-		if is_back_9_mode:
-			round_end_hole = course.game_state_manager.back_9_start_hole + course.game_state_manager.NUM_HOLES - 1  # Hole 18 (index 17)
-		else:
-			round_end_hole = course.game_state_manager.NUM_HOLES - 1  # Hole 9 (index 8)
-		if current_hole < round_end_hole:
-			score_text += "\nClick to continue to the next hole."
-		else:
-			score_text += "\nClick to see your final round score!"
-	
-	# Create custom dialog with Scorecard background
-	var dialog = Control.new()
-	dialog.name = "HoleCompletionDialog"
-	dialog.set_anchors_and_offsets_preset(Control.PRESET_CENTER)  # Center the dialog
-	dialog.size = Vector2(600, 400)
-	dialog.z_index = 1000
-	dialog.mouse_filter = Control.MOUSE_FILTER_STOP
-	
-	var background := ColorRect.new()
-	background.color = Color(0, 0, 0, 0.8)
-	background.size = course.get_viewport_rect().size
-	background.position = Vector2.ZERO
-	background.mouse_filter = Control.MOUSE_FILTER_STOP
-	dialog.add_child(background)
-	
-	var dialog_box := ColorRect.new()
-	dialog_box.color = Color(0.1, 0.1, 0.1, 0.95)
-	dialog_box.size = Vector2(580, 380)
-	dialog_box.position = Vector2(10, 10)
-	dialog_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	dialog.add_child(dialog_box)
-	
-	var score_label := Label.new()
-	score_label.text = score_text
-	score_label.add_theme_font_size_override("font_size", 16)
-	score_label.add_theme_color_override("font_color", Color.WHITE)
-	score_label.add_theme_constant_override("outline_size", 2)
-	score_label.add_theme_color_override("font_outline_color", Color.BLACK)
-	score_label.position = Vector2(20, 20)
-	score_label.size = Vector2(540, 340)
-	score_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	dialog_box.add_child(score_label)
-	
-	# Add click to continue functionality
-	background.gui_input.connect(func(event: InputEvent):
-		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-			dialog.queue_free()
-			if course.game_state_manager and course.game_state_manager.get_current_hole_index() < round_end_hole:
-				# Show reward selection dialog instead of calling non-existent start_next_hole
-				show_reward_phase()
-			else:
-				course.show_course_complete_dialog()
-	)
-	
-	ui_layer.add_child(dialog)
+func _on_hole_completion_dialog_closed() -> void:
+	"""Handle cleanup when hole completion dialog is closed"""
+	print("Hole completion dialog closed - cleanup complete")
 
 # ===== SHOP MANAGEMENT =====
 
@@ -381,7 +289,7 @@ func show_reward_phase() -> void:
 		deck_manager.hand.clear()
 		print("Player hand cleared - hand size after:", deck_manager.hand.size())
 		# Update the deck display to reflect the cleared hand
-		course.update_deck_display()
+		course.ui_manager.update_deck_display()
 	
 	# Clear any movement buttons that might still be visible
 	if movement_controller:
@@ -455,16 +363,18 @@ func _on_reward_selected(reward_data: Resource, reward_type: String) -> void:
 	
 	# Apply the reward based on type
 	if reward_type == "card":
-		course.add_card_to_current_deck(reward_data)
+		course.deck_manager.add_card_to_current_deck(reward_data)
 	elif reward_type == "equipment":
-		course.add_equipment_to_manager(reward_data)
+		var equipment_manager = course.get_node_or_null("EquipmentManager")
+		if equipment_manager:
+			equipment_manager.add_equipment(reward_data)
 	elif reward_type == "bag_upgrade":
 		course.apply_bag_upgrade(reward_data)
 	elif reward_type == "looty":
 		course.add_looty_reward(reward_data)
 	
 	# Update HUD to reflect any changes (including $Looty balance)
-	course.update_deck_display()
+	course.ui_manager.update_deck_display()
 	
 	# Clear the reward dialog
 	var existing_reward_dialog = ui_layer.get_node_or_null("RewardSelectionDialog")
@@ -493,16 +403,18 @@ func _on_suitcase_reward_selected(reward_data: Resource, reward_type: String) ->
 	
 	# Apply the reward based on type
 	if reward_type == "card":
-		course.add_card_to_current_deck(reward_data)
+		course.deck_manager.add_card_to_current_deck(reward_data)
 	elif reward_type == "equipment":
-		course.add_equipment_to_manager(reward_data)
+		var equipment_manager = course.get_node_or_null("EquipmentManager")
+		if equipment_manager:
+			equipment_manager.add_equipment(reward_data)
 	elif reward_type == "bag_upgrade":
 		course.apply_bag_upgrade(reward_data)
 	elif reward_type == "looty":
 		course.add_looty_reward(reward_data)
 	
 	# Update HUD to reflect any changes (including $Looty balance)
-	course.update_deck_display()
+	course.ui_manager.update_deck_display()
 	
 	# Clear the reward dialog and SuitCase overlay
 	var existing_reward_dialog = ui_layer.get_node_or_null("SuitCaseRewardDialog")
@@ -647,7 +559,7 @@ func show_pause_menu() -> void:
 	"""Show pause menu"""
 	var pause_dialog = Control.new()
 	pause_dialog.name = "PauseDialog"
-	pause_dialog.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	pause_dialog.position = Vector2.ZERO
 	pause_dialog.size = Vector2(400, 300)
 	pause_dialog.z_index = 1000
 	pause_dialog.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -850,7 +762,9 @@ func update_aiming_circle() -> void:
 	if course.game_state_manager and course.game_state_manager.get_aiming_circle_manager():
 		var manager = course.game_state_manager.get_aiming_circle_manager()
 		if manager and manager.has_method("update_aiming_circle_position"):
-			manager.update_aiming_circle_position(course.player_manager.get_player_node().global_position)
+			var player_global_pos = course.player_manager.get_player_node().global_position
+			var player_local_pos = course.camera.to_local(player_global_pos)
+			manager.update_aiming_circle_position(player_global_pos, player_local_pos)
 
 func cleanup() -> void:
 	"""Clean up UI manager resources"""

@@ -160,7 +160,6 @@ func _on_height_changed(new_height: float):
 	if is_set_height_phase and benny_arm_height:
 		# Update rotation immediately when height changes
 		_update_arm_rotation()
-		print("✓ Arm rotation updated immediately for height:", new_height)
 
 func set_launch_manager_reference(launch_mgr: Node):
 	"""Set the launch manager reference for height data"""

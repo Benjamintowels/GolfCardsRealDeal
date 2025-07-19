@@ -1,4 +1,4 @@
-[gd_scene load_steps=35 format=3 uid="uid://dlq5ygh2wv33m"]
+[gd_scene load_steps=36 format=3 uid="uid://dlq5ygh2wv33m"]
 
 [ext_resource type="Script" uid="uid://d4hrfk75nrm45" path="res://course_1.gd" id="1_pe8tc"]
 [ext_resource type="Texture2D" uid="uid://cpe67sk2vh8me" path="res://EDGE.png" id="2_eymfu"]
@@ -28,6 +28,7 @@
 [ext_resource type="AudioStream" uid="uid://tu47pjuwugnn" path="res://Sounds/Snow.mp3" id="23_6ixtt"]
 [ext_resource type="Script" uid="uid://d3eloiw6y4k1g" path="res://BackgroundManager.gd" id="25_bg_manager"]
 [ext_resource type="Script" uid="uid://co4tpic85friv" path="res://CoinExplosionManager.gd" id="26_coin_explosion"]
+[ext_resource type="PackedScene" uid="uid://djfe0n35nreyh" path="res://UI/HoleCompletionDialog.tscn" id="26_e4yba"]
 [ext_resource type="PackedScene" uid="uid://cobc2ineqfb8e" path="res://UI/DrawClubCardsButton.tscn" id="27_draw_club_cards"]
 [ext_resource type="PackedScene" uid="uid://be7et5h4g4wmw" path="res://UI/DrawCardsButton.tscn" id="28_draw_cards"]
 [ext_resource type="PackedScene" uid="uid://c73sma1rss70c" path="res://UI/EndTurnButton.tscn" id="29_end_turn"]
@@ -276,6 +277,9 @@ offset_bottom = 796.0
 
 [node name="CrowdPosition" type="Marker2D" parent="UILayer"]
 position = Vector2(789, 593)
+
+[node name="HoleCompletionDialog" parent="UILayer" instance=ExtResource("26_e4yba")]
+visible = false
 
 [node name="SwingSoft" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("6_6eaol")

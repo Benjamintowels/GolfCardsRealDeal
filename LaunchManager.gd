@@ -1261,7 +1261,6 @@ func handle_input(event: InputEvent) -> bool:
 			return true
 	
 	elif event is InputEventMouseMotion:
-		print("LaunchManager: Mouse motion detected - is_selecting_height:", is_selecting_height, " is_charging:", is_charging, " is_charging_height:", is_charging_height)
 		if is_selecting_height:
 			# Handle height selection with mouse up/down movement
 			var mouse_delta = event.relative
@@ -1275,7 +1274,6 @@ func handle_input(event: InputEvent) -> bool:
 			var old_height = launch_height
 			launch_height = clamp(launch_height + height_change, club_min_height, club_max_height)
 			
-			print("LaunchManager: Height selection - delta:", mouse_delta, " height_change:", height_change, " old_height:", old_height, " new_height:", launch_height)
 			
 			# Emit signal if height actually changed
 			if old_height != launch_height:

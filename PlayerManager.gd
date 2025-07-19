@@ -845,11 +845,9 @@ func update_player_position_with_ball_creation(course: Node) -> void:
 	course.launch_manager.create_or_update_ball_at_player_center(tile_center, course)
 	
 	if not course.game_state_manager.is_placing_player:
-		# Check if there's an ongoing pin-to-tee transition
-		var ongoing_tween = course.get_meta("pin_to_tee_tween", null)
-		if ongoing_tween and ongoing_tween.is_valid():
-			ongoing_tween.kill()
-			course.remove_meta("pin_to_tee_tween")
+		# Cancel any ongoing pin-to-tee transition
+		if course.camera_manager:
+			course.camera_manager.cancel_pin_to_tee_transition()
 		
 		# Use the camera manager for tweening
 		course.camera_manager.create_camera_tween(player_center, 0.5)

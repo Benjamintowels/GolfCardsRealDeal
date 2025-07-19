@@ -177,12 +177,11 @@ func enter_weapon_aiming_mode() -> void:
 		# Store original club to restore later
 		set_meta("original_club", original_club)
 		
-		# Position camera on player initially
+		# Position camera on player initially (no tween to avoid interference with aiming circle)
 		var sprite = player_node.get_node_or_null("Sprite2D")
 		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
 		var player_center = player_node.global_position + player_size / 2
-		var tween := get_tree().create_tween()
-		tween.tween_property(course.camera, "position", player_center, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		course.camera.position = player_center
 	
 	# For grenade mode, set up camera following like normal shot placement
 	elif selected_card and selected_card.name == "GrenadeCard" and card_effect_handler and card_effect_handler.course:
@@ -206,12 +205,11 @@ func enter_weapon_aiming_mode() -> void:
 		# Store original club to restore later
 		set_meta("original_club", original_club)
 		
-		# Position camera on player initially
+		# Position camera on player initially (no tween to avoid interference with aiming circle)
 		var sprite = player_node.get_node_or_null("Sprite2D")
 		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
 		var player_center = player_node.global_position + player_size / 2
-		var tween := get_tree().create_tween()
-		tween.tween_property(course.camera, "position", player_center, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		course.camera.position = player_center
 	
 	elif selected_card and selected_card.name == "GrenadeLauncherWeaponCard" and card_effect_handler and card_effect_handler.course:
 		var course = card_effect_handler.course
@@ -234,12 +232,11 @@ func enter_weapon_aiming_mode() -> void:
 		# Store original club to restore later
 		set_meta("original_club", original_club)
 		
-		# Position camera on player initially
+		# Position camera on player initially (no tween to avoid interference with aiming circle)
 		var sprite = player_node.get_node_or_null("Sprite2D")
 		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
 		var player_center = player_node.global_position + player_size / 2
-		var tween := get_tree().create_tween()
-		tween.tween_property(course.camera, "position", player_center, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		course.camera.position = player_center
 	
 	# For shotgun mode, set up camera following like normal shot placement
 	elif selected_card and selected_card.name == "ShotgunCard" and card_effect_handler and card_effect_handler.course:
@@ -263,12 +260,11 @@ func enter_weapon_aiming_mode() -> void:
 		# Store original club to restore later
 		set_meta("original_club", original_club)
 		
-		# Position camera on player initially
+		# Position camera on player initially (no tween to avoid interference with aiming circle)
 		var sprite = player_node.get_node_or_null("Sprite2D")
 		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
 		var player_center = player_node.global_position + player_size / 2
-		var tween := get_tree().create_tween()
-		tween.tween_property(course.camera, "position", player_center, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		course.camera.position = player_center
 	
 	# For sniper mode, set up camera following like normal shot placement
 	elif selected_card and selected_card.name == "SniperCard" and card_effect_handler and card_effect_handler.course:
@@ -292,12 +288,11 @@ func enter_weapon_aiming_mode() -> void:
 		# Store original club to restore later
 		set_meta("original_club", original_club)
 		
-		# Position camera on player initially
+		# Position camera on player initially (no tween to avoid interference with aiming circle)
 		var sprite = player_node.get_node_or_null("Sprite2D")
 		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
 		var player_center = player_node.global_position + player_size / 2
-		var tween := get_tree().create_tween()
-		tween.tween_property(course.camera, "position", player_center, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		course.camera.position = player_center
 	
 	# For shuriken mode, set up camera focused on player (not following mouse)
 	elif selected_card and selected_card.name == "ShurikenCard" and card_effect_handler and card_effect_handler.course:
@@ -326,12 +321,11 @@ func enter_weapon_aiming_mode() -> void:
 		# Store original club to restore later
 		set_meta("original_club", original_club)
 		
-		# Keep camera focused on player (don't follow mouse)
+		# Keep camera focused on player (don't follow mouse) - no tween to avoid interference with aiming circle
 		var sprite = player_node.get_node_or_null("Sprite2D")
 		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
 		var player_center = player_node.global_position + player_size / 2
-		var tween := get_tree().create_tween()
-		tween.tween_property(course.camera, "position", player_center, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		course.camera.position = player_center
 	
 	# Input is handled by the course's _input function
 

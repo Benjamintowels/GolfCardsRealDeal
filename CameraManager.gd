@@ -24,6 +24,12 @@ var background_manager: Node = null
 # Pin-to-tee transition management
 var pin_to_tee_tween: Tween = null
 
+# Aiming camera tracking
+var aiming_tracking_active: bool = false
+var aiming_tracking_tween: Tween = null
+var last_aiming_position: Vector2 = Vector2.ZERO  # Track last position for reference
+var camera_stationary: bool = false  # Toggle for middle mouse button
+
 func setup(camera_ref: Camera2D, player_mgr: Node, grid_mgr: Node, bg_mgr: Node, cell_size_param: int = 48):
 	"""Initialize the camera manager with required references"""
 	camera = camera_ref
@@ -76,6 +82,12 @@ func smooth_camera_to_player() -> void:
 
 func create_camera_tween(target_position: Vector2, duration: float = 0.5, transition: Tween.TransitionType = Tween.TRANS_SINE, ease: Tween.EaseType = Tween.EASE_OUT) -> void:
 	"""Create a camera tween with proper management to prevent conflicts"""
+	# Don't create tweens during aiming phase to avoid interference with aiming circle
+	if aiming_tracking_active:
+		print("CameraManager: Skipping camera tween during aiming phase to avoid interference")
+		camera.position = target_position
+		return
+	
 	# Store current camera position before killing any existing tween
 	var current_camera_position = camera.position
 	
@@ -180,16 +192,99 @@ func cancel_pin_to_tee_transition() -> void:
 		pin_to_tee_tween.kill()
 		pin_to_tee_tween = null
 
+func start_aiming_camera_tracking() -> void:
+	"""Start the aiming camera tracking system"""
+	aiming_tracking_active = true
+	camera_stationary = false  # Reset stationary state
+	print("CameraManager: Started aiming camera tracking")
+
+func stop_aiming_camera_tracking() -> void:
+	"""Stop the aiming camera tracking and return to player position"""
+	aiming_tracking_active = false
+	camera_stationary = false  # Reset stationary state
+	
+	# Kill any ongoing aiming tracking tween
+	if aiming_tracking_tween and aiming_tracking_tween.is_valid():
+		aiming_tracking_tween.kill()
+		aiming_tracking_tween = null
+	
+	# Return camera to player position
+	if player_manager and player_manager.get_player_node():
+		var sprite = player_manager.get_player_node().get_node_or_null("Sprite2D")
+		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
+		var player_center: Vector2 = player_manager.get_player_node().global_position + player_size / 2
+		
+		create_camera_tween(player_center, 0.8, Tween.TRANS_SINE, Tween.EASE_OUT)
+		print("CameraManager: Stopped aiming tracking, returning to player position")
+
+func update_aiming_camera_tracking(aiming_circle_position: Vector2) -> void:
+	"""Continuous camera following - only tween when target changes significantly"""
+	if not aiming_tracking_active or not camera or camera_stationary:
+		print("Camera tracking skipped - active:", aiming_tracking_active, "camera:", camera != null, "stationary:", camera_stationary)
+		return
+	
+	# Apply camera limits if they exist
+	var target_position = aiming_circle_position
+	if camera.has_method("limit_left") and camera.has_method("limit_right") and camera.has_method("limit_top") and camera.has_method("limit_bottom"):
+		target_position.x = clamp(target_position.x, camera.limit_left, camera.limit_right)
+		target_position.y = clamp(target_position.y, camera.limit_top, camera.limit_bottom)
+	
+	# Check if camera is far enough from target to warrant a tween
+	var distance_to_target = camera.position.distance_to(target_position)
+	var camera_close_enough = distance_to_target < 2.0
+	var camera_far_enough = distance_to_target > 6.0  # Only tween if camera is more than 6 pixels away
+	
+	print("Camera tracking update - target:", target_position, "camera_distance:", distance_to_target, "camera_close:", camera_close_enough, "camera_far:", camera_far_enough)
+	
+	# Only create a new tween if camera is far enough from target
+	if camera_far_enough and not camera_close_enough:
+		# Kill any existing aiming tracking tween first
+		if aiming_tracking_tween and aiming_tracking_tween.is_valid():
+			print("Killing existing tween")
+			aiming_tracking_tween.kill()
+		
+		# Create a new tween to focus on the aiming circle
+		aiming_tracking_tween = get_tree().create_tween()
+		aiming_tracking_tween.tween_property(camera, "position", target_position, 0.8).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		print("Created new tween to:", target_position)
+		
+		# Reset parallax layer offsets when camera moves
+		if background_manager:
+			background_manager.reset_layer_offsets()
+		
+		# Clean up the tween reference when it completes
+		aiming_tracking_tween.finished.connect(func():
+			print("Tween completed")
+			aiming_tracking_tween = null
+		)
+	else:
+		print("Skipping tween - target unchanged or camera close enough")
+	
+	# Store the last position for reference
+	last_aiming_position = target_position
+
+
+
 func handle_camera_panning(event: InputEvent) -> bool:
 	"""Handle camera panning input. Returns true if input was handled."""
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_MIDDLE:
-		is_panning = event.pressed
-		if is_panning:
-			pan_start_pos = event.position
+		if event.pressed:
+			# Toggle camera stationary state during aiming
+			if aiming_tracking_active:
+				camera_stationary = !camera_stationary
+				print("Camera stationary:", camera_stationary)
+				return true
+			else:
+				# Normal panning when not aiming
+				is_panning = true
+				pan_start_pos = event.position
 		else:
-			# Snap back to player position when panning ends
-			var tween := get_tree().create_tween()
-			tween.tween_property(camera, "position", camera_snap_back_pos, 0.6).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+			# End panning - only snap back if not in aiming mode
+			is_panning = false
+			if not aiming_tracking_active:
+				# Snap back to player position when panning ends (only when not aiming)
+				var tween := get_tree().create_tween()
+				tween.tween_property(camera, "position", camera_snap_back_pos, 0.6).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 		return true
 	elif event is InputEventMouseMotion and is_panning:
 		var delta: Vector2 = event.position - pan_start_pos
@@ -222,6 +317,10 @@ func get_current_camera_tween() -> Tween:
 	"""Get the current camera tween (for external access)"""
 	return current_camera_tween
 
+func get_current_pin_to_tee_tween() -> Tween:
+	"""Get the current pin-to-tee tween (for external access)"""
+	return pin_to_tee_tween
+
 func cleanup() -> void:
 	"""Clean up camera manager resources"""
 	if current_camera_tween and current_camera_tween.is_valid():
@@ -231,6 +330,10 @@ func cleanup() -> void:
 	if pin_to_tee_tween and pin_to_tee_tween.is_valid():
 		pin_to_tee_tween.kill()
 		pin_to_tee_tween = null
+	
+	if aiming_tracking_tween and aiming_tracking_tween.is_valid():
+		aiming_tracking_tween.kill()
+		aiming_tracking_tween = null
 
 # ===== ZOOM MANAGEMENT =====
 

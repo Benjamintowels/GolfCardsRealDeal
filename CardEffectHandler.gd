@@ -86,7 +86,7 @@ func handle_scramble_effect(card: CardData):
 	if course.deck_manager and course.deck_manager.hand.has(card):
 		course.deck_manager.discard(card)
 		course.card_stack_display.animate_card_discard(card.name)
-		course.update_deck_display()
+		course.ui_manager.update_deck_display()
 		course.create_movement_buttons()
 
 func handle_modify_next_card(card: CardData):
@@ -102,7 +102,7 @@ func handle_modify_next_card(card: CardData):
 		if course.deck_manager.hand.has(card):
 			course.deck_manager.discard(card)
 			course.card_stack_display.animate_card_discard(card.name)
-			course.update_deck_display()
+			course.ui_manager.update_deck_display()
 		else:
 			# Card is from bag pile during club selection - just animate discard
 			course.card_stack_display.animate_card_discard(card.name)
@@ -120,7 +120,7 @@ func handle_modify_next_card(card: CardData):
 		if course.deck_manager.hand.has(card):
 			course.deck_manager.discard(card)
 			course.card_stack_display.animate_card_discard(card.name)
-			course.update_deck_display()
+			course.ui_manager.update_deck_display()
 		else:
 			# Card is from bag pile during club selection - just animate discard
 			course.card_stack_display.animate_card_discard(card.name)
@@ -141,7 +141,7 @@ func handle_modify_next_card(card: CardData):
 		if course.deck_manager.hand.has(card):
 			course.deck_manager.discard(card)
 			course.card_stack_display.animate_card_discard(card.name)
-			course.update_deck_display()
+			course.ui_manager.update_deck_display()
 		else:
 			# Card is from bag pile during club selection - just animate discard
 			course.card_stack_display.animate_card_discard(card.name)
@@ -162,7 +162,7 @@ func handle_modify_next_card(card: CardData):
 		if course.deck_manager.hand.has(card):
 			course.deck_manager.discard(card)
 			course.card_stack_display.animate_card_discard(card.name)
-			course.update_deck_display()
+			course.ui_manager.update_deck_display()
 		else:
 			# Card is from bag pile during club selection - just animate discard
 			course.card_stack_display.animate_card_discard(card.name)
@@ -180,7 +180,7 @@ func handle_modify_next_card(card: CardData):
 		if course.deck_manager.hand.has(card):
 			course.deck_manager.discard(card)
 			course.card_stack_display.animate_card_discard(card.name)
-			course.update_deck_display()
+			course.ui_manager.update_deck_display()
 		else:
 			# Card is from bag pile during club selection - just animate discard
 			course.card_stack_display.animate_card_discard(card.name)
@@ -245,7 +245,7 @@ func handle_modify_next_card_card(card: CardData):
 		if course.deck_manager.hand.has(card):
 			course.deck_manager.discard(card)
 			course.card_stack_display.animate_card_discard(card.name)
-			course.update_deck_display()
+			course.ui_manager.update_deck_display()
 		else:
 			# Card is from bag pile during club selection - just animate discard
 			course.card_stack_display.animate_card_discard(card.name)
@@ -263,7 +263,7 @@ func handle_modify_next_card_card(card: CardData):
 		if course.deck_manager.hand.has(card):
 			course.deck_manager.discard(card)
 			course.card_stack_display.animate_card_discard(card.name)
-			course.update_deck_display()
+			course.ui_manager.update_deck_display()
 		else:
 			# Card is from bag pile during club selection - just animate discard
 			course.card_stack_display.animate_card_discard(card.name)
@@ -311,7 +311,7 @@ func handle_teleport_effect(card: CardData):
 	if course.deck_manager.hand.has(card):
 		course.deck_manager.discard(card)
 		course.card_stack_display.animate_card_discard(card.name)
-		course.update_deck_display()
+		course.ui_manager.update_deck_display()
 	else:
 		# Card is from bag pile during club selection - just animate discard
 		course.card_stack_display.animate_card_discard(card.name)
@@ -337,7 +337,7 @@ func handle_draw_effect(card: CardData):
 	if course.deck_manager.hand.has(card):
 		course.deck_manager.discard(card)
 		course.card_stack_display.animate_card_discard(card.name)
-		course.update_deck_display()
+		course.ui_manager.update_deck_display()
 	else:
 		# Card is from bag pile during club selection - just animate discard
 		course.card_stack_display.animate_card_discard(card.name)
@@ -364,7 +364,7 @@ func handle_extra_turn_effect(card: CardData):
 	if course.deck_manager.hand.has(card):
 		course.deck_manager.discard(card)
 		course.card_stack_display.animate_card_discard(card.name)
-		course.update_deck_display()
+		course.ui_manager.update_deck_display()
 	else:
 		# Card is from bag pile during club selection - just animate discard
 		course.card_stack_display.animate_card_discard(card.name)
@@ -820,7 +820,7 @@ func handle_block_effect(card: CardData):
 	if course.deck_manager.hand.has(card):
 		course.deck_manager.discard(card)
 		course.card_stack_display.animate_card_discard(card.name)
-		course.update_deck_display()
+		course.ui_manager.update_deck_display()
 	else:
 		# Card is from bag pile during club selection - just animate discard
 		course.card_stack_display.animate_card_discard(card.name)
@@ -857,7 +857,7 @@ func handle_arrange_effect(card: CardData):
 	if course.deck_manager.hand.has(card):
 		course.deck_manager.discard(card)
 		course.card_stack_display.animate_card_discard(card.name)
-		course.update_deck_display()
+		course.ui_manager.update_deck_display()
 	else:
 		# Card is from bag pile during club selection - just animate discard
 		course.card_stack_display.animate_card_discard(card.name)
@@ -875,7 +875,7 @@ func _on_arrange_card_selected(selected_card: CardData):
 	# The card has already been added to the deck by the dialog
 	# Update the deck display to show the new card
 	if course.has_method("update_deck_display"):
-		course.update_deck_display()
+		course.ui_manager.update_deck_display()
 	
 	# Update the movement buttons to show the new cards in hand
 	if course.has_method("create_movement_buttons"):
@@ -896,7 +896,7 @@ func handle_animal_help_effect(card: CardData):
 	if course.deck_manager.hand.has(card):
 		course.deck_manager.discard(card)
 		course.card_stack_display.animate_card_discard(card.name)
-		course.update_deck_display()
+		course.ui_manager.update_deck_display()
 	else:
 		# Card is from bag pile during club selection - just animate discard
 		course.card_stack_display.animate_card_discard(card.name)
@@ -922,7 +922,7 @@ func handle_player_effect(card: CardData):
 	if course.deck_manager.hand.has(card):
 		course.deck_manager.discard(card)
 		course.card_stack_display.animate_card_discard(card.name)
-		course.update_deck_display()
+		course.ui_manager.update_deck_display()
 	else:
 		# Card is from bag pile during club selection - just animate discard
 		course.card_stack_display.animate_card_discard(card.name)
@@ -1020,7 +1020,7 @@ func handle_vampire_effect(card: CardData):
 	if course.deck_manager.hand.has(card):
 		course.deck_manager.discard(card)
 		course.card_stack_display.animate_card_discard(card.name)
-		course.update_deck_display()
+		course.ui_manager.update_deck_display()
 	else:
 		# Card is from bag pile during club selection - just animate discard
 		course.card_stack_display.animate_card_discard(card.name)
@@ -1050,7 +1050,7 @@ func handle_dodge_effect(card: CardData):
 	if course.deck_manager.hand.has(card):
 		course.deck_manager.discard(card)
 		course.card_stack_display.animate_card_discard(card.name)
-		course.update_deck_display()
+		course.ui_manager.update_deck_display()
 	else:
 		# Card is from bag pile during club selection - just animate discard
 		course.card_stack_display.animate_card_discard(card.name)
@@ -1106,7 +1106,7 @@ func handle_bag_adjust_effect(card: CardData):
 	if course.deck_manager.hand.has(card):
 		course.deck_manager.discard(card)
 		course.card_stack_display.animate_card_discard(card.name)
-		course.update_deck_display()
+		course.ui_manager.update_deck_display()
 	else:
 		# Card is from bag pile during club selection - just animate discard
 		course.card_stack_display.animate_card_discard(card.name)
@@ -1130,7 +1130,7 @@ func _on_bag_check_club_selected(selected_club: CardData):
 	
 	# Update the deck display to show the card was used
 	if course.has_method("update_deck_display"):
-		course.update_deck_display()
+		course.ui_manager.update_deck_display()
 	
 	# Update the movement buttons to show the remaining cards
 	if course.has_method("create_movement_buttons"):

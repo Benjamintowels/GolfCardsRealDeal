@@ -899,14 +899,37 @@ func _input(event: InputEvent) -> void:
 		if event is InputEventMouseMotion:
 			# Update aiming circle position to follow mouse
 			var mouse_pos = camera.get_global_mouse_position()
+			# Convert global mouse position to camera's local coordinate system
+			var local_mouse_pos = camera.to_local(mouse_pos)
 			if game_state_manager.get_aiming_circle_manager():
-				game_state_manager.get_aiming_circle_manager().update_aiming_circle_position(mouse_pos)
+				# Use global mouse position for distance validation, but local for display
+				game_state_manager.get_aiming_circle_manager().update_aiming_circle_position(mouse_pos, local_mouse_pos)
+			
+			# Update ghost ball landing spot to follow mouse (use constrained position)
+			var constrained_pos = mouse_pos
+			if game_state_manager.get_aiming_circle_manager():
+				# Get the constrained position from the aiming circle manager
+				var manager = game_state_manager.get_aiming_circle_manager()
+				if manager.has_method("get_current_position"):
+					constrained_pos = manager.get_current_position()
+			
+			game_state_manager.set_chosen_landing_spot(constrained_pos)
+			launch_manager.update_ghost_ball()
+			
+			# Update aiming camera tracking - use the constrained aiming circle position
+			camera_manager.update_aiming_camera_tracking(constrained_pos)
 		elif event is InputEventMouseButton:
 			if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
-				# Set the chosen landing spot to the current aiming circle position
+				# Set the chosen landing spot to the current constrained aiming circle position
 				var mouse_pos = camera.get_global_mouse_position()
-				game_state_manager.set_chosen_landing_spot(mouse_pos)
-				print("Chosen landing spot set to:", mouse_pos)
+				var constrained_pos = mouse_pos
+				if game_state_manager.get_aiming_circle_manager():
+					var manager = game_state_manager.get_aiming_circle_manager()
+					if manager.has_method("get_current_position"):
+						constrained_pos = manager.get_current_position()
+				
+				game_state_manager.set_chosen_landing_spot(constrained_pos)
+				print("Chosen landing spot set to:", constrained_pos)
 				
 				# Freeze grenade launcher if using GrenadeLauncherWeaponCard
 				if weapon_handler and weapon_handler.selected_card and weapon_handler.selected_card.name == "GrenadeLauncherWeaponCard":
@@ -921,14 +944,25 @@ func _input(event: InputEvent) -> void:
 				ui_manager.hide_aiming_instruction()
 				camera_manager.restore_zoom_after_aiming(self)
 				
+				# Stop aiming camera tracking
+				camera_manager.stop_aiming_camera_tracking()
+				
 				# Set the chosen landing spot in the LaunchManager
-				launch_manager.chosen_landing_spot = mouse_pos
+				launch_manager.chosen_landing_spot = constrained_pos
+				# Remove the ghost ball before entering launch phase
+				launch_manager.remove_ghost_ball()
 				launch_manager.enter_launch_phase()
 			elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
 				game_state_manager.is_aiming_phase = false
 				ui_manager.hide_aiming_circle()
 				ui_manager.hide_aiming_instruction()
 				camera_manager.restore_zoom_after_aiming(self)
+				
+				# Stop aiming camera tracking
+				camera_manager.stop_aiming_camera_tracking()
+				
+				# Remove the ghost ball when canceling aiming
+				launch_manager.remove_ghost_ball()
 				game_state_manager.set_game_phase("move")  # Return to move phase
 				player_manager.update_player_mouse_facing_state(game_state_manager, launch_manager, camera, weapon_handler)
 	elif game_state_manager.get_game_phase() == "launch":
@@ -1020,6 +1054,12 @@ func _on_reach_ball_pressed() -> void:
 		# Teleport the player to the ball
 		card_effect_handler.teleport_player_to_ball(ball_position)
 		
+		# Tween camera to the player's new position
+		if player_manager.get_player_node():
+			var player_center = player_manager.get_player_node().global_position
+			camera_manager.create_camera_tween(player_center, 0.8, Tween.TRANS_SINE, Tween.EASE_OUT)
+			print("Camera tweening to player after reach ball teleport")
+		
 		# Clear the waiting state since player is now at the ball
 		game_state_manager.set_waiting_for_player_to_reach_ball(false)
 		
@@ -1096,11 +1136,9 @@ func _on_tile_input(event: InputEvent, x: int, y: int) -> void:
 		if game_state_manager.is_placing_player:
 			if map_manager.get_tile_type(x, y) == "Tee":
 				# Cancel any ongoing pin-to-tee transition
-				var ongoing_tween = get_meta("pin_to_tee_tween", null)
-				if ongoing_tween and ongoing_tween.is_valid():
+				if camera_manager:
+					camera_manager.cancel_pin_to_tee_transition()
 					print("Cancelling ongoing pin-to-tee transition due to early player placement")
-					ongoing_tween.kill()
-					remove_meta("pin_to_tee_tween")
 				
 				player_manager.set_player_grid_pos(clicked)
 				player_manager.create_player()  # This will reuse existing player or create new one
@@ -1617,6 +1655,9 @@ func enter_aiming_phase() -> void:
 	player_manager.update_player_mouse_facing_state(game_state_manager, launch_manager, camera, weapon_handler)
 	game_state_manager.set_is_aiming_phase(true)
 	
+	# Start aiming camera tracking
+	camera_manager.start_aiming_camera_tracking()
+	
 	# Update smart optimizer state
 	if smart_optimizer:
 		smart_optimizer.update_game_state("aiming", false, true, false)
@@ -1627,17 +1668,19 @@ func enter_aiming_phase() -> void:
 	
 	# Create aiming circle at mouse position
 	var mouse_pos = camera.get_global_mouse_position()
-	create_aiming_circle(mouse_pos)
+	# Convert global mouse position to camera's local coordinate system
+	var local_mouse_pos = camera.to_local(mouse_pos)
+	create_aiming_circle(local_mouse_pos)
 	
 	ui_manager.show_aiming_circle()
 	launch_manager.create_ghost_ball()
 	ui_manager.show_aiming_instruction()
 	
-	# Create camera tween to player position for aiming
+	# Position camera on player for aiming (no tween to avoid interference with aiming circle)
 	var sprite = player_manager.get_player_node().get_node_or_null("Sprite2D")
 	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
 	var player_center = player_manager.get_player_node().global_position + player_size / 2
-	create_camera_tween(player_center, 1.0)
+	camera.position = player_center
 	
 	# Zoom out when entering aiming phase for better visibility
 	if camera and camera.has_method("set_zoom_level"):
@@ -1673,10 +1716,16 @@ func hide_aiming_circle() -> void:
 
 func update_aiming_circle() -> void:
 	"""Update the aiming circle position and rotation"""
+	# Don't update position during aiming phase - mouse motion handler does that
+	if game_state_manager.get_is_aiming_phase():
+		return
+		
 	if game_state_manager.get_aiming_circle_manager():
 		var manager = game_state_manager.get_aiming_circle_manager()
 		if manager and manager.has_method("update_aiming_circle_position"):
-			manager.update_aiming_circle_position(player_manager.get_player_node().global_position)
+			var player_global_pos = player_manager.get_player_node().global_position
+			var player_local_pos = camera.to_local(player_global_pos)
+			manager.update_aiming_circle_position(player_global_pos, player_local_pos)
 
 # Zoom restoration moved to CameraManager
 
@@ -1690,9 +1739,18 @@ func create_aiming_circle(position: Vector2) -> void:
 		camera.add_child(aiming_circle_manager)
 		game_state_manager.set_aiming_circle_manager(aiming_circle_manager)
 	
-	# Create the aiming circle using the manager
-	game_state_manager.get_aiming_circle_manager().create_aiming_circle(position, int(game_state_manager.max_shot_distance))
-	print("Aiming circle created at:", position)
+	# Get the current club's max distance
+	var selected_club = game_state_manager.get_selected_club()
+	var max_distance = 600.0  # Default fallback
+	if selected_club in club_data:
+		max_distance = club_data[selected_club].get("max_distance", 600.0)
+	
+	# Set the player position for distance calculations
+	var player_center = player_manager.get_player_node().global_position
+	game_state_manager.get_aiming_circle_manager().set_player_position(player_center)
+	
+	# Create the aiming circle using the manager with actual club max distance
+	game_state_manager.get_aiming_circle_manager().create_aiming_circle(position, int(max_distance))
 	
 
 # Start shot sequence function moved to GameStateManager
