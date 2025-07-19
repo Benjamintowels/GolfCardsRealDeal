@@ -196,6 +196,10 @@ func start_aiming_camera_tracking(club_distance: float = 800.0) -> void:
 	"""Start the aiming camera tracking system"""
 	aiming_tracking_active = true
 	
+	# Cancel any existing camera tweens to prevent conflicts
+	kill_current_camera_tween()
+	cancel_pin_to_tee_transition()
+	
 	# If club has max distance of 750 or less, keep camera stationary
 	if club_distance <= 750.0:
 		camera_stationary = true

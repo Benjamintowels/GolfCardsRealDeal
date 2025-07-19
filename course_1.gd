@@ -1709,6 +1709,12 @@ func enter_aiming_phase() -> void:
 	game_state_manager.set_shot_start_position(player_manager.get_player_grid_pos())
 	print("Shot started from position:", game_state_manager.get_shot_start_position())
 	
+	# Ensure camera is positioned on player for aiming (immediate positioning, no tween)
+	var sprite = player_manager.get_player_node().get_node_or_null("Sprite2D")
+	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
+	var player_center = player_manager.get_player_node().global_position + player_size / 2
+	camera.position = player_center
+	
 	# Create aiming circle at mouse position
 	var mouse_pos = camera.get_global_mouse_position()
 	# Convert global mouse position to camera's local coordinate system
@@ -1718,12 +1724,6 @@ func enter_aiming_phase() -> void:
 	ui_manager.show_aiming_circle()
 	launch_manager.create_ghost_ball()
 	ui_manager.show_aiming_instruction()
-	
-	# Position camera on player for aiming (no tween to avoid interference with aiming circle)
-	var sprite = player_manager.get_player_node().get_node_or_null("Sprite2D")
-	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
-	var player_center = player_manager.get_player_node().global_position + player_size / 2
-	camera.position = player_center
 	
 	# Zoom adjustment when entering aiming phase
 	if camera and camera.has_method("set_zoom_level"):
