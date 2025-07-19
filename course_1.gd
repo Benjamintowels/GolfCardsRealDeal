@@ -88,9 +88,7 @@ var movement_buttons := []
 # var pan_start_pos := Vector2.ZERO
 # var camera_snap_back_pos := Vector2.ZERO
 
-var flashlight_radius := 150.0
 var mouse_world_pos := Vector2.ZERO
-var player_flashlight_center := Vector2.ZERO
 var tree_scene = preload("res://Obstacles/Tree.tscn")
 var water_scene = preload("res://Obstacles/WaterHazard.tscn")
 
@@ -114,8 +112,8 @@ var next_movement_card_rooboost := false  # Track if next movement card should h
 var extra_turns_remaining := 0  # Track extra turns from CoffeeCard
 
 # Block system variables
-var block_active := false  # Track if block is currently active
-var block_amount := 0  # Current block points
+# var block_active := false  # Track if block is currently active
+# var block_amount := 0  # Current block points
 
 # Sound effects moved to SoundManager
 var club_max_distances = {
@@ -378,10 +376,6 @@ func _process(delta):
 	if smart_optimizer:
 		smart_optimizer.smart_process(delta, self)
 	
-	# Update block sprite flip every frame when block is active
-	if block_active and Global.selected_character == 2:
-		update_block_sprite_flip()
-	
 	# Update weapon rotation if GrenadeLauncherClubCard is selected
 	if game_state_manager.get_selected_club() == "GrenadeLauncherClubCard" and weapon_handler:
 		weapon_handler.update_weapon_rotation()
@@ -485,7 +479,7 @@ func _ready() -> void:
 	add_child(player_manager)
 	
 	call_deferred("fix_ui_layers")
-	display_selected_character()
+	ui_manager.display_selected_character()
 	if end_round_button:
 		end_round_button.pressed.connect(_on_end_round_pressed)
 	
@@ -500,7 +494,7 @@ func _ready() -> void:
 		reach_ball_button.reach_ball_pressed.connect(_on_reach_ball_pressed)
 	
 	# Initialize gimme button state
-	hide_gimme_button()
+	ui_manager.hide_gimme_button()
 
 
 	# Create camera container for grid manager
@@ -537,6 +531,7 @@ func _ready() -> void:
 	launch_manager.cell_size = cell_size
 	launch_manager.camera = camera
 	launch_manager.card_effect_handler = card_effect_handler
+	launch_manager.course_reference = self
 	
 	# Connect signals
 	launch_manager.ball_launched.connect(_on_ball_launched)
@@ -552,7 +547,7 @@ func _ready() -> void:
 
 	deck_manager = DeckManager.new()
 	add_child(deck_manager)
-	deck_manager.deck_updated.connect(update_deck_display)
+	deck_manager.deck_updated.connect(ui_manager.update_deck_display)
 	deck_manager.discard_recycled.connect(card_stack_display.animate_card_recycle)
 	
 	# Setup card stack sounds in SoundManager
@@ -655,7 +650,7 @@ func _ready() -> void:
 	attack_handler.npc_attacked.connect(_on_npc_attacked)
 	attack_handler.kick_attack_performed.connect(_on_kick_attack_performed)
 	attack_handler.punchb_attack_performed.connect(_on_punchb_attack_performed)
-	attack_handler.ash_dog_attack_performed.connect(_on_ash_dog_attack_performed)
+	# Ash dog attack signal connection removed - handled by AttackHandler
 	
 	# Connect weapon handler signals
 	weapon_handler.npc_shot.connect(_on_npc_shot)
@@ -738,7 +733,7 @@ func adjust_background_positioning() -> void:
 
 	var hud := $UILayer/HUD
 
-	update_deck_display()
+	ui_manager.update_deck_display()
 	set_process_input(true)
 
 	# Swing sounds are now handled by SoundManager
@@ -778,9 +773,7 @@ func adjust_background_positioning() -> void:
 	# Note: We'll update the display manually since Global doesn't have a signal system
 	# The display will be updated in update_deck_display() which is called regularly
 
-	if Global.saved_game_state == "shop_entrance":
-		restore_game_state()
-		return  # Skip tee selection/setup when returning from shop
+	# Shop is now an overlay system - no need for state restoration
 
 	if not game_state_manager:
 		print("ERROR: game_state_manager not initialized in start_round()")
@@ -814,7 +807,7 @@ func adjust_background_positioning() -> void:
 
 
 	game_state_manager.is_placing_player = true
-	highlight_tee_tiles()
+	map_manager.highlight_tee_tiles()
 
 	map_manager.load_map_data(GolfCourseLayout.get_hole_layout(game_state_manager.get_current_hole_index()))
 	build_map.build_map_from_layout_with_randomization(map_manager.level_layout)
@@ -837,10 +830,10 @@ func adjust_background_positioning() -> void:
 	show_tee_selection_instruction()
 	
 	# Register any existing GangMembers with the Entities system
-	register_existing_gang_members()
+	world_turn_manager.register_existing_gang_members()
 	
 	# Register any existing Squirrels with the Entities system
-	register_existing_squirrels()
+	world_turn_manager.register_existing_squirrels()
 	
 	# Re-register all NPCs in Entities to ensure attack system works
 	var entities = get_node_or_null("Entities")
@@ -851,7 +844,7 @@ func adjust_background_positioning() -> void:
 	var player = player_manager.get_player_node()
 	if player and player.has_method("set_camera_reference"):
 		player.set_camera_reference(camera)
-		_update_player_mouse_facing_state()
+		player_manager.update_player_mouse_facing_state(game_state_manager, launch_manager, camera, weapon_handler)
 	
 	# Play birds tweeting sound when course loads
 	sound_manager.play_birds_tweeting()
@@ -867,8 +860,8 @@ func adjust_background_positioning() -> void:
 
 func _on_complete_hole_pressed():
 	# Clear any existing balls before showing the hole completion dialog
-	remove_all_balls()
-	show_hole_completion_dialog()
+	launch_manager.remove_all_balls()
+	ui_manager.show_hole_completion_dialog()
 
 func _input(event: InputEvent) -> void:
 	# Early return if game_state_manager is not initialized yet
@@ -910,17 +903,17 @@ func _input(event: InputEvent) -> void:
 					weapon_handler.freeze_grenade_launcher()
 				
 				game_state_manager.is_aiming_phase = false
-				hide_aiming_circle()
-				hide_aiming_instruction()
-				restore_zoom_after_aiming()
-				enter_launch_phase()
+				ui_manager.hide_aiming_circle()
+				ui_manager.hide_aiming_instruction()
+				camera_manager.restore_zoom_after_aiming(self)
+				launch_manager.enter_launch_phase()
 			elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
 				game_state_manager.is_aiming_phase = false
-				hide_aiming_circle()
-				hide_aiming_instruction()
-				restore_zoom_after_aiming()
+				ui_manager.hide_aiming_circle()
+				ui_manager.hide_aiming_instruction()
+				camera_manager.restore_zoom_after_aiming(self)
 				game_state_manager.set_game_phase("move")  # Return to move phase
-				_update_player_mouse_facing_state()
+				player_manager.update_player_mouse_facing_state(game_state_manager, launch_manager, camera, weapon_handler)
 	elif game_state_manager.get_game_phase() == "launch":
 		# Handle launch input through LaunchManager
 		if launch_manager.handle_input(event):
@@ -961,235 +954,28 @@ func _input(event: InputEvent) -> void:
 		return
 
 	if player_manager.get_player_node():
-		player_flashlight_center = get_flashlight_center()
+		pass
 
 	# Grid tiles are static with smart optimization - no need to redraw
 
 	queue_redraw()
 
 func _draw() -> void:
-	draw_flashlight_effect()
-
-func draw_flashlight_effect() -> void:
-	var flashlight_pos := get_flashlight_center()
-	var steps := 20
-	for i in steps:
-		var t := float(i) / steps
-		var radius := flashlight_radius * t
-		var alpha := 1.0 - t
-		draw_circle(flashlight_pos, radius, Color(1, 1, 1, alpha * 0.1))
-
-func get_flashlight_center() -> Vector2:
-	if not player_manager.get_player_node():
-		return Vector2.ZERO
-	var sprite = player_manager.get_player_node().get_node_or_null("Sprite2D")
-	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
-	var player_center = player_manager.get_player_node().global_position + player_size / 2
-	var mouse_pos: Vector2 = get_viewport().get_mouse_position()
-	var dir: Vector2 = mouse_pos - player_center
-	var dist: float = dir.length()
-	if dist > flashlight_radius:
-		dir = dir.normalized() * flashlight_radius
-	return player_center + dir
-
-func take_damage(amount: int) -> void:
-	"""Player takes damage and updates health bar"""
-	var damage_to_health = amount
-	
-	# Check if vampire mode is active - heal instead of taking damage
-	if vampire_mode_active:
-		print("Vampire mode active - healing for damage instead of taking damage!")
-		heal_player(amount)
-		return
-	
-	# Check if dodge mode is active - dodge the damage
-	if dodge_mode_active:
-		print("Dodge mode active - dodging damage!")
-		trigger_dodge_animation()
-		return
-	
-	# Check if block is active and apply damage to block first
-	if block_active and block_health_bar and block_health_bar.has_block():
-		damage_to_health = block_health_bar.take_block_damage(amount)
-		block_amount = block_health_bar.get_block_amount()
-		
-		# If block is depleted, clear it
-		if not block_health_bar.has_block():
-			clear_block()
-		
-		print("Block absorbed damage. Remaining damage to health:", damage_to_health)
-
-	# Apply remaining damage to health
-	if health_bar and damage_to_health > 0:
-		health_bar.take_damage(damage_to_health)
-		# Update Global stats
-		Global.CHARACTER_STATS[Global.selected_character]["current_hp"] = health_bar.current_hp
-		print("Player took %d damage to health. Current HP: %d" % [damage_to_health, health_bar.current_hp])
-		
-		# Check if player is defeated
-		if not health_bar.is_alive():
-			print("Player is defeated!")
-			# Trigger death sequence
-			handle_player_death()
-
-func heal_player(amount: int) -> void:
-	"""Player heals and updates health bar"""
-	if health_bar:
-		health_bar.heal(amount)
-		# Update Global stats
-		Global.CHARACTER_STATS[Global.selected_character]["current_hp"] = health_bar.current_hp
-		print("Player healed %d HP. Current HP: %d" % [amount, health_bar.current_hp])
-
-
-# Block system methods
-func activate_block(amount: int) -> void:
-	"""Activate block system with specified amount"""
-	print("Activating block with", amount, "points")
-	block_active = true
-	block_amount = amount
-	
-	# Update block health bar
-	if block_health_bar:
-		block_health_bar.set_block(amount, amount)
-	
-	# Switch to block sprite for Benny character
-	if Global.selected_character == 2:  # Benny
-		switch_to_block_sprite()
-	
-	print("Block activated -", amount, "block points available")
-
-func switch_to_block_sprite() -> void:
-	"""Switch Benny character to block sprite"""
-	print("=== SWITCH TO BLOCK SPRITE CALLED ===")
-	if not player_manager.get_player_node():
-		print("✗ No player node found")
-		return
-	
-	# Find the normal character sprite and block sprite in the player node
-	var normal_sprite = null
-	var block_sprite = null
-	
-	print("Searching for sprites in player node children...")
-	for child in player_manager.get_player_node().get_children():
-		print("  Child:", child.name, "Type:", child.get_class())
-		if child is Node2D:
-			for grandchild in child.get_children():
-				print("    Grandchild:", grandchild.name, "Type:", grandchild.get_class())
-				if grandchild is Sprite2D and grandchild.name == "Sprite2D":
-					normal_sprite = grandchild
-					print("    ✓ Found normal sprite:", grandchild.name)
-				elif grandchild is Sprite2D and grandchild.name == "BennyBlock":
-					block_sprite = grandchild
-					print("    ✓ Found block sprite:", grandchild.name)
-			if normal_sprite and block_sprite:
-				break
-	
-	print("Normal sprite found:", normal_sprite != null)
-	print("Block sprite found:", block_sprite != null)
-	
-	if normal_sprite and block_sprite:
-		print("Normal sprite flip_h before copy:", normal_sprite.flip_h)
-		print("Block sprite flip_h before copy:", block_sprite.flip_h)
-		
-		# Copy the flip_h state from normal sprite to block sprite
-		block_sprite.flip_h = normal_sprite.flip_h
-		
-		# Hide normal sprite and show block sprite
-		normal_sprite.visible = false
-		block_sprite.visible = true
-		print("✓ Switched to block sprite with flip_h:", block_sprite.flip_h)
-	else:
-		print("✗ Warning: Could not find normal sprite or block sprite")
-	
-	print("=== END SWITCH TO BLOCK SPRITE ===")
-
-func switch_to_normal_sprite() -> void:
-	"""Switch Benny character back to normal sprite"""
-	if not player_manager.get_player_node() or Global.selected_character != 2:  # Only for Benny
-		return
-	
-	# Find the normal character sprite and block sprite in the player node
-	var normal_sprite = null
-	var block_sprite = null
-	
-	for child in player_manager.get_player_node().get_children():
-		if child is Node2D:
-			for grandchild in child.get_children():
-				if grandchild is Sprite2D and grandchild.name == "Sprite2D":
-					normal_sprite = grandchild
-				elif grandchild is Sprite2D and grandchild.name == "BennyBlock":
-					block_sprite = grandchild
-			if normal_sprite and block_sprite:
-				break
-	
-	if normal_sprite and block_sprite:
-		# Show normal sprite and hide block sprite
-		normal_sprite.visible = true
-		block_sprite.visible = false
-		print("Switched back to normal sprite")
-	else:
-		print("Warning: Could not find normal sprite or block sprite")
-
-func update_block_sprite_flip() -> void:
-	"""Update the block sprite's flip_h state to match the normal sprite"""
-	if not player_manager.get_player_node() or Global.selected_character != 2 or not block_active:  # Only for Benny when blocking
-		return
-	
-	# Find the normal character sprite and block sprite in the player node
-	var normal_sprite = null
-	var block_sprite = null
-	
-	for child in player_manager.get_player_node().get_children():
-		if child is Node2D:
-			for grandchild in child.get_children():
-				if grandchild is Sprite2D and grandchild.name == "Sprite2D":
-					normal_sprite = grandchild
-				elif grandchild is Sprite2D and grandchild.name == "BennyBlock":
-					block_sprite = grandchild
-			if normal_sprite and block_sprite:
-				break
-	
-	if normal_sprite and block_sprite and block_sprite.visible:
-		# Update block sprite flip_h to match normal sprite
-		block_sprite.flip_h = normal_sprite.flip_h
-
-func update_dodge_sprite_flip() -> void:
-	"""Update the dodge sprite's flip_h state to match the normal sprite (no longer needed with hue effect)"""
-	# This function is no longer needed since we're using hue effects instead of sprite switching
-	# Keeping it for compatibility but it does nothing
+	# Drawing functionality removed
 	pass
 
-func clear_block() -> void:
-	"""Clear all block points and switch back to normal sprite"""
-	print("Clearing block")
-	block_active = false
-	block_amount = 0
-	
-	# Update block health bar
-	if block_health_bar:
-		block_health_bar.clear_block()
-	
-	# Switch back to normal sprite for Benny character
-	if Global.selected_character == 2:  # Benny
-		switch_to_normal_sprite()
-	
-	print("Block cleared")
+# Health functions moved to PlayerManager
 
-func has_block() -> bool:
-	"""Check if player has active block"""
-	return block_active and block_amount > 0
 
-func get_block_amount() -> int:
-	"""Get current block amount"""
-	return block_amount
+# Block system methods moved to PlayerManager
 
 func _on_damage_button_pressed() -> void:
 	"""Handle damage button press"""
-	take_damage(20)
+	player_manager.take_damage(20)
 
 func _on_heal_button_pressed() -> void:
 	"""Handle heal button press"""
-	heal_player(20)
+	player_manager.heal_player(20)
 
 func _on_reach_ball_pressed() -> void:
 	"""Handle reach ball button press - teleport player to ball"""
@@ -1226,140 +1012,21 @@ func _on_reach_ball_pressed() -> void:
 		
 		# Always show club card drawing after using reach ball button
 		print("Reach ball button used - showing club card drawing")
-		show_draw_club_cards_button()
+		ui_manager.show_draw_club_cards_button()
 		
 		print("Player teleported to ball successfully")
 	else:
 		print("CardEffectHandler not available for teleport")
 
-func handle_player_death() -> void:
-	"""Handle player death - fade to black and show death screen"""
-	print("Handling player death...")
-	
-	# Disable all input to prevent further actions
-	set_process_input(false)
-	
-	# Fade to black and transition to death scene
-	FadeManager.fade_to_black(func(): get_tree().change_scene_to_file("res://DeathScene.tscn"), 1.0)
+# Death handling moved to GameStateManager
 
-func _on_player_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		if game_state_manager.get_game_phase() == "move":
-			enter_aiming_phase()  # Start aiming phase instead of just drawing cards
-		elif game_state_manager.get_game_phase() == "launch":
-			if deck_manager.hand.size() == 0:
-				draw_cards_for_next_shot()  # Draw cards for shot
-			else:
-				pass # Already have cards in launch phase - ready to take shot
-		else:
-			pass # Player clicked but not in move or launch phase
+# Player input handling moved to UIManager
 
-func update_camera_to_player() -> void:
-	"""Update camera to follow player's current position (called during movement animation)"""
-	camera_manager.update_camera_to_player()
+# Camera functions moved to CameraManager - direct calls to camera_manager used instead
 
-func smooth_camera_to_player() -> void:
-	"""Smoothly tween camera to player's final position (called after movement animation completes)"""
-	camera_manager.smooth_camera_to_player()
+# Player position update moved to PlayerManager
 
-func update_player_position() -> void:
-	if not player_manager.get_player_node():
-		return
-	var sprite = player_manager.get_player_node().get_node_or_null("Sprite2D")
-	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
-
-	player_manager.get_player_node().set_grid_position(player_manager.get_player_grid_pos(), ysort_objects)
-	
-	var player_center: Vector2 = player_manager.get_player_node().global_position + player_size / 2
-	camera_manager.update_camera_snap_back_position(player_center)
-	
-			# Only create ball if player is properly placed (not during initial setup)
-	if not game_state_manager.is_placing_player:
-		# Create or update ball at tile center for all shots
-		var tile_center: Vector2 = Vector2(player_manager.get_player_grid_pos().x * cell_size + cell_size/2, player_manager.get_player_grid_pos().y * cell_size + cell_size/2) + grid_manager.get_camera_container().global_position
-		create_or_update_ball_at_player_center(tile_center)
-	
-	if not game_state_manager.is_placing_player:
-		# Check if there's an ongoing pin-to-tee transition
-		var ongoing_tween = get_meta("pin_to_tee_tween", null)
-		if ongoing_tween and ongoing_tween.is_valid():
-			ongoing_tween.kill()
-			remove_meta("pin_to_tee_tween")
-		
-		# Use the camera manager for tweening
-		camera_manager.create_camera_tween(player_center, 0.5)
-
-func remove_all_balls() -> void:
-	"""Remove all balls from the scene"""
-	var balls = get_tree().get_nodes_in_group("balls")
-	for ball in balls:
-		if is_instance_valid(ball):
-			ball.queue_free()
-	print("Removed", balls.size(), "balls from scene")
-
-func create_or_update_ball_at_player_center(player_center: Vector2) -> void:
-	"""Create a ball at the player center or update existing ball position"""
-	# Check if a ball already exists
-	var existing_balls = get_tree().get_nodes_in_group("balls")
-	var existing_ball = null
-	
-	for ball in existing_balls:
-		if is_instance_valid(ball):
-			existing_ball = ball
-			break
-	
-	if existing_ball:
-		# Ball already exists - don't recreate it, just update its properties
-		return
-	
-
-
-	# No ball exists - create a new one at player center
-	var ball_scene = preload("res://GolfBall.tscn")
-	var ball = ball_scene.instantiate()
-	ball.name = "GolfBall"
-	ball.add_to_group("balls")
-	
-	# Position the ball relative to the camera container
-	var ball_local_position = player_center - grid_manager.get_camera_container().global_position
-	ball.position = ball_local_position
-	ball.cell_size = cell_size
-	ball.map_manager = map_manager
-	
-	# Connect ball signals using the existing function names
-	ball.landed.connect(_on_golf_ball_landed)
-	ball.out_of_bounds.connect(_on_golf_ball_out_of_bounds)
-	ball.sand_landing.connect(_on_golf_ball_sand_landing)
-	
-	# Add ball to camera container so it moves with the world
-	grid_manager.get_camera_container().add_child(ball)
-
-func force_create_ball_at_position(world_position: Vector2) -> void:
-	"""Force create a new ball at the specified world position (ignores existing balls)"""
-	# Create a new ball at the specified position
-	var ball_scene = preload("res://GolfBall.tscn")
-	var ball = ball_scene.instantiate()
-	ball.name = "GolfBall"
-	ball.add_to_group("balls")
-	
-	# Position the ball relative to the camera container
-	var ball_local_position = world_position - grid_manager.get_camera_container().global_position
-	ball.position = ball_local_position
-	ball.cell_size = cell_size
-	ball.map_manager = map_manager
-	
-	# Connect ball signals using the existing function names
-	ball.landed.connect(_on_golf_ball_landed)
-	ball.out_of_bounds.connect(_on_golf_ball_out_of_bounds)
-	ball.sand_landing.connect(_on_golf_ball_sand_landing)
-	
-	# Add ball to camera container so it moves with the world
-	grid_manager.get_camera_container().add_child(ball)
-	
-	# Set the launch manager's golf ball reference
-	launch_manager.golf_ball = ball
-	
-	print("Force created new ball at position:", world_position)
+# Ball management moved to LaunchManager
 
 func create_movement_buttons() -> void:
 	movement_controller.create_movement_buttons()
@@ -1423,10 +1090,10 @@ func _on_tile_input(event: InputEvent, x: int, y: int) -> void:
 				game_state_manager.is_placing_player = false
 				
 				# Update player position and create ball
-				update_player_position()
+				player_manager.update_player_position_with_ball_creation(self)
 				
 				sound_manager.play_sand_thunk()
-				start_round_after_tee_selection()
+				game_state_manager.start_round_after_tee_selection(self, player_manager, deck_manager, ui_manager)
 			else:
 				pass # Please select a Tee Box to start your round.
 		else:
@@ -1444,151 +1111,17 @@ func _on_tile_input(event: InputEvent, x: int, y: int) -> void:
 			else:
 				print("Invalid movement/attack tile or not in movement/attack mode")
 
-func start_round_after_tee_selection() -> void:
-	var instruction_label = $UILayer.get_node_or_null("TeeInstructionLabel")
-	if instruction_label:
-		instruction_label.queue_free()
-	
-	for y in grid_manager.get_grid_size().y:
-		for x in grid_manager.get_grid_size().x:
-			grid_manager.get_grid_tiles()[y][x].get_node("Highlight").visible = false
-	
-	# Reset character health for new round
-	Global.reset_character_health()
-	
-	# Reset global turn counter for new round
-	Global.reset_global_turn()
-	
-	player_manager.set_player_stats(Global.CHARACTER_STATS.get(Global.selected_character, {}))
-	
-	deck_manager.initialize_separate_decks()
-	print("Separate decks initialized - Club cards:", deck_manager.club_draw_pile.size(), "Action cards:", deck_manager.action_draw_pile.size())
+# Round start function moved to GameStateManager
 
-	game_state_manager.set_has_started(true)
-	
-	game_state_manager.reset_hole_score()
-	
-	# Enable player movement animations after player is properly placed on tee
-	if player_manager.get_player_node() and player_manager.get_player_node().has_method("enable_animations"):
-		player_manager.get_player_node().enable_animations()
-		print("Player movement animations enabled after tee placement")
-	
-	enter_draw_cards_phase()  # Start with club selection phase
-	
-	print("Round started! Player at position:", player_manager.get_player_grid_pos())
+# Power meter functions moved to UIManager
 
-func show_power_meter():
-	launch_manager.show_power_meter()
-
-func hide_power_meter():
-	launch_manager.hide_power_meter()
-
-func show_height_meter():
-	launch_manager.show_height_meter()
-
-func hide_height_meter():
-	launch_manager.hide_height_meter()
-
-func show_aiming_circle():
-	if game_state_manager.get_aiming_circle():
-		game_state_manager.get_aiming_circle().queue_free()
-	
-	var base_circle_size = 50.0
-	var strength_modifier = player_manager.get_player_stats().get("strength", 0)
-	var strength_multiplier = 1.0 + (strength_modifier * 0.15)  # +15% size per strength point
-	var adjusted_circle_size = base_circle_size * strength_multiplier
-	
-	var new_aiming_circle = Control.new()
-	new_aiming_circle.name = "AimingCircle"
-	new_aiming_circle.size = Vector2(adjusted_circle_size, adjusted_circle_size)
-	new_aiming_circle.z_index = 150  # Above the player but below UI
-	grid_manager.get_camera_container().add_child(new_aiming_circle)
-	game_state_manager.set_aiming_circle(new_aiming_circle)
-	
-	# Load the target circle texture
-	var target_circle_texture = preload("res://UI/TargetCircle.png")
-	
-	var circle = TextureRect.new()
-	circle.name = "CircleVisual"
-	circle.size = Vector2(adjusted_circle_size, adjusted_circle_size)
-	circle.texture = target_circle_texture
-	circle.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
-	circle.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	game_state_manager.get_aiming_circle().add_child(circle)
-	
-	var distance_label = Label.new()
-	distance_label.name = "DistanceLabel"
-	distance_label.text = "0"
-	distance_label.add_theme_font_size_override("font_size", 12)
-	distance_label.add_theme_color_override("font_color", Color.WHITE)
-	distance_label.add_theme_constant_override("outline_size", 1)
-	distance_label.add_theme_color_override("font_outline_color", Color.BLACK)
-	distance_label.position = Vector2(adjusted_circle_size + 10, adjusted_circle_size / 2 - 10)
-	distance_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	game_state_manager.get_aiming_circle().add_child(distance_label)
-	
-
-	
-	print("Aiming circle created with size:", adjusted_circle_size, "(base:", base_circle_size, "strength modifier:", strength_modifier, ")")
+# show_aiming_circle function moved to UIManager
 
 
 
-func hide_aiming_circle():
-	if game_state_manager.get_aiming_circle():
-		game_state_manager.get_aiming_circle().queue_free()
-		game_state_manager.set_aiming_circle(null)
-	
-	remove_ghost_ball()
+# hide_aiming_circle function moved to UIManager
 
-func update_aiming_circle():
-	if not game_state_manager.get_aiming_circle() or not player_manager.get_player_node():
-		return
-	
-	var sprite = player_manager.get_player_node().get_node_or_null("Sprite2D")
-	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
-	var player_center = player_manager.get_player_node().global_position + player_size / 2
-	var mouse_pos = camera.get_global_mouse_position()
-	var direction = (mouse_pos - player_center).normalized()
-	var distance = player_center.distance_to(mouse_pos)
-	
-	# Check if this is shotgun mode and limit range to 350 pixels
-	var effective_max_distance = game_state_manager.max_shot_distance
-	if game_state_manager.get_selected_club() == "ShotgunCard":
-		effective_max_distance = 350.0
-	elif game_state_manager.get_selected_club() == "SniperCard":
-		effective_max_distance = 1500.0
-	
-	var clamped_distance = min(distance, effective_max_distance)
-	var clamped_position = player_center + direction * clamped_distance
-	
-	game_state_manager.get_aiming_circle().global_position = clamped_position - game_state_manager.get_aiming_circle().size / 2	
-	game_state_manager.set_chosen_landing_spot(clamped_position)
-	
-	update_ghost_ball()
-	
-	var circle = game_state_manager.get_aiming_circle().get_node_or_null("CircleVisual")
-	if circle and game_state_manager.get_selected_club() in club_data:
-		var min_distance = club_data[game_state_manager.get_selected_club()]["min_distance"]
-		if clamped_distance >= min_distance:
-			circle.modulate = Color(0, 1, 0, 0.8)  # Green
-		else:
-			circle.modulate = Color(1, 0, 0, 0.8)  # Red
-	
-	# Only move camera if not in shuriken mode (keep camera focused on player for shuriken)
-	if game_state_manager.get_selected_club() != "ShurikenCard":
-		var target_camera_pos = clamped_position
-		# Add vertical offset of -300 pixels to show player near bottom of screen and better see arc apex
-		target_camera_pos.y -= 120
-		var current_camera_pos = camera.position
-		var camera_speed = 5.0  # Adjust for faster/slower camera movement
-		
-		var new_camera_pos = current_camera_pos.lerp(target_camera_pos, camera_speed * get_process_delta_time())
-		camera.position = new_camera_pos
-	
-	
-	var distance_label = game_state_manager.get_aiming_circle().get_node_or_null("DistanceLabel")
-	if distance_label:
-		distance_label.text = str(int(clamped_distance)) + "px"
+# update_aiming_circle function moved to UIManager
 
 func launch_golf_ball(direction: Vector2, charged_power: float, height: float):
 	# Determine if this is a tee shot (first shot of the hole)
@@ -1663,10 +1196,10 @@ func _on_golf_ball_landed(tile: Vector2i):
 				launch_manager.golf_ball.remove_landing_highlight()
 			
 			# Check if this ball is in gimme range
-			check_and_show_gimme_button()
+			ui_manager.check_and_show_gimme_button()
 			
 			# Show the "Draw Club Cards" button
-			show_draw_club_cards_button()
+			ui_manager.show_draw_club_cards_button()
 		else:
 			# Check if this ball was moved by RedJay - if so, don't show drive distance dialog
 			if card_effect_handler and card_effect_handler.has_method("was_ball_moved_by_redjay") and card_effect_handler.was_ball_moved_by_redjay(launch_manager.golf_ball):
@@ -1675,7 +1208,7 @@ func _on_golf_ball_landed(tile: Vector2i):
 				if card_effect_handler.has_method("clear_redjay_moved_ball"):
 					card_effect_handler.clear_redjay_moved_ball()
 				game_state_manager.set_game_phase("move")
-				_update_player_mouse_facing_state()
+				player_manager.update_player_mouse_facing_state(game_state_manager, launch_manager, camera, weapon_handler)
 			else:
 				# Player needs to move to the ball - show drive distance dialog on every shot
 				if should_show_drive_distance_dialog(is_first_shot):
@@ -1687,12 +1220,12 @@ func _on_golf_ball_landed(tile: Vector2i):
 					game_state_manager.set_drive_distance(player_start_pos.distance_to(ball_landing_pos))
 					var dialog_timer = get_tree().create_timer(0.5)  # Reduced from 1.5 to 0.5 second delay
 					dialog_timer.timeout.connect(func():
-						show_drive_distance_dialog()
+						ui_manager.show_drive_distance_dialog(game_state_manager.get_drive_distance())
 						# Tween camera back to player after showing drive distance dialog
 						create_camera_tween(player_center, 0.8)
 					)
 					game_state_manager.set_game_phase("move")
-					_update_player_mouse_facing_state()
+					player_manager.update_player_mouse_facing_state(game_state_manager, launch_manager, camera, weapon_handler)
 				else:
 					print("Not a tee shot or first shot - skipping drive distance dialog")
 					# Tween camera back to player even when skipping dialog
@@ -1701,7 +1234,7 @@ func _on_golf_ball_landed(tile: Vector2i):
 					var player_center = player_manager.get_player_node().global_position + player_size / 2
 					create_camera_tween(player_center, 0.8)
 					game_state_manager.set_game_phase("move")
-					_update_player_mouse_facing_state()
+					player_manager.update_player_mouse_facing_state(game_state_manager, launch_manager, camera, weapon_handler)
 	else:
 		# Ball went in the hole - don't show drive distance dialog
 		# The hole completion dialog will be shown by the pin's hole_in_one signal
@@ -1712,128 +1245,21 @@ func _on_golf_ball_landed(tile: Vector2i):
 # Removed check_gimme_condition function - now using Pin's GimmeArea Area2D for detection
 
 
-func trigger_gimme_sequence():
-	"""Trigger the gimme sequence with animations and sounds"""
-	# Early return if game_state_manager is not initialized yet
-	if not game_state_manager:
-		return
-		
-	print("=== TRIGGERING GIMME SEQUENCE ===")
-	
-	# Set gimme as active
-	game_state_manager.activate_gimme(launch_manager.golf_ball)
-	
-	# Get the gimme scene
-	gimme_scene = $UILayer/Gimme
-	if not gimme_scene:
-		print("ERROR: Could not find Gimme scene")
-		return
-	
-	# Make sure the gimme scene is visible
-	gimme_scene.visible = true
-	print("Gimme scene made visible")
-	
-	# Play the gimme sounds
-	sound_manager.play_gimme_sounds()
-	
-	# Complete the hole with an extra stroke
-	complete_hole_with_gimme()
+# Trigger gimme sequence function moved to UIManager
 
 # Gimme sounds function moved to SoundManager
 
-func complete_hole_with_gimme():
-	"""Complete the hole with gimme (add extra stroke and show completion)"""
-	# Early return if game_state_manager is not initialized yet
-	if not game_state_manager:
-		return
-		
-	print("=== COMPLETING GIMME HOLE ===")
-	
-	# Add extra stroke for the gimme putt
-	game_state_manager.increment_hole_score()
-	print("Added gimme stroke - final hole score:", game_state_manager.get_hole_score())
-	
-	# Clear the ball
-	if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball):
-		launch_manager.golf_ball.queue_free()
-		launch_manager.golf_ball = null
-	
-	# Hide the gimme button
-	hide_gimme_button()
-	
-	# Reset gimme state
-	game_state_manager.deactivate_gimme()
-	
-	# Show hole completion dialog
-	show_hole_completion_dialog()
+# Complete hole with gimme function moved to UIManager
 
-func clear_gimme_state():
-	"""Clear the gimme state when appropriate (new ball launched, hole completed, etc.)"""
-	# Early return if game_state_manager is not initialized yet
-	if not game_state_manager:
-		return
-		
-	print("=== CLEARING GIMME STATE ===")
-	game_state_manager.deactivate_gimme()
-	hide_gimme_button()
-	print("Gimme state cleared")
+# Clear gimme state function moved to UIManager
 
-func show_gimme_animation():
-	"""Show the gimme animation and play sounds"""
-	ui_manager.show_gimme_animation()
+# Show gimme animation function moved to UIManager
 
-func complete_gimme_hole():
-	"""Complete the hole with gimme (add extra stroke and show completion)"""
-	# Early return if game_state_manager is not initialized yet
-	if not game_state_manager:
-		return
-		
-	print("=== COMPLETING GIMME HOLE ===")
-	
-	# Add extra stroke for the gimme putt
-	game_state_manager.increment_hole_score()
-	print("Added gimme stroke - final hole score:", game_state_manager.get_hole_score())
-	
-	# Clear the ball
-	if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball):
-		launch_manager.golf_ball.queue_free()
-		launch_manager.golf_ball = null
-	
-	# Animate gimme scene back out of the way
-	if gimme_scene:
-		var tween = create_tween()
-		var hide_pos = gimme_scene.position + Vector2(0, 200)  # Move down to hide
-		tween.tween_property(gimme_scene, "position", hide_pos, 0.5)
-		tween.tween_callback(func():
-			gimme_scene.visible = false
-		)
-	
-	# Reset gimme state
-	game_state_manager.deactivate_gimme()
-	
-	# Show hole completion dialog
-	show_hole_completion_dialog()
+# Complete gimme hole function moved to UIManager
 
-func highlight_tee_tiles():
-	for y in grid_manager.get_grid_size().y:
-		for x in grid_manager.get_grid_size().x:
-			grid_manager.get_grid_tiles()[y][x].get_node("Highlight").visible = false
-	
-	for y in grid_manager.get_grid_size().y:
-		for x in grid_manager.get_grid_size().x:
-			if map_manager.get_tile_type(x, y) == "Tee":
-				grid_manager.get_grid_tiles()[y][x].get_node("Highlight").visible = true
-				# Change highlight color to blue for tee tiles
-				var highlight = grid_manager.get_grid_tiles()[y][x].get_node("Highlight")
-				highlight.color = Color(0, 0.5, 1, 0.6)  # Blue with transparency
+# Highlight tee tiles function moved to MapManager
 
-func exit_movement_mode() -> void:
-	movement_controller.exit_movement_mode()
-	if attack_handler.is_in_attack_mode():
-		attack_handler.exit_attack_mode()
-	if weapon_handler.is_in_weapon_mode():
-		weapon_handler.exit_weapon_mode()
-	update_deck_display()
+# Exit movement mode function moved to MapManager
 
 func _on_end_turn_pressed() -> void:
 	"""Called when the end turn button is pressed"""
@@ -1842,7 +1268,7 @@ func _on_end_turn_pressed() -> void:
 func _end_turn_logic() -> void:
 	"""Core logic for ending a turn - can be called programmatically"""
 	if movement_controller.is_in_movement_mode():
-		exit_movement_mode()
+		map_manager.exit_movement_mode()
 	if attack_handler.is_in_attack_mode():
 		attack_handler.exit_attack_mode()
 	if weapon_handler.is_in_weapon_mode():
@@ -1870,17 +1296,17 @@ func _end_turn_logic() -> void:
 	Global.increment_global_turn()
 	
 	# Reset fire damage tracking for new turn
-	reset_fire_damage_tracking()
+	player_manager.reset_fire_damage_tracking(game_state_manager)
 	
 	# Advance fire tiles to next turn
-	advance_fire_tiles()
+	map_manager.advance_fire_tiles()
 	# Advance ice tiles to next turn
-	advance_ice_tiles()
+	map_manager.advance_ice_tiles()
 	
 	# Block persists during world turn - will be cleared when player's next turn begins
 	# clear_block()  # REMOVED: Block should persist during world turn
 	
-	update_deck_display()
+	ui_manager.update_deck_display()
 	
 	if cards_to_discard > 0:
 		sound_manager.play_discard_sound()
@@ -1893,14 +1319,14 @@ func _end_turn_logic() -> void:
 		print("Using extra turn! Extra turns remaining:", extra_turns_remaining)
 		
 		# Show "Extra Turn" message
-		show_turn_message("Extra Turn!", 2.0)
+		ui_manager.show_turn_message("Extra Turn!", 2.0)
 		
 		# Continue with normal turn flow without World Turn
 		if game_state_manager.get_waiting_for_player_to_reach_ball() and player_manager.get_player_grid_pos() == game_state_manager.get_ball_landing_tile():
 			if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball) and launch_manager.golf_ball.has_method("remove_landing_highlight"):
 				launch_manager.golf_ball.remove_landing_highlight()
 			
-			enter_draw_cards_phase()  # Start with club selection phase
+			ui_manager.enter_draw_cards_phase()  # Start with club selection phase
 		else:
 			show_draw_cards_button_for_turn_start()
 	else:
@@ -1934,52 +1360,25 @@ func _continue_after_world_turn() -> void:
 		if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball) and launch_manager.golf_ball.has_method("remove_landing_highlight"):
 			launch_manager.golf_ball.remove_landing_highlight()
 		
-		enter_draw_cards_phase()  # Start with club selection phase
+		ui_manager.enter_draw_cards_phase()  # Start with club selection phase
 	else:
 		show_draw_cards_button_for_turn_start()
 
 func start_npc_turn_sequence() -> void:
 	"""Handle the NPC turn sequence with priority-based turns for visible NPCs"""
-	print("=== STARTING NPC TURN SEQUENCE ===")
-	print("Player grid position: ", player_manager.get_player_grid_pos())
-	
-	# Debug: Check for golf balls in the scene
-	var golf_balls = get_tree().get_nodes_in_group("golf_balls")
-	var all_balls = get_tree().get_nodes_in_group("balls")
-	print("Golf balls in scene: ", golf_balls.size())
-	print("All balls in scene: ", all_balls.size())
-	for ball in golf_balls:
-		if is_instance_valid(ball):
-			print("  - Ball: ", ball.name, " at position: ", ball.global_position)
-	
-	# Debug: Check for squirrels in the scene
-	var entities = get_node_or_null("Entities")
-	if entities:
-		var npcs = entities.get_npcs()
-		var squirrels = []
-		for npc in npcs:
-			if npc.get_script() and "Squirrel.gd" in npc.get_script().resource_path:
-				squirrels.append(npc)
-		print("Squirrels in scene: ", squirrels.size())
-		for squirrel in squirrels:
-			if is_instance_valid(squirrel):
-				print("  - Squirrel: ", squirrel.name, " at grid position: ", squirrel.get_grid_position() if squirrel.has_method("get_grid_position") else "No grid position method")
-	
-	print("=== END DEBUG INFO ===")
 	
 	# Check if there are any active NPCs on the map (alive and not frozen, or will thaw this turn)
-	if not has_active_npcs():
-		print("No active NPCs found on the map (all alive NPCs are frozen and won't thaw this turn), skipping World Turn and entering next player turn")
+	if not game_state_manager.has_active_npcs():
 		
 		# Show "Your Turn" message immediately
-		show_turn_message("Your Turn", 2.0)
+		ui_manager.show_turn_message("Your Turn", 2.0)
 		
 		# Continue with normal turn flow
 		if game_state_manager.get_waiting_for_player_to_reach_ball() and player_manager.get_player_grid_pos() == game_state_manager.get_ball_landing_tile():
 			if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball) and launch_manager.golf_ball.has_method("remove_landing_highlight"):
 				launch_manager.golf_ball.remove_landing_highlight()
 			
-			enter_draw_cards_phase()  # Start with club selection phase
+			ui_manager.enter_draw_cards_phase()  # Start with club selection phase
 		else:
 			show_draw_cards_button_for_turn_start()
 		return
@@ -1988,16 +1387,13 @@ func start_npc_turn_sequence() -> void:
 	end_turn_button.get_node("TextureButton").mouse_filter = Control.MOUSE_FILTER_IGNORE
 	
 	# Handle all NPC turns with priority-based system
-	print("=== NPC TURN SEQUENCE ===")
 	
 	# Find all visible NPCs and sort by priority
-	var visible_npcs = get_visible_npcs_by_priority()
-	print("Found ", visible_npcs.size(), " visible NPCs")
+	var visible_npcs = world_turn_manager.get_visible_npcs_by_priority(player_manager, game_state_manager, ghost_mode_active)
 	
 	if visible_npcs.is_empty():
-		print("No visible NPCs found, skipping World Turn")
 		# Show "Your Turn" message immediately
-		show_turn_message("Your Turn", 2.0)
+		ui_manager.show_turn_message("Your Turn", 2.0)
 		
 		# Re-enable end turn button
 		end_turn_button.get_node("TextureButton").mouse_filter = Control.MOUSE_FILTER_STOP
@@ -2007,22 +1403,21 @@ func start_npc_turn_sequence() -> void:
 			if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball) and launch_manager.golf_ball.has_method("remove_landing_highlight"):
 				launch_manager.golf_ball.remove_landing_highlight()
 			
-			enter_draw_cards_phase()  # Start with club selection phase
+			ui_manager.enter_draw_cards_phase()  # Start with club selection phase
 		else:
 			show_draw_cards_button_for_turn_start()
 		return
 	
-	print("Beginning World Turn phase with ", visible_npcs.size(), " NPCs...")
+
 	
 	# Show "World Turn" message
-	await show_turn_message("World Turn", 2.0)
+	await ui_manager.show_turn_message("World Turn", 2.0)
 	
 	# Process each NPC's turn in priority order
 	for npc in visible_npcs:
-		print("Processing turn for NPC: ", npc.name, " (Priority: ", get_npc_priority(npc), ")")
 		
 		# Transition camera to NPC and wait for it to complete
-		await transition_camera_to_npc(npc)
+		await camera_manager.transition_camera_to_npc(npc)
 		
 		# Wait a moment for camera transition
 		await get_tree().create_timer(0.25).timeout
@@ -2031,8 +1426,6 @@ func start_npc_turn_sequence() -> void:
 		var script_path = npc.get_script().resource_path if npc.get_script() else ""
 		var is_squirrel = "Squirrel.gd" in script_path
 		if is_squirrel:
-			print("=== UPDATING SQUIRREL BALL DETECTION BEFORE TURN ===")
-			print("Squirrel: ", npc.name)
 			if npc.has_method("_check_vision_for_golf_balls"):
 				npc._check_vision_for_golf_balls()
 			if npc.has_method("_update_nearest_golf_ball"):
@@ -2041,17 +1434,13 @@ func start_npc_turn_sequence() -> void:
 			# Check if squirrel can detect ball after update
 			if npc.has_method("has_detected_golf_ball"):
 				var has_ball = npc.has_detected_golf_ball()
-				print("Squirrel ball detection after update: ", has_ball)
 				
 				# Skip squirrel's turn if it no longer detects a ball
 				if not has_ball:
-					print("Squirrel no longer detects ball, skipping turn")
 					await get_tree().create_timer(0.25).timeout
 					continue
-			print("=== END SQUIRREL BALL DETECTION UPDATE ===")
 		
 		# Take the NPC's turn
-		print("Taking turn for NPC: ", npc.name)
 		npc.take_turn()
 		
 		# Wait for the NPC's turn to complete
@@ -2060,15 +1449,14 @@ func start_npc_turn_sequence() -> void:
 		# Wait a moment to let player see the result
 		await get_tree().create_timer(0.25).timeout
 	
-	print("=== END PHASE 2: PLAYER VISION-BASED NPC TURNS ===")
-	print("World Turn phase completed")
+
 	
 	# Show "Your Turn" message
-	show_turn_message("Your Turn", 2.0)
+	ui_manager.show_turn_message("Your Turn", 2.0)
 	
 	# Wait for message to display, then transition camera back to player
 	await get_tree().create_timer(0.5).timeout
-	await transition_camera_to_player()
+	await camera_manager.transition_camera_to_player()
 	
 	# Re-enable end turn button
 	end_turn_button.get_node("TextureButton").mouse_filter = Control.MOUSE_FILTER_STOP
@@ -2078,336 +1466,25 @@ func start_npc_turn_sequence() -> void:
 		if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball) and launch_manager.golf_ball.has_method("remove_landing_highlight"):
 			launch_manager.golf_ball.remove_landing_highlight()
 		
-		enter_draw_cards_phase()  # Start with club selection phase
+		ui_manager.enter_draw_cards_phase()  # Start with club selection phase
 	else:
 		show_draw_cards_button_for_turn_start()
 
-func get_visible_npcs_by_priority() -> Array[Node]:
-	"""Get all NPCs visible to the player, sorted by priority (fastest first)"""
-	var entities = get_node_or_null("Entities")
-	if not entities:
-		print("ERROR: No Entities node found!")
-		return []
-	
-	var npcs = entities.get_npcs()
-	print("Checking ", npcs.size(), " NPCs for visibility and priority")
-	
-	var visible_npcs: Array[Node] = []
-	
-	for npc in npcs:
-		if is_instance_valid(npc) and npc.has_method("get_grid_position"):
-			
-			# Check if NPC is alive
-			var is_alive = true
-			if npc.has_method("get_is_dead"):
-				is_alive = not npc.get_is_dead()
-			elif npc.has_method("is_dead"):
-				is_alive = not npc.is_dead()
-			elif "is_dead" in npc:
-				is_alive = not npc.is_dead
-			
-			if not is_alive:
-				print("NPC ", npc.name, " is dead, skipping")
-				continue
-			
-			# Check if NPC is frozen and won't thaw this turn
-			var is_frozen = false
-			if npc.has_method("is_frozen_state"):
-				is_frozen = npc.is_frozen_state()
-			elif "is_frozen" in npc:
-				is_frozen = npc.is_frozen
-			
-			var will_thaw_this_turn = false
-			if is_frozen and npc.has_method("get_freeze_turns_remaining"):
-				var turns_remaining = npc.get_freeze_turns_remaining()
-				will_thaw_this_turn = turns_remaining <= 1
-			elif is_frozen and "freeze_turns_remaining" in npc:
-				var turns_remaining = npc.freeze_turns_remaining
-				will_thaw_this_turn = turns_remaining <= 1
-			
-			# Skip NPCs that are frozen and won't thaw this turn
-			if is_frozen and not will_thaw_this_turn:
-				print("NPC ", npc.name, " is frozen and won't thaw this turn, skipping")
-				continue
-			
-			var npc_pos = npc.get_grid_position()
-			var distance = player_manager.get_player_grid_pos().distance_to(npc_pos)
-			
-			# Check if this is a squirrel that can detect balls
-			var script_path = npc.get_script().resource_path if npc.get_script() else ""
-			var is_squirrel = "Squirrel.gd" in script_path
-			
-			# If ghost mode is active, NPCs should ignore the player (except squirrels that detect balls)
-			if ghost_mode_active and not is_squirrel:
-				print("NPC ", npc.name, " ignoring player due to ghost mode (distance: ", distance, ")")
-				continue
-			
-			if is_squirrel:
-				# Special case for squirrels: include them if they can detect a ball, regardless of player vision
-				print("=== CHECKING SQUIRREL FOR TURN SEQUENCE ===")
-				print("Squirrel: ", npc.name, " at distance ", distance, " from player")
-				
-				if npc.has_method("has_detected_golf_ball"):
-					var has_ball = npc.has_detected_golf_ball()
-					if has_ball:
-						visible_npcs.append(npc)
-						print("✓ Squirrel ", npc.name, " can detect ball, including in turn sequence (distance from player: ", distance, ")")
-					else:
-						print("✗ Squirrel ", npc.name, " cannot detect ball, skipping (distance from player: ", distance, ")")
-				else:
-					# Fallback: check if nearest_golf_ball is valid
-					if "nearest_golf_ball" in npc:
-						var has_ball = npc.nearest_golf_ball != null and is_instance_valid(npc.nearest_golf_ball)
-						if has_ball:
-							visible_npcs.append(npc)
-							print("✓ Squirrel ", npc.name, " has valid nearest ball, including in turn sequence (distance from player: ", distance, ")")
-						else:
-							print("✗ Squirrel ", npc.name, " has no valid nearest ball, skipping (distance from player: ", distance, ")")
-					else:
-						print("✗ Squirrel ", npc.name, " has no ball detection method, skipping (distance from player: ", distance, ")")
-				
-				print("=== END SQUIRREL CHECK ===")
-			else:
-				# For non-squirrel NPCs: only include if within player's vision range (20 tiles)
-				if distance <= 20:
-					visible_npcs.append(npc)
-					print("NPC ", npc.name, " is visible at distance ", distance, " (Priority: ", get_npc_priority(npc), ")")
-				else:
-					print("NPC ", npc.name, " is not visible at distance ", distance)
-		else:
-			print("Invalid NPC or missing get_grid_position method: ", npc.name if npc else "None")
-	
-	# Sort NPCs by priority (highest priority first = fastest first)
-	visible_npcs.sort_custom(func(a, b): return get_npc_priority(a) > get_npc_priority(b))
-	
-	print("Found ", visible_npcs.size(), " NPCs for turn sequence, sorted by priority")
-	for npc in visible_npcs:
-		var script_path = npc.get_script().resource_path if npc.get_script() else ""
-		var is_squirrel = "Squirrel.gd" in script_path
-		if is_squirrel:
-			print("  - ", npc.name, " (Squirrel with ball detection - Priority: ", get_npc_priority(npc), ")")
-		else:
-			print("  - ", npc.name, " (Priority: ", get_npc_priority(npc), ")")
-	
-	return visible_npcs
+# Get visible NPCs by priority function moved to WorldTurnManager
 
-func get_npc_priority(npc: Node) -> int:
-	"""Get the priority rating for an NPC (higher = faster/more important)"""
-	# Check the NPC's script to determine type
-	var script_path = npc.get_script().resource_path if npc.get_script() else ""
-	
-	# Squirrels are fastest (highest priority) - they chase and push balls
-	if "Squirrel.gd" in script_path:
-		return 4
-	# Zombies are second fastest
-	elif "ZombieGolfer.gd" in script_path:
-		return 3
-	# GangMembers are medium priority
-	elif "GangMember.gd" in script_path:
-		return 2
-	# Police are slowest (lowest priority)
-	elif "police.gd" in script_path:
-		return 1
-	# Default priority for unknown NPCs
-	else:
-		return 0
+# NPC priority function moved to GameStateManager
 
-func find_nearest_visible_npc() -> Node:
-	"""Find the nearest NPC that is visible to the player, alive, and active (not frozen or will thaw this turn)"""
-	var entities = get_node_or_null("Entities")
-	if not entities:
-		print("ERROR: No Entities node found!")
-		return null
-	
-	var npcs = entities.get_npcs()
-	print("Found ", npcs.size(), " NPCs in Entities system")
-	
-	var nearest_npc = null
-	var nearest_distance = INF
-	
-	for npc in npcs:
-		if is_instance_valid(npc) and npc.has_method("get_grid_position"):
-			# Check if NPC is alive
-			var is_alive = true
-			if npc.has_method("get_is_dead"):
-				is_alive = not npc.get_is_dead()
-			elif npc.has_method("is_dead"):
-				is_alive = not npc.is_dead()
-			elif "is_dead" in npc:
-				is_alive = not npc.is_dead
-			
-			if not is_alive:
-				print("NPC ", npc.name, " is dead, skipping")
-				continue
-			
-			# Check if NPC is frozen and won't thaw this turn
-			var is_frozen = false
-			if npc.has_method("is_frozen_state"):
-				is_frozen = npc.is_frozen_state()
-			elif "is_frozen" in npc:
-				is_frozen = npc.is_frozen
-			
-			var will_thaw_this_turn = false
-			if is_frozen and npc.has_method("get_freeze_turns_remaining"):
-				var turns_remaining = npc.get_freeze_turns_remaining()
-				will_thaw_this_turn = turns_remaining <= 1
-			elif is_frozen and "freeze_turns_remaining" in npc:
-				var turns_remaining = npc.freeze_turns_remaining
-				will_thaw_this_turn = turns_remaining <= 1
-			
-			# Skip NPCs that are frozen and won't thaw this turn
-			if is_frozen and not will_thaw_this_turn:
-				print("NPC ", npc.name, " is frozen and won't thaw this turn, skipping")
-				continue
-			
-			var npc_pos = npc.get_grid_position()
-			var distance = player_manager.get_player_grid_pos().distance_to(npc_pos)
-			
-			print("NPC ", npc.name, " at distance ", distance, " from player (frozen: ", is_frozen, ", will thaw: ", will_thaw_this_turn, ")")
-			
-			# Check if NPC is within vision range (12 tiles)
-			if distance <= 12 and distance < nearest_distance:
-				nearest_distance = distance
-				nearest_npc = npc
-				print("New nearest NPC: ", npc.name, " at distance ", distance)
-		else:
-			print("Invalid NPC or missing get_grid_position method: ", npc.name if npc else "None")
-	
-	print("Final nearest NPC: ", nearest_npc.name if nearest_npc else "None")
-	return nearest_npc
+# Nearest visible NPC function moved to GameStateManager
 
-func has_alive_npcs() -> bool:
-	"""Check if there are any alive NPCs on the map"""
-	var entities = get_node_or_null("Entities")
-	if not entities:
-		print("ERROR: No Entities node found!")
-		return false
-	
-	var npcs = entities.get_npcs()
-	print("Checking for alive NPCs among ", npcs.size(), " total NPCs")
-	
-	for npc in npcs:
-		if is_instance_valid(npc):
-			# Check if NPC is alive
-			var is_alive = true
-			if npc.has_method("get_is_dead"):
-				is_alive = not npc.get_is_dead()
-			elif npc.has_method("is_dead"):
-				is_alive = not npc.is_dead()
-			elif "is_dead" in npc:
-				is_alive = not npc.is_dead
-			
-			if is_alive:
-				print("Found alive NPC: ", npc.name)
-				return true
-		else:
-			print("Invalid NPC found, skipping")
-	
-	print("No alive NPCs found on the map")
-	return false
+# Alive NPCs check moved to GameStateManager
 
-func has_active_npcs() -> bool:
-	"""Check if there are any alive NPCs that are not frozen and will thaw this turn"""
-	var entities = get_node_or_null("Entities")
-	if not entities:
-		print("ERROR: No Entities node found!")
-		return false
-	
-	var npcs = entities.get_npcs()
-	print("Checking for active NPCs among ", npcs.size(), " total NPCs")
-	
-	for npc in npcs:
-		if is_instance_valid(npc):
-			# Check if NPC is alive
-			var is_alive = true
-			if npc.has_method("get_is_dead"):
-				is_alive = not npc.get_is_dead()
-			elif npc.has_method("is_dead"):
-				is_alive = not npc.is_dead()
-			elif "is_dead" in npc:
-				is_alive = not npc.is_dead
-			
-			if is_alive:
-				# Check if NPC is frozen
-				var is_frozen = false
-				if npc.has_method("is_frozen_state"):
-					is_frozen = npc.is_frozen_state()
-				elif "is_frozen" in npc:
-					is_frozen = npc.is_frozen
-				
-				# Check if NPC will thaw this turn
-				var will_thaw_this_turn = false
-				if is_frozen and npc.has_method("get_freeze_turns_remaining"):
-					var turns_remaining = npc.get_freeze_turns_remaining()
-					will_thaw_this_turn = turns_remaining <= 1
-				elif is_frozen and "freeze_turns_remaining" in npc:
-					var turns_remaining = npc.freeze_turns_remaining
-					will_thaw_this_turn = turns_remaining <= 1
-				
-				# NPC is active if not frozen, or if frozen but will thaw this turn
-				if not is_frozen or will_thaw_this_turn:
-					print("Found active NPC: ", npc.name, " (frozen: ", is_frozen, ", will thaw: ", will_thaw_this_turn, ")")
-					return true
-				else:
-					print("Found frozen NPC that won't thaw this turn: ", npc.name)
-		else:
-			print("Invalid NPC found, skipping")
-	
-	print("No active NPCs found on the map")
-	return false
+# Active NPCs check moved to GameStateManager
 
-func transition_camera_to_npc(npc: Node) -> void:
-	"""Transition camera to focus on the NPC"""
-	camera_manager.transition_camera_to_npc(npc)
+# Camera transition functions moved to CameraManager - direct calls used
 
-func transition_camera_to_player() -> void:
-	"""Transition camera back to the player"""
-	camera_manager.transition_camera_to_player()
+# Turn message function moved to UIManager
 
-func show_turn_message(message: String, duration: float) -> void:
-	"""Show turn message"""
-	if ui_manager:
-		ui_manager.show_turn_message(message, duration)
-	else:
-		# Fallback implementation when UIManager isn't ready
-		var message_label := Label.new()
-		message_label.name = "TurnMessageLabel"
-		message_label.text = message
-		message_label.add_theme_font_size_override("font_size", 48)
-		message_label.add_theme_color_override("font_color", Color.YELLOW)
-		message_label.add_theme_constant_override("outline_size", 4)
-		message_label.add_theme_color_override("font_outline_color", Color.BLACK)
-		
-		# Center the message on screen
-		var viewport_size = get_viewport_rect().size
-		message_label.position = Vector2(viewport_size.x / 2 - 150, viewport_size.y / 2 - 50)
-		message_label.z_index = 1000
-		$UILayer.add_child(message_label)
-		
-		# Remove message after duration
-		var timer = get_tree().create_timer(duration)
-		await timer.timeout
-		if is_instance_valid(message_label):
-			message_label.queue_free()
-
-func register_existing_gang_members() -> void:
-	"""Register any existing GangMembers in the scene with the Entities system"""
-	var entities = get_node_or_null("Entities")
-	if not entities:
-		print("ERROR: No Entities node found for registering GangMembers!")
-		return
-	
-	# Search for GangMember nodes in the scene
-	var gang_members = []
-	_find_gang_members_recursive(self, gang_members)
-	
-	print("Found ", gang_members.size(), " existing GangMembers to register")
-	
-	# Register each GangMember
-	for gang_member in gang_members:
-		if is_instance_valid(gang_member):
-			entities.register_npc(gang_member)
-			print("Registered existing GangMember: ", gang_member.name)
+# Register existing gang members function moved to WorldTurnManager
 
 func _find_gang_members_recursive(node: Node, gang_members: Array) -> void:
 	"""Recursively search for GangMember nodes in the scene tree"""
@@ -2416,140 +1493,31 @@ func _find_gang_members_recursive(node: Node, gang_members: Array) -> void:
 			gang_members.append(child)
 		_find_gang_members_recursive(child, gang_members)
 
-func register_existing_squirrels() -> void:
-	"""Register any existing Squirrels in the scene with the Entities system"""
-	var entities = get_node_or_null("Entities")
-	if not entities:
-		print("ERROR: No Entities node found for registering Squirrels!")
-		return
-	
-	# Search for Squirrel nodes in the scene
-	var squirrels = []
-	_find_squirrels_recursive(self, squirrels)
-	
-	print("Found ", squirrels.size(), " existing Squirrels to register")
-	
-	# Register each Squirrel
-	for squirrel in squirrels:
-		if is_instance_valid(squirrel):
-			entities.register_npc(squirrel)
-			print("Registered existing Squirrel: ", squirrel.name)
-		else:
-			print("Squirrel is not valid, skipping registration")
-	
-	if squirrels.size() == 0:
-		print("No Squirrels found in scene - this might be normal if they haven't been placed yet")
+# Register existing squirrels function moved to WorldTurnManager
 
 func _find_squirrels_recursive(node: Node, squirrels: Array) -> void:
 	"""Recursively search for Squirrel nodes in the scene tree"""
 	for child in node.get_children():
 		if child.get_script() and child.get_script().resource_path.ends_with("Squirrel.gd"):
 			squirrels.append(child)
-			print("Found Squirrel node:", child.name, "at path:", child.get_path())
 		_find_squirrels_recursive(child, squirrels)
 
-func get_player_reference() -> Node:
-	"""Get the player reference for NPCs to use"""
-	print("get_player_reference called - player_manager.get_player_node(): ", player_manager.get_player_node().name if player_manager.get_player_node() else "None")
-	return player_manager.get_player_node()
+# Utility reference functions moved to managers - direct calls used
 
+# Extra turn function moved to GameStateManager
 
+# Environment tile functions moved to MapManager
+	player_manager.check_player_fire_damage(game_state_manager)
 
-func get_attack_handler() -> Node:
-	"""Get the attack handler reference for NPCs to use"""
-	return attack_handler
+# Ice tiles function moved to MapManager
 
-func give_extra_turn() -> void:
-	"""Give the player an extra turn (skip World Turn)"""
-	extra_turns_remaining += 1
-	print("Player given extra turn! Extra turns remaining:", extra_turns_remaining)
-	
-	# Play coffee sound effect
-	sound_manager.play_player_coffee()
+# Update deck display function moved to UIManager
 
-func advance_fire_tiles() -> void:
-	"""Advance all fire tiles to the next turn"""
-	var fire_tiles = get_tree().get_nodes_in_group("fire_tiles")
-	for fire_tile in fire_tiles:
-		if is_instance_valid(fire_tile) and fire_tile.has_method("advance_turn"):
-			fire_tile.advance_turn()
-
-	# Check for fire damage at end of world turn
-	check_player_fire_damage()
-
-func advance_ice_tiles() -> void:
-	"""Advance all ice tiles to the next turn"""
-	var ice_tiles = get_tree().get_nodes_in_group("ice_tiles")
-	for ice_tile in ice_tiles:
-		if is_instance_valid(ice_tile) and ice_tile.has_method("advance_turn"):
-			ice_tile.advance_turn()
-
-func update_deck_display() -> void:
-	var hud := get_node("UILayer/HUD")
-	hud.get_node("TurnLabel").text = "Turn: %d (Global: %d)" % [game_state_manager.get_turn_count(), Global.global_turn_count]
-	
-	# Show separate counts for club and action cards using the new ordered deck system
-	var club_draw_count = deck_manager.club_draw_pile.size()
-	var club_discard_count = deck_manager.club_discard_pile.size()
-	
-	# Use the new ordered deck system for action cards
-	var action_draw_remaining = deck_manager.get_action_deck_remaining_cards().size()
-	var action_discard_count = deck_manager.get_action_discard_pile().size()
-	
-	hud.get_node("DrawLabel").text = "Club Draw: %d | Action Draw: %d" % [club_draw_count, action_draw_remaining]
-	hud.get_node("DiscardLabel").text = "Club Discard: %d | Action Discard: %d" % [club_discard_count, action_discard_count]
-	hud.get_node("ShotLabel").text = "Shots: %d" % game_state_manager.get_hole_score()
-	
-	# Show next spawn increase milestone
-	var next_milestone = ((Global.global_turn_count - 1) / 5 + 1) * 5
-	var turns_until_milestone = next_milestone - Global.global_turn_count
-	if turns_until_milestone > 0:
-		hud.get_node("ShotLabel").text += " | Next spawn increase: %d turns" % turns_until_milestone
-	
-	# Show current reward tier
-	hud.get_node("ShotLabel").text += " | Reward Tier: %d" % Global.get_current_reward_tier()
-	
-	# Show $Looty balance
-	var looty_label = hud.get_node_or_null("LootyLabel")
-	if not looty_label:
-		looty_label = Label.new()
-		looty_label.name = "LootyLabel"
-		hud.add_child(looty_label)
-	looty_label.text = "$Looty: %d" % Global.get_looty()
-	looty_label.add_theme_color_override("font_color", Color.GOLD)
-	
-	# Update card stack display with total counts (for backward compatibility)
-	var total_draw_cards = action_draw_remaining + club_draw_count
-	var total_discard_cards = action_discard_count + club_discard_count
-	card_stack_display.update_draw_stack(total_draw_cards)
-	card_stack_display.update_discard_stack(total_discard_cards)
-
-func display_selected_character() -> void:
-	var character_name = ""
-	if character_label:
-		match Global.selected_character:
-			1: character_name = "Layla"
-			2: character_name = "Benny"
-			3: character_name = "Clark"
-			_: character_name = "Unknown"
-		character_label.text = character_name
-	if character_image:
-		match Global.selected_character:
-			1: 
-				character_image.texture = load("res://character1.png")
-				character_image.scale = Vector2(0.42, 0.42)
-				character_image.position.y = 320.82
-			2: 
-				character_image.texture = load("res://character2.png")
-			3: 
-				character_image.texture = load("res://character3.png")
-	
-	if bag and bag.has_method("set_character"):
-		bag.set_character(character_name)
+# Display selected character function moved to UIManager
 
 func _on_end_round_pressed() -> void:
 	if movement_controller.is_in_movement_mode():
-		exit_movement_mode()
+		map_manager.exit_movement_mode()
 	call_deferred("_change_to_main")
 
 func _change_to_main() -> void:
@@ -2559,9 +1527,7 @@ func _change_to_main() -> void:
 func show_tee_selection_instruction() -> void:
 	ui_manager.show_tee_selection_instruction()
 
-func show_drive_distance_dialog() -> void:
-	"""Show drive distance dialog"""
-	ui_manager.show_drive_distance_dialog(game_state_manager.get_drive_distance())
+# Drive distance dialog moved to UIManager - direct calls used
 	
 # Drive distance dialog input handling moved to UIManager
 
@@ -2569,15 +1535,7 @@ func show_drive_distance_dialog() -> void:
 
 # Swing sound function moved to SoundManager
 
-func start_next_shot_from_ball() -> void:
-	if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball):
-		launch_manager.golf_ball.queue_free()
-		launch_manager.golf_ball = null
-	
-	# Don't clear waiting_for_player_to_reach_ball here - it should persist until the player actually takes a shot
-	# waiting_for_player_to_reach_ball = false
-	update_player_position()
-	enter_draw_cards_phase()
+# Start next shot from ball function moved to LaunchManager
 	
 
 func _on_golf_ball_out_of_bounds():
@@ -2616,47 +1574,30 @@ func _on_golf_ball_out_of_bounds():
 		launch_manager.golf_ball = null
 	
 	# Clear any existing balls to ensure clean state
-	remove_all_balls()
+	launch_manager.remove_all_balls()
 	
-	show_out_of_bounds_dialog()
+	ui_manager.show_out_of_bounds_dialog()
 	game_state_manager.set_ball_landing_position(game_state_manager.get_shot_start_position(), Vector2(game_state_manager.get_shot_start_position().x * cell_size + cell_size/2, game_state_manager.get_shot_start_position().y * cell_size + cell_size/2))
 	game_state_manager.set_waiting_for_player_to_reach_ball(true)
 	player_manager.set_player_grid_pos(game_state_manager.get_shot_start_position())
-	update_player_position()
+	player_manager.update_player_position_with_ball_creation(self)
 	
 	# Force create a new ball at the player's tile center position for the penalty shot
 	var tile_center: Vector2 = Vector2(player_manager.get_player_grid_pos().x * cell_size + cell_size/2, player_manager.get_player_grid_pos().y * cell_size + cell_size/2) + grid_manager.get_camera_container().global_position
-	force_create_ball_at_position(tile_center)
+	launch_manager.force_create_ball_at_position(tile_center, self)
 	
 	game_state_manager.set_game_phase("draw_cards")
-	_update_player_mouse_facing_state()
+	player_manager.update_player_mouse_facing_state(game_state_manager, launch_manager, camera, weapon_handler)
 
-func show_out_of_bounds_dialog():
-	"""Show out of bounds dialog"""
-	ui_manager.show_out_of_bounds_dialog()
+# Out of bounds dialog moved to UIManager - direct calls used
 
-func reset_player_to_tee():
-	for y in map_manager.level_layout.size():
-		for x in map_manager.level_layout[y].size():
-			if map_manager.get_tile_type(x, y) == "Tee":
-				player_manager.set_player_grid_pos(Vector2i(x, y))
-				update_player_position()
-				return
-	player_manager.set_player_grid_pos(Vector2i(25, 25))
-	update_player_position()
+# Reset player to tee function moved to PlayerManager
 
-func enter_launch_phase() -> void:
-	"""Enter the launch phase for taking a shot"""
-	remove_ghost_ball()
-	launch_manager.enter_launch_phase()
-	
-	# Update smart optimizer state
-	if smart_optimizer:
-		smart_optimizer.update_game_state("launch", true, false, true)
+# Enter launch phase function moved to LaunchManager
 	
 func enter_aiming_phase() -> void:
 	game_state_manager.set_game_phase("aiming")
-	_update_player_mouse_facing_state()
+	player_manager.update_player_mouse_facing_state(game_state_manager, launch_manager, camera, weapon_handler)
 	game_state_manager.set_is_aiming_phase(true)
 	
 	# Update smart optimizer state
@@ -2667,9 +1608,9 @@ func enter_aiming_phase() -> void:
 	game_state_manager.set_shot_start_position(player_manager.get_player_grid_pos())
 	print("Shot started from position:", game_state_manager.get_shot_start_position())
 	
-	show_aiming_circle()
-	create_ghost_ball()
-	show_aiming_instruction()
+	ui_manager.show_aiming_circle()
+	launch_manager.create_ghost_ball()
+	ui_manager.show_aiming_instruction()
 	var sprite = player_manager.get_player_node().get_node_or_null("Sprite2D")
 	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
 	var player_center = player_manager.get_player_node().global_position + player_size / 2
@@ -2693,69 +1634,23 @@ func enter_aiming_phase() -> void:
 		print("Zooming out for aiming from", camera.get_current_zoom(), "to", aiming_zoom)
 		camera.set_zoom_level(aiming_zoom)
 
-func show_aiming_instruction() -> void:
-	ui_manager.show_aiming_instruction()
+# Aiming instruction function moved to UIManager
 
-func hide_aiming_instruction() -> void:
-	ui_manager.hide_aiming_instruction()
+# Hide aiming instruction function moved to UIManager
 
-func restore_zoom_after_aiming() -> void:
-	"""Restore camera zoom to the level it was at before entering aiming phase"""
-	if camera and camera.has_method("set_zoom_level") and has_meta("pre_aiming_zoom"):
-		var pre_aiming_zoom = get_meta("pre_aiming_zoom")
-		print("Restoring zoom after aiming from", camera.get_current_zoom(), "to", pre_aiming_zoom)
-		camera.set_zoom_level(pre_aiming_zoom)
-		# Remove the stored zoom level
-		remove_meta("pre_aiming_zoom")
+# Zoom restoration moved to CameraManager
 
-func draw_cards_for_shot(card_count: int = 5) -> void:
-	print("=== DRAWING CARDS FOR SHOT ===")
-	print("Requested card count:", card_count)
-	
-	# Clear block when starting a new player turn (after world turn ends or is skipped)
-	clear_block()
-	
-	# Deactivate ghost mode when starting a new player turn
-	if ghost_mode_active:
-		deactivate_ghost_mode()
-	
-	# Deactivate vampire mode when starting a new player turn
-	if vampire_mode_active:
-		deactivate_vampire_mode()
-	
-	# Deactivate dodge mode when starting a new player turn
-	if dodge_mode_active:
-		deactivate_dodge_mode()
-	
-	# Reset ReachBallButton flag for new turn
-	game_state_manager.set_used_reach_ball_button(false)
-	print("ReachBallButton flag reset for new turn")
-	
-	# Set waiting_for_player_to_reach_ball back to true for new turn if there's a ball to reach
-	if game_state_manager.get_ball_landing_tile() != Vector2i.ZERO:
-		game_state_manager.set_waiting_for_player_to_reach_ball(true)
-		print("waiting_for_player_to_reach_ball set to true for new turn")
-	
-	var card_draw_modifier = player_manager.get_player_stats().get("card_draw", 0)
-	var final_card_count = card_count + card_draw_modifier
-	final_card_count = max(1, final_card_count)
-	print("Final card count (with modifier):", final_card_count)
-	print("Player stats card_draw modifier:", card_draw_modifier)
-	print("Calling deck_manager.draw_action_cards_to_hand with count:", final_card_count)
-	
-	deck_manager.draw_action_cards_to_hand(final_card_count)
-	print("=== END DRAWING CARDS FOR SHOT ===")
+# Card drawing functions moved to DeckManager
 	
 
-func start_shot_sequence() -> void:
-	enter_aiming_phase()
+# Start shot sequence function moved to GameStateManager
 
 func draw_cards_for_next_shot() -> void:
 	if card_stack_display.has_node("CardDraw"):
 		var card_draw_sound = card_stack_display.get_node("CardDraw")
 		if card_draw_sound and card_draw_sound.stream:
 			card_draw_sound.play()
-	draw_cards_for_shot(5)  # This now includes character modifiers
+	deck_manager.draw_cards_for_shot(5, player_manager, game_state_manager)  # This now includes character modifiers
 	create_movement_buttons()
 
 func _on_golf_ball_sand_landing():
@@ -2965,90 +1860,30 @@ func _on_grenade_sand_landing() -> void:
 			game_state_manager.set_camera_following_ball(false)
 	)
 
-func show_sand_landing_dialog():
-	"""Show sand landing dialog"""
-	ui_manager.show_sand_landing_dialog()
+# Sand landing dialog function moved to UIManager
 
-func show_hole_completion_dialog():
-	"""Show dialog when the ball goes in the hole"""
-	ui_manager.show_hole_completion_dialog()
+# UI dialog functions moved to UIManager - direct calls used
 
-func show_reward_phase():
-	"""Show the suitcase for reward selection"""
-	ui_manager.show_reward_phase()
+# Add card to current deck function moved to DeckManager
 
-func _on_suitcase_opened():
-	"""Handle suitcase opened"""
-	ui_manager._on_suitcase_opened()
-
-func _on_reward_selected(reward_data: Resource, reward_type: String):
-	"""Handle when a reward is selected"""
-	ui_manager._on_reward_selected(reward_data, reward_type)
-
-func _on_suitcase_reached():
-	"""Handle when the player reaches a SuitCase"""
-	ui_manager._on_suitcase_reached()
-
-func show_suitcase_overlay():
-	"""Show the SuitCase overlay for reward selection"""
-	ui_manager.show_suitcase_overlay()
-
-func _on_map_suitcase_opened():
-	"""Handle when the map SuitCase is opened"""
-	ui_manager._on_map_suitcase_opened()
-
-func show_suitcase_reward_selection():
-	"""Show reward selection dialog for SuitCase"""
-	ui_manager.show_suitcase_reward_selection()
-
-func _on_suitcase_reward_selected(reward_data: Resource, reward_type: String):
-	"""Handle when a SuitCase reward is selected"""
-	ui_manager._on_suitcase_reward_selected(reward_data, reward_type)
-
-func add_card_to_current_deck(card_data: CardData):
-	"""Add a card to the CurrentDeckManager"""
-	var current_deck_manager = get_node_or_null("CurrentDeckManager")
-	if current_deck_manager:
-		current_deck_manager.add_card_to_deck(card_data)
-
-func add_equipment_to_manager(equipment_data: EquipmentData):
-	"""Add equipment to the EquipmentManager"""
-	var equipment_manager = get_node_or_null("EquipmentManager")
-	if equipment_manager:
-		equipment_manager.add_equipment(equipment_data)
-
-func apply_bag_upgrade(bag_data: BagData):
-	"""Apply a bag upgrade to the current bag"""
-	var bag = get_node_or_null("UILayer/Bag")
-	if bag:
-		bag.set_bag_level(bag_data.level)
-
-func add_looty_reward(reward_data: Resource):
-	"""Add $Looty reward to player's balance"""
-	var looty_amount = reward_data.get_meta("looty_amount", 15)  # Default to 15 if not set
-	Global.add_looty(looty_amount)
-	print("Added", looty_amount, "$Looty from SuitCase reward selection")
+# Equipment and reward functions moved to EquipmentManager - direct calls used
 
 func _on_advance_to_next_hole():
 	"""Handle when the advance button is pressed"""
 	
 	# Update HUD to reflect any changes (including $Looty balance)
-	update_deck_display()
+	ui_manager.update_deck_display()
 	
 	# Special handling for hole 9 - show front nine completion dialog
 	if game_state_manager.get_current_hole_index() == 8 and not game_state_manager.is_back_9_mode:  # Hole 9 (index 8) in front 9 mode
-		show_front_nine_complete_dialog()
+		ui_manager.show_front_nine_complete_dialog()
 	else:
 		# Show puzzle type selection dialog
-		show_puzzle_type_selection()
+		ui_manager.show_puzzle_type_selection()
 
-func show_puzzle_type_selection():
-	"""Show the puzzle type selection dialog"""
-	ui_manager.show_puzzle_type_selection()
+# Puzzle type selection function moved to UIManager
 
-func _on_puzzle_type_selected(puzzle_type: String):
-	"""Handle when a puzzle type is selected"""
-	ui_manager._on_puzzle_type_selected(puzzle_type)
+# Puzzle type selected function moved to UIManager
 
 func reset_for_next_hole():
 	print("=== ADVANCING TO HOLE", game_state_manager.get_current_hole_index() + 2, "===")
@@ -3059,7 +1894,7 @@ func reset_for_next_hole():
 		deck_manager.hand.clear()
 		print("Player hand cleared - hand size after:", deck_manager.hand.size())
 		# Update the deck display to reflect the cleared hand
-		update_deck_display()
+		ui_manager.update_deck_display()
 		# Clear any movement buttons that might still be visible
 		if movement_controller:
 			movement_controller.clear_all_movement_ui()
@@ -3104,7 +1939,7 @@ func reset_for_next_hole():
 		launch_manager.set_ball_in_flight(false)
 	
 	# Clear any existing balls from the previous hole
-	remove_all_balls()
+	launch_manager.remove_all_balls()
 	
 	game_state_manager.increment_current_hole()
 	
@@ -3144,14 +1979,14 @@ func reset_for_next_hole():
 	position_camera_on_pin()  # Add camera positioning for next hole
 	game_state_manager.reset_hole_score()
 	game_state_manager.set_game_phase("tee_select")
-	_update_player_mouse_facing_state()
+	player_manager.update_player_mouse_facing_state(game_state_manager, launch_manager, camera, weapon_handler)
 	game_state_manager.set_chosen_landing_spot(Vector2.ZERO)
 	game_state_manager.set_selected_club("")
 	update_hole_and_score_display()
 	if hud:
 		hud.get_node("ShotLabel").text = "Shots: %d" % game_state_manager.get_hole_score()
 	game_state_manager.set_is_placing_player(true)
-	highlight_tee_tiles()
+	map_manager.highlight_tee_tiles()
 	show_tee_selection_instruction()
 	# After all NPCs are spawned/registered for the new hole
 	var entities = get_node_or_null("Entities")
@@ -3168,17 +2003,11 @@ func _connect_pin_signals():
 	else:
 		print("Pin not found when trying to connect gimme signals!")
 
-func show_course_complete_dialog():
-	"""Show course completion dialog"""
-	ui_manager.show_course_complete_dialog()
+# Course complete dialog function moved to UIManager
 
-func show_front_nine_complete_dialog():
-	"""Show front nine completion dialog"""
-	ui_manager.show_front_nine_complete_dialog()
+# Front nine complete dialog function moved to UIManager
 
-func show_back_nine_complete_dialog():
-	"""Show back nine completion dialog"""
-	ui_manager.show_back_nine_complete_dialog()
+# Back nine complete dialog function moved to UIManager
 
 func update_hole_and_score_display():
 	if hud:
@@ -3227,7 +2056,7 @@ func _on_draw_cards_pressed() -> void:
 			var card_draw_sound = card_stack_display.get_node("CardDraw")
 			if card_draw_sound and card_draw_sound.stream:
 				card_draw_sound.play()
-		draw_cards_for_shot(5)
+		deck_manager.draw_cards_for_shot(5, player_manager, game_state_manager)
 		create_movement_buttons()
 		draw_cards_button.visible = false
 		print("Drew 5 new cards for turn start. DrawCards button hidden:", draw_cards_button.visible)
@@ -3236,7 +2065,7 @@ func _on_draw_cards_pressed() -> void:
 			var card_draw_sound = card_stack_display.get_node("CardDraw")
 			if card_draw_sound and card_draw_sound.stream:
 				card_draw_sound.play()
-		draw_cards_for_shot(5)
+		deck_manager.draw_cards_for_shot(5, player_manager, game_state_manager)
 		create_movement_buttons()
 		draw_cards_button.visible = false
 		print("Drew 5 new cards after ending turn. DrawCards button hidden:", draw_cards_button.visible)
@@ -3249,25 +2078,9 @@ func _on_draw_club_cards_pressed() -> void:
 			card_draw_sound.play()
 	draw_club_cards()
 
-func update_spin_indicator():
-	launch_manager.update_spin_indicator()
+# Update spin indicator function moved to LaunchManager
 	
-func enter_draw_cards_phase() -> void:
-	"""Enter the club selection phase where player draws club cards"""
-	game_state_manager.set_game_phase("draw_cards")
-	_update_player_mouse_facing_state()
-	print("Entered draw cards phase - selecting club for shot")
-	
-	# Clear block at the start of player's turn (after world turn)
-	clear_block()
-	
-	draw_club_cards_button.visible = true
-	
-	var sprite = player_manager.get_player_node().get_node_or_null("Sprite2D")
-	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
-	var player_center = player_manager.get_player_node().global_position + player_size / 2
-	var tween := get_tree().create_tween()
-	tween.tween_property(camera, "position", player_center, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+# Enter draw cards phase function moved to UIManager
 	
 
 func draw_club_cards() -> void:
@@ -3507,98 +2320,13 @@ func clear_temporary_club():
 
 
 
-func _on_player_moved_to_tile(new_grid_pos: Vector2i) -> void:
-	player_manager.set_player_grid_pos(new_grid_pos)
-	movement_controller.update_player_position(new_grid_pos)
-	attack_handler.update_player_position(new_grid_pos)
-	
-	# Check for fire damage when player moves to new tile
-	check_player_fire_damage()
-	
-	# Check for SuitCase interaction
-	if game_state_manager.get_suitcase_grid_position() != Vector2i.ZERO and player_manager.get_player_grid_pos() == game_state_manager.get_suitcase_grid_position():
-		print("=== SUITCASE REACHED ===")
-		print("Player grid position:", player_manager.get_player_grid_pos())
-		print("SuitCase grid position:", game_state_manager.get_suitcase_grid_position())
-		_on_suitcase_reached()
-		return  # Don't exit movement mode yet
-	
-	if player_manager.get_player_grid_pos() == game_state_manager.get_shop_grid_position() and not game_state_manager.is_shop_entrance_detected():
-		print("=== SHOP ENTRANCE DETECTED ===")
-		print("Player grid position:", player_manager.get_player_grid_pos())
-		print("Shop grid position:", game_state_manager.get_shop_grid_position())
-		print("Shop entrance detected flag:", game_state_manager.is_shop_entrance_detected())
-		game_state_manager.set_shop_entrance_detected(true)
-		show_shop_entrance_dialog()
-		return  # Don't exit movement mode yet
-	elif player_manager.get_player_grid_pos() != game_state_manager.get_shop_grid_position():
-		if game_state_manager.is_shop_entrance_detected():
-			print("Player moved away from shop entrance")
-		game_state_manager.set_shop_entrance_detected(false)
-	
-	update_player_position()
-	
-	# Check if player is on an active ball tile
-	if game_state_manager.get_waiting_for_player_to_reach_ball() and player_manager.get_player_grid_pos() == game_state_manager.get_ball_landing_tile():
-		# Player is on the ball tile - remove landing highlight
-		if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball) and launch_manager.golf_ball.has_method("remove_landing_highlight"):
-			launch_manager.golf_ball.remove_landing_highlight()
-		
-		# Check if this ball is in gimme range
-		check_and_show_gimme_button()
-		
-		# Show the "Draw Club Cards" button instead of automatically entering launch phase
-		show_draw_club_cards_button()
-	else:
-		# Check if this is EtherDash movement - don't exit movement mode if more moves are available
-		if player_manager.get_player_node().is_etherdash_mode and player_manager.get_player_node().etherdash_moves_remaining > 0:
-			print("EtherDash movement completed - more moves available, staying in movement mode")
-			# Update movement highlights for next move
-			movement_controller.valid_movement_tiles = player_manager.get_player_node().valid_movement_tiles.duplicate()
-			movement_controller.show_movement_highlights()
-		else:
-			# Normal movement - exit movement mode
-			exit_movement_mode()
+# Player movement handling moved to PlayerManager
 
-func check_and_show_gimme_button():
-	"""Check if the current ball is in gimme range and show gimme button if so"""
-	print("=== CHECKING FOR GIMME BUTTON ===")
-	
-	# Check if we have a gimme ball and it's the current ball
-	if game_state_manager.get_gimme_ball() and game_state_manager.get_gimme_ball() == launch_manager.golf_ball and is_instance_valid(game_state_manager.get_gimme_ball()):
-		print("Gimme ball found and is current ball - showing gimme button")
-		show_gimme_button()
-	else:
-		print("No gimme ball or ball is not current - not showing gimme button")
-		hide_gimme_button()
+# Check and show gimme button function moved to UIManager
 
-func show_gimme_button():
-	"""Show the gimme button"""
-	if ui_manager:
-		ui_manager.show_gimme_button()
-	elif gimme_scene:
-		gimme_scene.visible = true
-		print("Gimme button shown (direct access)")
+# UI functions moved to UIManager - direct calls to ui_manager used instead
 
-func hide_gimme_button():
-	"""Hide the gimme button"""
-	if ui_manager:
-		ui_manager.hide_gimme_button()
-	elif gimme_scene:
-		gimme_scene.visible = false
-		print("Gimme button hidden (direct access)")
-
-func _on_gimme_button_pressed():
-	"""Handle gimme button press"""
-	ui_manager._on_gimme_button_pressed()
-
-func show_draw_club_cards_button() -> void:
-	"""Show the 'Draw Club Cards' button when player is on an active ball tile"""
-	ui_manager.show_draw_club_cards_button()
-
-func show_shop_entrance_dialog():
-	"""Show shop entrance dialog"""
-	ui_manager.show_shop_entrance_dialog()
+# show_shop_entrance_dialog function removed - shop is now overlay system
 
 func _on_shop_enter_yes():
 	"""Handle shop enter yes button"""
@@ -3693,7 +2421,7 @@ func load_hole_10():
 		launch_manager.set_ball_in_flight(false)
 	
 	# Clear any existing balls from the previous hole
-	remove_all_balls()
+	launch_manager.remove_all_balls()
 	
 	# Load hole 10 layout
 	map_manager.load_map_data(GolfCourseLayout.get_hole_layout(game_state_manager.get_current_hole_index()))
@@ -3713,14 +2441,14 @@ func load_hole_10():
 	position_camera_on_pin()  # Add camera positioning for hole 10
 	game_state_manager.reset_hole_score()
 	game_state_manager.set_game_phase("tee_select")
-	_update_player_mouse_facing_state()
+	player_manager.update_player_mouse_facing_state(game_state_manager, launch_manager, camera, weapon_handler)
 	game_state_manager.set_chosen_landing_spot(Vector2.ZERO)
 	game_state_manager.set_selected_club("")
 	update_hole_and_score_display()
 	if hud:
 		hud.get_node("ShotLabel").text = "Shots: %d" % game_state_manager.get_hole_score()
 	game_state_manager.set_is_placing_player(true)
-	highlight_tee_tiles()
+	map_manager.highlight_tee_tiles()
 	show_tee_selection_instruction()
 	
 	# After all NPCs are spawned/registered for the new hole
@@ -3736,91 +2464,11 @@ func _on_shop_enter_no():
 
 
 
-func _on_shop_under_construction_input(event: InputEvent):
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		restore_game_state()
-		game_state_manager.set_shop_entrance_detected(false)
-		
-		# Update Y-sort for all objects to ensure proper layering
-		Global.update_all_objects_y_sort(ysort_objects)
-		
-		exit_movement_mode()
+# _on_shop_under_construction_input function removed - shop is now overlay system
 
 
 		
-func restore_game_state():
-	if Global.saved_game_state == "shop_entrance":
-		map_manager.load_map_data(GolfCourseLayout.get_hole_layout(game_state_manager.get_current_hole_index()))
-		build_map_from_layout_with_saved_positions(map_manager.level_layout)
-		
-		# Debug: Check if pin was created
-		print("=== PIN CREATION DEBUG (Saved Positions) ===")
-		print("ysort_objects size after saved positions map building:", ysort_objects.size())
-		for i in range(ysort_objects.size()):
-			var obj = ysort_objects[i]
-			if obj.has("node") and obj.node:
-				print("Object", i, ":", obj.node.name, "at grid pos:", obj.grid_pos)
-			else:
-				print("Object", i, ": Invalid object")
-		print("=== END PIN CREATION DEBUG (Saved Positions) ===")
-		
-		player_manager.set_player_grid_pos(Global.saved_player_manager.get_player_grid_pos())
-		update_player_position()
-		if player_manager.get_player_node():
-			player_manager.get_player_node().visible = true
-		game_state_manager.set_is_placing_player(false)
-		game_state_manager.set_ball_landing_position(Global.saved_ball_landing_tile, Global.saved_ball_landing_position)
-		game_state_manager.set_ball_landing_position(Global.saved_ball_landing_tile, Global.saved_ball_landing_position)
-		game_state_manager.set_waiting_for_player_to_reach_ball(Global.saved_waiting_for_player_to_reach_ball)
-		if Global.saved_ball_exists and Global.saved_ball_position != Vector2.ZERO:
-			if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball):
-				launch_manager.golf_ball.queue_free()
-			launch_manager.golf_ball = preload("res://GolfBall.tscn").instantiate()
-			var ball_area = launch_manager.golf_ball.get_node_or_null("Area2D")
-			if ball_area:
-				ball_area.collision_layer = 1
-				ball_area.collision_mask = 1  # Collide with layer 1 (trees)
-				print("✓ Ball collision layer set to:", ball_area.collision_layer)
-				print("✓ Ball collision mask set to:", ball_area.collision_mask)
-			launch_manager.golf_ball.collision_layer = 1
-			launch_manager.golf_ball.collision_mask = 1  # Collide with layer 1 (trees)
-			var ball_local_position = Global.saved_ball_position - grid_manager.get_camera_container().global_position
-			launch_manager.golf_ball.position = ball_local_position
-			launch_manager.golf_ball.cell_size = cell_size
-			launch_manager.golf_ball.map_manager = map_manager
-			grid_manager.get_camera_container().add_child(launch_manager.golf_ball)
-			launch_manager.golf_ball.add_to_group("balls")  # Add to group for collision detection
-		else:
-			if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball):
-				launch_manager.golf_ball.queue_free()
-				launch_manager.golf_ball = null
-		game_state_manager.set_current_hole(Global.saved_current_turn)
-		# Note: This should be handled by GameStateManager, but for now we'll set it directly
-	# game_state_manager.set_hole_score(Global.saved_shot_score)
-		# Restore global turn count for turn-based spawning
-		Global.global_turn_count = Global.saved_global_turn_count
-		# Update reward tier based on restored turn count
-		Global.update_reward_tier()
-		deck_manager.restore_deck_state(Global.saved_deck_manager_state)
-		deck_manager.restore_discard_state(Global.saved_discard_pile_state)
-		deck_manager.restore_hand_state(Global.saved_hand_state)
-		game_state_manager.set_has_started(Global.saved_has_started)
-		if Global.get("saved_game_phase") != null:
-			game_state_manager.set_game_phase(Global.saved_game_phase)
-		else:
-			game_state_manager.set_game_phase("move")
-		_update_player_mouse_facing_state()
-		if deck_manager.hand.size() > 0:
-			create_movement_buttons()
-		update_deck_display()
-		player_manager.update_player_stats_from_equipment()
-		var sprite = player_manager.get_player_node().get_node_or_null("Sprite2D")
-		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
-		var player_center = player_manager.get_player_node().global_position + player_size / 2
-		camera_manager.update_camera_snap_back_position(player_center)
-		camera_manager.create_camera_tween(player_center, 1.0)
-	else:
-		print("No saved game state found")
+# restore_game_state function removed - shop is now overlay system
 
 func is_player_on_shop_tile() -> bool:
 	return player_manager.get_player_grid_pos() == game_state_manager.get_shop_grid_position()
@@ -3844,333 +2492,29 @@ var vampire_mode_tween: Tween
 var dodge_mode_active: bool = false
 var dodge_mode_tween: Tween
 
-func create_ghost_ball() -> void:
-	if ghost_ball and is_instance_valid(ghost_ball):
-		ghost_ball.queue_free()
-	
-	ghost_ball = preload("res://GhostBall.tscn").instantiate()
-	
-	var ghost_ball_area = ghost_ball.get_node_or_null("Area2D")
-	if ghost_ball_area:
-		ghost_ball_area.collision_layer = 1
-		ghost_ball_area.collision_mask = 0  # Don't collide with anything (including player)
-	
-	# Position ghost ball at tile center (same as real ball)
-	var tile_center: Vector2 = Vector2(player_manager.get_player_grid_pos().x * cell_size + cell_size/2, player_manager.get_player_grid_pos().y * cell_size + cell_size/2) + grid_manager.get_camera_container().global_position
-	var ball_local_position = tile_center - grid_manager.get_camera_container().global_position
-	ghost_ball.position = ball_local_position
-	ghost_ball.cell_size = cell_size
-	ghost_ball.map_manager = map_manager
-	if game_state_manager.get_selected_club() in club_data:
-		ghost_ball.set_club_info(club_data[game_state_manager.get_selected_club()])
-	ghost_ball.set_putting_mode(club_data.get(game_state_manager.get_selected_club(), {}).get("is_putter", false))
-	grid_manager.get_camera_container().add_child(ghost_ball)
-	ghost_ball.add_to_group("balls")  # Add to group for collision detection
-	ghost_ball_active = true
-	# Global Y-sort will be handled by the ball's update_y_sort() method
-	if game_state_manager.get_chosen_landing_spot() != Vector2.ZERO:
-		ghost_ball.set_landing_spot(game_state_manager.get_chosen_landing_spot())
+# Create ghost ball function moved to LaunchManager
 
-func activate_ghost_mode() -> void:
-	"""Activate ghost mode - make player transparent and ignored by NPCs"""
-	print("=== ACTIVATING GHOST MODE ===")
-	
-	if ghost_mode_active:
-		print("Ghost mode already active, ignoring activation")
-		return
-	
-	ghost_mode_active = true
-	print("Ghost mode activated")
-	
-	# Make player sprite transparent
-	if player_manager.get_player_node():
-		var sprite = player_manager.get_player_node().get_character_sprite()
-		if sprite:
-			# Kill any existing tween
-			if ghost_mode_tween and ghost_mode_tween.is_valid():
-				ghost_mode_tween.kill()
-			
-			# Create new tween for transparency animation
-			ghost_mode_tween = create_tween()
-			ghost_mode_tween.tween_property(sprite, "modulate:a", 0.4, 0.5)  # Animate to 40% opacity
-			ghost_mode_tween.set_trans(Tween.TRANS_SINE)
-			ghost_mode_tween.set_ease(Tween.EASE_OUT)
-			print("Player sprite transparency animation started")
-		else:
-			print("Warning: Could not find player sprite for ghost mode")
-	
-	print("=== GHOST MODE ACTIVATED ===")
+# Activate ghost mode function moved to PlayerManager
 
-func deactivate_ghost_mode() -> void:
-	"""Deactivate ghost mode - restore player visibility"""
-	print("=== DEACTIVATING GHOST MODE ===")
-	
-	if not ghost_mode_active:
-		print("Ghost mode not active, ignoring deactivation")
-		return
-	
-	ghost_mode_active = false
-	print("Ghost mode deactivated")
-	
-	# Restore player sprite visibility
-	if player_manager.get_player_node():
-		var sprite = player_manager.get_player_node().get_character_sprite()
-		if sprite:
-			# Kill any existing tween
-			if ghost_mode_tween and ghost_mode_tween.is_valid():
-				ghost_mode_tween.kill()
-			
-			# Create new tween to restore opacity
-			ghost_mode_tween = create_tween()
-			ghost_mode_tween.tween_property(sprite, "modulate:a", 1.0, 0.5)  # Animate back to full opacity
-			ghost_mode_tween.set_trans(Tween.TRANS_SINE)
-			ghost_mode_tween.set_ease(Tween.EASE_OUT)
-			print("Player sprite opacity restoration started")
-		else:
-			print("Warning: Could not find player sprite for ghost mode deactivation")
-	
-	print("=== GHOST MODE DEACTIVATED ===")
+# Deactivate ghost mode function moved to PlayerManager
 
-func is_ghost_mode_active() -> bool:
-	"""Check if ghost mode is currently active"""
-	return ghost_mode_active
+# Is ghost mode active function moved to PlayerManager
 
-func activate_vampire_mode() -> void:
-	"""Activate vampire mode - make player heal from damage and apply dark red hue"""
-	print("=== ACTIVATING VAMPIRE MODE ===")
-	
-	if vampire_mode_active:
-		print("Vampire mode already active, ignoring activation")
-		return
-	
-	vampire_mode_active = true
-	print("Vampire mode activated")
-	
-	# Apply dark red hue to player sprite
-	if player_manager.get_player_node():
-		var sprite = player_manager.get_player_node().get_character_sprite()
-		if sprite:
-			# Kill any existing tween
-			if vampire_mode_tween and vampire_mode_tween.is_valid():
-				vampire_mode_tween.kill()
-			
-			# Create new tween for dark red hue animation
-			vampire_mode_tween = create_tween()
-			# Apply dark red hue (reduce green and blue channels)
-			vampire_mode_tween.tween_property(sprite, "modulate", Color(1.0, 0.2, 0.2, 1.0), 0.5)  # Dark red hue
-			vampire_mode_tween.set_trans(Tween.TRANS_SINE)
-			vampire_mode_tween.set_ease(Tween.EASE_OUT)
-			print("Player sprite dark red hue animation started")
-		else:
-			print("Warning: Could not find player sprite for vampire mode")
-	
-	print("=== VAMPIRE MODE ACTIVATED ===")
+# Activate vampire mode function moved to PlayerManager
 
-func deactivate_vampire_mode() -> void:
-	"""Deactivate vampire mode - restore player normal appearance"""
-	print("=== DEACTIVATING VAMPIRE MODE ===")
-	
-	if not vampire_mode_active:
-		print("Vampire mode not active, ignoring deactivation")
-		return
-	
-	vampire_mode_active = false
-	print("Vampire mode deactivated")
-	
-	# Restore player sprite normal appearance
-	if player_manager.get_player_node():
-		var sprite = player_manager.get_player_node().get_character_sprite()
-		if sprite:
-			# Kill any existing tween
-			if vampire_mode_tween and vampire_mode_tween.is_valid():
-				vampire_mode_tween.kill()
-			
-			# Create new tween to restore normal color
-			vampire_mode_tween = create_tween()
-			vampire_mode_tween.tween_property(sprite, "modulate", Color(1.0, 1.0, 1.0, 1.0), 0.5)  # Normal white
-			vampire_mode_tween.set_trans(Tween.TRANS_SINE)
-			vampire_mode_tween.set_ease(Tween.EASE_OUT)
-			print("Player sprite normal color restoration started")
-		else:
-			print("Warning: Could not find player sprite for vampire mode deactivation")
-	
-	print("=== VAMPIRE MODE DEACTIVATED ===")
+# Deactivate vampire mode function moved to PlayerManager
 
-func is_vampire_mode_active() -> bool:
-	"""Check if vampire mode is currently active"""
-	return vampire_mode_active
+# Is vampire mode active function moved to PlayerManager
 
-func activate_dodge_mode() -> void:
-	"""Activate dodge mode - apply dodge status (no sprite switching, uses hue effect)"""
-	print("=== ACTIVATING DODGE MODE ===")
-	
-	if dodge_mode_active:
-		print("Dodge mode already active, ignoring activation")
-		return
-	
-	dodge_mode_active = true
-	print("Dodge mode activated")
-	
-	# No sprite switching needed - the hue effect will be applied when dodging
-	print("=== DODGE MODE ACTIVATED ===")
+# Activate dodge mode function moved to PlayerManager
 
 # Removed switch_to_dodge_ready_sprite() - no longer needed with hue effect approach
 
-func trigger_dodge_animation() -> void:
-	"""Trigger the dodge animation when damage is avoided"""
-	print("=== TRIGGERING DODGE ANIMATION ===")
-	
-	# Play dodge sound
-	play_dodge_sound()
-	
-	# Animate dodge movement with hue effect
-	animate_dodge_with_hue_effect()
-	
-	# Wait for animation to complete, then restore sprite but keep hue effect
-	await get_tree().create_timer(0.8).timeout  # Wait for animation to complete
-	restore_sprite_after_dodge()
+# Dodge animation functions moved to PlayerManager
 
-# Removed switch_to_dodge_sprite() - no longer needed with hue effect approach
+# Update ghost ball function moved to LaunchManager
 
-func animate_dodge_with_hue_effect() -> void:
-	"""Animate the dodge with movement and hue effect"""
-	print("=== ANIMATING DODGE WITH HUE EFFECT ===")
-	
-	if not player_manager.get_player_node():
-		print("✗ No player node found")
-		return
-	
-	# Get the character sprite
-	var character_sprite = player_manager.get_player_node().get_character_sprite()
-	if not character_sprite:
-		print("✗ No character sprite found")
-		return
-	
-	# Store original position and modulate
-	var original_position = player_manager.get_player_node().global_position
-	var original_modulate = character_sprite.modulate
-	
-	# Calculate dodge direction (slightly to the side)
-	var dodge_offset = Vector2(20, 0)  # Move 20 pixels to the right
-	
-	# Create tween for dodge movement and hue effect
-	var dodge_tween = create_tween()
-	dodge_tween.set_parallel(true)
-	
-	# Move to dodge position
-	dodge_tween.tween_property(player_manager.get_player_node(), "global_position", original_position + dodge_offset, 0.3)
-	dodge_tween.set_trans(Tween.TRANS_SINE)
-	dodge_tween.set_ease(Tween.EASE_OUT)
-	
-	# Apply light yellow hue effect
-	var yellow_hue = Color(1.0, 1.0, 0.8, 1.0)  # Light yellow
-	dodge_tween.tween_property(character_sprite, "modulate", yellow_hue, 0.3)
-	
-	# Wait a moment, then move back
-	await get_tree().create_timer(0.3).timeout
-	
-	var return_tween = create_tween()
-	return_tween.tween_property(player_manager.get_player_node(), "global_position", original_position, 0.3)
-	return_tween.set_trans(Tween.TRANS_SINE)
-	return_tween.set_ease(Tween.EASE_IN)
-	
-	# Keep the hue effect active (don't restore original modulate)
-	# The hue effect will be cleared when dodge mode is deactivated
-	
-	print("✓ Dodge movement and hue effect animation completed")
-
-func restore_sprite_after_dodge() -> void:
-	"""Restore sprite after dodge animation but keep hue effect"""
-	print("=== RESTORING SPRITE AFTER DODGE ===")
-	
-	# Don't deactivate dodge mode yet - keep the hue effect active
-	# The hue effect will be cleared when dodge mode is deactivated
-	print("✓ Sprite restored, hue effect maintained until next damage or turn end")
-
-func animate_dodge_movement() -> void:
-	"""Animate the player moving slightly out of the way"""
-	print("=== ANIMATING DODGE MOVEMENT ===")
-	
-	if not player_manager.get_player_node():
-		print("✗ No player node found")
-		return
-	
-	# Store original position
-	var original_position = player_manager.get_player_node().global_position
-	
-	# Calculate dodge direction (slightly to the side)
-	var dodge_offset = Vector2(20, 0)  # Move 20 pixels to the right
-	
-	# Create tween for dodge movement
-	var dodge_tween = create_tween()
-	dodge_tween.set_parallel(true)
-	
-	# Move to dodge position
-	dodge_tween.tween_property(player_manager.get_player_node(), "global_position", original_position + dodge_offset, 0.3)
-	dodge_tween.set_trans(Tween.TRANS_SINE)
-	dodge_tween.set_ease(Tween.EASE_OUT)
-	
-	# Wait a moment, then move back
-	await get_tree().create_timer(0.3).timeout
-	
-	var return_tween = create_tween()
-	return_tween.tween_property(player_manager.get_player_node(), "global_position", original_position, 0.3)
-	return_tween.set_trans(Tween.TRANS_SINE)
-	return_tween.set_ease(Tween.EASE_IN)
-	
-	print("✓ Dodge movement animation completed")
-
-func play_dodge_sound() -> void:
-	"""Play the dodge sound effect"""
-	if player_manager.get_player_node():
-		var dodge_sound = player_manager.get_player_node().get_node_or_null("Dodge")
-		if dodge_sound and dodge_sound is AudioStreamPlayer2D:
-			dodge_sound.play()
-			print("✓ Playing dodge sound")
-		else:
-			print("✗ Dodge sound not found in player node")
-
-func deactivate_dodge_mode() -> void:
-	"""Deactivate dodge mode - restore player normal appearance"""
-	print("=== DEACTIVATING DODGE MODE ===")
-	
-	if not dodge_mode_active:
-		print("Dodge mode not active, ignoring deactivation")
-		return
-	
-	dodge_mode_active = false
-	print("Dodge mode deactivated")
-	
-	# Clear the hue effect from the character sprite
-	if player_manager.get_player_node():
-		var character_sprite = player_manager.get_player_node().get_character_sprite()
-		if character_sprite:
-			# Restore original modulate (white, no tint)
-			character_sprite.modulate = Color.WHITE
-			print("✓ Hue effect cleared from character sprite")
-	
-	print("=== DODGE MODE DEACTIVATED ===")
-
-# Removed switch_from_dodge_sprite() - no longer needed with hue effect approach
-
-func is_dodge_mode_active() -> bool:
-	"""Check if dodge mode is currently active"""
-	return dodge_mode_active
-
-func update_ghost_ball() -> void:
-	"""Update the ghost ball's landing spot"""
-	if not ghost_ball or not is_instance_valid(ghost_ball):
-		return
-	
-	# Only update the landing spot, don't reposition the ball
-	ghost_ball.set_landing_spot(game_state_manager.get_chosen_landing_spot())
-
-func remove_ghost_ball() -> void:
-	"""Remove the ghost ball from the scene"""
-	if ghost_ball and is_instance_valid(ghost_ball):
-		ghost_ball.queue_free()
-		ghost_ball = null
-	ghost_ball_active = false
+# Remove ghost ball function moved to LaunchManager
 
 
 
@@ -4278,92 +2622,7 @@ func position_camera_on_pin(start_transition: bool = true):
 
 # start_pin_to_tee_transition function moved to CameraManager
 
-func build_map_from_layout_with_saved_positions(layout: Array) -> void:
-	"""Build map with saved object positions (for returning from shop)"""
-	print("Building map with saved positions for hole", game_state_manager.get_current_hole_index() + 1)
-	
-	# Clear existing objects first
-	clear_existing_objects()
-	
-	# Build the base map (tiles only, no pin)
-	build_map.build_map_from_layout_base(layout, false)
-	
-	# Create object positions dictionary from saved data
-	var object_positions = {
-		"trees": Global.saved_tree_positions.duplicate(),
-		"shop": Global.saved_shop_position,  # Use the saved shop position
-		"gang_members": [],  # Empty array for gang members (not saved/restored)
-		"generator_puzzle": {
-			"generator_pos": Vector2i(3, 4),  # Generator on left side near tees
-			"pylon_positions": [Vector2i(15, 2), Vector2i(15, 8)]  # Pylons above and below fairway
-		}
-	}
-	print("🔧 COURSE_1.GD: Creating object_positions")
-	print("[DEBUG] About to place trees at positions:", object_positions.trees)
-	print("[DEBUG] Object positions keys:", object_positions.keys())
-	print("🔧 COURSE_1.GD: generator_puzzle data:", object_positions.generator_puzzle)
-	
-	# Place objects at saved positions
-	build_map.place_objects_at_positions(object_positions, layout)
-	
-	# Place TreeLineVert borders
-	build_map.place_treeline_vert_borders(layout)
-	
-	# Sync shop grid position with build_map
-	game_state_manager.set_shop_grid_position(build_map.shop_grid_pos)
-	
-	# Sync SuitCase grid position with build_map (for saved positions)
-	game_state_manager.set_suitcase_grid_position(build_map.get_suitcase_position())
-	if game_state_manager.get_suitcase_grid_position() != Vector2i.ZERO:
-		print("SuitCase placed at grid position (saved positions):", game_state_manager.get_suitcase_grid_position())
-	
-	# Place pin at saved position
-	if Global.saved_pin_position != Vector2i.ZERO:
-		var world_pos: Vector2 = Vector2(Global.saved_pin_position.x, Global.saved_pin_position.y) * cell_size
-		var scene: PackedScene = object_scene_map["P"]
-		if scene != null:
-			var pin: Node2D = scene.instantiate() as Node2D
-			var pin_id = randi()  # Generate unique ID for this pin
-			pin.name = "Pin" + str(game_state_manager.get_current_hole_index() + 1)  # Give unique name based on hole number
-			pin.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
-			# Let the global Y-sort system handle z_index
-			if pin.has_meta("grid_position") or "grid_position" in pin:
-				pin.set("grid_position", Global.saved_pin_position)
-			
-			# Set reference to CardEffectHandler for scramble ball handling
-			pin.set_meta("card_effect_handler", card_effect_handler)
-			
-			# Connect pin signals if this is a pin
-			if pin.has_signal("hole_in_one"):
-				print("Connecting hole_in_one signal for pin:", pin.name, "pin ID:", pin_id)
-				# Use Callable to ensure proper connection
-				pin.hole_in_one.connect(Callable(self, "_on_hole_in_one"))
-				print("hole_in_one signal connected successfully")
-				# Verify connection
-				var connections = pin.hole_in_one.get_connections()
-				print("Signal connections after connecting:", connections.size())
-				for conn in connections:
-					print("  - Connected to:", conn.callable)
-			else:
-				print("WARNING: Pin does not have hole_in_one signal!")
-			if pin.has_signal("pin_flag_hit"):
-				pin.pin_flag_hit.connect(_on_pin_flag_hit)
-			
-			ysort_objects.append({"node": pin, "grid_pos": Global.saved_pin_position})
-			obstacle_layer.add_child(pin)
-			print("Pin placed at saved position:", Global.saved_pin_position, "pin ID:", pin_id, "pin name:", pin.name)
-		else:
-			print("ERROR: Pin scene is null!")
-	
-	# Ensure Y-sort objects are properly registered for pin detection
-	update_all_ysort_z_indices()
-	print("Y-sort updated after saved positions map building")
-	
-	# Checkpoint: Map building completed
-	print("=== BuildMapCompleted Checkpoint (Saved Positions) ===")
-	
-	# Position camera on pin immediately after map is built (no transition when returning from shop)
-	position_camera_on_pin(false)
+# build_map_from_layout_with_saved_positions function removed - shop is now overlay system
 
 func update_all_ysort_z_indices():
 	"""Update z_index for all objects using the simple global Y-sort system"""
@@ -4386,7 +2645,7 @@ func _on_hole_in_one(score: int):
 		launch_manager.set_ball_in_flight(false)
 		print("Ball in flight state reset to false (hole completion)")
 	
-	show_hole_completion_dialog()
+	ui_manager.show_hole_completion_dialog()
 
 func _on_gimme_triggered(ball: Node2D):
 	"""Handle gimme detection when ball enters gimme area"""
@@ -4419,7 +2678,7 @@ func _on_gimme_ball_exited(ball: Node2D):
 		game_state_manager.deactivate_gimme()
 		print("Cleared gimme ball reference - ball exited gimme area")
 		# Hide the gimme button if it's currently visible
-		hide_gimme_button()
+		ui_manager.hide_gimme_button()
 	else:
 		print("Ball that exited was not the tracked gimme ball - ignoring")
 
@@ -4534,7 +2793,7 @@ func _on_scramble_complete(closest_ball_position: Vector2, closest_ball_tile: Ve
 	if not game_state_manager.get_waiting_for_player_to_reach_ball():
 		print("Scramble ball went in the hole! Triggering hole completion")
 		# Trigger hole completion dialog
-		show_hole_completion_dialog()
+		ui_manager.show_hole_completion_dialog()
 		return
 	
 	# Update course state for normal scramble completion
@@ -4549,10 +2808,10 @@ func _on_scramble_complete(closest_ball_position: Vector2, closest_ball_tile: Ve
 			launch_manager.golf_ball.remove_landing_highlight()
 		
 		# Check if this ball is in gimme range
-		check_and_show_gimme_button()
+		ui_manager.check_and_show_gimme_button()
 		
 		# Show the "Draw Club Cards" button instead of waiting for movement
-		show_draw_club_cards_button()
+		ui_manager.show_draw_club_cards_button()
 	else:
 		# Player needs to move to the ball - show drive distance dialog
 		# Note: golf_ball is already set to the closest scramble ball in CardEffectHandler
@@ -4564,11 +2823,11 @@ func _on_scramble_complete(closest_ball_position: Vector2, closest_ball_tile: Ve
 		
 		var dialog_timer = get_tree().create_timer(0.5)
 		dialog_timer.timeout.connect(func():
-			show_drive_distance_dialog()
+			ui_manager.show_drive_distance_dialog(game_state_manager.get_drive_distance())
 		)
 		
 		game_state_manager.set_game_phase("move")
-		_update_player_mouse_facing_state()
+		player_manager.update_player_mouse_facing_state(game_state_manager, launch_manager, camera, weapon_handler)
 
 # LaunchManager signal handlers
 func _on_ball_launched(ball: Node2D):
@@ -4577,7 +2836,7 @@ func _on_ball_launched(ball: Node2D):
 		return
 		
 	# Clear any existing gimme state when a new ball is launched
-	clear_gimme_state()
+	ui_manager.clear_gimme_state()
 	
 	# Set up ball properties that require course_1.gd references
 	ball.map_manager = map_manager
@@ -4770,7 +3029,7 @@ func _on_ball_launched(ball: Node2D):
 
 func _on_launch_phase_entered():
 	game_state_manager.set_game_phase("launch")
-	_update_player_mouse_facing_state()
+	player_manager.update_player_mouse_facing_state(game_state_manager, launch_manager, camera, weapon_handler)
 
 func _on_launch_phase_exited():
 	# Hide weapon when launch phase ends, but keep grenade launcher visible until grenade lands
@@ -4789,7 +3048,7 @@ func _on_launch_phase_exited():
 		# So we should enter ball_flying phase
 		print("Course: Entering ball_flying phase!")
 		game_state_manager.set_game_phase("ball_flying")
-		_update_player_mouse_facing_state()
+		player_manager.update_player_mouse_facing_state(game_state_manager, launch_manager, camera, weapon_handler)
 		# Disable player collision shape during ball flight
 		if player_manager.get_player_node() and player_manager.get_player_node().has_method("disable_collision_shape"):
 			player_manager.get_player_node().disable_collision_shape()
@@ -4801,12 +3060,12 @@ func _on_launch_phase_exited():
 		# Not in grenade mode, or grenade has already exploded
 		# Don't change the game phase - let the explosion handler manage it
 		print("Course: Launch phase exited but not entering ball_flying (grenade may have exploded)")
-		_update_player_mouse_facing_state()
+		player_manager.update_player_mouse_facing_state(game_state_manager, launch_manager, camera, weapon_handler)
 
 func _on_charging_state_changed(charging: bool, charging_height: bool) -> void:
 	"""Handle charging state changes from LaunchManager"""
 	# Force update the player state to include is_selecting_height
-	_update_player_mouse_facing_state()
+	player_manager.update_player_mouse_facing_state(game_state_manager, launch_manager, camera, weapon_handler)
 
 func _on_ball_collision_detected() -> void:
 	"""Handle ball collision detection - re-enable player collision shape"""
@@ -4829,10 +3088,6 @@ func _on_punchb_attack_performed() -> void:
 	"""Handle when a PunchB attack is performed - trigger punch animation"""
 	if player_manager.get_player_node() and player_manager.get_player_node().has_method("start_punchb_animation"):
 		player_manager.get_player_node().start_punchb_animation()
-
-func _on_ash_dog_attack_performed() -> void:
-	"""Handle when an Ash dog attack is performed - trigger ash dog animation"""
-	print("Ash dog attack performed - animation handled by AttackHandler")
 
 func _on_npc_shot(npc: Node, damage: int) -> void:
 	"""Handle when an NPC is shot with a weapon"""
@@ -5009,42 +3264,7 @@ func _on_shuriken_out_of_bounds() -> void:
 
 # Global death sound setup moved to SoundManager
 
-func _update_player_mouse_facing_state() -> void:
-	"""Update the player's mouse facing state based on current game phase and launch state"""
-	if not player_manager.get_player_node() or not player_manager.get_player_node().has_method("set_game_phase"):
-		return
-	
-	# Update game phase
-	player_manager.get_player_node().set_game_phase(game_state_manager.get_game_phase())
-	
-	# Update launch state from LaunchManager
-	var is_charging = false
-	var is_charging_height = false
-	var is_selecting_height = false
-	if launch_manager:
-		is_charging = launch_manager.is_charging
-		is_charging_height = launch_manager.is_charging_height
-		is_selecting_height = launch_manager.is_selecting_height
-	
-	player_manager.get_player_node().set_launch_state(is_charging, is_charging_height, is_selecting_height)
-	
-	# Update launch mode state
-	var is_in_launch_mode = (game_state_manager.get_game_phase() == "ball_flying")
-	player_manager.get_player_node().set_launch_mode(is_in_launch_mode)
-	
-	# Set camera reference if not already set
-	if player_manager.get_player_node().has_method("set_camera_reference") and camera:
-		player_manager.get_player_node().set_camera_reference(camera)
-	
-	# Update block sprite flip to match normal sprite
-	update_block_sprite_flip()
-	
-	# Update dodge sprite flip to match normal sprite
-	update_dodge_sprite_flip()
-	
-	# Hide weapon when game phase changes to move (unless GrenadeLauncherClubCard is selected)
-	if game_state_manager.get_game_phase() == "move" and game_state_manager.get_selected_club() != "GrenadeLauncherClubCard" and weapon_handler:
-		weapon_handler.hide_weapon()
+# Player mouse facing state update moved to PlayerManager
 
 
 
@@ -5067,76 +3287,7 @@ func get_launch_manager() -> LaunchManager:
 func create_camera_tween(target_position: Vector2, duration: float = 0.5, transition: Tween.TransitionType = Tween.TRANS_SINE, ease: Tween.EaseType = Tween.EASE_OUT) -> void:
 	"""Create a camera tween with proper management to prevent conflicts"""
 	camera_manager.create_camera_tween(target_position, duration, transition, ease)
-func check_player_fire_damage() -> void:
-	"""Check if player should take fire damage from active fire tiles"""
-	if not player_manager.get_player_node() or not player_manager.get_player_node().has_method("take_damage"):
-		return
-	
-	var fire_tiles = get_tree().get_nodes_in_group("fire_tiles")
-	var player_took_damage = false
-	
-	for fire_tile in fire_tiles:
-		if not is_instance_valid(fire_tile) or not fire_tile.has_method("is_fire_active"):
-			continue
-		
-		# Skip if fire tile is not active (scorched)
-		if not fire_tile.is_fire_active():
-			continue
-		
-		var fire_tile_pos = fire_tile.get_tile_position()
-		
-		# Check if this fire tile has already damaged the player this turn
-		if fire_tile_pos in game_state_manager.fire_tiles_that_damaged_player:
-			continue
-		
-		# Check if player is on the fire tile or adjacent to it
-		if _is_player_affected_by_fire_tile(fire_tile_pos):
-			# Determine damage amount
-			var damage = 30 if player_manager.get_player_grid_pos() == fire_tile_pos else 15
-			
-			# Apply damage to player
-			player_manager.get_player_node().take_damage(damage)
-			print("Player took", damage, "fire damage from fire tile at", fire_tile_pos)
-			
-			# Play FlameOn sound effect
-			sound_manager.play_flame_on_sound(player_manager.get_player_node().global_position if player_manager.get_player_node() else Vector2.ZERO)
-			
-			# Mark this fire tile as having damaged the player this turn
-			game_state_manager.fire_tiles_that_damaged_player.append(fire_tile_pos)
-			player_took_damage = true
-
-	if player_took_damage:
-		print("Player fire damage check complete - damage applied")
-
-# Flame on sound function moved to SoundManager
-
-func _is_player_affected_by_fire_tile(fire_tile_pos: Vector2i) -> bool:
-	"""Check if player is on the fire tile or adjacent to it"""
-	# Direct hit - player is on the fire tile
-	if player_manager.get_player_grid_pos() == fire_tile_pos:
-		return true
-	
-	# Adjacent tiles (8-directional)
-	var adjacent_positions = [
-		Vector2i(0, -1),  # Up
-		Vector2i(1, 0),   # Right
-		Vector2i(0, 1),   # Down
-		Vector2i(-1, 0),  # Left
-		Vector2i(1, -1),  # Up-right
-		Vector2i(1, 1),   # Down-right
-		Vector2i(-1, 1),  # Down-left
-		Vector2i(-1, -1)  # Up-left
-	]
-	
-	for direction in adjacent_positions:
-		if player_manager.get_player_grid_pos() == fire_tile_pos + direction:
-			return true
-	
-	return false
-
-func reset_fire_damage_tracking() -> void:
-	"""Reset the fire damage tracking at the start of each turn"""
-	game_state_manager.fire_tiles_that_damaged_player.clear()
+# Fire damage handling moved to PlayerManager
 
 func _clear_existing_state():
 	"""Clear any existing state to prevent dictionary conflicts when scene is reloaded"""
@@ -5285,7 +3436,7 @@ func _on_pause_end_round_pressed(pause_dialog: Control):
 	if deck_manager:
 		deck_manager.hand.clear()
 		deck_manager.discard_pile.clear()
-		update_deck_display()
+		ui_manager.update_deck_display()
 	
 	# Remove pause dialog
 	pause_dialog.queue_free()
@@ -5323,8 +3474,7 @@ func clear_player_state():
 	extra_turns_remaining = 0
 	
 	# Clear block system
-	block_active = false
-	block_amount = 0
+	player_manager.clear_block()
 	
 	# Reset character health
 	Global.reset_character_health()

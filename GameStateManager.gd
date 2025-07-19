@@ -455,4 +455,225 @@ func get_round_end_hole() -> int:
 
 func is_game_complete() -> bool:
 	"""Check if the game is complete (both front and back nine)"""
-	return is_back_9_mode and current_hole > get_round_end_hole() 
+	return is_back_9_mode and current_hole > get_round_end_hole()
+
+# ===== DEATH HANDLING =====
+
+func handle_player_death() -> void:
+	"""Handle player death - fade to black and show death screen"""
+	print("Handling player death...")
+	
+	# Disable all input to prevent further actions
+	if course:
+		course.set_process_input(false)
+	
+	# Fade to black and transition to death scene
+	FadeManager.fade_to_black(func(): get_tree().change_scene_to_file("res://DeathScene.tscn"), 1.0)
+
+# ===== ROUND MANAGEMENT =====
+
+func start_round_after_tee_selection(course: Node, player_manager: Node, deck_manager: Node, ui_manager: Node) -> void:
+	"""Start the round after player selects a tee position"""
+	var instruction_label = course.get_node_or_null("UILayer/TeeInstructionLabel")
+	if instruction_label:
+		instruction_label.queue_free()
+	
+	# Clear all tile highlights
+	for y in grid_manager.get_grid_size().y:
+		for x in grid_manager.get_grid_size().x:
+			grid_manager.get_grid_tiles()[y][x].get_node("Highlight").visible = false
+	
+	# Reset character health for new round
+	Global.reset_character_health()
+	
+	# Reset global turn counter for new round
+	Global.reset_global_turn()
+	
+	player_manager.set_player_stats(Global.CHARACTER_STATS.get(Global.selected_character, {}))
+	
+	deck_manager.initialize_separate_decks()
+	print("Separate decks initialized - Club cards:", deck_manager.club_draw_pile.size(), "Action cards:", deck_manager.action_draw_pile.size())
+
+	set_has_started(true)
+	reset_hole_score()
+	
+	# Enable player movement animations after player is properly placed on tee
+	if player_manager.get_player_node() and player_manager.get_player_node().has_method("enable_animations"):
+		player_manager.get_player_node().enable_animations()
+		print("Player movement animations enabled after tee placement")
+	
+	# Start with club selection phase
+	ui_manager.enter_draw_cards_phase()
+	
+	print("Round started! Player at position:", player_manager.get_player_grid_pos())
+
+# ===== NPC PRIORITY SYSTEM =====
+
+func get_npc_priority(npc: Node) -> int:
+	"""Get the priority rating for an NPC (higher = faster/more important)"""
+	# Check the NPC's script to determine type
+	var script_path = npc.get_script().resource_path if npc.get_script() else ""
+	
+	# Squirrels are fastest (highest priority) - they chase and push balls
+	if "Squirrel.gd" in script_path:
+		return 4
+	# Zombies are second fastest
+	elif "ZombieGolfer.gd" in script_path:
+		return 3
+	# GangMembers are medium priority
+	elif "GangMember.gd" in script_path:
+		return 2
+	# Police are slowest (lowest priority)
+	elif "police.gd" in script_path:
+		return 1
+	# Default priority for unknown NPCs
+	else:
+		return 0
+
+func has_alive_npcs() -> bool:
+	"""Check if there are any alive NPCs on the map"""
+	var entities = get_node_or_null("Entities")
+	if not entities:
+		print("ERROR: No Entities node found!")
+		return false
+	
+	var npcs = entities.get_npcs()
+	print("Checking for alive NPCs among ", npcs.size(), " total NPCs")
+	
+	for npc in npcs:
+		if is_instance_valid(npc):
+			# Check if NPC is alive
+			var is_alive = true
+			if npc.has_method("get_is_dead"):
+				is_alive = not npc.get_is_dead()
+			elif npc.has_method("is_dead"):
+				is_alive = not npc.is_dead()
+			elif "is_dead" in npc:
+				is_alive = not npc.is_dead
+			
+			if is_alive:
+				print("Found alive NPC: ", npc.name)
+				return true
+		else:
+			print("Invalid NPC found, skipping")
+	
+	print("No alive NPCs found on the map")
+	return false
+
+func has_active_npcs() -> bool:
+	"""Check if there are any alive NPCs that are not frozen and will thaw this turn"""
+	var entities = get_node_or_null("Entities")
+	if not entities:
+		print("ERROR: No Entities node found!")
+		return false
+	
+	var npcs = entities.get_npcs()
+	print("Checking for active NPCs among ", npcs.size(), " total NPCs")
+	
+	for npc in npcs:
+		if is_instance_valid(npc):
+			# Check if NPC is alive
+			var is_alive = true
+			if npc.has_method("get_is_dead"):
+				is_alive = not npc.get_is_dead()
+			elif npc.has_method("is_dead"):
+				is_alive = not npc.is_dead()
+			elif "is_dead" in npc:
+				is_alive = not npc.is_dead
+			
+			if is_alive:
+				# Check if NPC is frozen
+				var is_frozen = false
+				if npc.has_method("is_frozen_state"):
+					is_frozen = npc.is_frozen_state()
+				elif "is_frozen" in npc:
+					is_frozen = npc.is_frozen
+				
+				# Check if NPC will thaw this turn
+				var will_thaw_this_turn = false
+				if is_frozen and npc.has_method("get_freeze_turns_remaining"):
+					var turns_remaining = npc.get_freeze_turns_remaining()
+					will_thaw_this_turn = turns_remaining <= 1
+				elif is_frozen and "freeze_turns_remaining" in npc:
+					var turns_remaining = npc.freeze_turns_remaining
+					will_thaw_this_turn = turns_remaining <= 1
+				
+				# NPC is active if not frozen, or if frozen but will thaw this turn
+				if not is_frozen or will_thaw_this_turn:
+					print("Found active NPC: ", npc.name, " (frozen: ", is_frozen, ", will thaw: ", will_thaw_this_turn, ")")
+					return true
+				else:
+					print("Found frozen NPC that won't thaw this turn: ", npc.name)
+		else:
+			print("Invalid NPC found, skipping")
+	
+	print("No active NPCs found on the map")
+	return false
+
+func find_nearest_visible_npc(player_manager: Node) -> Node:
+	"""Find the nearest NPC that is visible to the player, alive, and active (not frozen or will thaw this turn)"""
+	var entities = get_node_or_null("Entities")
+	if not entities:
+		print("ERROR: No Entities node found!")
+		return null
+	
+	var npcs = entities.get_npcs()
+	print("Found ", npcs.size(), " NPCs in Entities system")
+	
+	var nearest_npc = null
+	var nearest_distance = INF
+	
+	for npc in npcs:
+		if is_instance_valid(npc) and npc.has_method("get_grid_position"):
+			# Check if NPC is alive
+			var is_alive = true
+			if npc.has_method("get_is_dead"):
+				is_alive = not npc.get_is_dead()
+			elif npc.has_method("is_dead"):
+				is_alive = not npc.is_dead()
+			elif "is_dead" in npc:
+				is_alive = not npc.is_dead
+			
+			if not is_alive:
+				print("NPC ", npc.name, " is dead, skipping")
+				continue
+			
+			# Check if NPC is frozen and won't thaw this turn
+			var is_frozen = false
+			if npc.has_method("is_frozen_state"):
+				is_frozen = npc.is_frozen_state()
+			elif "is_frozen" in npc:
+				is_frozen = npc.is_frozen
+			
+			var will_thaw_this_turn = false
+			if is_frozen and npc.has_method("get_freeze_turns_remaining"):
+				var turns_remaining = npc.get_freeze_turns_remaining()
+				will_thaw_this_turn = turns_remaining <= 1
+			elif is_frozen and "freeze_turns_remaining" in npc:
+				var turns_remaining = npc.freeze_turns_remaining
+				will_thaw_this_turn = turns_remaining <= 1
+			
+			# Skip NPCs that are frozen and won't thaw this turn
+			if is_frozen and not will_thaw_this_turn:
+				print("NPC ", npc.name, " is frozen and won't thaw this turn, skipping")
+				continue
+			
+			var npc_pos = npc.get_grid_position()
+			var distance = player_manager.get_player_grid_pos().distance_to(npc_pos)
+			
+			print("NPC ", npc.name, " at distance ", distance, " from player (frozen: ", is_frozen, ", will thaw: ", will_thaw_this_turn, ")")
+			
+			# Check if NPC is within vision range (12 tiles)
+			if distance <= 12 and distance < nearest_distance:
+				nearest_distance = distance
+				nearest_npc = npc
+				print("New nearest NPC: ", npc.name, " at distance ", distance)
+		else:
+			print("Invalid NPC or missing get_grid_position method: ", npc.name if npc else "None")
+	
+	print("Final nearest NPC: ", nearest_npc.name if nearest_npc else "None")
+	return nearest_npc
+
+func start_shot_sequence(course: Node) -> void:
+	"""Start the shot sequence by entering aiming phase"""
+	course.enter_aiming_phase() 

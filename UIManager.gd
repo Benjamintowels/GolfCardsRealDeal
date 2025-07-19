@@ -417,9 +417,7 @@ func _on_shop_enter_yes() -> void:
 	"""Handle shop enter yes button"""
 	print("=== ENTERING SHOP ===")
 	
-	# Set shop entrance detected flag
-	if course.game_state_manager:
-		course.game_state_manager.set_shop_entrance_detected(true)
+	# Shop is now overlay system - no entrance detection needed
 	
 	# Show shop overlay
 	show_shop_overlay()
@@ -428,25 +426,15 @@ func _on_shop_enter_no() -> void:
 	"""Handle shop enter no button"""
 	print("=== DECLINING SHOP ENTRANCE ===")
 	
-	# Clear shop entrance detected flag
-	if course.game_state_manager:
-		course.game_state_manager.set_shop_entrance_detected(false)
-	
-	# Restore game state
-	if course.has_method("restore_game_state"):
-		course.restore_game_state()
+	# Shop is now overlay system - no state restoration needed
+	# Just close the dialog and continue gameplay
 
 func _on_shop_overlay_return() -> void:
 	"""Handle returning from shop overlay"""
 	print("=== RETURNING FROM SHOP ===")
 	
-	# Clear shop entrance detected flag
-	if course.game_state_manager:
-		course.game_state_manager.set_shop_entrance_detected(false)
-	
-	# Restore game state
-	if course.has_method("restore_game_state"):
-		course.restore_game_state()
+	# Shop is now overlay system - no state restoration needed
+	# Just continue gameplay
 
 func _on_suitcase_opened() -> void:
 	"""Handle suitcase opened"""
@@ -860,4 +848,181 @@ func cleanup() -> void:
 	
 	if puzzle_type_dialog and is_instance_valid(puzzle_type_dialog):
 		puzzle_type_dialog.queue_free()
-		puzzle_type_dialog = null 
+		puzzle_type_dialog = null
+
+# ===== PLAYER INPUT HANDLING =====
+
+func handle_player_input(event: InputEvent, game_state_manager: Node, course: Node) -> void:
+	"""Handle player input events"""
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		if game_state_manager.get_game_phase() == "move":
+			course.enter_aiming_phase()  # Start aiming phase instead of just drawing cards
+		elif game_state_manager.get_game_phase() == "launch":
+			if course.deck_manager.hand.size() == 0:
+				course.draw_cards_for_next_shot()  # Draw cards for shot
+			else:
+				pass # Already have cards in launch phase - ready to take shot
+		else:
+			pass # Player clicked but not in move or launch phase
+
+func update_deck_display() -> void:
+	"""Update the deck display to show current deck state"""
+	var hud := course.get_node("UILayer/HUD")
+	hud.get_node("TurnLabel").text = "Turn: %d (Global: %d)" % [course.game_state_manager.get_turn_count(), Global.global_turn_count]
+	
+	# Show separate counts for club and action cards using the new ordered deck system
+	var club_draw_count = deck_manager.club_draw_pile.size()
+	var club_discard_count = deck_manager.club_discard_pile.size()
+	
+	# Use the new ordered deck system for action cards
+	var action_draw_remaining = deck_manager.get_action_deck_remaining_cards().size()
+	var action_discard_count = deck_manager.get_action_discard_pile().size()
+	
+	hud.get_node("DrawLabel").text = "Club Draw: %d | Action Draw: %d" % [club_draw_count, action_draw_remaining]
+	hud.get_node("DiscardLabel").text = "Club Discard: %d | Action Discard: %d" % [club_discard_count, action_discard_count]
+	hud.get_node("ShotLabel").text = "Shots: %d" % course.game_state_manager.get_hole_score()
+	
+	# Show next spawn increase milestone
+	var next_milestone = ((Global.global_turn_count - 1) / 5 + 1) * 5
+	var turns_until_milestone = next_milestone - Global.global_turn_count
+	if turns_until_milestone > 0:
+		hud.get_node("ShotLabel").text += " | Next spawn increase: %d turns" % turns_until_milestone
+	
+	# Show current reward tier
+	hud.get_node("ShotLabel").text += " | Reward Tier: %d" % Global.get_current_reward_tier()
+	
+	# Show $Looty balance
+	var looty_label = hud.get_node_or_null("LootyLabel")
+	if not looty_label:
+		looty_label = Label.new()
+		looty_label.name = "LootyLabel"
+		hud.add_child(looty_label)
+	looty_label.text = "$Looty: %d" % Global.get_looty()
+	looty_label.add_theme_color_override("font_color", Color.GOLD)
+	
+	# Update card stack display with total counts (for backward compatibility)
+	var total_draw_cards = action_draw_remaining + club_draw_count
+	var total_discard_cards = action_discard_count + club_discard_count
+	course.card_stack_display.update_draw_stack(total_draw_cards)
+	course.card_stack_display.update_discard_stack(total_discard_cards)
+
+func display_selected_character() -> void:
+	"""Display the selected character information"""
+	var character_name = ""
+	if course.character_label:
+		match Global.selected_character:
+			1: character_name = "Layla"
+			2: character_name = "Benny"
+			3: character_name = "Clark"
+			_: character_name = "Unknown"
+		course.character_label.text = character_name
+	if course.character_image:
+		match Global.selected_character:
+			1: 
+				course.character_image.texture = load("res://character1.png")
+				course.character_image.scale = Vector2(0.42, 0.42)
+				course.character_image.position.y = 320.82
+			2: 
+				course.character_image.texture = load("res://character2.png")
+			3: 
+				course.character_image.texture = load("res://character3.png")
+	
+	if course.bag and course.bag.has_method("set_character"):
+		course.bag.set_character(character_name)
+
+# ===== GIMME SEQUENCE MANAGEMENT =====
+
+func trigger_gimme_sequence() -> void:
+	"""Trigger the gimme sequence with animations and sounds"""
+	# Early return if game_state_manager is not initialized yet
+	if not course.game_state_manager:
+		return
+		
+	print("=== TRIGGERING GIMME SEQUENCE ===")
+	
+	# Set gimme as active
+	course.game_state_manager.activate_gimme(course.launch_manager.golf_ball)
+	
+	# Get the gimme scene
+	if not gimme_scene:
+		print("ERROR: Could not find Gimme scene")
+		return
+	
+	# Make sure the gimme scene is visible
+	gimme_scene.visible = true
+	print("Gimme scene made visible")
+	
+	# Play the gimme sounds
+	course.sound_manager.play_gimme_sounds()
+	
+	# Complete the hole with an extra stroke
+	complete_hole_with_gimme()
+
+func complete_hole_with_gimme() -> void:
+	"""Complete the hole with gimme (add extra stroke and show completion)"""
+	# Early return if game_state_manager is not initialized yet
+	if not course.game_state_manager:
+		return
+		
+	print("=== COMPLETING GIMME HOLE ===")
+	
+	# Add extra stroke for the gimme putt
+	course.game_state_manager.increment_hole_score()
+	print("Added gimme stroke - final hole score:", course.game_state_manager.get_hole_score())
+	
+	# Clear the ball
+	if course.launch_manager.golf_ball and is_instance_valid(course.launch_manager.golf_ball):
+		course.launch_manager.golf_ball.queue_free()
+		course.launch_manager.golf_ball = null
+	
+	# Hide the gimme button
+	hide_gimme_button()
+	
+	# Reset gimme state
+	course.game_state_manager.deactivate_gimme()
+	
+	# Show hole completion dialog
+	show_hole_completion_dialog()
+
+func clear_gimme_state() -> void:
+	"""Clear the gimme state when appropriate (new ball launched, hole completed, etc.)"""
+	# Early return if game_state_manager is not initialized yet
+	if not course.game_state_manager:
+		return
+		
+	print("=== CLEARING GIMME STATE ===")
+	course.game_state_manager.deactivate_gimme()
+	hide_gimme_button()
+	print("Gimme state cleared")
+
+func complete_gimme_hole() -> void:
+	"""Complete the hole with gimme (add extra stroke and show completion)"""
+	# Early return if game_state_manager is not initialized yet
+	if not course.game_state_manager:
+		return
+		
+	print("=== COMPLETING GIMME HOLE ===")
+	
+	# Add extra stroke for the gimme putt
+	course.game_state_manager.increment_hole_score()
+	print("Added gimme stroke - final hole score:", course.game_state_manager.get_hole_score())
+	
+	# Clear the ball
+	if course.launch_manager.golf_ball and is_instance_valid(course.launch_manager.golf_ball):
+		course.launch_manager.golf_ball.queue_free()
+		course.launch_manager.golf_ball = null
+	
+	# Animate gimme scene back out of the way
+	if gimme_scene:
+		var tween = course.create_tween()
+		var hide_pos = gimme_scene.position + Vector2(0, 200)  # Move down to hide
+		tween.tween_property(gimme_scene, "position", hide_pos, 0.5)
+		tween.tween_callback(func():
+			gimme_scene.visible = false
+		)
+	
+	# Reset gimme state
+	course.game_state_manager.deactivate_gimme()
+	
+	# Show hole completion dialog
+	show_hole_completion_dialog() 

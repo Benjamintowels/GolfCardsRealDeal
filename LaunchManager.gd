@@ -47,6 +47,7 @@ var ui_layer: Node
 var player_node: Node2D
 var cell_size: int
 var chosen_landing_spot: Vector2
+var course_reference: Node = null
 var selected_club: String:
 	set(value):
 		if selected_club != value:
@@ -1617,4 +1618,140 @@ func cleanup():
 		golf_ball = null
 	
 	hide_power_meter()
-	hide_height_meter() 
+	hide_height_meter()
+
+# ===== BALL MANAGEMENT =====
+
+func remove_all_balls() -> void:
+	"""Remove all balls from the scene"""
+	var balls = get_tree().get_nodes_in_group("balls")
+	for ball in balls:
+		if is_instance_valid(ball):
+			ball.queue_free()
+	print("Removed", balls.size(), "balls from scene")
+
+func create_or_update_ball_at_player_center(player_center: Vector2, course: Node) -> void:
+	"""Create a ball at the player center or update existing ball position"""
+	# Check if a ball already exists
+	var existing_balls = get_tree().get_nodes_in_group("balls")
+	var existing_ball = null
+	
+	for ball in existing_balls:
+		if is_instance_valid(ball):
+			existing_ball = ball
+			break
+	
+	if existing_ball:
+		# Ball already exists - don't recreate it, just update its properties
+		return
+
+	# No ball exists - create a new one at player center
+	var ball_scene = preload("res://GolfBall.tscn")
+	var ball = ball_scene.instantiate()
+	ball.name = "GolfBall"
+	ball.add_to_group("balls")
+	
+	# Position the ball relative to the camera container
+	var ball_local_position = player_center - course.grid_manager.get_camera_container().global_position
+	ball.position = ball_local_position
+	ball.cell_size = course.cell_size
+	ball.map_manager = course.map_manager
+	
+	# Connect ball signals using the existing function names
+	ball.landed.connect(course._on_golf_ball_landed)
+	ball.out_of_bounds.connect(course._on_golf_ball_out_of_bounds)
+	ball.sand_landing.connect(course._on_golf_ball_sand_landing)
+	
+	# Add ball to camera container so it moves with the world
+	course.grid_manager.get_camera_container().add_child(ball)
+
+func force_create_ball_at_position(world_position: Vector2, course: Node) -> void:
+	"""Force create a new ball at the specified world position (ignores existing balls)"""
+	# Create a new ball at the specified position
+	var ball_scene = preload("res://GolfBall.tscn")
+	var ball = ball_scene.instantiate()
+	ball.name = "GolfBall"
+	ball.add_to_group("balls")
+	
+	# Position the ball relative to the camera container
+	var ball_local_position = world_position - course.grid_manager.get_camera_container().global_position
+	ball.position = ball_local_position
+	ball.cell_size = course.cell_size
+	ball.map_manager = course.map_manager
+	
+	# Connect ball signals using the existing function names
+	ball.landed.connect(course._on_golf_ball_landed)
+	ball.out_of_bounds.connect(course._on_golf_ball_out_of_bounds)
+	ball.sand_landing.connect(course._on_golf_ball_sand_landing)
+	
+	# Add ball to camera container so it moves with the world
+	course.grid_manager.get_camera_container().add_child(ball)
+	
+	# Set the launch manager's golf ball reference
+	golf_ball = ball
+	
+	print("Force created new ball at position:", world_position)
+
+func enter_launch_phase_from_course() -> void:
+	"""Enter the launch phase for taking a shot (called from course)"""
+	course_reference.remove_ghost_ball()
+	# Call the internal launch phase entry
+	enter_launch_phase()
+	
+	# Update smart optimizer state
+	if course_reference.smart_optimizer:
+		course_reference.smart_optimizer.update_game_state("launch", true, false, true)
+
+func start_next_shot_from_ball() -> void:
+	"""Start the next shot from the ball position"""
+	if golf_ball and is_instance_valid(golf_ball):
+		golf_ball.queue_free()
+		golf_ball = null
+	
+	# Don't clear waiting_for_player_to_reach_ball here - it should persist until the player actually takes a shot
+	# waiting_for_player_to_reach_ball = false
+	course_reference.player_manager.update_player_position_with_ball_creation(course_reference)
+	course_reference.enter_draw_cards_phase()
+
+func create_ghost_ball() -> void:
+	"""Create a ghost ball for aiming"""
+	if course_reference.ghost_ball and is_instance_valid(course_reference.ghost_ball):
+		course_reference.ghost_ball.queue_free()
+	
+	course_reference.ghost_ball = preload("res://GhostBall.tscn").instantiate()
+	
+	var ghost_ball_area = course_reference.ghost_ball.get_node_or_null("Area2D")
+	if ghost_ball_area:
+		ghost_ball_area.collision_layer = 1
+		ghost_ball_area.collision_mask = 0  # Don't collide with anything (including player)
+	
+	# Position ghost ball at tile center (same as real ball)
+	var tile_center: Vector2 = Vector2(course_reference.player_manager.get_player_grid_pos().x * course_reference.cell_size + course_reference.cell_size/2, course_reference.player_manager.get_player_grid_pos().y * course_reference.cell_size + course_reference.cell_size/2) + course_reference.grid_manager.get_camera_container().global_position
+	var ball_local_position = tile_center - course_reference.grid_manager.get_camera_container().global_position
+	course_reference.ghost_ball.position = ball_local_position
+	course_reference.ghost_ball.cell_size = course_reference.cell_size
+	course_reference.ghost_ball.map_manager = course_reference.map_manager
+	if course_reference.game_state_manager.get_selected_club() in course_reference.club_data:
+		course_reference.ghost_ball.set_club_info(course_reference.club_data[course_reference.game_state_manager.get_selected_club()])
+	course_reference.ghost_ball.set_putting_mode(course_reference.club_data.get(course_reference.game_state_manager.get_selected_club(), {}).get("is_putter", false))
+	course_reference.grid_manager.get_camera_container().add_child(course_reference.ghost_ball)
+	course_reference.ghost_ball.add_to_group("balls")  # Add to group for collision detection
+	course_reference.ghost_ball_active = true
+	# Global Y-sort will be handled by the ball's update_y_sort() method
+	if course_reference.game_state_manager.get_chosen_landing_spot() != Vector2.ZERO:
+		course_reference.ghost_ball.set_landing_spot(course_reference.game_state_manager.get_chosen_landing_spot())
+
+func update_ghost_ball() -> void:
+	"""Update the ghost ball's landing spot"""
+	if not course_reference.ghost_ball or not is_instance_valid(course_reference.ghost_ball):
+		return
+	
+	# Only update the landing spot, don't reposition the ball
+	course_reference.ghost_ball.set_landing_spot(course_reference.game_state_manager.get_chosen_landing_spot())
+
+func remove_ghost_ball() -> void:
+	"""Remove the ghost ball from the scene"""
+	if course_reference.ghost_ball and is_instance_valid(course_reference.ghost_ball):
+		course_reference.ghost_ball.queue_free()
+		course_reference.ghost_ball = null
+	course_reference.ghost_ball_active = false 

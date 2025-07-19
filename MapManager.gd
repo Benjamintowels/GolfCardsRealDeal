@@ -72,3 +72,67 @@ func get_ice_tiles() -> Array[Vector2i]:
 func world_to_map(world_pos: Vector2) -> Vector2i:
 	var cell_size = 48  # Adjust if your grid uses a different size
 	return Vector2i(int(floor(world_pos.x / cell_size)), int(floor(world_pos.y / cell_size)))
+
+# ===== ENVIRONMENT TILE MANAGEMENT =====
+
+func advance_fire_tiles() -> void:
+	"""Advance all fire tiles to the next turn"""
+	var fire_tiles = get_tree().get_nodes_in_group("fire_tiles")
+	for fire_tile in fire_tiles:
+		if is_instance_valid(fire_tile) and fire_tile.has_method("advance_turn"):
+			fire_tile.advance_turn()
+	print("Advanced fire tiles to next turn")
+
+func advance_ice_tiles() -> void:
+	"""Advance all ice tiles to the next turn"""
+	var ice_tiles = get_tree().get_nodes_in_group("ice_tiles")
+	for ice_tile in ice_tiles:
+		if is_instance_valid(ice_tile) and ice_tile.has_method("advance_turn"):
+			ice_tile.advance_turn()
+	print("Advanced ice tiles to next turn")
+
+func highlight_tee_tiles() -> void:
+	"""Highlight all tee tiles on the map"""
+	var course = get_parent()
+	if not course or not course.has_node("GridManager"):
+		print("ERROR: Could not find GridManager for tee highlighting")
+		return
+	
+	var grid_manager = course.get_node("GridManager")
+	
+	# Clear all highlights first
+	for y in grid_manager.get_grid_size().y:
+		for x in grid_manager.get_grid_size().x:
+			grid_manager.get_grid_tiles()[y][x].get_node("Highlight").visible = false
+	
+	# Highlight tee tiles
+	for y in grid_manager.get_grid_size().y:
+		for x in grid_manager.get_grid_size().x:
+			if get_tile_type(x, y) == "Tee":
+				grid_manager.get_grid_tiles()[y][x].get_node("Highlight").visible = true
+				# Change highlight color to blue for tee tiles
+				var highlight = grid_manager.get_grid_tiles()[y][x].get_node("Highlight")
+				highlight.color = Color(0, 0.5, 1, 0.6)  # Blue with transparency
+
+func exit_movement_mode() -> void:
+	"""Exit movement mode and clean up related systems"""
+	var course = get_parent()
+	if not course:
+		print("ERROR: Could not find course for movement mode exit")
+		return
+	
+	# Exit movement controller
+	if course.movement_controller:
+		course.movement_controller.exit_movement_mode()
+	
+	# Exit attack handler if in attack mode
+	if course.attack_handler and course.attack_handler.is_in_attack_mode():
+		course.attack_handler.exit_attack_mode()
+	
+	# Exit weapon handler if in weapon mode
+	if course.weapon_handler and course.weapon_handler.is_in_weapon_mode():
+		course.weapon_handler.exit_weapon_mode()
+	
+	# Update deck display
+	if course.ui_manager:
+		course.ui_manager.update_deck_display()

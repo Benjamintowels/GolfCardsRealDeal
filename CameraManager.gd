@@ -230,4 +230,15 @@ func cleanup() -> void:
 	
 	if pin_to_tee_tween and pin_to_tee_tween.is_valid():
 		pin_to_tee_tween.kill()
-		pin_to_tee_tween = null 
+		pin_to_tee_tween = null
+
+# ===== ZOOM MANAGEMENT =====
+
+func restore_zoom_after_aiming(course: Node) -> void:
+	"""Restore camera zoom to the level it was at before entering aiming phase"""
+	if camera and camera.has_method("set_zoom_level") and course.has_meta("pre_aiming_zoom"):
+		var pre_aiming_zoom = course.get_meta("pre_aiming_zoom")
+		print("Restoring zoom after aiming from", camera.get_current_zoom(), "to", pre_aiming_zoom)
+		camera.set_zoom_level(pre_aiming_zoom)
+		# Remove the stored zoom level
+		course.remove_meta("pre_aiming_zoom") 

@@ -354,8 +354,13 @@ func handle_player_death() -> void:
 	print("=== PLAYER DEATH SEQUENCE ===")
 	player_died.emit()
 	
-	# Transition to death scene
-	get_tree().change_scene_to_file("res://DeathScene.tscn")
+	# Call GameStateManager's death handling
+	var course = get_parent()
+	if course and course.game_state_manager:
+		course.game_state_manager.handle_player_death()
+	else:
+		# Fallback: direct scene transition
+		get_tree().change_scene_to_file("res://DeathScene.tscn")
 
 func _on_player_input(event: InputEvent) -> void:
 	"""Handle player input events"""
@@ -535,7 +540,7 @@ func activate_dodge_mode() -> void:
 	print("=== DODGE MODE ACTIVATED ===")
 
 func deactivate_dodge_mode() -> void:
-	"""Deactivate dodge mode"""
+	"""Deactivate dodge mode - restore player normal appearance"""
 	print("=== DEACTIVATING DODGE MODE ===")
 	
 	if not dodge_mode_active:
@@ -545,6 +550,14 @@ func deactivate_dodge_mode() -> void:
 	dodge_mode_active = false
 	print("Dodge mode deactivated")
 	
+	# Clear the hue effect from the character sprite
+	if player_node:
+		var character_sprite = player_node.get_character_sprite()
+		if character_sprite:
+			# Restore original modulate (white, no tint)
+			character_sprite.modulate = Color.WHITE
+			print("✓ Hue effect cleared from character sprite")
+	
 	print("=== DODGE MODE DEACTIVATED ===")
 
 func is_dodge_mode_active() -> bool:
@@ -552,9 +565,83 @@ func is_dodge_mode_active() -> bool:
 	return dodge_mode_active
 
 func trigger_dodge_animation() -> void:
-	"""Trigger dodge animation effect"""
-	print("Triggering dodge animation")
-	# Add dodge animation logic here if needed
+	"""Trigger the dodge animation when damage is avoided"""
+	print("=== TRIGGERING DODGE ANIMATION ===")
+	
+	# Play dodge sound
+	play_dodge_sound()
+	
+	# Animate dodge movement with hue effect
+	animate_dodge_with_hue_effect()
+	
+	# Wait for animation to complete, then restore sprite but keep hue effect
+	await get_tree().create_timer(0.8).timeout  # Wait for animation to complete
+	restore_sprite_after_dodge()
+
+func animate_dodge_with_hue_effect() -> void:
+	"""Animate the dodge with movement and hue effect"""
+	print("=== ANIMATING DODGE WITH HUE EFFECT ===")
+	
+	if not player_node:
+		print("✗ No player node found")
+		return
+	
+	# Get the character sprite
+	var character_sprite = player_node.get_character_sprite()
+	if not character_sprite:
+		print("✗ No character sprite found")
+		return
+	
+	# Store original position and modulate
+	var original_position = player_node.global_position
+	var original_modulate = character_sprite.modulate
+	
+	# Calculate dodge direction (slightly to the side)
+	var dodge_offset = Vector2(20, 0)  # Move 20 pixels to the right
+	
+	# Create tween for dodge movement and hue effect
+	var dodge_tween = create_tween()
+	dodge_tween.set_parallel(true)
+	
+	# Move to dodge position
+	dodge_tween.tween_property(player_node, "global_position", original_position + dodge_offset, 0.3)
+	dodge_tween.set_trans(Tween.TRANS_SINE)
+	dodge_tween.set_ease(Tween.EASE_OUT)
+	
+	# Apply light yellow hue effect
+	var yellow_hue = Color(1.0, 1.0, 0.8, 1.0)  # Light yellow
+	dodge_tween.tween_property(character_sprite, "modulate", yellow_hue, 0.3)
+	
+	# Wait a moment, then move back
+	await get_tree().create_timer(0.3).timeout
+	
+	var return_tween = create_tween()
+	return_tween.tween_property(player_node, "global_position", original_position, 0.3)
+	return_tween.set_trans(Tween.TRANS_SINE)
+	return_tween.set_ease(Tween.EASE_IN)
+	
+	# Keep the hue effect active (don't restore original modulate)
+	# The hue effect will be cleared when dodge mode is deactivated
+	
+	print("✓ Dodge movement and hue effect animation completed")
+
+func restore_sprite_after_dodge() -> void:
+	"""Restore sprite after dodge animation but keep hue effect"""
+	print("=== RESTORING SPRITE AFTER DODGE ===")
+	
+	# Don't deactivate dodge mode yet - keep the hue effect active
+	# The hue effect will be cleared when dodge mode is deactivated
+	print("✓ Sprite restored, hue effect maintained until next damage or turn end")
+
+func play_dodge_sound() -> void:
+	"""Play the dodge sound effect"""
+	if player_node:
+		var dodge_sound = player_node.get_node_or_null("Dodge")
+		if dodge_sound and dodge_sound is AudioStreamPlayer2D:
+			dodge_sound.play()
+			print("✓ Playing dodge sound")
+		else:
+			print("✗ Dodge sound not found in player node")
 
 # Getter methods
 func get_player_node() -> Node2D:
@@ -580,4 +667,204 @@ func set_player_stats(stats: Dictionary) -> void:
 
 func get_character_name() -> String:
 	"""Get the current character's name"""
-	return player_stats.get("name", "Unknown") 
+	return player_stats.get("name", "Unknown")
+
+# ===== PLAYER STATE MANAGEMENT =====
+
+func update_player_mouse_facing_state(game_state_manager: Node, launch_manager: Node, camera: Node, weapon_handler: Node) -> void:
+	"""Update the player's mouse facing state based on current game phase and launch state"""
+	if not player_node or not player_node.has_method("set_game_phase"):
+		return
+	
+	# Update game phase
+	player_node.set_game_phase(game_state_manager.get_game_phase())
+	
+	# Update launch state from LaunchManager
+	var is_charging = false
+	var is_charging_height = false
+	var is_selecting_height = false
+	if launch_manager:
+		is_charging = launch_manager.is_charging
+		is_charging_height = launch_manager.is_charging_height
+		is_selecting_height = launch_manager.is_selecting_height
+	
+	player_node.set_launch_state(is_charging, is_charging_height, is_selecting_height)
+	
+	# Update launch mode state
+	var is_in_launch_mode = (game_state_manager.get_game_phase() == "ball_flying")
+	player_node.set_launch_mode(is_in_launch_mode)
+	
+	# Set camera reference if not already set
+	if player_node.has_method("set_camera_reference") and camera:
+		player_node.set_camera_reference(camera)
+	
+	# Update block sprite flip to match normal sprite
+	update_block_sprite_flip()
+	
+	# Update dodge sprite flip to match normal sprite
+	update_dodge_sprite_flip()
+	
+	# Hide weapon when game phase changes to move (unless GrenadeLauncherClubCard is selected)
+	if game_state_manager.get_game_phase() == "move" and game_state_manager.get_selected_club() != "GrenadeLauncherClubCard" and weapon_handler:
+		weapon_handler.hide_weapon()
+
+# ===== PLAYER MOVEMENT HANDLING =====
+
+func handle_player_moved_to_tile(new_grid_pos: Vector2i, game_state_manager: Node, movement_controller: Node, attack_handler: Node, launch_manager: Node, course: Node) -> void:
+	"""Handle when player moves to a new tile"""
+	set_player_grid_pos(new_grid_pos)
+	movement_controller.update_player_position(new_grid_pos)
+	attack_handler.update_player_position(new_grid_pos)
+	
+	# Check for fire damage when player moves to new tile
+	check_player_fire_damage(game_state_manager)
+	
+	# Check for SuitCase interaction
+	if game_state_manager.get_suitcase_grid_position() != Vector2i.ZERO and get_player_grid_pos() == game_state_manager.get_suitcase_grid_position():
+		print("=== SUITCASE REACHED ===")
+		print("Player grid position:", get_player_grid_pos())
+		print("SuitCase grid position:", game_state_manager.get_suitcase_grid_position())
+		course._on_suitcase_reached()
+		return  # Don't exit movement mode yet
+	
+	# Shop interaction is now handled by overlay system - no need for entrance detection
+	
+	update_player_position()
+	
+	# Check if player is on an active ball tile
+	if game_state_manager.get_waiting_for_player_to_reach_ball() and get_player_grid_pos() == game_state_manager.get_ball_landing_tile():
+		# Player is on the ball tile - remove landing highlight
+		if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball) and launch_manager.golf_ball.has_method("remove_landing_highlight"):
+			launch_manager.golf_ball.remove_landing_highlight()
+		
+		# Check if this ball is in gimme range
+		course.check_and_show_gimme_button()
+		
+		# Show the "Draw Club Cards" button instead of automatically entering launch phase
+		course.show_draw_club_cards_button()
+	else:
+		# Check if this is EtherDash movement - don't exit movement mode if more moves are available
+		if get_player_node().is_etherdash_mode and get_player_node().etherdash_moves_remaining > 0:
+			print("EtherDash movement completed - more moves available, staying in movement mode")
+			# Update movement highlights for next move
+			movement_controller.valid_movement_tiles = get_player_node().valid_movement_tiles.duplicate()
+			movement_controller.show_movement_highlights()
+		else:
+			# Normal movement - exit movement mode
+			course.exit_movement_mode()
+
+# ===== FIRE DAMAGE HANDLING =====
+
+func check_player_fire_damage(game_state_manager: Node) -> void:
+	"""Check if player should take fire damage from active fire tiles"""
+	if not get_player_node() or not get_player_node().has_method("take_damage"):
+		return
+	
+	var fire_tiles = get_tree().get_nodes_in_group("fire_tiles")
+	var player_took_damage = false
+	
+	for fire_tile in fire_tiles:
+		if not is_instance_valid(fire_tile) or not fire_tile.has_method("is_fire_active"):
+			continue
+		
+		# Skip if fire tile is not active (scorched)
+		if not fire_tile.is_fire_active():
+			continue
+		
+		var fire_tile_pos = fire_tile.get_tile_position()
+		
+		# Check if this fire tile has already damaged the player this turn
+		if fire_tile_pos in game_state_manager.fire_tiles_that_damaged_player:
+			continue
+		
+		# Check if player is on the fire tile or adjacent to it
+		if is_player_affected_by_fire_tile(fire_tile_pos):
+			# Determine damage amount
+			var damage = 30 if get_player_grid_pos() == fire_tile_pos else 15
+			
+			# Apply damage to player
+			get_player_node().take_damage(damage)
+			print("Player took", damage, "fire damage from fire tile at", fire_tile_pos)
+			
+			# Play FlameOn sound effect
+			var sound_manager = get_node_or_null("../SoundManager")
+			if sound_manager and sound_manager.has_method("play_flame_on_sound"):
+				sound_manager.play_flame_on_sound(get_player_node().global_position if get_player_node() else Vector2.ZERO)
+			
+			# Mark this fire tile as having damaged the player this turn
+			game_state_manager.fire_tiles_that_damaged_player.append(fire_tile_pos)
+			player_took_damage = true
+
+	if player_took_damage:
+		print("Player fire damage check complete - damage applied")
+
+func is_player_affected_by_fire_tile(fire_tile_pos: Vector2i) -> bool:
+	"""Check if player is on the fire tile or adjacent to it"""
+	# Direct hit - player is on the fire tile
+	if get_player_grid_pos() == fire_tile_pos:
+		return true
+	
+	# Adjacent tiles (8-directional)
+	var adjacent_positions = [
+		Vector2i(0, -1),  # Up
+		Vector2i(1, 0),   # Right
+		Vector2i(0, 1),   # Down
+		Vector2i(-1, 0),  # Left
+		Vector2i(1, -1),  # Up-right
+		Vector2i(1, 1),   # Down-right
+		Vector2i(-1, 1),  # Down-left
+		Vector2i(-1, -1)  # Up-left
+	]
+	
+	for direction in adjacent_positions:
+		if get_player_grid_pos() == fire_tile_pos + direction:
+			return true
+	
+	return false
+
+func reset_fire_damage_tracking(game_state_manager: Node) -> void:
+	"""Reset the fire damage tracking at the start of each turn"""
+	game_state_manager.fire_tiles_that_damaged_player.clear()
+
+# ===== PLAYER POSITIONING =====
+
+func update_player_position_with_ball_creation(course: Node) -> void:
+	"""Update player position and handle related logic including ball creation"""
+	if not get_player_node():
+		return
+	var sprite = get_player_node().get_node_or_null("Sprite2D")
+	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(course.cell_size, course.cell_size)
+
+	get_player_node().set_grid_position(get_player_grid_pos(), course.ysort_objects)
+	
+	var player_center: Vector2 = get_player_node().global_position + player_size / 2
+	course.camera_manager.update_camera_snap_back_position(player_center)
+	
+	# Only create ball if player is properly placed (not during initial setup)
+	if not course.game_state_manager.is_placing_player:
+		# Create or update ball at tile center for all shots
+		var tile_center: Vector2 = Vector2(get_player_grid_pos().x * course.cell_size + course.cell_size/2, get_player_grid_pos().y * course.cell_size + course.cell_size/2) + course.grid_manager.get_camera_container().global_position
+		course.create_or_update_ball_at_player_center(tile_center)
+	
+	if not course.game_state_manager.is_placing_player:
+		# Check if there's an ongoing pin-to-tee transition
+		var ongoing_tween = course.get_meta("pin_to_tee_tween", null)
+		if ongoing_tween and ongoing_tween.is_valid():
+			ongoing_tween.kill()
+			course.remove_meta("pin_to_tee_tween")
+		
+		# Use the camera manager for tweening
+		course.camera_manager.create_camera_tween(player_center, 0.5)
+
+func reset_player_to_tee(map_manager: Node, course: Node) -> void:
+	"""Reset player to tee position"""
+	for y in map_manager.level_layout.size():
+		for x in map_manager.level_layout[y].size():
+			if map_manager.get_tile_type(x, y) == "Tee":
+				set_player_grid_pos(Vector2i(x, y))
+				update_player_position_with_ball_creation(course)
+				return
+	set_player_grid_pos(Vector2i(25, 25))
+	update_player_position_with_ball_creation(course)
+
+ 

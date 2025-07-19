@@ -304,7 +304,13 @@ func get_action_deck_available_cards() -> Array[CardData]:
 
 func get_action_discard_pile() -> Array[CardData]:
 	"""Get the action discard pile"""
-	return action_discard_pile.duplicate()
+	return action_discard_pile
+
+func add_card_to_current_deck(card_data: CardData) -> void:
+	"""Add a card to the CurrentDeckManager"""
+	var current_deck_manager = get_node_or_null("../CurrentDeckManager")
+	if current_deck_manager:
+		current_deck_manager.add_card_to_deck(card_data)
 
 func validate_deck_state() -> void:
 	"""Validate that the deck state is consistent"""
@@ -387,3 +393,43 @@ func reshuffle_discard_into_draw() -> void:
 	discard_pile.clear()
 	emit_signal("deck_updated")
 	emit_signal("discard_recycled", count)
+
+# ===== SHOT MANAGEMENT =====
+
+func draw_cards_for_shot(card_count: int, player_manager: Node, game_state_manager: Node) -> void:
+	"""Draw cards for a shot with player state management"""
+	print("=== DRAWING CARDS FOR SHOT ===")
+	print("Requested card count:", card_count)
+	
+	# Clear block when starting a new player turn (after world turn ends or is skipped)
+	player_manager.clear_block()
+	
+	# Deactivate ghost mode when starting a new player turn
+	if player_manager.is_ghost_mode_active():
+		player_manager.deactivate_ghost_mode()
+	
+	# Deactivate vampire mode when starting a new player turn
+	# Note: vampire_mode_active is a course-level variable, so we can't access it here
+	# This will need to be handled by the calling code
+	
+	# Deactivate dodge mode when starting a new player turn
+	player_manager.deactivate_dodge_mode()
+	
+	# Reset ReachBallButton flag for new turn
+	game_state_manager.set_used_reach_ball_button(false)
+	print("ReachBallButton flag reset for new turn")
+	
+	# Set waiting_for_player_to_reach_ball back to true for new turn if there's a ball to reach
+	if game_state_manager.get_ball_landing_tile() != Vector2i.ZERO:
+		game_state_manager.set_waiting_for_player_to_reach_ball(true)
+		print("waiting_for_player_to_reach_ball set to true for new turn")
+	
+	var card_draw_modifier = player_manager.get_player_stats().get("card_draw", 0)
+	var final_card_count = card_count + card_draw_modifier
+	final_card_count = max(1, final_card_count)
+	print("Final card count (with modifier):", final_card_count)
+	print("Player stats card_draw modifier:", card_draw_modifier)
+	print("Calling draw_action_cards_to_hand with count:", final_card_count)
+	
+	draw_action_cards_to_hand(final_card_count)
+	print("=== END DRAWING CARDS FOR SHOT ===")

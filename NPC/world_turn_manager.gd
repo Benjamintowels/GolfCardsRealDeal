@@ -145,6 +145,129 @@ func unregister_npc(npc: Node) -> void:
 		registered_npcs.erase(npc)
 		print("Unregistered NPC: ", npc.name, " (Total NPCs: ", registered_npcs.size(), ")")
 
+func register_existing_gang_members() -> void:
+	"""Register any existing GangMembers in the scene with the Entities system"""
+	var entities = get_node_or_null("Entities")
+	if not entities:
+		return
+	
+	# Search for GangMember nodes in the scene
+	var gang_members = []
+	_find_gang_members_recursive(course_reference, gang_members)
+	
+	# Register each GangMember
+	for gang_member in gang_members:
+		if is_instance_valid(gang_member):
+			entities.register_npc(gang_member)
+
+func _find_gang_members_recursive(node: Node, gang_members: Array) -> void:
+	"""Recursively search for GangMember nodes in the scene tree"""
+	for child in node.get_children():
+		if child.get_script() and child.get_script().resource_path.ends_with("GangMember.gd"):
+			gang_members.append(child)
+		_find_gang_members_recursive(child, gang_members)
+
+func register_existing_squirrels() -> void:
+	"""Register any existing Squirrels in the scene with the Entities system"""
+	var entities = get_node_or_null("Entities")
+	if not entities:
+		return
+	
+	# Search for Squirrel nodes in the scene
+	var squirrels = []
+	_find_squirrels_recursive(course_reference, squirrels)
+	
+	# Register each Squirrel
+	for squirrel in squirrels:
+		if is_instance_valid(squirrel):
+			entities.register_npc(squirrel)
+
+func _find_squirrels_recursive(node: Node, squirrels: Array) -> void:
+	"""Recursively search for Squirrel nodes in the scene tree"""
+	for child in node.get_children():
+		if child.get_script() and child.get_script().resource_path.ends_with("Squirrel.gd"):
+			squirrels.append(child)
+		_find_squirrels_recursive(child, squirrels)
+
+func get_visible_npcs_by_priority(player_manager: Node, game_state_manager: Node, ghost_mode_active: bool) -> Array[Node]:
+	"""Get all NPCs visible to the player, sorted by priority (fastest first)"""
+	var entities = get_node_or_null("Entities")
+	if not entities:
+		return []
+	
+	var npcs = entities.get_npcs()
+	
+	var visible_npcs: Array[Node] = []
+	
+	for npc in npcs:
+		if is_instance_valid(npc) and npc.has_method("get_grid_position"):
+			
+			# Check if NPC is alive
+			var is_alive = true
+			if npc.has_method("get_is_dead"):
+				is_alive = not npc.get_is_dead()
+			elif npc.has_method("is_dead"):
+				is_alive = not npc.is_dead()
+			elif "is_dead" in npc:
+				is_alive = not npc.is_dead
+			
+			if not is_alive:
+				continue
+			
+			# Check if NPC is frozen and won't thaw this turn
+			var is_frozen = false
+			if npc.has_method("is_frozen_state"):
+				is_frozen = npc.is_frozen_state()
+			elif "is_frozen" in npc:
+				is_frozen = npc.is_frozen
+			
+			var will_thaw_this_turn = false
+			if is_frozen and npc.has_method("get_freeze_turns_remaining"):
+				var turns_remaining = npc.get_freeze_turns_remaining()
+				will_thaw_this_turn = turns_remaining <= 1
+			elif is_frozen and "freeze_turns_remaining" in npc:
+				var turns_remaining = npc.freeze_turns_remaining
+				will_thaw_this_turn = turns_remaining <= 1
+			
+			# Skip NPCs that are frozen and won't thaw this turn
+			if is_frozen and not will_thaw_this_turn:
+				continue
+			
+			var npc_pos = npc.get_grid_position()
+			var distance = player_manager.get_player_grid_pos().distance_to(npc_pos)
+			
+			# Check if this is a squirrel that can detect balls
+			var script_path = npc.get_script().resource_path if npc.get_script() else ""
+			var is_squirrel = "Squirrel.gd" in script_path
+			
+			# If ghost mode is active, NPCs should ignore the player (except squirrels that detect balls)
+			if ghost_mode_active and not is_squirrel:
+				continue
+			
+			if is_squirrel:
+				# Special case for squirrels: include them if they can detect a ball, regardless of player vision
+				if npc.has_method("has_detected_golf_ball"):
+					var has_ball = npc.has_detected_golf_ball()
+					if has_ball:
+						visible_npcs.append(npc)
+				else:
+					# Fallback: check if nearest_golf_ball is valid
+					if "nearest_golf_ball" in npc:
+						var has_ball = npc.nearest_golf_ball != null and is_instance_valid(npc.nearest_golf_ball)
+						if has_ball:
+							visible_npcs.append(npc)
+			else:
+				# For non-squirrel NPCs: only include if within player's vision range (20 tiles)
+				if distance <= 20:
+					visible_npcs.append(npc)
+		else:
+			continue
+	
+	# Sort NPCs by priority (highest priority first = fastest first)
+	visible_npcs.sort_custom(func(a, b): return game_state_manager.get_npc_priority(a) > game_state_manager.get_npc_priority(b))
+	
+	return visible_npcs
+
 func _on_player_turn_ended() -> void:
 
 	start_world_turn()
