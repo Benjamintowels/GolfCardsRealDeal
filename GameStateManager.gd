@@ -13,6 +13,9 @@ var round_scores := []  # Array to store scores for each hole
 var round_complete := false  # Flag to track if front 9 is complete
 var turn_count: int = 1
 
+# Shots per turn system
+var available_shots: int = 1  # Number of shots available in current player turn
+
 # Game mode constants
 const NUM_HOLES := 9  # Number of holes per round (9 for front 9, 9 for back 9)
 var is_back_9_mode := false  # Flag to track if we're playing back 9
@@ -211,6 +214,34 @@ func get_turn_count() -> int:
 func reset_turn_count() -> void:
 	"""Reset the turn count"""
 	turn_count = 1
+
+# ===== SHOTS PER TURN SYSTEM =====
+
+func set_available_shots(shots: int) -> void:
+	"""Set the number of available shots for the current player turn"""
+	available_shots = shots
+	print("Available shots set to:", available_shots)
+
+func get_available_shots() -> int:
+	"""Get the number of available shots for the current player turn"""
+	return available_shots
+
+func has_available_shots() -> bool:
+	"""Check if the player has any shots available"""
+	return available_shots > 0
+
+func use_shot() -> void:
+	"""Use one shot (decrement available shots)"""
+	if available_shots > 0:
+		available_shots -= 1
+		print("Shot used. Available shots remaining:", available_shots)
+	else:
+		print("WARNING: Attempted to use shot when none available")
+
+func reset_available_shots() -> void:
+	"""Reset available shots to 1 for new player turn"""
+	available_shots = 1
+	print("Available shots reset to 1 for new turn")
 
 # ===== GIMME SYSTEM =====
 
@@ -491,6 +522,9 @@ func reset_for_new_hole() -> void:
 	clear_temporary_club()
 	clear_fire_tile_damage_tracking()
 	
+	# Reset available shots for new hole
+	reset_available_shots()
+	
 	# Apply the selected puzzle type for this hole
 	current_puzzle_type = next_puzzle_type
 	print("🎯 PUZZLE TYPE: Applying puzzle type '", current_puzzle_type, "' to hole", current_hole + 1)
@@ -550,6 +584,9 @@ func start_round_after_tee_selection(course: Node, player_manager: Node, deck_ma
 	if player_manager.get_player_node() and player_manager.get_player_node().has_method("enable_animations"):
 		player_manager.get_player_node().enable_animations()
 		print("Player movement animations enabled after tee placement")
+	
+	# Reset available shots for new player turn
+	reset_available_shots()
 	
 	# Start with club selection phase
 	ui_manager.enter_draw_cards_phase()

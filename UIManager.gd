@@ -787,16 +787,22 @@ func show_draw_cards_button_for_turn_start() -> void:
 		draw_cards_button.visible = true
 
 func show_draw_club_cards_button() -> void:
-	"""Show draw club cards button"""
+	"""Show draw club cards button only if player has available shots"""
 	if draw_club_cards_button:
-		draw_club_cards_button.visible = true
+		# Only show button if player has available shots
+		if course.game_state_manager and course.game_state_manager.has_available_shots():
+			draw_club_cards_button.visible = true
+			print("Draw Club Cards button shown - player has available shots")
+		else:
+			draw_club_cards_button.visible = false
+			print("Draw Club Cards button hidden - no available shots")
 
 func enter_draw_cards_phase() -> void:
 	"""Enter the draw cards phase - start with club selection"""
 	# Set game phase to draw_cards instead of launch to prevent immediate ball launch
 	course.game_state_manager.set_game_phase("draw_cards")
 	
-	# Show the draw club cards button to start the phase
+	# Show the draw club cards button to start the phase (only if player has available shots)
 	show_draw_club_cards_button()
 
 func show_aiming_circle() -> void:

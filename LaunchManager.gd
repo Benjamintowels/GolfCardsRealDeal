@@ -498,6 +498,10 @@ func exit_grenade_mode() -> void:
 func launch_golf_ball(launch_direction: Vector2, final_power: float, height: float, launch_spin: float = 0.0, spin_strength_category: int = 0):
 	"""Launch the golf ball with the specified parameters"""
 	
+	# Use one shot from the game state manager
+	if card_effect_handler and card_effect_handler.course and card_effect_handler.course.game_state_manager:
+		card_effect_handler.course.game_state_manager.use_shot()
+	
 	# Find the existing ball in the scene
 	var existing_ball = null
 	var balls = get_tree().get_nodes_in_group("balls")

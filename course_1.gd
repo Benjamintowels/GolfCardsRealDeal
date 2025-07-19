@@ -1101,8 +1101,8 @@ func _on_reach_ball_pressed() -> void:
 		# Check if this ball is in gimme range
 		check_and_show_gimme_button()
 		
-		# Always show club card drawing after using reach ball button
-		print("Reach ball button used - showing club card drawing")
+		# Show club card drawing after using reach ball button (only if player has available shots)
+		print("Reach ball button used - checking if player has available shots for club card drawing")
 		ui_manager.show_draw_club_cards_button()
 		
 		print("Player teleported to ball successfully")
@@ -1213,6 +1213,11 @@ func _on_tile_input(event: InputEvent, x: int, y: int) -> void:
 # update_aiming_circle function moved to UIManager
 
 func launch_golf_ball(direction: Vector2, charged_power: float, height: float):
+	# Check if player has available shots
+	if not game_state_manager.has_available_shots():
+		print("WARNING: Attempted to launch ball but no shots available!")
+		return
+	
 	# Determine if this is a tee shot (first shot of the hole)
 	print("DEBUG: Launching ball, hole_score =", game_state_manager.get_hole_score())
 	
@@ -1410,6 +1415,9 @@ func _end_turn_logic() -> void:
 		# Show "Extra Turn" message
 		ui_manager.show_turn_message("Extra Turn!", 2.0)
 		
+		# Reset available shots for extra turn
+		game_state_manager.reset_available_shots()
+		
 		# Continue with normal turn flow without World Turn
 		if game_state_manager.get_waiting_for_player_to_reach_ball() and player_manager.get_player_grid_pos() == game_state_manager.get_ball_landing_tile():
 			if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball) and launch_manager.golf_ball.has_method("remove_landing_highlight"):
@@ -1444,6 +1452,9 @@ func _continue_after_world_turn() -> void:
 	"""Continue with player's turn after world turn completion"""
 	print("=== CONTINUING AFTER WORLD TURN ===")
 	
+	# Reset available shots for new player turn
+	game_state_manager.reset_available_shots()
+	
 	# Continue with normal turn flow
 	if game_state_manager.get_waiting_for_player_to_reach_ball() and player_manager.get_player_grid_pos() == game_state_manager.get_ball_landing_tile():
 		if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball) and launch_manager.golf_ball.has_method("remove_landing_highlight"):
@@ -1461,6 +1472,9 @@ func start_npc_turn_sequence() -> void:
 		
 		# Show "Your Turn" message immediately
 		ui_manager.show_turn_message("Your Turn", 2.0)
+		
+		# Reset available shots for new player turn
+		game_state_manager.reset_available_shots()
 		
 		# Continue with normal turn flow
 		if game_state_manager.get_waiting_for_player_to_reach_ball() and player_manager.get_player_grid_pos() == game_state_manager.get_ball_landing_tile():
@@ -1486,6 +1500,9 @@ func start_npc_turn_sequence() -> void:
 		
 		# Re-enable end turn button
 		end_turn_button.get_node("TextureButton").mouse_filter = Control.MOUSE_FILTER_STOP
+		
+		# Reset available shots for new player turn
+		game_state_manager.reset_available_shots()
 		
 		# Continue with normal turn flow
 		if game_state_manager.get_waiting_for_player_to_reach_ball() and player_manager.get_player_grid_pos() == game_state_manager.get_ball_landing_tile():
@@ -1549,6 +1566,9 @@ func start_npc_turn_sequence() -> void:
 	
 	# Re-enable end turn button
 	end_turn_button.get_node("TextureButton").mouse_filter = Control.MOUSE_FILTER_STOP
+	
+	# Reset available shots for new player turn
+	game_state_manager.reset_available_shots()
 	
 	# Continue with normal turn flow
 	if game_state_manager.get_waiting_for_player_to_reach_ball() and player_manager.get_player_grid_pos() == game_state_manager.get_ball_landing_tile():
