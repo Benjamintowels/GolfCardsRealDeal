@@ -19,6 +19,7 @@ var ui_3d_manager: Node = null
 var launch_3d_manager: Node = null
 var game_state_3d_manager: Node = null
 var sound_3d_manager: Node = null
+var object_placement_3d_manager: Node = null
 
 # 3D scene references
 var camera_3d: Camera3D = null
@@ -30,6 +31,8 @@ var ui_layer: Control = null
 var grid_size := Vector2i(50, 50)
 var cell_size: int = 48
 var current_game_phase: String = "initializing"
+var current_hole: int = 1
+var current_map_layout: Array = []
 
 # Performance optimization
 var frame_count: int = 0
@@ -92,6 +95,10 @@ func _initialize_3d_managers():
 	ui_3d_manager = preload("res://3D/3DManagers/UI3DManager.gd").new()
 	add_child(ui_3d_manager)
 	
+	# 10. Object Placement Manager (3D object placement rules)
+	object_placement_3d_manager = preload("res://3D/3DManagers/ObjectPlacement3DManager.gd").new()
+	add_child(object_placement_3d_manager)
+	
 	print("✓ All 3D managers initialized")
 
 func _setup_3d_world():
@@ -136,6 +143,9 @@ func _setup_3d_world():
 	# Setup UI system
 	ui_3d_manager.setup(ui_layer, self)
 	
+	# Setup object placement system
+	object_placement_3d_manager.setup(current_hole)
+	
 	print("✓ 3D world setup complete")
 
 func _connect_manager_signals():
@@ -166,6 +176,9 @@ func _start_game_flow():
 	# Load initial map
 	var initial_layout = map_3d_manager.load_initial_map()
 	
+	# Update current hole from map manager
+	current_hole = map_3d_manager.get_current_hole()
+	
 	# Build 3D world from layout
 	_build_3d_world_from_layout(initial_layout)
 	
@@ -189,6 +202,9 @@ func _build_3d_world_from_layout(layout: Array):
 	
 	print("🏗️ Building 3D world from layout...")
 	print("📊 Layout size:", layout.size(), "x", layout[0].size() if layout.size() > 0 else 0)
+	
+	# Store the current layout for coordinate calculations
+	current_map_layout = layout
 	
 	# Clear existing obstacles and old ground planes
 	_clear_obstacles()
@@ -216,6 +232,9 @@ func _build_3d_world_from_layout(layout: Array):
 				print("Creating", code, "at grid", Vector2i(x, y), "world", world_pos)
 				_create_3d_object(code, world_pos, Vector2i(x, y))
 				objects_created += 1
+	
+	# Add random object placement with proper tile-based rules
+	_add_proper_random_objects_to_layout(layout)
 	
 	print("📊 Tile counts:", tile_counts)
 	print("✅ Created", objects_created, "3D objects from layout")
@@ -400,14 +419,24 @@ func _create_billboard_sprite(texture_path: String, position: Vector3, object_ty
 
 func _grid_to_world_position(grid_pos: Vector2i) -> Vector3:
 	"""Convert grid position to 3D world position"""
-	var world_x = grid_pos.x * cell_size - (grid_size.x * cell_size) / 2
-	var world_z = grid_pos.y * cell_size - (grid_size.y * cell_size) / 2
+	# Use the actual layout dimensions and tile size for proper alignment
+	var layout_width = current_map_layout[0].size() if current_map_layout.size() > 0 else grid_size.x
+	var layout_height = current_map_layout.size() if current_map_layout.size() > 0 else grid_size.y
+	var tile_size = 64  # Match the tile size used in ground plane creation
+	
+	var world_x = grid_pos.x * tile_size - (layout_width * tile_size) / 2
+	var world_z = grid_pos.y * tile_size - (layout_height * tile_size) / 2
 	return Vector3(world_x, 0, world_z)
 
 func _world_to_grid_position(world_pos: Vector3) -> Vector2i:
 	"""Convert 3D world position to grid position"""
-	var grid_x = int((world_pos.x + (grid_size.x * cell_size) / 2) / cell_size)
-	var grid_z = int((world_pos.z + (grid_size.y * cell_size) / 2) / cell_size)
+	# Use the actual layout dimensions and tile size for proper alignment
+	var layout_width = current_map_layout[0].size() if current_map_layout.size() > 0 else grid_size.x
+	var layout_height = current_map_layout.size() if current_map_layout.size() > 0 else grid_size.y
+	var tile_size = 64  # Match the tile size used in ground plane creation
+	
+	var grid_x = int((world_pos.x + (layout_width * tile_size) / 2) / tile_size)
+	var grid_z = int((world_pos.z + (layout_height * tile_size) / 2) / tile_size)
 	return Vector2i(grid_x, grid_z)
 
 # Signal handlers
@@ -490,6 +519,12 @@ func _load_next_hole():
 	"""Load the next hole"""
 	var next_layout = map_3d_manager.load_next_hole()
 	if next_layout:
+		# Update current hole from map manager
+		current_hole = map_3d_manager.get_current_hole()
+		
+		# Update object placement manager for new hole
+		object_placement_3d_manager.setup(current_hole)
+		
 		_build_3d_world_from_layout(next_layout)
 		player_3d_manager.reset_player_position()
 		game_state_3d_manager.set_phase(GameState3DManager.GamePhase.READY)
@@ -529,6 +564,10 @@ func get_manager(manager_name: String) -> Node:
 		"sound": return sound_3d_manager
 		_: return null
 
+func get_current_layout() -> Array:
+	"""Get the current map layout"""
+	return current_map_layout
+
 # Performance optimization
 func _process(delta):
 	"""Optimized process function"""
@@ -547,3 +586,36 @@ func _process(delta):
 	
 	if launch_3d_manager:
 		launch_3d_manager.update(delta) 
+
+func _add_proper_random_objects_to_layout(layout: Array):
+	"""Add random objects with proper tile-based placement rules"""
+	
+	print("🎲 Adding random objects with proper tile-based rules...")
+	
+	# Setup object placement manager for current hole
+	object_placement_3d_manager.setup(current_hole)
+	
+	# Get random positions based on proper placement rules
+	var object_positions = object_placement_3d_manager.get_random_object_positions(layout)
+	
+	# Create 3D objects at the calculated positions
+	var total_objects = 0
+	
+	# Create pins
+	for pin_pos in object_positions.pins:
+		object_placement_3d_manager.create_3d_object("pin", pin_pos, obstacle_container)
+		total_objects += 1
+	
+	# Create boulders
+	for boulder_pos in object_positions.boulders:
+		object_placement_3d_manager.create_3d_object("boulder", boulder_pos, obstacle_container)
+		total_objects += 1
+	
+	# Create trees
+	for tree_pos in object_positions.trees:
+		object_placement_3d_manager.create_3d_object("tree", tree_pos, obstacle_container)
+		total_objects += 1
+	
+	print("✅ Created", total_objects, "random objects with proper tile-based placement")
+
+ 

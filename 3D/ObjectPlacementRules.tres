@@ -1,0 +1,32 @@
+[gd_resource type="Resource" script_class="ObjectPlacementRules" load_steps=2 format=3 uid="uid://bqx8y7n8lam2p"]
+
+[ext_resource type="Script" path="res://3D/ObjectPlacementRules.gd" id="1_0k2m3"]
+
+[resource]
+script = ExtResource("1_0k2m3")
+placement_rules = {
+"pin": {
+	"allowed_tiles": ["G"],
+	"min_spacing": 8,
+	"max_per_hole": 2,
+	"avoid_tiles": ["T", "P", "W", "S"],
+	"height": 1.0,
+	"pixel_size": 0.08
+},
+"boulder": {
+	"allowed_tiles": ["Base", "B"],
+	"min_spacing": 6,
+	"max_per_hole": 5,
+	"avoid_tiles": ["T", "P", "G", "W", "S", "F", "R"],
+	"height": 0.3,
+	"pixel_size": 0.12
+},
+"tree": {
+	"allowed_tiles": ["Base", "B"],
+	"min_spacing": 8,
+	"max_per_hole": 10,
+	"avoid_tiles": ["T", "P", "G", "W", "S", "F", "R"],
+	"height": 0.8,
+	"pixel_size": 0.15
+}
+} 
