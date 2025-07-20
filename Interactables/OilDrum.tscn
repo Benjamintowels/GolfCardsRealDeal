@@ -44,12 +44,12 @@ position = Vector2(-16, 5.72205e-05)
 [node name="TopHeight" type="Marker2D" parent="."]
 position = Vector2(0, -59)
 
-[node name="Area2D" type="Area2D" parent="."]
+[node name="BodyArea2D" type="Area2D" parent="."]
 position = Vector2(0, -29.725)
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D"]
-position = Vector2(0, 22.725)
-scale = Vector2(1, 0.38)
+[node name="Area2D#CollisionShape2D" type="CollisionShape2D" parent="BodyArea2D"]
+position = Vector2(0, 52.45)
+scale = Vector2(2, 1.5)
 shape = SubResource("CircleShape2D_mt8sc")
 
 [node name="OilDrumThunk" type="AudioStreamPlayer2D" parent="."]

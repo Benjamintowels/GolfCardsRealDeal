@@ -57,7 +57,7 @@ func _initialize_sprites():
 func _setup_collision_areas():
 	"""Set up collision areas for both upright and tipped over states"""
 	# Get collision areas
-	upright_collision_area = get_node_or_null("Area2D")
+	upright_collision_area = get_node_or_null("BodyArea2D")
 	tipped_collision_area = get_node_or_null("OilDrumTippedOver/Area2D")
 	
 	if upright_collision_area:
@@ -69,7 +69,7 @@ func _setup_collision_areas():
 		upright_collision_area.connect("area_entered", _on_area_entered)
 		upright_collision_area.connect("area_exited", _on_area_exited)
 	else:
-		print("✗ ERROR: Oil drum upright Area2D not found!")
+		print("✗ ERROR: Oil drum upright BodyArea2D not found!")
 	
 	if tipped_collision_area:
 		# Initially disable tipped collision area (only active when tipped over)
@@ -339,6 +339,7 @@ func _on_area_entered(area: Area2D):
 	else:
 		# For balls, let them handle their own collision through their collision system
 		# The ball will call _handle_ball_collision on the oil drum
+		# We don't need to do anything here - the ball's _on_area_entered will handle it
 		pass
 
 func _handle_area_collision(projectile: Node2D):
@@ -416,7 +417,7 @@ func _calculate_circular_reflection(projectile: Node2D, projectile_velocity: Vec
 	var oil_drum_pos = global_position
 	
 	# Get the oil drum's collision shape to determine the circle bounds
-	var area2d = get_node_or_null("Area2D")
+	var area2d = get_node_or_null("BodyArea2D")
 	var collision_shape = area2d.get_node_or_null("CollisionShape2D") if area2d else null
 	
 	if not collision_shape or not collision_shape.shape is CircleShape2D:
@@ -540,6 +541,9 @@ func _handle_roof_bounce_collision(projectile: Node2D) -> void:
 
 func _handle_ball_collision(ball: Node2D) -> void:
 	"""Handle ball/knife collisions - check height to determine if ball/knife should pass through"""
+	print("=== OIL DRUM BALL COLLISION DETECTED ===")
+	print("Ball:", ball.name)
+	print("Ball class:", ball.get_class())
 	
 	# Get ball height
 	var ball_height = 0.0
@@ -551,12 +555,17 @@ func _handle_ball_collision(ball: Node2D) -> void:
 	# Get oil drum height
 	var oil_drum_height = Global.get_object_height_from_marker(self)
 	
-	# Use enhanced height collision detection with TopHeight markers
-	if Global.is_object_above_obstacle(ball, self):
+	print("Ball height:", ball_height)
+	print("Oil drum height:", oil_drum_height)
+	
+	# Simple height check: if ball is above oil drum height, let it pass through
+	if ball_height > oil_drum_height:
 		# Ball/knife is above oil drum entirely - let it pass through
+		print("Ball is above oil drum - passing through")
 		return
 	else:
 		# Ball/knife is within or below oil drum height - handle collision
+		print("Ball is within oil drum height - handling collision")
 		
 		# Check if this is a throwing knife
 		if ball.has_method("is_throwing_knife") and ball.is_throwing_knife():
@@ -565,6 +574,8 @@ func _handle_ball_collision(ball: Node2D) -> void:
 		else:
 			# Handle regular ball collision
 			_handle_regular_ball_collision(ball)
+	
+	print("=== END OIL DRUM BALL COLLISION ===")
 		
 
 func _handle_knife_collision(knife: Node2D) -> void:
