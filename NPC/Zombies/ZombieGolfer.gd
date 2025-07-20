@@ -488,6 +488,14 @@ func take_damage(damage: int, is_headshot: bool = false) -> void:
 	
 	current_health -= final_damage
 	
+	# Track damage for damage round mode
+	var course = get_tree().current_scene
+	if course and course.has_method("get_game_state_manager"):
+		var game_state_manager = course.get_game_state_manager()
+		if game_state_manager and game_state_manager.has_method("add_damage_round_damage"):
+			game_state_manager.add_damage_round_damage(final_damage)
+			print("✓ Added", final_damage, "damage to damage round tracking")
+	
 	# Update health bar
 	if health_bar:
 		health_bar.set_health(current_health, max_health)

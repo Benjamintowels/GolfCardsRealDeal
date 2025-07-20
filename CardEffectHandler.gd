@@ -192,7 +192,7 @@ func handle_modify_next_card(card: CardData):
 func play_flame_sound():
 	"""Play the flame sound effect when FireBall card is used"""
 	# Find the player node to get access to the golf ball scene
-	var player = course.player_node
+	var player = course.player_manager.get_player_node() if course.player_manager else null
 	if player:
 		# Create a temporary golf ball instance to play the sound
 		var ball_scene = preload("res://GolfBall.tscn")
@@ -214,7 +214,7 @@ func play_flame_sound():
 func play_ice_sound():
 	"""Play the ice sound effect when IceBall card is used"""
 	# Find the player node to get access to the golf ball scene
-	var player = course.player_node
+	var player = course.player_manager.get_player_node() if course.player_manager else null
 	if player:
 		# Create a temporary golf ball instance to play the sound
 		var ball_scene = preload("res://GolfBall.tscn")

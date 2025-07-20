@@ -33,6 +33,11 @@ var puzzle_types = {
 		"name": "MiniBoss Battle",
 		"description": "Face a Wraith boss with force field dome protection",
 		"symbol_scene": preload("res://UI/PuzzleSymbols/MinibossSymbol.tscn")
+	},
+	"driving_range": {
+		"name": "Damage Round",
+		"description": "Special fun mode with extra NPCs and oil drums - only club cards allowed",
+		"symbol_scene": preload("res://UI/PuzzleSymbols/DrivingRangeSymbol.tscn")
 	}
 }
 
@@ -128,6 +133,8 @@ func show_puzzle_selection():
 			sprite_node = symbol_instance.get_node("MobSymbol")
 		elif symbol_instance.has_node("MinibossSymbol"):
 			sprite_node = symbol_instance.get_node("MinibossSymbol")
+		elif symbol_instance.has_node("DrivingRangeSymbol"):
+			sprite_node = symbol_instance.get_node("DrivingRangeSymbol")
 		
 		if sprite_node and sprite_node.texture:
 			left_symbol.texture = sprite_node.texture
@@ -158,6 +165,8 @@ func show_puzzle_selection():
 			sprite_node = symbol_instance.get_node("MobSymbol")
 		elif symbol_instance.has_node("MinibossSymbol"):
 			sprite_node = symbol_instance.get_node("MinibossSymbol")
+		elif symbol_instance.has_node("DrivingRangeSymbol"):
+			sprite_node = symbol_instance.get_node("DrivingRangeSymbol")
 		
 		if sprite_node and sprite_node.texture:
 			right_symbol.texture = sprite_node.texture

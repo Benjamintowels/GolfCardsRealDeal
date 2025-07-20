@@ -133,6 +133,205 @@ func show_drive_distance_dialog(drive_distance: float) -> void:
 	
 	ui_layer.add_child(drive_distance_dialog)
 
+func show_damage_round_dialog(total_damage: int) -> void:
+	"""Show damage round dialog"""
+	print("=== SHOWING DAMAGE ROUND DIALOG ===")
+	print("Total damage: ", total_damage)
+	
+	# Show damage bar during damage round mode
+	if course.damage_bar:
+		course.damage_bar.visible = true
+		course.damage_bar.set_damage(total_damage)
+	
+	# Create dialog similar to drive distance dialog
+	var damage_dialog = Control.new()
+	damage_dialog.name = "DamageRoundDialog"
+	damage_dialog.size = course.get_viewport_rect().size
+	damage_dialog.z_index = 500  # Very high z-index to appear on top
+	damage_dialog.mouse_filter = Control.MOUSE_FILTER_STOP
+	
+	var background := ColorRect.new()
+	background.color = Color(0, 0, 0, 0.7)
+	background.size = damage_dialog.size
+	background.mouse_filter = Control.MOUSE_FILTER_STOP  # Make sure it can receive input
+	damage_dialog.add_child(background)
+	background.gui_input.connect(_on_damage_round_dialog_input)
+	
+	var dialog_box := ColorRect.new()
+	dialog_box.color = Color(0.2, 0.2, 0.2, 0.9)
+	dialog_box.size = Vector2(400, 230)
+	dialog_box.position = (damage_dialog.size - dialog_box.size) / 2  # Center the dialog
+	dialog_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	damage_dialog.add_child(dialog_box)
+	
+	var title_label := Label.new()
+	title_label.text = "Damage Round Results"
+	title_label.add_theme_font_size_override("font_size", 28)
+	title_label.add_theme_color_override("font_color", Color.RED)
+	title_label.add_theme_constant_override("outline_size", 2)
+	title_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	title_label.position = Vector2(100, 20)
+	title_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dialog_box.add_child(title_label)
+	
+	# Add shot count information
+	var shot_info = ""
+	if course.game_state_manager:
+		var shots_taken = course.game_state_manager.driving_range_shots_taken + 1  # +1 because we're about to complete this shot
+		shot_info = " (Shot %d/3)" % shots_taken
+	
+	var shot_label := Label.new()
+	shot_label.text = shot_info
+	shot_label.add_theme_font_size_override("font_size", 18)
+	shot_label.add_theme_color_override("font_color", Color.LIGHT_GRAY)
+	shot_label.add_theme_constant_override("outline_size", 1)
+	shot_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	shot_label.position = Vector2(100, 50)
+	shot_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dialog_box.add_child(shot_label)
+	
+	var damage_label := Label.new()
+	damage_label.text = "%d damage" % total_damage
+	damage_label.add_theme_font_size_override("font_size", 36)
+	damage_label.add_theme_color_override("font_color", Color.ORANGE)
+	damage_label.add_theme_constant_override("outline_size", 2)
+	damage_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	damage_label.position = Vector2(150, 110)
+	damage_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dialog_box.add_child(damage_label)
+	
+	var instruction_label := Label.new()
+	instruction_label.text = "Click anywhere to continue"
+	instruction_label.add_theme_font_size_override("font_size", 18)
+	instruction_label.add_theme_color_override("font_color", Color.LIGHT_GRAY)
+	instruction_label.position = Vector2(120, 180)
+	instruction_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dialog_box.add_child(instruction_label)
+	
+	ui_layer.add_child(damage_dialog)
+
+func show_driving_range_final_results(total_damage: int, score: int) -> void:
+	"""Show final results dialog for driving range"""
+	print("=== SHOWING DRIVING RANGE FINAL RESULTS ===")
+	print("Total damage: ", total_damage, " Score: ", score)
+	
+	# Create dialog for final results
+	var final_dialog = Control.new()
+	final_dialog.name = "DrivingRangeFinalDialog"
+	final_dialog.size = course.get_viewport_rect().size
+	final_dialog.z_index = 500  # Very high z-index to appear on top
+	final_dialog.mouse_filter = Control.MOUSE_FILTER_STOP
+	
+	var background := ColorRect.new()
+	background.color = Color(0, 0, 0, 0.7)
+	background.size = final_dialog.size
+	background.mouse_filter = Control.MOUSE_FILTER_STOP  # Make sure it can receive input
+	final_dialog.add_child(background)
+	background.gui_input.connect(_on_driving_range_final_dialog_input)
+	
+	var dialog_box := ColorRect.new()
+	dialog_box.color = Color(0.2, 0.2, 0.2, 0.9)
+	dialog_box.size = Vector2(450, 250)
+	dialog_box.position = (final_dialog.size - dialog_box.size) / 2  # Center the dialog
+	dialog_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	final_dialog.add_child(dialog_box)
+	
+	var title_label := Label.new()
+	title_label.text = "Driving Range Complete!"
+	title_label.add_theme_font_size_override("font_size", 28)
+	title_label.add_theme_color_override("font_color", Color.GOLD)
+	title_label.add_theme_constant_override("outline_size", 2)
+	title_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	title_label.position = Vector2(100, 20)
+	title_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dialog_box.add_child(title_label)
+	
+	var total_damage_label := Label.new()
+	total_damage_label.text = "Total Damage: %d" % total_damage
+	total_damage_label.add_theme_font_size_override("font_size", 24)
+	total_damage_label.add_theme_color_override("font_color", Color.ORANGE)
+	total_damage_label.add_theme_constant_override("outline_size", 2)
+	total_damage_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	total_damage_label.position = Vector2(120, 80)
+	total_damage_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dialog_box.add_child(total_damage_label)
+	
+	var score_label := Label.new()
+	score_label.text = "Final Score: %d points" % score
+	score_label.add_theme_font_size_override("font_size", 24)
+	score_label.add_theme_color_override("font_color", Color.GOLD)
+	score_label.add_theme_constant_override("outline_size", 2)
+	score_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	score_label.position = Vector2(120, 120)
+	score_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dialog_box.add_child(score_label)
+	
+	var instruction_label := Label.new()
+	instruction_label.text = "Click anywhere to continue to rewards"
+	instruction_label.add_theme_font_size_override("font_size", 18)
+	instruction_label.add_theme_color_override("font_color", Color.LIGHT_GRAY)
+	instruction_label.position = Vector2(120, 180)
+	instruction_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dialog_box.add_child(instruction_label)
+	
+	ui_layer.add_child(final_dialog)
+
+func _on_driving_range_final_dialog_input(event: InputEvent) -> void:
+	"""Handle driving range final dialog input"""
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		print("=== DRIVING RANGE FINAL DIALOG CLICKED ===")
+		var final_dialog = ui_layer.get_node_or_null("DrivingRangeFinalDialog")
+		if final_dialog:
+			print("Dismissing driving range final dialog")
+			final_dialog.queue_free()
+		
+		# Transition to rewards selection
+		print("Transitioning to rewards selection")
+		if course.game_state_manager:
+			course.game_state_manager.set_game_phase("rewards")
+		
+		# Show rewards selection dialog
+		show_reward_phase()
+
+func _on_damage_round_dialog_input(event: InputEvent) -> void:
+	"""Handle damage round dialog input"""
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		print("=== DAMAGE ROUND DIALOG CLICKED ===")
+		var damage_dialog = ui_layer.get_node_or_null("DamageRoundDialog")
+		if damage_dialog:
+			print("Dismissing damage round dialog")
+			damage_dialog.queue_free()
+		
+		# Complete the current shot and add damage to total
+		if course.game_state_manager:
+			course.game_state_manager.complete_driving_range_shot()
+			
+			# Hide damage bar
+			if course.damage_bar:
+				course.damage_bar.visible = false
+			
+			# Check if all 3 shots are complete
+			if course.game_state_manager.is_driving_range_complete():
+				print("=== DRIVING RANGE COMPLETE ===")
+				var total_damage = course.game_state_manager.get_driving_range_total_damage()
+				var score = course.game_state_manager.get_driving_range_score()
+				print("Total damage across 3 shots:", total_damage)
+				print("Final score:", score)
+				
+				# Show final results dialog
+				show_driving_range_final_results(total_damage, score)
+			else:
+				# More shots remaining - continue to next shot
+				var remaining_shots = course.game_state_manager.get_driving_range_remaining_shots()
+				print("Driving range: ", remaining_shots, " shots remaining")
+				
+				# Reset damage round tracking for next shot
+				course.game_state_manager.reset_damage_round_damage()
+				
+				# Place new ball and reset for next shot
+				print("Placing new ball for next damage round shot")
+				course.place_new_ball_for_damage_round()
+
 func _on_drive_distance_dialog_input(event: InputEvent) -> void:
 	"""Handle drive distance dialog input"""
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
@@ -783,6 +982,20 @@ func check_and_show_gimme_button() -> void:
 
 func show_draw_cards_button_for_turn_start() -> void:
 	"""Show draw cards button for turn start"""
+	# In driving range mode, don't show the draw cards button since we only want club cards
+	if course and course.game_state_manager and course.game_state_manager.get_driving_range_mode():
+		print("Driving Range Mode: Hiding draw cards button - only club cards allowed")
+		if draw_cards_button:
+			draw_cards_button.visible = false
+		return
+	
+	# In driving_range puzzle type, show the draw cards button for modifiers
+	if course and course.game_state_manager and course.game_state_manager.get_current_puzzle_type() == "driving_range":
+		print("Driving Range Puzzle Type: Showing draw cards button for modifiers")
+		if draw_cards_button:
+			draw_cards_button.visible = true
+		return
+	
 	if draw_cards_button:
 		draw_cards_button.visible = true
 
@@ -796,6 +1009,17 @@ func show_draw_club_cards_button() -> void:
 		else:
 			draw_club_cards_button.visible = false
 			print("Draw Club Cards button hidden - no available shots")
+		
+		# Also show the draw cards button for modifiers when player is on tee
+		if course.game_state_manager and course.game_state_manager.get_game_phase() == "draw_cards":
+			if draw_cards_button:
+				# Only show draw cards button if player has modifier cards in hand
+				if course.deck_manager and course.deck_manager.hand.size() > 0:
+					draw_cards_button.visible = true
+					print("Draw Cards button shown for modifiers - player has", course.deck_manager.hand.size(), "modifier cards")
+				else:
+					draw_cards_button.visible = false
+					print("Draw Cards button hidden - no modifier cards available")
 
 func enter_draw_cards_phase() -> void:
 	"""Enter the draw cards phase - start with club selection"""

@@ -665,6 +665,14 @@ func take_damage(damage: int, is_headshot: bool = false):
 	
 	current_health -= damage
 	
+	# Track damage for damage round mode
+	var course = get_tree().current_scene
+	if course and course.has_method("get_game_state_manager"):
+		var game_state_manager = course.get_game_state_manager()
+		if game_state_manager and game_state_manager.has_method("add_damage_round_damage"):
+			game_state_manager.add_damage_round_damage(damage)
+			print("✓ Added", damage, "damage to damage round tracking")
+	
 	# Play hurt sound
 	if wraith_hurt_sound and wraith_hurt_sound.stream:
 		wraith_hurt_sound.play()

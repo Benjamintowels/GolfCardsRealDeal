@@ -761,6 +761,14 @@ func take_damage(amount: int, is_headshot: bool = false, weapon_position: Vector
 	
 	current_health = current_health - amount
 	
+	# Track damage for damage round mode
+	var course = get_tree().current_scene
+	if course and course.has_method("get_game_state_manager"):
+		var game_state_manager = course.get_game_state_manager()
+		if game_state_manager and game_state_manager.has_method("add_damage_round_damage"):
+			game_state_manager.add_damage_round_damage(amount)
+			print("✓ Added", amount, "damage to damage round tracking")
+	
 	# Play hit sound
 	var hit_sound = get_node_or_null("SquirrelHit")
 	if hit_sound:
@@ -897,6 +905,31 @@ func _handle_throwing_knife_collision(knife: Node2D, knife_height: float) -> voi
 
 func _handle_golf_ball_collision(ball: Node2D, ball_height: float) -> void:
 	"""Handle collision with golf ball"""
+	
+	# Check if this is a ghost ball (shouldn't deal damage)
+	var is_ghost_ball = false
+	if ball.has_method("is_ghost"):
+		is_ghost_ball = ball.is_ghost
+	elif "is_ghost" in ball:
+		is_ghost_ball = ball.is_ghost
+	elif ball.name == "GhostBall":
+		is_ghost_ball = true
+	
+	if is_ghost_ball:
+		print("Ghost ball detected - no damage dealt to squirrel, just reflection")
+		# Ghost balls only reflect, no damage
+		var ball_velocity = Vector2.ZERO
+		if ball.has_method("get_velocity"):
+			ball_velocity = ball.get_velocity()
+		elif "velocity" in ball:
+			ball_velocity = ball.velocity
+		
+		# Simple reflection
+		if ball.has_method("set_velocity"):
+			ball.set_velocity(-ball_velocity * 0.8)
+		elif "velocity" in ball:
+			ball.velocity = -ball.velocity * 0.8
+		return
 	
 	# Check if ball hits in valid height range
 	if ball_height > get_height():

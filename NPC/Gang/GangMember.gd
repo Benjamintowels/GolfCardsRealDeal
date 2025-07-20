@@ -1722,6 +1722,14 @@ func take_damage(damage: int, is_headshot: bool = false, weapon_position: Vector
 	current_health = current_health - damage
 	print("GangMember took", damage, "damage. Current health:", current_health, "/", max_health)
 	
+	# Track damage for damage round mode
+	var course = get_tree().current_scene
+	if course and course.has_method("get_game_state_manager"):
+		var game_state_manager = course.get_game_state_manager()
+		if game_state_manager and game_state_manager.has_method("add_damage_round_damage"):
+			game_state_manager.add_damage_round_damage(damage)
+			print("✓ Added", damage, "damage to damage round tracking")
+	
 	# Update health bar (but don't show negative values to player)
 	var display_health = max(0, current_health)
 	if health_bar:

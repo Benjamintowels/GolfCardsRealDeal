@@ -162,6 +162,22 @@ func is_valid_position_for_object(pos: Vector2i, layout: Array) -> bool:
 			return false
 	return true
 
+func is_valid_position_for_driving_range_npc(pos: Vector2i, layout: Array) -> bool:
+	"""Check if a position is valid for driving range NPC placement (lenient for damage testing)"""
+	if pos.y < 0 or pos.y >= layout.size() or pos.x < 0 or pos.x >= layout[0].size():
+		return false
+	var tile_type = layout[pos.y][pos.x]
+	# Allow placement on base tiles, fairway (F), and rough (R), but not on special tiles
+	if tile_type in ["Tee", "G", "W", "S", "P"]:
+		return false
+	# Don't check for green tiles nearby (NPCs can be closer to greens for damage testing)
+	# Only check minimal spacing from other placed objects
+	for placed_pos in placed_objects:
+		var distance = max(abs(pos.x - placed_pos.x), abs(pos.y - placed_pos.y))
+		if distance < 2:  # Minimal spacing for driving range NPCs
+			return false
+	return true
+
 func is_valid_position_for_squirrel(pos: Vector2i, layout: Array) -> bool:
 	"""Check if a position is valid for Squirrel placement (more lenient than other objects)"""
 	if pos.y < 0 or pos.y >= layout.size() or pos.x < 0 or pos.x >= layout[0].size():
@@ -396,6 +412,13 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 		"generator", "miniboss":
 			# Generator and Miniboss puzzles: Use normal difficulty tier
 			print("🎯 PUZZLE TYPE: ", puzzle_type, " puzzle - using normal difficulty tier")
+			
+		"driving_range":
+			# Damage Round puzzle: Spawn 30 NPCs near the green for damage testing
+			num_gang_members = 10
+			num_police = 10
+			num_zombies = 10
+			print("🎯 PUZZLE TYPE: Damage Round puzzle - spawning 30 NPCs near green")
 			
 		_:
 			print("🎯 PUZZLE TYPE: Unknown puzzle type '", puzzle_type, "', using default")
@@ -747,44 +770,133 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 		for x in layout[y].size():
 			if layout[y][x] == "G":
 				green_positions.append(Vector2i(x, y))
-	var gang_members_placed = 0
-	while gang_members_placed < num_gang_members and green_positions.size() > 0:
-		var gang_index = randi() % green_positions.size()
-		var gang_pos = green_positions[gang_index]
-		positions.gang_members.append(gang_pos)
-		placed_objects.append(gang_pos)
-		gang_members_placed += 1
-		green_positions.remove_at(gang_index)
 	
-	# Place Police on rough tiles (R)
+	# For driving_range puzzle type, place NPCs near the green instead of on it
+	if puzzle_type == "driving_range":
+		print("🎯 DRIVING RANGE: Puzzle type detected, setting up near-green NPC placement")
+		# Create positions near the green (within 3 tiles)
+		var near_green_positions: Array = []
+		for green_pos in green_positions:
+			for dy in range(-3, 4):  # -3 to +3 inclusive
+				for dx in range(-3, 4):  # -3 to +3 inclusive
+					var near_pos = green_pos + Vector2i(dx, dy)
+					# Check if position is within map bounds and not on green
+					if near_pos.y >= 0 and near_pos.y < layout.size() and near_pos.x >= 0 and near_pos.x < layout[0].size():
+						if layout[near_pos.y][near_pos.x] != "G":  # Not on green
+							if is_valid_position_for_driving_range_npc(near_pos, layout):
+								near_green_positions.append(near_pos)
+		
+		print("🎯 DRIVING RANGE: Found", near_green_positions.size(), "valid positions near green")
+		print("🎯 DRIVING RANGE: Green positions:", green_positions)
+		
+		# Place gang members near green
+		var gang_members_placed = 0
+		while gang_members_placed < num_gang_members and near_green_positions.size() > 0:
+			var gang_index = randi() % near_green_positions.size()
+			var gang_pos = near_green_positions[gang_index]
+			positions.gang_members.append(gang_pos)
+			placed_objects.append(gang_pos)
+			gang_members_placed += 1
+			near_green_positions.remove_at(gang_index)
+		
+		print("🎯 DRIVING RANGE: Placed", gang_members_placed, "gang members near green")
+		print("🎯 DRIVING RANGE: Gang member positions:", positions.gang_members)
+	else:
+		# Normal placement on green tiles
+		var gang_members_placed = 0
+		while gang_members_placed < num_gang_members and green_positions.size() > 0:
+			var gang_index = randi() % green_positions.size()
+			var gang_pos = green_positions[gang_index]
+			positions.gang_members.append(gang_pos)
+			placed_objects.append(gang_pos)
+			gang_members_placed += 1
+			green_positions.remove_at(gang_index)
+	
+	# Place Police on rough tiles (R) or near green for driving_range
 	var rough_positions: Array = []
 	for y in layout.size():
 		for x in layout[y].size():
 			if layout[y][x] == "R":
 				rough_positions.append(Vector2i(x, y))
-	var police_placed = 0
-	while police_placed < num_police and rough_positions.size() > 0:
-		var police_index = randi() % rough_positions.size()
-		var police_pos = rough_positions[police_index]
-		positions.police.append(police_pos)
-		placed_objects.append(police_pos)
-		police_placed += 1
-		rough_positions.remove_at(police_index)
 	
-	# Place Zombies on sand tiles (S)
+	if puzzle_type == "driving_range":
+		# Use the same near_green_positions logic for police
+		var near_green_positions: Array = []
+		for green_pos in green_positions:
+			for dy in range(-3, 4):  # -3 to +3 inclusive
+				for dx in range(-3, 4):  # -3 to +3 inclusive
+					var near_pos = green_pos + Vector2i(dx, dy)
+					# Check if position is within map bounds and not on green
+					if near_pos.y >= 0 and near_pos.y < layout.size() and near_pos.x >= 0 and near_pos.x < layout[0].size():
+						if layout[near_pos.y][near_pos.x] != "G":  # Not on green
+							if is_valid_position_for_driving_range_npc(near_pos, layout):
+								near_green_positions.append(near_pos)
+		
+		# Place police near green
+		var police_placed = 0
+		while police_placed < num_police and near_green_positions.size() > 0:
+			var police_index = randi() % near_green_positions.size()
+			var police_pos = near_green_positions[police_index]
+			positions.police.append(police_pos)
+			placed_objects.append(police_pos)
+			police_placed += 1
+			near_green_positions.remove_at(police_index)
+		
+		print("🎯 DRIVING RANGE: Placed", police_placed, "police near green")
+		print("🎯 DRIVING RANGE: Police positions:", positions.police)
+	else:
+		# Normal placement on rough tiles
+		var police_placed = 0
+		while police_placed < num_police and rough_positions.size() > 0:
+			var police_index = randi() % rough_positions.size()
+			var police_pos = rough_positions[police_index]
+			positions.police.append(police_pos)
+			placed_objects.append(police_pos)
+			police_placed += 1
+			rough_positions.remove_at(police_index)
+	
+	# Place Zombies on sand tiles (S) or near green for driving_range
 	var sand_positions: Array = []
 	for y in layout.size():
 		for x in layout[y].size():
 			if layout[y][x] == "S":
 				sand_positions.append(Vector2i(x, y))
-	var zombies_placed = 0
-	while zombies_placed < num_zombies and sand_positions.size() > 0:
-		var zombie_index = randi() % sand_positions.size()
-		var zombie_pos = sand_positions[zombie_index]
-		positions.zombies.append(zombie_pos)
-		placed_objects.append(zombie_pos)
-		zombies_placed += 1
-		sand_positions.remove_at(zombie_index)
+	
+	if puzzle_type == "driving_range":
+		# Use the same near_green_positions logic for zombies
+		var near_green_positions: Array = []
+		for green_pos in green_positions:
+			for dy in range(-3, 4):  # -3 to +3 inclusive
+				for dx in range(-3, 4):  # -3 to +3 inclusive
+					var near_pos = green_pos + Vector2i(dx, dy)
+					# Check if position is within map bounds and not on green
+					if near_pos.y >= 0 and near_pos.y < layout.size() and near_pos.x >= 0 and near_pos.x < layout[0].size():
+						if layout[near_pos.y][near_pos.x] != "G":  # Not on green
+							if is_valid_position_for_driving_range_npc(near_pos, layout):
+								near_green_positions.append(near_pos)
+		
+		# Place zombies near green
+		var zombies_placed = 0
+		while zombies_placed < num_zombies and near_green_positions.size() > 0:
+			var zombie_index = randi() % near_green_positions.size()
+			var zombie_pos = near_green_positions[zombie_index]
+			positions.zombies.append(zombie_pos)
+			placed_objects.append(zombie_pos)
+			zombies_placed += 1
+			near_green_positions.remove_at(zombie_index)
+		
+		print("🎯 DRIVING RANGE: Placed", zombies_placed, "zombies near green")
+		print("🎯 DRIVING RANGE: Zombie positions:", positions.zombies)
+	else:
+		# Normal placement on sand tiles
+		var zombies_placed = 0
+		while zombies_placed < num_zombies and sand_positions.size() > 0:
+			var zombie_index = randi() % sand_positions.size()
+			var zombie_pos = sand_positions[zombie_index]
+			positions.zombies.append(zombie_pos)
+			placed_objects.append(zombie_pos)
+			zombies_placed += 1
+			sand_positions.remove_at(zombie_index)
 	
 	# Place Wraith on green tiles for holes 9 and 18 (boss encounters)
 	var wraith_green_positions = green_positions.duplicate()
@@ -1010,6 +1122,11 @@ func apply_puzzle_type_configuration(puzzle_type: String) -> void:
 			print("🎯 PUZZLE TYPE: Miniboss puzzle - will be applied during object placement")
 			# The miniboss puzzle logic is already in get_random_positions_for_objects
 			# We just need to ensure it's triggered for this hole
+			
+		"driving_range":
+			# Damage Round puzzle: Spawn 30 NPCs near the green for damage testing
+			print("🎯 PUZZLE TYPE: Damage Round puzzle - will spawn 30 NPCs near green")
+			# The damage round logic will be applied during object placement
 			
 		_:
 			print("🎯 PUZZLE TYPE: Unknown puzzle type '", puzzle_type, "', using default")

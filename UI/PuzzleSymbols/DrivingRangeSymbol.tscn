@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3 uid="uid://dy2m2mvncsk70"]
+
+[ext_resource type="Texture2D" uid="uid://s8lhcf5xghoc" path="res://UI/PuzzleSymbols/DrivingRangeSymbol.png" id="1_0aepe"]
+
+[node name="DrivingRangeSymbol" type="Node2D"]
+
+[node name="DrivingRangeSymbol" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(8, 2)
+texture = ExtResource("1_0aepe")

@@ -345,6 +345,9 @@ func apply_equipment_effects(equipment: EquipmentData):
 		"together_mode":
 			_apply_together_mode_effect(equipment)
 			print("EquipmentManager: Applied together mode effect from", equipment.name)
+		"individual_mode":
+			_apply_individual_mode_effect(equipment)
+			print("EquipmentManager: Applied individual mode effect from", equipment.name)
 		"drone_zoom":
 			_apply_drone_zoom_effect(equipment)
 			print("EquipmentManager: Applied drone zoom effect from", equipment.name)
@@ -364,6 +367,9 @@ func remove_equipment_effects(equipment: EquipmentData):
 		"together_mode":
 			_remove_together_mode_effect(equipment)
 			print("EquipmentManager: Removed together mode effect from", equipment.name)
+		"individual_mode":
+			_remove_individual_mode_effect(equipment)
+			print("EquipmentManager: Removed individual mode effect from", equipment.name)
 		"drone_zoom":
 			_remove_drone_zoom_effect(equipment)
 			print("EquipmentManager: Removed drone zoom effect from", equipment.name)
@@ -395,6 +401,34 @@ func _remove_together_mode_effect_deferred(equipment: EquipmentData):
 		print("EquipmentManager: Disabled together mode via", equipment.name)
 	else:
 		print("EquipmentManager: Could not find WorldTurnManager for together mode effect")
+
+func _apply_individual_mode_effect(equipment: EquipmentData):
+	"""Apply individual mode effect from equipment"""
+	# Use call_deferred to ensure WorldTurnManager is available
+	call_deferred("_apply_individual_mode_effect_deferred", equipment)
+
+func _apply_individual_mode_effect_deferred(equipment: EquipmentData):
+	"""Apply individual mode effect from equipment (deferred)"""
+	var world_turn_manager = get_tree().current_scene.get_node_or_null("WorldTurnManager")
+	if world_turn_manager:
+		world_turn_manager.set_together_mode(false)
+		print("EquipmentManager: Enabled individual mode via", equipment.name)
+	else:
+		print("EquipmentManager: Could not find WorldTurnManager for individual mode effect")
+
+func _remove_individual_mode_effect(equipment: EquipmentData):
+	"""Remove individual mode effect from equipment"""
+	# Use call_deferred to ensure WorldTurnManager is available
+	call_deferred("_remove_individual_mode_effect_deferred", equipment)
+
+func _remove_individual_mode_effect_deferred(equipment: EquipmentData):
+	"""Remove individual mode effect from equipment (deferred)"""
+	var world_turn_manager = get_tree().current_scene.get_node_or_null("WorldTurnManager")
+	if world_turn_manager:
+		world_turn_manager.set_together_mode(true)
+		print("EquipmentManager: Disabled individual mode via", equipment.name)
+	else:
+		print("EquipmentManager: Could not find WorldTurnManager for individual mode effect")
 
 func _apply_drone_zoom_effect(equipment: EquipmentData):
 	"""Apply drone zoom effect from equipment"""
@@ -434,6 +468,13 @@ func _initialize_camera_zoom_limits():
 		print("EquipmentManager: No drone found, using reduced zoom")
 	
 	_update_camera_zoom_limits()
+
+func has_watch() -> bool:
+	"""Check if the player has Watch equipment equipped"""
+	for equipment in equipped_equipment:
+		if equipment.name == "Watch":
+			return true
+	return false
 
 func get_mobility_bonus() -> int:
 	"""Get the total mobility bonus from all equipped items"""

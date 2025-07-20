@@ -20,6 +20,7 @@ var available_shots: int = 1  # Number of shots available in current player turn
 const NUM_HOLES := 9  # Number of holes per round (9 for front 9, 9 for back 9)
 var is_back_9_mode := false  # Flag to track if we're playing back 9
 var back_9_start_hole := 9  # Hole 10 (index 9)
+var is_driving_range_mode := false  # Flag to track if we're in driving range mode
 
 # Game state flags
 var has_started := false
@@ -65,6 +66,15 @@ var suitcase_node: Node2D = null  # Reference to the SuitCase node
 
 # Fire tile damage tracking
 var fire_tiles_that_damaged_player: Array[Vector2i] = []  # Track which fire tiles have already damaged player this turn
+
+# Damage Round tracking
+var damage_round_total_damage: int = 0  # Total damage dealt in current shot
+var damage_round_mode_active: bool = false  # Whether damage round mode is active for current shot
+
+# Driving Range 3-shot system
+var driving_range_shots_taken: int = 0  # Number of shots taken in current driving range
+var driving_range_total_damage: int = 0  # Total damage across all 3 shots
+var driving_range_max_shots: int = 3  # Maximum shots allowed in driving range
 
 # References to other systems
 var course: Node = null
@@ -169,6 +179,89 @@ func is_front_nine_complete() -> bool:
 	"""Check if front nine is complete"""
 	return current_hole == 8 and not is_back_9_mode
 
+# ===== DRIVING RANGE MODE =====
+
+func set_driving_range_mode(enabled: bool) -> void:
+	"""Set driving range mode"""
+	is_driving_range_mode = enabled
+	print("Driving range mode set to:", enabled)
+
+func get_driving_range_mode() -> bool:
+	"""Check if we're in driving range mode"""
+	return is_driving_range_mode
+
+# ===== DAMAGE ROUND TRACKING =====
+
+func set_damage_round_mode_active(active: bool) -> void:
+	"""Set damage round mode active for current shot"""
+	damage_round_mode_active = active
+	if active:
+		damage_round_total_damage = 0
+		print("Damage Round Mode: Activated for current shot")
+
+func add_damage_round_damage(damage: int) -> void:
+	"""Add damage to the current shot's total"""
+	if damage_round_mode_active:
+		damage_round_total_damage += damage
+		print("Damage Round Mode: Added", damage, "damage, total now:", damage_round_total_damage)
+		
+		# Update damage bar if available
+		if course and course.damage_bar:
+			course.damage_bar.set_damage(damage_round_total_damage)
+
+func get_damage_round_total_damage() -> int:
+	"""Get the total damage for the current shot"""
+	return damage_round_total_damage
+
+func reset_damage_round_damage() -> void:
+	"""Reset damage round damage tracking"""
+	damage_round_total_damage = 0
+	damage_round_mode_active = false
+	print("Damage Round Mode: Reset damage tracking")
+
+# ===== DRIVING RANGE 3-SHOT SYSTEM =====
+
+func start_driving_range_round() -> void:
+	"""Start a new driving range round with 3 shots"""
+	driving_range_shots_taken = 0
+	driving_range_total_damage = 0
+	print("Driving Range: Started new round with 3 shots")
+
+func complete_driving_range_shot() -> void:
+	"""Complete the current shot and add damage to total"""
+	driving_range_shots_taken += 1
+	driving_range_total_damage += damage_round_total_damage
+	print("Driving Range: Completed shot", driving_range_shots_taken, "/", driving_range_max_shots)
+	print("Driving Range: Shot damage:", damage_round_total_damage, "Total damage:", driving_range_total_damage)
+	
+	# Reset damage for next shot
+	reset_damage_round_damage()
+
+func is_driving_range_complete() -> bool:
+	"""Check if all 3 shots have been taken"""
+	return driving_range_shots_taken >= driving_range_max_shots
+
+func get_driving_range_remaining_shots() -> int:
+	"""Get the number of shots remaining"""
+	return max(0, driving_range_max_shots - driving_range_shots_taken)
+
+func get_driving_range_total_damage() -> int:
+	"""Get the total damage across all shots"""
+	return driving_range_total_damage
+
+func get_driving_range_score() -> int:
+	"""Calculate score based on total damage"""
+	# Simple scoring: 1 point per 10 damage
+	return driving_range_total_damage / 10
+
+func start_driving_range() -> void:
+	"""Initialize driving range mode"""
+	is_driving_range_mode = true
+	current_hole = 0  # Reset to first hole for driving range
+	hole_score = 0
+	game_phase = "tee_select"
+	print("Driving range mode initialized")
+
 # ===== SCORE MANAGEMENT =====
 
 func increment_hole_score() -> void:
@@ -228,7 +321,14 @@ func get_available_shots() -> int:
 
 func has_available_shots() -> bool:
 	"""Check if the player has any shots available"""
-	return available_shots > 0
+	# In DamageRound puzzle type, check driving range shots instead
+	if get_current_puzzle_type() == "driving_range":
+		var remaining_shots = get_driving_range_remaining_shots()
+		print("DamageRound mode: Checking driving range shots -", remaining_shots, "remaining")
+		return remaining_shots > 0
+	else:
+		# Normal mode: check available shots
+		return available_shots > 0
 
 func use_shot() -> void:
 	"""Use one shot (decrement available shots)"""
@@ -588,8 +688,12 @@ func start_round_after_tee_selection(course: Node, player_manager: Node, deck_ma
 	# Reset available shots for new player turn
 	reset_available_shots()
 	
-	# Start with club selection phase
+	# Start with club selection phase and automatically draw modifier cards
 	ui_manager.enter_draw_cards_phase()
+	
+	# Automatically draw modifier cards for the player to use before their shot
+	if course.has_method("draw_modifier_cards_for_tee_start"):
+		course.draw_modifier_cards_for_tee_start()
 	
 	print("Round started! Player at position:", player_manager.get_player_grid_pos())
 

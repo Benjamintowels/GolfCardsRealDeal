@@ -39,7 +39,7 @@ var last_turn_cleanup_time: float = 0.0
 const TURN_CLEANUP_INTERVAL: float = 5.0  # Clean up old data every 5 seconds
 
 # Together Mode - All NPCs execute simultaneously in priority cascade
-var together_mode_enabled: bool = false
+var together_mode_enabled: bool = true  # Default to together mode enabled
 var together_mode_turn_duration: float = 1.5  # Total time for together mode turn (reduced from 3.0)
 var together_mode_cascade_delay: float = 0.05  # Delay between NPC activations in cascade (reduced from 0.1)
 
@@ -309,8 +309,11 @@ func start_world_turn() -> void:
 	
 	print("Found ", npcs_in_turn_order.size(), " active NPCs for world turn")
 	
-	# Show "World Turn" message
-	_show_turn_message("World Turn", 2.0)
+	# Show appropriate turn message based on mode
+	if together_mode_enabled:
+		_show_turn_message("World Turn", 2.0)
+	else:
+		_show_turn_message("World Turn - Individual", 2.0)
 	
 	# Start processing NPC turns
 	_process_next_npc_turn()

@@ -1706,6 +1706,22 @@ func create_or_update_ball_at_player_center(player_center: Vector2, course: Node
 
 func force_create_ball_at_position(world_position: Vector2, course: Node) -> void:
 	"""Force create a new ball at the specified world position (ignores existing balls)"""
+	# FIRST: Remove ALL existing balls from the scene
+	var camera_container = course.grid_manager.get_camera_container()
+	for ball in camera_container.get_children():
+		if ball.is_in_group("balls") and ball.name != "GhostBall":
+			ball.queue_free()
+			print("Force create: Removed existing ball:", ball.name)
+	
+	# Also clear the launch manager's ball reference
+	if golf_ball and is_instance_valid(golf_ball):
+		golf_ball.queue_free()
+		golf_ball = null
+		print("Force create: Cleared launch manager ball reference")
+	
+	# Reset ball in flight state
+	ball_in_flight = false
+	
 	# Create a new ball at the specified position
 	var ball_scene = preload("res://GolfBall.tscn")
 	var ball = ball_scene.instantiate()

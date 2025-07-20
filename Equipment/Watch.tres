@@ -7,8 +7,8 @@
 script = ExtResource("1_equipment_script")
 name = "Watch"
 image = ExtResource("1_fut3e")
-description = "A reliable watch that helps you keep track of time and improve timing. Toggles Together Mode for faster NPC turns."
-buff_type = "together_mode"
+description = "A reliable watch that helps you keep track of time and improve timing. Makes NPCs take individual turns for better control."
+buff_type = "individual_mode"
 buff_value = 1
 price = 200
 default_tier = 2

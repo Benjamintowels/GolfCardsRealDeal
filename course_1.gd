@@ -68,6 +68,10 @@ var camera_manager: CameraManager
 const UIManager := preload("res://UIManager.gd")
 var ui_manager: UIManager
 
+# Damage bar for driving range
+const DamageBar := preload("res://DamageBar.gd")
+var damage_bar: DamageBar = null
+
 # Game state manager
 const GameStateManager := preload("res://GameStateManager.gd")
 var game_state_manager: GameStateManager = null
@@ -548,7 +552,12 @@ func _ready() -> void:
 		obstacle_layer.get_parent().remove_child(obstacle_layer)
 	grid_manager.get_camera_container().add_child(obstacle_layer)
 
-	map_manager.load_map_data(GolfCourseLayout.LEVEL_LAYOUT)
+	# Load damage round layout if in damage round mode, otherwise load normal hole layout
+	if Global.damage_round_mode:
+		map_manager.load_map_data(GolfCourseLayout.get_damage_round_layout())
+		print("Loading Damage Round layout")
+	else:
+		map_manager.load_map_data(GolfCourseLayout.LEVEL_LAYOUT)
 
 	deck_manager = DeckManager.new()
 	add_child(deck_manager)
@@ -571,6 +580,12 @@ func _ready() -> void:
 	ui_manager = UIManager.new()
 	add_child(ui_manager)
 	ui_manager.setup($UILayer, self, player_manager, grid_manager, camera_manager, deck_manager, movement_controller, attack_handler, weapon_handler, launch_manager)
+	
+	# Initialize DamageBar for driving range
+	damage_bar = DamageBar.new()
+	$UILayer.add_child(damage_bar)
+	damage_bar.position = Vector2(17, 760)  # Position above health bar
+	damage_bar.visible = false  # Hidden by default
 	
 	# Display selected character after UIManager is initialized
 	ui_manager.display_selected_character()
@@ -792,7 +807,16 @@ func adjust_background_positioning() -> void:
 		print("ERROR: game_state_manager not initialized in start_round()")
 		return
 		
-	if Global.starting_back_9:
+	# Check if we should start in driving range mode (from Main.gd driving range button)
+	if Global.damage_round_mode:
+		print("=== STARTING DRIVING RANGE MODE ===")
+		game_state_manager.start_driving_range()
+		game_state_manager.set_next_puzzle_type("driving_range")
+		game_state_manager.start_driving_range_round()  # Initialize 3-shot system
+		Global.damage_round_mode = false  # Reset the flag
+		print("Driving range mode initialized with 3-shot system")
+	# Check if we should start in back 9 mode
+	elif Global.starting_back_9:
 		print("=== STARTING BACK 9 MODE ===")
 		game_state_manager.start_back_nine()
 		Global.starting_back_9 = false  # Reset the flag
@@ -800,8 +824,7 @@ func adjust_background_positioning() -> void:
 	else:
 		print("=== STARTING FRONT 9 MODE ===")
 		game_state_manager.start_front_nine()
-	
-	print("Front 9 mode initialized, starting at hole:", game_state_manager.get_current_hole_index())
+		print("Front 9 mode initialized, starting at hole:", game_state_manager.get_current_hole_index())
 	
 	# Initialize smart performance optimizer
 	var optimizer_script = load("res://SmartPerformanceOptimizer.gd")
@@ -822,7 +845,12 @@ func adjust_background_positioning() -> void:
 	game_state_manager.is_placing_player = true
 	map_manager.highlight_tee_tiles()
 
-	map_manager.load_map_data(GolfCourseLayout.get_hole_layout(game_state_manager.get_current_hole_index()))
+	# Load driving range layout if in driving range mode, otherwise load normal hole layout
+	if game_state_manager.get_driving_range_mode():
+		map_manager.load_map_data(GolfCourseLayout.get_damage_round_layout())
+		print("Loading Driving Range layout")
+	else:
+		map_manager.load_map_data(GolfCourseLayout.get_hole_layout(game_state_manager.get_current_hole_index()))
 	build_map.build_map_from_layout_with_randomization(map_manager.level_layout)
 	
 	# Sync shop grid position with build_map
@@ -847,6 +875,12 @@ func adjust_background_positioning() -> void:
 	
 	# Register any existing Squirrels with the Entities system
 	world_turn_manager.register_existing_squirrels()
+	
+	# DRIVING RANGE MODE: Spawn extra NPCs and oil drums for fun
+	if game_state_manager.get_driving_range_mode():
+		spawn_damage_round_objects()
+		# Set wider camera limits for the large driving range map
+		set_damage_round_camera_limits()
 	
 	# Re-register all NPCs in Entities to ensure attack system works
 	var entities = get_node_or_null("Entities")
@@ -1304,11 +1338,20 @@ func _on_golf_ball_landed(tile: Vector2i):
 			if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball) and launch_manager.golf_ball.has_method("remove_landing_highlight"):
 				launch_manager.golf_ball.remove_landing_highlight()
 			
-			# Check if this ball is in gimme range
-			ui_manager.check_and_show_gimme_button()
-			
-			# Show the "Draw Club Cards" button
-			ui_manager.show_draw_club_cards_button()
+			# DRIVING RANGE MODE: Use timer then place new ball and reset for next shot
+			if game_state_manager.get_driving_range_mode():
+				print("Driving Range Mode: Starting 1.5 second timer before placing new ball")
+				var damage_round_timer = get_tree().create_timer(1.5)
+				damage_round_timer.timeout.connect(func():
+					print("Driving Range Mode: Timer finished - placing new ball and resetting for next shot")
+					place_new_ball_for_damage_round()
+				)
+			else:
+				# NORMAL MODE: Check if this ball is in gimme range
+				ui_manager.check_and_show_gimme_button()
+				
+				# Show the "Draw Club Cards" button
+				ui_manager.show_draw_club_cards_button()
 		else:
 			# Check if this ball was moved by RedJay - if so, don't show drive distance dialog
 			if card_effect_handler and card_effect_handler.has_method("was_ball_moved_by_redjay") and card_effect_handler.was_ball_moved_by_redjay(launch_manager.golf_ball):
@@ -1321,20 +1364,46 @@ func _on_golf_ball_landed(tile: Vector2i):
 			else:
 				# Player needs to move to the ball - show drive distance dialog on every shot
 				if should_show_drive_distance_dialog(is_first_shot):
-					var sprite = player_manager.get_player_node().get_node_or_null("Sprite2D")
-					var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
-					var player_center = player_manager.get_player_node().global_position + player_size / 2
-					var player_start_pos = player_center
-					var ball_landing_pos = launch_manager.golf_ball.global_position
-					game_state_manager.set_drive_distance(player_start_pos.distance_to(ball_landing_pos))
-					var dialog_timer = get_tree().create_timer(0.5)  # Reduced from 1.5 to 0.5 second delay
-					dialog_timer.timeout.connect(func():
-						ui_manager.show_drive_distance_dialog(game_state_manager.get_drive_distance())
-						# Tween camera back to player after showing drive distance dialog
-						create_camera_tween(player_center, 0.8)
-					)
-					game_state_manager.set_game_phase("move")
-					player_manager.update_player_mouse_facing_state(game_state_manager, launch_manager, camera, weapon_handler)
+					# In driving_range puzzle type, show damage round dialog instead
+					if game_state_manager.get_current_puzzle_type() == "driving_range":
+						var total_damage = game_state_manager.get_damage_round_total_damage()
+						var sprite = player_manager.get_player_node().get_node_or_null("Sprite2D")
+						var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
+						var player_center = player_manager.get_player_node().global_position + player_size / 2
+						
+						# Place a range flag where the ball landed (like driving range)
+						if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball):
+							var ball_position = launch_manager.golf_ball.global_position
+							var range_flag_scene = preload("res://Stages/RangeFlag.tscn")
+							if range_flag_scene:
+								var range_flag = range_flag_scene.instantiate()
+								range_flag.position = ball_position
+								grid_manager.get_camera_container().add_child(range_flag)
+								print("DamageRound Mode: Range flag placed at ball landing position")
+						
+						var dialog_timer = get_tree().create_timer(0.5)
+						dialog_timer.timeout.connect(func():
+							ui_manager.show_damage_round_dialog(total_damage)
+							# Tween camera back to player after showing damage round dialog
+							create_camera_tween(player_center, 0.8)
+						)
+						game_state_manager.set_game_phase("move")
+						player_manager.update_player_mouse_facing_state(game_state_manager, launch_manager, camera, weapon_handler)
+					else:
+						var sprite = player_manager.get_player_node().get_node_or_null("Sprite2D")
+						var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
+						var player_center = player_manager.get_player_node().global_position + player_size / 2
+						var player_start_pos = player_center
+						var ball_landing_pos = launch_manager.golf_ball.global_position
+						game_state_manager.set_drive_distance(player_start_pos.distance_to(ball_landing_pos))
+						var dialog_timer = get_tree().create_timer(0.5)  # Reduced from 1.5 to 0.5 second delay
+						dialog_timer.timeout.connect(func():
+							ui_manager.show_drive_distance_dialog(game_state_manager.get_drive_distance())
+							# Tween camera back to player after showing drive distance dialog
+							create_camera_tween(player_center, 0.8)
+						)
+						game_state_manager.set_game_phase("move")
+						player_manager.update_player_mouse_facing_state(game_state_manager, launch_manager, camera, weapon_handler)
 				else:
 					print("Not a tee shot or first shot - skipping drive distance dialog")
 					# Tween camera back to player even when skipping dialog
@@ -1670,6 +1739,16 @@ func _on_golf_ball_out_of_bounds():
 	
 	sound_manager.play_water_plunk()
 	game_state_manager.set_camera_following_ball(false)
+	
+	# In DamageRound mode, count the shot even if it goes out of bounds
+	if game_state_manager.get_current_puzzle_type() == "driving_range":
+		print("DamageRound Mode: Ball went out of bounds - counting shot and showing damage dialog")
+		game_state_manager.increment_hole_score()
+		
+		# Show damage round dialog for out-of-bounds shot
+		var total_damage = game_state_manager.get_damage_round_total_damage()
+		ui_manager.show_damage_round_dialog(total_damage)
+		return
 	
 	# Hide grenade launcher weapon now that golf ball has gone out of bounds (if using GrenadeLauncherClubCard)
 	# Check if we have a grenade launcher weapon instance (either by club or by weapon type)
@@ -2194,7 +2273,13 @@ func reset_for_next_hole():
 	game_state_manager.set_current_puzzle_type(game_state_manager.get_next_puzzle_type())
 	print("🎯 PUZZLE TYPE: Applying puzzle type '", game_state_manager.get_current_puzzle_type(), "' to hole", game_state_manager.get_current_hole_index() + 1)
 	
-	map_manager.load_map_data(GolfCourseLayout.get_hole_layout(game_state_manager.get_current_hole_index()))
+	# In driving range mode, always load the DamageRoundLayout
+	if game_state_manager.get_driving_range_mode():
+		map_manager.load_map_data(GolfCourseLayout.get_damage_round_layout())
+		print("Driving Range Mode: Loading DamageRoundLayout for next hole")
+	else:
+		map_manager.load_map_data(GolfCourseLayout.get_hole_layout(game_state_manager.get_current_hole_index()))
+	
 	build_map.build_map_from_layout_with_randomization(map_manager.level_layout, game_state_manager.get_current_hole_index(), game_state_manager.get_current_puzzle_type())
 	
 	# Sync shop grid position with build_map
@@ -2220,6 +2305,13 @@ func reset_for_next_hole():
 	game_state_manager.set_is_placing_player(true)
 	map_manager.highlight_tee_tiles()
 	show_tee_selection_instruction()
+	
+	# DRIVING RANGE MODE: Spawn extra NPCs and oil drums for fun
+	if game_state_manager.get_driving_range_mode():
+		spawn_damage_round_objects()
+		# Set wider camera limits for the large driving range map
+		set_damage_round_camera_limits()
+	
 	# After all NPCs are spawned/registered for the new hole
 	var entities = get_node_or_null("Entities")
 	if entities:
@@ -2268,13 +2360,32 @@ func update_hole_and_score_display():
 		label.z_index = 200
 
 func _on_draw_cards_pressed() -> void:
-	if game_state_manager.get_game_phase() == "draw_cards":
-		print("Drawing club cards for selection...")
+	# In driving_range puzzle type, draw modifier cards instead of normal cards
+	if game_state_manager.get_current_puzzle_type() == "driving_range":
+		print("Driving Range Puzzle Type: Drawing modifier cards")
 		if card_stack_display.has_node("CardDraw"):
 			var card_draw_sound = card_stack_display.get_node("CardDraw")
 			if card_draw_sound and card_draw_sound.stream:
 				card_draw_sound.play()
-		draw_club_cards()
+		draw_driving_range_modifier_cards()
+		return
+	
+	if game_state_manager.get_game_phase() == "draw_cards":
+		# Check if player already has modifier cards in hand
+		if deck_manager.hand.size() > 0:
+			print("Player has modifier cards in hand - drawing club cards for selection...")
+			if card_stack_display.has_node("CardDraw"):
+				var card_draw_sound = card_stack_display.get_node("CardDraw")
+				if card_draw_sound and card_draw_sound.stream:
+					card_draw_sound.play()
+			draw_club_cards()
+		else:
+			print("Drawing club cards for selection...")
+			if card_stack_display.has_node("CardDraw"):
+				var card_draw_sound = card_stack_display.get_node("CardDraw")
+				if card_draw_sound and card_draw_sound.stream:
+					card_draw_sound.play()
+			draw_club_cards()
 	elif game_state_manager.get_game_phase() == "ball_tile_choice":
 		print("Drawing club cards for shot from ball tile...")
 		if card_stack_display.has_node("CardDraw"):
@@ -2328,8 +2439,9 @@ func draw_club_cards() -> void:
 	
 	for card in cards_to_remove:
 		deck_manager.discard(card)
+		print("Discarded modifier card:", card.name, "before drawing clubs")
 	
-	# NEW SYSTEM: Draw exactly 5 basic clubs in order (Putter, PitchingWedge, Iron, Wood, Driver)
+	# Define basic clubs for fallback
 	var basic_clubs = [
 		preload("res://Cards/Putter.tres"),
 		preload("res://Cards/PitchingWedge.tres"),
@@ -2338,16 +2450,42 @@ func draw_club_cards() -> void:
 		preload("res://Cards/Driver.tres")
 	]
 	
-	# Add the 5 basic clubs to hand
-	for club in basic_clubs:
-		deck_manager.hand.append(club)
-	
-	# Store the available clubs for cycling during aiming
-	game_state_manager.set_available_clubs(basic_clubs)
-	
-	# Set default club to Iron (index 2)
-	game_state_manager.set_current_club_index(2)
-	game_state_manager.set_selected_club("Iron")
+	# DRIVING RANGE MODE: Draw from all available club cards
+	if game_state_manager.get_driving_range_mode():
+		# Draw 3 random club cards from the full deck
+		var available_clubs = deck_manager.draw_from_club_deck(3)
+		
+		# If we don't have enough club cards, add some basic ones
+		if available_clubs.size() < 3:
+			for i in range(3 - available_clubs.size()):
+				if i < basic_clubs.size():
+					available_clubs.append(basic_clubs[i])
+		
+		# Add the club cards to hand
+		for club in available_clubs:
+			deck_manager.hand.append(club)
+		
+		# Store the available clubs for cycling during aiming
+		game_state_manager.set_available_clubs(available_clubs)
+		
+		# Set default club to first available club
+		game_state_manager.set_current_club_index(0)
+		game_state_manager.set_selected_club(available_clubs[0].name)
+		
+		print("Damage Round Mode: Drew", available_clubs.size(), "random club cards")
+	else:
+		# NORMAL MODE: Draw exactly 5 basic clubs in order (Putter, PitchingWedge, Iron, Wood, Driver)
+		
+		# Add the 5 basic clubs to hand
+		for club in basic_clubs:
+			deck_manager.hand.append(club)
+		
+		# Store the available clubs for cycling during aiming
+		game_state_manager.set_available_clubs(basic_clubs)
+		
+		# Set default club to Iron (index 2)
+		game_state_manager.set_current_club_index(2)
+		game_state_manager.set_selected_club("Iron")
 	
 	# Create display buttons for all 5 clubs (non-clickable)
 	for i in range(basic_clubs.size()):
@@ -2381,6 +2519,7 @@ func draw_club_cards() -> void:
 		movement_buttons.append(btn)
 	
 	draw_club_cards_button.visible = false
+	draw_cards_button.visible = false  # Hide draw cards button when drawing clubs
 	print("Drew 5 basic clubs: Putter, PitchingWedge, Iron, Wood, Driver")
 	print("Default club set to Iron")
 	
@@ -2424,6 +2563,45 @@ func update_club_display() -> void:
 	update_camera_zoom_for_club(selected_club_name, club_info)
 	
 	print("Updated club display - selected:", selected_club_name, "max_distance:", game_state_manager.max_shot_distance)
+
+func draw_driving_range_modifier_cards() -> void:
+	"""Draw modifier cards for driving range puzzle type"""
+	print("Drawing driving range modifier cards")
+	
+	# Clear existing cards from hand
+	deck_manager.hand.clear()
+	
+	# Define the modifier cards for driving range
+	var modifier_cards = [
+		preload("res://Cards/FireBallCard.tres"),
+		preload("res://Cards/IceBallCard.tres"),
+		preload("res://Cards/Explosive.tres"),
+		preload("res://Cards/FloridaScramble.tres")
+	]
+	
+	# Draw 3 random modifier cards
+	var random = RandomNumberGenerator.new()
+	random.randomize()
+	var drawn_cards: Array[CardData] = []
+	
+	for i in range(3):
+		if modifier_cards.size() > 0:
+			var card_index = random.randi() % modifier_cards.size()
+			var card = modifier_cards[card_index]
+			drawn_cards.append(card)
+			modifier_cards.remove_at(card_index)
+	
+	# Add the drawn cards to hand
+	for card in drawn_cards:
+		deck_manager.hand.append(card)
+	
+	# Create movement buttons for the modifier cards
+	create_movement_buttons()
+	
+	# Hide the draw cards button
+	draw_cards_button.visible = false
+	
+	print("Drew", drawn_cards.size(), "modifier cards for driving range")
 
 func update_camera_zoom_for_club(club_name: String, club_info: Dictionary) -> void:
 	"""Update camera zoom based on the selected club"""
@@ -3133,6 +3311,11 @@ func _on_ball_launched(ball: Node2D):
 		game_state_manager.set_camera_following_ball(true)
 		print("Camera following set to true for golf ball")
 		
+		# Activate damage round mode if current puzzle type is driving_range
+		if game_state_manager.get_current_puzzle_type() == "driving_range":
+			game_state_manager.set_damage_round_mode_active(true)
+			print("Damage Round Mode: Activated for golf ball launch")
+		
 		# Handle card effects
 		if sticky_shot_active and next_shot_modifier == "sticky_shot":
 			ball.sticky_shot_active = true
@@ -3597,7 +3780,12 @@ func is_position_walkable(pos: Vector2i) -> bool:
 
 func should_show_drive_distance_dialog(is_first_shot: bool = false) -> bool:
 	"""Check if drive distance dialog should be shown (now shows on every shot)"""
-	# Show drive distance dialog on every shot
+	# Don't show drive distance dialog in driving range mode
+	if game_state_manager.get_driving_range_mode():
+		print("Driving Range Mode: Skipping drive distance dialog")
+		return false
+	
+	# Show drive distance dialog on every shot in normal mode
 	print("Showing drive distance dialog for this shot")
 	return true
 
@@ -3651,6 +3839,9 @@ func _on_pause_end_round_pressed(pause_dialog: Control):
 		deck_manager.hand.clear()
 		deck_manager.discard_pile.clear()
 		ui_manager.update_deck_display()
+	
+	# Reset damage round mode flag
+	Global.damage_round_mode = false
 	
 	# Remove pause dialog
 	pause_dialog.queue_free()
@@ -3711,7 +3902,145 @@ func clear_player_state():
 	if movement_controller:
 		movement_controller.clear_all_movement_ui()
 	
-	print("Player state cleared")
+			# Reset damage round mode flag
+		Global.damage_round_mode = false
+		
+		print("Player state cleared")
+
+func place_new_ball_for_damage_round():
+	"""Place a new ball on the tee and reset player for driving range mode"""
+	print("Driving Range Mode: Placing new ball and resetting for next shot")
+	
+	# Reset ball landing state
+	game_state_manager.set_ball_landing_position(Vector2i.ZERO, Vector2.ZERO)
+	game_state_manager.set_waiting_for_player_to_reach_ball(false)
+	
+	# Find tee position by searching for "Tee" tiles
+	var tee_position = Vector2i.ZERO
+	for y in map_manager.level_layout.size():
+		for x in map_manager.level_layout[y].size():
+			if map_manager.get_tile_type(x, y) == "Tee":
+				tee_position = Vector2i(x, y)
+				break
+		if tee_position != Vector2i.ZERO:
+			break
+	
+	# In damage round mode, the player should already be on the tee
+	# Don't move the player - just ensure they stay where they are
+	print("Driving Range Mode: Player should already be on tee, not moving player")
+	
+	# Force create a new ball at the tee position (not player's current position)
+	# This will automatically clean up any existing balls
+	var tee_grid_pos = tee_position
+	if tee_grid_pos != Vector2i.ZERO:
+		# Calculate tee center position
+		var tee_center_pos = Vector2(tee_grid_pos.x * cell_size + cell_size/2, tee_grid_pos.y * cell_size + cell_size/2) + grid_manager.get_camera_container().global_position
+		launch_manager.force_create_ball_at_position(tee_center_pos, self)
+		print("Driving Range Mode: New ball force-created at tee position:", tee_grid_pos)
+	else:
+		# Fallback to player position if no tee found
+		var player_sprite = player_manager.get_player_node().get_node_or_null("Sprite2D")
+		var player_dimensions = player_sprite.texture.get_size() * player_sprite.scale if player_sprite and player_sprite.texture else Vector2(cell_size, cell_size)
+		var player_center_pos = player_manager.get_player_node().global_position + player_dimensions / 2
+		launch_manager.force_create_ball_at_position(player_center_pos, self)
+		print("Driving Range Mode: New ball force-created at player position (no tee found)")
+	
+	# Reset game state for new shot
+	game_state_manager.set_game_phase("aim")
+	game_state_manager.reset_hole_score()  # Reset hole score for new shot
+	
+	# Show the draw club cards button
+	ui_manager.show_draw_club_cards_button()
+	
+	# In driving_range puzzle type, also show the draw cards button for modifiers
+	if game_state_manager.get_current_puzzle_type() == "driving_range":
+		ui_manager.show_draw_cards_button_for_turn_start()
+	
+	print("Driving Range Mode: Ready for next shot!")
+
+func spawn_damage_round_objects():
+	"""Spawn extra NPCs and oil drums for driving range mode"""
+	print("Driving Range Mode: Spawning extra NPCs and oil drums")
+	
+	# Get grid size for random positioning
+	var grid_size = grid_manager.get_grid_size()
+	var random = RandomNumberGenerator.new()
+	random.randomize()
+	
+	# Spawn 10-15 random NPCs
+	var npc_count = random.randi_range(10, 15)
+	var npc_types = ["GANG", "POLICE", "ZOMBIE", "SQUIRREL"]
+	
+	for i in range(npc_count):
+		var npc_type = npc_types[random.randi() % npc_types.size()]
+		var npc_scene = object_scene_map.get(npc_type)
+		if npc_scene:
+			var npc = npc_scene.instantiate()
+			obstacle_layer.add_child(npc)
+			
+			# Find a random walkable position
+			var attempts = 0
+			var grid_pos = Vector2i.ZERO
+			while attempts < 50:
+				grid_pos = Vector2i(random.randi_range(5, grid_size.x - 5), random.randi_range(5, grid_size.y - 5))
+				if is_position_walkable(grid_pos):
+					break
+				attempts += 1
+			
+			if attempts < 50:
+				npc.grid_position = grid_pos
+				npc.cell_size = cell_size
+				obstacle_map[grid_pos] = npc
+				print("Spawned", npc_type, "at", grid_pos)
+	
+	# Spawn 8-12 oil drums
+	var oil_count = random.randi_range(8, 12)
+	var oil_scene = object_scene_map.get("OIL")
+	
+	for i in range(oil_count):
+		var oil_drum = oil_scene.instantiate()
+		obstacle_layer.add_child(oil_drum)
+		
+		# Find a random walkable position
+		var attempts = 0
+		var grid_pos = Vector2i.ZERO
+		while attempts < 50:
+			grid_pos = Vector2i(random.randi_range(5, grid_size.x - 5), random.randi_range(5, grid_size.y - 5))
+			if is_position_walkable(grid_pos):
+				break
+			attempts += 1
+		
+		if attempts < 50:
+			oil_drum.grid_position = grid_pos
+			oil_drum.cell_size = cell_size
+			obstacle_map[grid_pos] = oil_drum
+			print("Spawned oil drum at", grid_pos)
+	
+	print("Driving Range Mode: Spawned", npc_count, "NPCs and", oil_count, "oil drums")
+
+func set_damage_round_camera_limits():
+	"""Set wider camera limits for the large driving range map"""
+	if not camera or not camera.has_method("set_camera_limits"):
+		print("ERROR: Camera not found or doesn't have set_camera_limits method")
+		return
+	
+	# Calculate map dimensions: 100x50 grid with 48-pixel cells
+	var map_width = 100 * cell_size  # 4800 pixels
+	var map_height = 50 * cell_size   # 2400 pixels
+	
+	# Set camera limits to allow full map viewing
+	# Add some padding to allow camera to move slightly beyond map edges
+	var padding = 500.0
+	camera.set_camera_limits(
+		-padding,                    # left limit
+		map_width + padding,         # right limit  
+		-padding,                    # top limit
+		map_height + padding         # bottom limit
+	)
+	
+	print("Driving Range Mode: Set camera limits to allow full map viewing")
+	print("Map dimensions:", map_width, "x", map_height, "pixels")
+	print("Camera limits: X(", -padding, "to", map_width + padding, "), Y(", -padding, "to", map_height + padding, ")")
 
 func _update_player_mouse_facing_state():
 	"""Update player facing direction based on mouse position"""
@@ -3742,3 +4071,92 @@ func _update_player_mouse_facing_state():
 				player.set_facing_direction("down")
 			else:
 				player.set_facing_direction("up")
+
+func get_game_state_manager() -> GameStateManager:
+	"""Get the game state manager for damage tracking and other systems"""
+	return game_state_manager
+
+func draw_modifier_cards_for_tee_start() -> void:
+	"""Draw modifier cards when player is placed on a tee"""
+	print("=== DRAWING MODIFIER CARDS FOR TEE START ===")
+	
+	# Clear existing cards from hand
+	deck_manager.hand.clear()
+	
+	# Check if this is a DamageRound puzzle type hole
+	var is_damage_round = game_state_manager.get_current_puzzle_type() == "driving_range"
+	
+	var available_modifier_cards: Array[CardData] = []
+	
+	if is_damage_round:
+		# DamageRound puzzle type: Draw from all modifier cards
+		print("DamageRound puzzle type detected - drawing from all modifier cards")
+		available_modifier_cards = [
+			preload("res://Cards/FireBallCard.tres"),
+			preload("res://Cards/IceBallCard.tres"),
+			preload("res://Cards/Explosive.tres"),
+			preload("res://Cards/FloridaScramble.tres"),
+			preload("res://Cards/StickyShot.tres"),
+			preload("res://Cards/Bouncey.tres"),
+			preload("res://Cards/Dub.tres"),
+			preload("res://Cards/RooBoostCard.tres"),
+			preload("res://Cards/CoffeeCard.tres"),
+			preload("res://Cards/BagCheck.tres")
+		]
+	else:
+		# Normal holes: Only draw from modifier cards the player has in their deck
+		print("Normal hole detected - drawing only from player's deck modifier cards")
+		
+		# Get all modifier cards from the player's action deck
+		var action_deck = deck_manager.get_action_deck_remaining_cards()
+		for card in action_deck:
+			# Check if this is a modifier card (not a movement, attack, or defense card)
+			if not deck_manager.is_club_card(card) and not is_basic_action_card(card):
+				available_modifier_cards.append(card)
+		
+		# Also check the discard pile for modifier cards
+		var action_discard = deck_manager.get_action_discard_pile()
+		for card in action_discard:
+			if not deck_manager.is_club_card(card) and not is_basic_action_card(card):
+				available_modifier_cards.append(card)
+		
+		print("Found", available_modifier_cards.size(), "modifier cards in player's deck")
+	
+	# Draw modifier cards if any are available
+	var drawn_cards: Array[CardData] = []
+	if available_modifier_cards.size() > 0:
+		var random = RandomNumberGenerator.new()
+		random.randomize()
+		
+		# Draw up to 2 modifier cards
+		var cards_to_draw = min(2, available_modifier_cards.size())
+		for i in range(cards_to_draw):
+			var card_index = random.randi() % available_modifier_cards.size()
+			var card = available_modifier_cards[card_index]
+			drawn_cards.append(card)
+			available_modifier_cards.remove_at(card_index)
+		
+		# Add the drawn cards to hand
+		for card in drawn_cards:
+			deck_manager.hand.append(card)
+		
+		# Create movement buttons for the modifier cards
+		create_movement_buttons()
+		
+		print("Drew", drawn_cards.size(), "modifier cards for tee start:", drawn_cards.map(func(card): return card.name))
+	else:
+		print("No modifier cards available in player's deck")
+	
+	# Show the draw club cards button so player can draw clubs after using modifiers
+	ui_manager.show_draw_club_cards_button()
+	
+	print("Player can now play modifier cards before drawing clubs")
+
+func is_basic_action_card(card: CardData) -> bool:
+	"""Check if a card is a basic action card (movement, attack, defense)"""
+	var basic_action_cards = [
+		"Move1", "Move2", "Move3",
+		"PunchB", "KickB", "BurstShot",
+		"BlockB"
+	]
+	return basic_action_cards.has(card.name)
