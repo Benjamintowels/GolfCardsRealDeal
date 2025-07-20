@@ -20,6 +20,7 @@ config/icon="uid://cysuw6rwkrbwg"
 Global="*res://Global.gd"
 Deck="*res://DeckManager.gd"
 FadeManager="*res://FadeManager.gd"
+CurrentDeckManager="*res://current_deck_manager.gd"
 
 [display]
 

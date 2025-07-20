@@ -72,15 +72,12 @@ func test_shop_integration():
 func test_starter_deck_integration():
 	print("\n--- Testing Starter Deck Integration ---")
 	
-	# Create a CurrentDeckManager instance
-	var deck_manager = CurrentDeckManager.new()
-	add_child(deck_manager)
-	
+	# Use the CurrentDeckManager autoload singleton
 	# Wait for initialization
 	await get_tree().process_frame
 	
 	# Check the deck contents
-	var deck = deck_manager.get_current_deck()
+	var deck = CurrentDeckManager.get_current_deck()
 	var has_blockb = false
 	
 	for card in deck:
@@ -94,6 +91,4 @@ func test_starter_deck_integration():
 	if has_blockb:
 		print("✅ SUCCESS: BlockB is in the starter deck!")
 	else:
-		print("❌ ERROR: BlockB is missing from starter deck!")
-	
-	deck_manager.queue_free() 
+		print("❌ ERROR: BlockB is missing from starter deck!") 

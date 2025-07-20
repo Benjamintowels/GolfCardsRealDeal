@@ -11,7 +11,7 @@ signal dialog_closed
 @onready var upgrade_sound: AudioStreamPlayer2D = $UpgradeSound
 @onready var bag_sound: AudioStreamPlayer2D = $BagSound
 
-var current_deck_manager: CurrentDeckManager
+var current_deck_manager
 var selected_card: CardData = null
 var card_buttons: Array[Button] = []
 var is_prune_mode: bool = false

@@ -387,6 +387,7 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 		"bonfires": [],
 		"suitcase": Vector2i.ZERO,
 		"wraiths": [],
+		"boss_eyes": [],
 		"generator_switches": []
 	}
 	
@@ -1089,12 +1090,37 @@ func build_map_from_layout_with_randomization(layout: Array, hole_index: int = -
 	# Apply puzzle type-specific logic
 	apply_puzzle_type_configuration(puzzle_type)
 	
+	# Check if this is a boss room layout (has BossEye)
+	var is_boss_room_layout = false
+	for y in layout.size():
+		for x in layout[y].size():
+			if layout[y][x] == "BOSSEYE":
+				is_boss_room_layout = true
+				break
+		if is_boss_room_layout:
+			break
+	
 	# Use difficulty tier spawning (-1 means use difficulty tier calculation)
-	var object_positions = get_random_positions_for_objects(layout, 8, true, -1, -1, -1, -1, puzzle_type)
+	# Don't include shop in boss room layouts
+	var include_shop = not is_boss_room_layout
+	var object_positions = get_random_positions_for_objects(layout, 8, include_shop, -1, -1, -1, -1, puzzle_type)
+	
+	# Extract BossEye positions from layout
+	extract_boss_eye_positions_from_layout(layout, object_positions)
+	
 	place_objects_at_positions(object_positions, layout)
 	# Place TreeLineVert borders
 	place_treeline_vert_borders(layout)
 	# position_camera_on_pin()  # This should be called from the main scene if needed
+
+func extract_boss_eye_positions_from_layout(layout: Array, object_positions: Dictionary) -> void:
+	"""Extract BossEye positions from the layout and add them to object_positions"""
+	for y in layout.size():
+		for x in layout[y].size():
+			if layout[y][x] == "BOSSEYE":
+				var boss_eye_pos = Vector2i(x, y)
+				object_positions.boss_eyes.append(boss_eye_pos)
+				print("🎯 BOSS EYE: Found BossEye at position (", x, ",", y, ")")
 
 func apply_puzzle_type_configuration(puzzle_type: String) -> void:
 	"""Apply puzzle type-specific configuration to the current hole"""
@@ -1610,6 +1636,36 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		
 		ysort_objects.append({"node": wraith, "grid_pos": wraith_pos})
 		obstacle_layer.add_child(wraith)
+	
+	# Place BossEye NPCs
+	for boss_eye_pos in object_positions.boss_eyes:
+		var scene: PackedScene = object_scene_map["BOSSEYE"]
+		if scene == null:
+			push_error("🚫 BossEye scene is null")
+			continue
+		var boss_eye: Node2D = scene.instantiate() as Node2D
+		if boss_eye == null:
+			push_error("❌ BossEye instantiation failed at (%d,%d)" % [boss_eye_pos.x, boss_eye_pos.y])
+			continue
+		var world_pos: Vector2 = Vector2(boss_eye_pos.x, boss_eye_pos.y) * cell_size
+		boss_eye.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
+		# Let the global Y-sort system handle z_index
+		if boss_eye.has_meta("grid_position") or "grid_position" in boss_eye:
+			boss_eye.set("grid_position", boss_eye_pos)
+		else:
+			push_warning("⚠️ BossEye missing 'grid_position'. Type: %s" % boss_eye.get_class())
+		
+		# Setup the BossEye
+		if boss_eye.has_method("setup"):
+			boss_eye.setup(boss_eye_pos, cell_size)
+		
+		# Add boss eye to groups for smart optimization
+		boss_eye.add_to_group("bosses")
+		boss_eye.add_to_group("collision_objects")
+		boss_eye.add_to_group("NPC")  # Add to NPC group for attack system
+		
+		ysort_objects.append({"node": boss_eye, "grid_pos": boss_eye_pos})
+		obstacle_layer.add_child(boss_eye)
 	
 	# Place Oil Drums
 	for oil_pos in object_positions.oil_drums:

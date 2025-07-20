@@ -6,7 +6,7 @@ extends Node2D
 
 @onready var equipment_manager: EquipmentManager = $EquipmentManager
 @onready var deck_manager: DeckManager = $DeckManager
-@onready var current_deck_manager: CurrentDeckManager = $CurrentDeckManager
+@onready var current_deck_manager = $CurrentDeckManager
 
 # Test equipment
 var putter_help_equipment: EquipmentData

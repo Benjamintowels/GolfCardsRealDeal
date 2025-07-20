@@ -6,7 +6,7 @@ extends Node2D
 
 @onready var card_effect_handler: CardEffectHandler = $CardEffectHandler
 @onready var deck_manager: DeckManager = $DeckManager
-@onready var current_deck_manager: CurrentDeckManager = $CurrentDeckManager
+@onready var current_deck_manager = $CurrentDeckManager
 
 # Test card
 var bag_check_card: CardData

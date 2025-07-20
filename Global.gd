@@ -6,6 +6,7 @@ var putt_putt_mode = false  # Flag for putt putt mode (only putters)
 var starting_back_9 = false  # Flag for starting back 9 holes
 var in_mid_game_shop_mode = false  # Flag for mid-game shop mode
 var damage_round_mode = false  # Flag for damage round mode (special fun mode)
+var boss_room_mode = false  # Flag for boss room mode
 var final_18_hole_score = 0  # Final score for 18-hole game
 var front_9_score = 0  # Score from front 9 holes
 

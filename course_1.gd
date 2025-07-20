@@ -48,6 +48,7 @@ const AttackHandler := preload("res://AttackHandler.gd")
 const WeaponHandler := preload("res://WeaponHandler.gd")
 var attack_handler: AttackHandler
 const GolfCourseLayout := preload("res://Maps/GolfCourseLayout.gd")
+const BossFight := preload("res://Maps/BossFightLayout.gd")
 const HealthBar := preload("res://HealthBar.gd")
 const BlockHealthBar := preload("res://BlockHealthBar.gd")
 const EquipmentManager := preload("res://EquipmentManager.gd")
@@ -272,6 +273,7 @@ var object_scene_map := {
 	"BONFIRE": preload("res://Interactables/Bonfire.tscn"),
 	"SUITCASE": preload("res://MapSuitCase.tscn"),
 	"WRAITH": preload("res://NPC/Bosses/Wraith.tscn"),
+	"BOSSEYE": preload("res://NPC/Bosses/BossEye.tscn"),
 	"GENERATOR": preload("res://Interactables/GeneratorSwitch.tscn"),
 	"PYLON": preload("res://Interactables/Pylon.tscn"),
 	"VERTICAL_FIELD": preload("res://Interactables/VerticalField.tscn"),
@@ -294,6 +296,7 @@ var object_to_tile_mapping := {
 	"SQUIRREL": "Base",
 	"BONFIRE": "Base",
 	"WRAITH": "G",
+	"BOSSEYE": "G",
 	"GENERATOR": "Base",
 	"PYLON": "Base",
 	"VERTICAL_FIELD": "Base",
@@ -552,8 +555,11 @@ func _ready() -> void:
 		obstacle_layer.get_parent().remove_child(obstacle_layer)
 	grid_manager.get_camera_container().add_child(obstacle_layer)
 
-	# Load damage round layout if in damage round mode, otherwise load normal hole layout
-	if Global.damage_round_mode:
+	# Load appropriate layout based on mode
+	if Global.boss_room_mode:
+		map_manager.load_map_data(BossFight.LAYOUT)
+		print("Loading Boss Fight layout")
+	elif Global.damage_round_mode:
 		map_manager.load_map_data(GolfCourseLayout.get_damage_round_layout())
 		print("Loading Damage Round layout")
 	else:
@@ -813,8 +819,15 @@ func adjust_background_positioning() -> void:
 		print("ERROR: game_state_manager not initialized in start_round()")
 		return
 		
+	# Check if we should start in boss room mode (from Main.gd boss room button)
+	var is_boss_room_mode = Global.boss_room_mode
+	if Global.boss_room_mode:
+		print("=== STARTING BOSS ROOM MODE ===")
+		game_state_manager.start_front_nine()  # Use front nine mode for boss room
+		Global.boss_room_mode = false  # Reset the flag
+		print("Boss room mode initialized")
 	# Check if we should start in driving range mode (from Main.gd driving range button)
-	if Global.damage_round_mode:
+	elif Global.damage_round_mode:
 		print("=== STARTING DRIVING RANGE MODE ===")
 		game_state_manager.start_driving_range()
 		game_state_manager.set_next_puzzle_type("driving_range")
@@ -861,8 +874,11 @@ func adjust_background_positioning() -> void:
 	game_state_manager.is_placing_player = true
 	map_manager.highlight_tee_tiles()
 
-	# Load driving range layout if in driving range mode, otherwise load normal hole layout
-	if game_state_manager.get_driving_range_mode():
+	# Load appropriate layout based on mode
+	if is_boss_room_mode:
+		map_manager.load_map_data(BossFight.LAYOUT)
+		print("Loading Boss Fight layout")
+	elif game_state_manager.get_driving_range_mode():
 		map_manager.load_map_data(GolfCourseLayout.get_damage_round_layout())
 		print("Loading Driving Range layout")
 	else:
@@ -891,6 +907,9 @@ func adjust_background_positioning() -> void:
 	
 	# Register any existing Squirrels with the Entities system
 	world_turn_manager.register_existing_squirrels()
+	
+	# Register any existing BossEye NPCs with the Entities system
+	world_turn_manager.register_existing_boss_eyes()
 	
 	# DRIVING RANGE MODE: Spawn extra NPCs and oil drums for fun
 	if game_state_manager.get_driving_range_mode():

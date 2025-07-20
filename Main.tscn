@@ -95,6 +95,13 @@ offset_right = 396.0
 offset_bottom = 633.0
 text = "Driving Range"
 
+[node name="BossRoom" type="Button" parent="UI"]
+offset_left = 837.0
+offset_top = 399.0
+offset_right = 953.0
+offset_bottom = 430.0
+text = "Boss Room"
+
 [node name="Character2" type="Sprite2D" parent="UI"]
 texture_filter = 1
 position = Vector2(611, 889)

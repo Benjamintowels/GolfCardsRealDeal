@@ -189,6 +189,28 @@ func _find_squirrels_recursive(node: Node, squirrels: Array) -> void:
 			squirrels.append(child)
 		_find_squirrels_recursive(child, squirrels)
 
+func register_existing_boss_eyes() -> void:
+	"""Register any existing BossEye NPCs in the scene with the Entities system"""
+	var entities = get_node_or_null("Entities")
+	if not entities:
+		return
+	
+	# Search for BossEye nodes in the scene
+	var boss_eyes = []
+	_find_boss_eyes_recursive(course_reference, boss_eyes)
+	
+	# Register each BossEye
+	for boss_eye in boss_eyes:
+		if is_instance_valid(boss_eye):
+			entities.register_npc(boss_eye)
+
+func _find_boss_eyes_recursive(node: Node, boss_eyes: Array) -> void:
+	"""Recursively search for BossEye nodes in the scene tree"""
+	for child in node.get_children():
+		if child.get_script() and child.get_script().resource_path.ends_with("boss_eye.gd"):
+			boss_eyes.append(child)
+		_find_boss_eyes_recursive(child, boss_eyes)
+
 func get_visible_npcs_by_priority(player_manager: Node, game_state_manager: Node, ghost_mode_active: bool) -> Array[Node]:
 	"""Get all NPCs visible to the player, sorted by priority (fastest first)"""
 	var entities = get_node_or_null("Entities")
