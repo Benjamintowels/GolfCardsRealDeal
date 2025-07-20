@@ -79,6 +79,9 @@ func setup_dialog(course_ref: Node, ui_layer_ref: CanvasLayer) -> void:
 			round_end_hole = course.game_state_manager.NUM_HOLES - 1  # Hole 9 (index 8)
 		if current_hole < round_end_hole:
 			score_text += "\nClick to continue to the next hole."
+		elif current_hole == round_end_hole and not is_back_9_mode:
+			# This is hole 9 in front 9 mode - show front nine completion message
+			score_text += "\nClick to continue to the back nine!"
 		else:
 			score_text += "\nClick to see your final round score!"
 	
@@ -108,11 +111,18 @@ func close_dialog() -> void:
 	dialog_closed.emit()
 	
 	# Handle next steps based on game state
-	if course and course.game_state_manager and course.game_state_manager.get_current_hole_index() < round_end_hole:
-		# Show reward selection dialog
+	var current_hole = course.game_state_manager.get_current_hole_index() if course and course.game_state_manager else 0
+	var is_back_9_mode = course.game_state_manager.is_back_9_mode if course and course.game_state_manager else false
+	
+	if current_hole < round_end_hole:
+		# Show reward selection dialog for regular holes
 		if course.ui_manager and course.ui_manager.has_method("show_reward_phase"):
 			course.ui_manager.show_reward_phase()
+	elif current_hole == round_end_hole and not is_back_9_mode:
+		# This is hole 9 in front 9 mode - show front nine completion dialog
+		if course.ui_manager and course.ui_manager.has_method("show_front_nine_complete_dialog"):
+			course.ui_manager.show_front_nine_complete_dialog()
 	else:
-		# Show course complete dialog
+		# Show course complete dialog for final hole
 		if course.has_method("show_course_complete_dialog"):
 			course.show_course_complete_dialog()

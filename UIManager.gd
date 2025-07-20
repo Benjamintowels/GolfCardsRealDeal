@@ -584,8 +584,22 @@ func _on_shop_overlay_return() -> void:
 	"""Handle returning from shop overlay"""
 	print("=== RETURNING FROM SHOP ===")
 	
-	# Shop is now overlay system - no state restoration needed
-	# Just continue gameplay
+	# Remove the shop overlay
+	if shop_overlay:
+		shop_overlay.queue_free()
+		shop_overlay = null
+	
+	# Unpause the game
+	course.get_tree().paused = false
+	
+	# Check if we're in mid-game shop mode
+	if course and course.has_method("is_mid_game_shop_mode") and course.is_mid_game_shop_mode():
+		# Restore the MidGameShop overlay
+		print("=== RESTORING MID-GAME SHOP OVERLAY ===")
+		show_mid_game_shop_overlay()
+	else:
+		# Normal return to course - no additional action needed
+		print("=== RETURNED TO COURSE ===")
 
 func _on_suitcase_opened() -> void:
 	"""Handle suitcase opened"""
@@ -741,7 +755,7 @@ func show_front_nine_complete_dialog() -> void:
 	dialog.popup_centered()
 	dialog.confirmed.connect(func():
 		dialog.queue_free()
-		course.start_back_nine()
+		show_mid_game_shop_overlay()
 	)
 
 func show_back_nine_complete_dialog() -> void:

@@ -18,19 +18,17 @@ func _ready():
 	# Set the shop to process input even when the game is paused
 	process_mode = Node.PROCESS_MODE_WHEN_PAUSED
 	
-	# Ensure ReturnButton is always on top
-	$ReturnButton.z_index = 1000
-	
 	# Connect the return button with debugging
-	var return_button = $ReturnButton
+	var return_button = $ShopItems/ReturnButton
 	if return_button:
 		return_button.pressed.connect(_on_return_button_pressed)
 		
 		# Add a test to make sure the button is visible and clickable
 		return_button.mouse_filter = Control.MOUSE_FILTER_STOP
+		print("ShopInterior: Return button connected successfully")
 		
 	else:
-		print("ShopInterior: ERROR - Return button not found!")
+		print("ShopInterior: ERROR - Return button not found at ShopItems/ReturnButton!")
 	
 	# Add currency display to shop
 	add_currency_display()
@@ -674,7 +672,7 @@ func cleanup_replacement_dialogs():
 	enable_shop_item_containers()
 	
 	# Restore ReturnButton z-index
-	var return_button = $ReturnButton
+	var return_button = $ShopItems/ReturnButton
 	if return_button:
 		return_button.z_index = 1000  # Restore original z-index
 

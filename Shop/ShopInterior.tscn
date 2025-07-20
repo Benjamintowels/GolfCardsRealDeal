@@ -26,23 +26,8 @@ layout_mode = 0
 offset_top = -98.595
 offset_right = 1536.0
 offset_bottom = 925.405
-scale = Vector2(0.755, 0.755)
+scale = Vector2(1.26, 1.26)
 texture = ExtResource("1_eeho4")
-
-[node name="ReturnButton" type="Button" parent="."]
-layout_mode = 1
-anchors_preset = 7
-anchor_left = 0.5
-anchor_top = 1.0
-anchor_right = 0.5
-anchor_bottom = 1.0
-offset_left = -100.0
-offset_top = -100.0
-offset_right = 100.0
-offset_bottom = -50.0
-grow_horizontal = 2
-grow_vertical = 0
-text = "Return to Course"
 
 [node name="Trinkets" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("3_vsfgq")
@@ -59,19 +44,19 @@ volume_db = -2.93
 
 [node name="TextureRect2" type="TextureRect" parent="."]
 layout_mode = 0
-offset_left = 600.0
-offset_top = 218.0
-offset_right = 1624.0
-offset_bottom = 1242.0
+offset_left = 1266.0
+offset_top = 585.0
+offset_right = 2290.0
+offset_bottom = 1609.0
 scale = Vector2(0.225, 0.225)
 texture = ExtResource("4_8pyis")
 
 [node name="TextureRect3" type="TextureRect" parent="."]
 layout_mode = 0
-offset_left = -10.0
-offset_top = 23.0
-offset_right = 1526.0
-offset_bottom = 1047.0
+offset_left = 102.0
+offset_top = 45.0
+offset_right = 1638.0
+offset_bottom = 1069.0
 scale = Vector2(0.235, 0.235)
 texture = ExtResource("5_ko7ju")
 
@@ -81,7 +66,10 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_bottom = -150.0
+offset_left = 229.0
+offset_top = 366.0
+offset_right = 229.0
+offset_bottom = 216.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 1
@@ -118,6 +106,21 @@ offset_right = 619.0
 offset_bottom = 547.0
 scale = Vector2(0.6, 0.6)
 
+[node name="ReturnButton" type="Button" parent="ShopItems"]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -37.0
+offset_top = -324.0
+offset_right = 163.0
+offset_bottom = -274.0
+grow_horizontal = 2
+grow_vertical = 0
+text = "Return to Course"
+
 [node name="DeckDialog" type="Control" parent="."]
 z_index = 1000
 anchors_preset = 0
@@ -139,11 +142,11 @@ mouse_filter = 1
 [node name="Golfsmith" type="TextureButton" parent="."]
 texture_filter = 1
 layout_mode = 0
-offset_left = 20.0
-offset_top = 322.0
-offset_right = 146.0
-offset_bottom = 462.0
-scale = Vector2(2.345, 2.345)
+offset_left = 22.0
+offset_top = 585.0
+offset_right = 148.0
+offset_bottom = 725.0
+scale = Vector2(3.605, 3.605)
 texture_normal = ExtResource("7_77fnv")
 texture_pressed = ExtResource("7_77fnv")
 texture_hover = ExtResource("7_77fnv")
