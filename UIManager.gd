@@ -1024,8 +1024,10 @@ func show_draw_cards_button_for_turn_start() -> void:
 			draw_cards_button.visible = true
 		return
 	
+	# For normal holes, don't show the draw cards button - only club cards should be available
+	print("Normal hole: Hiding draw cards button - only club cards allowed")
 	if draw_cards_button:
-		draw_cards_button.visible = true
+		draw_cards_button.visible = false
 
 func show_draw_club_cards_button() -> void:
 	"""Show draw club cards button only if player has available shots"""
@@ -1038,16 +1040,16 @@ func show_draw_club_cards_button() -> void:
 			draw_club_cards_button.visible = false
 			print("Draw Club Cards button hidden - no available shots")
 		
-		# Also show the draw cards button for modifiers when player is on tee
+		# Only show the draw cards button for modifiers on DamageRound holes when player is on tee
 		if course.game_state_manager and course.game_state_manager.get_game_phase() == "draw_cards":
 			if draw_cards_button:
-				# Only show draw cards button if player has modifier cards in hand
-				if course.deck_manager and course.deck_manager.hand.size() > 0:
+				# Only show draw cards button for DamageRound holes and if player has modifier cards in hand
+				if course.game_state_manager.get_current_puzzle_type() == "driving_range" and course.deck_manager and course.deck_manager.hand.size() > 0:
 					draw_cards_button.visible = true
 					print("Draw Cards button shown for modifiers - player has", course.deck_manager.hand.size(), "modifier cards")
 				else:
 					draw_cards_button.visible = false
-					print("Draw Cards button hidden - no modifier cards available")
+					print("Draw Cards button hidden - not DamageRound hole or no modifier cards available")
 
 func enter_draw_cards_phase() -> void:
 	"""Enter the draw cards phase - start with club selection"""

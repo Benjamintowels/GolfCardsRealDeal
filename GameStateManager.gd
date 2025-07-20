@@ -734,11 +734,11 @@ func start_round_after_tee_selection(course: Node, player_manager: Node, deck_ma
 	# Reset available shots for new player turn
 	reset_available_shots()
 	
-	# Start with club selection phase and automatically draw modifier cards
+	# Start with club selection phase
 	ui_manager.enter_draw_cards_phase()
 	
-	# Automatically draw modifier cards for the player to use before their shot
-	if course.has_method("draw_modifier_cards_for_tee_start"):
+	# Only draw modifier cards for DamageRound holes
+	if get_current_puzzle_type() == "driving_range" and course.has_method("draw_modifier_cards_for_tee_start"):
 		course.draw_modifier_cards_for_tee_start()
 	
 	print("Round started! Player at position:", player_manager.get_player_grid_pos())
