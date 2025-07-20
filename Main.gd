@@ -6,6 +6,7 @@ extends Control
 @onready var start_putt_putt_button = $UI/StartPuttPutt
 @onready var start_back_9_button = $UI/StartBack9
 @onready var driving_range_button = $UI/DrivingRange
+@onready var course3d_button = $UI/Course3D
 @onready var select_sound = $Select
 
 var selected_character = 1  # Default to character 1
@@ -27,6 +28,7 @@ func _ready():
 	start_putt_putt_button.pressed.connect(_on_start_putt_putt_button_pressed)
 	start_back_9_button.pressed.connect(_on_start_back_9_pressed)
 	driving_range_button.pressed.connect(_on_driving_range_button_pressed)
+	course3d_button.pressed.connect(_on_course3d_button_pressed)
 	
 	print("Buttons connected successfully")
 	print("Initial selected_character: ", selected_character)
@@ -89,6 +91,16 @@ func _on_driving_range_button_pressed():
 	# Change to Course1 scene with driving range mode
 	call_deferred("_change_to_driving_range")
 
+func _on_course3d_button_pressed():
+	_play_select_sound()
+	# Store the selected character in a global variable
+	Global.selected_character = selected_character
+	Global.putt_putt_mode = false  # Ensure normal mode for 3D course
+	print("Selected character: ", selected_character, " - Starting 3D Course")
+	
+	# Change to Course3D scene
+	call_deferred("_change_to_course3d")
+
 func _change_scene():
 	# Start fade to black first
 	FadeManager.fade_to_black(func(): get_tree().change_scene_to_file("res://Course1.tscn"), 0.5)
@@ -101,6 +113,15 @@ func _change_scene():
 func _change_to_driving_range():
 	# Start fade to black first
 	FadeManager.fade_to_black(func(): get_tree().change_scene_to_file("res://Course1.tscn"), 0.5)
+	
+	# Play door sounds during the fade
+	$DoorOpen.play()
+	await $DoorOpen.finished
+	$DoorClose.play()
+
+func _change_to_course3d():
+	# Start fade to black first
+	FadeManager.fade_to_black(func(): get_tree().change_scene_to_file("res://3D/Course3D.tscn"), 0.5)
 	
 	# Play door sounds during the fade
 	$DoorOpen.play()
