@@ -402,36 +402,72 @@ static func create_explosion_at_position(position: Vector2, parent: Node) -> Nod
 func _create_fire_tile_at_explosion_position():
 	"""Create a fire tile at the explosion position"""
 	
-	# Calculate the tile position from the explosion's world position
-	var tile_pos = Vector2i(floor(global_position.x / CELL_SIZE), floor(global_position.y / CELL_SIZE))
+	print("=== FIRE TILE CREATION DEBUG ===")
+	print("Explosion position:", global_position)
+	
+	# Find the camera container to account for camera offset
+	var cam_container = _find_camera_container()
+	var adjusted_position = global_position
+	
+	if cam_container:
+		# Account for camera container offset
+		adjusted_position = global_position - cam_container.global_position
+		print("Camera container offset:", cam_container.global_position)
+		print("Adjusted position:", adjusted_position)
+	
+	# Calculate the tile position from the adjusted position
+	var tile_pos = Vector2i(floor(adjusted_position.x / CELL_SIZE), floor(adjusted_position.y / CELL_SIZE))
+	print("Calculated tile position:", tile_pos)
+	
+	# Check if tile position is out of bounds
+	if tile_pos.x < 0 or tile_pos.y < 0:
+		print("Tile position is out of bounds - skipping")
+		return
 	
 	# Check if this tile is already on fire or has been scorched
 	if _is_tile_on_fire_or_scorched(tile_pos):
+		print("Tile is already on fire or scorched - skipping")
 		return
 	
 	# Check if this is a grass tile that can catch fire
 	var tile_type = _get_tile_type(tile_pos)
+	print("Tile type:", tile_type)
 	if not _is_grass_tile(tile_type):
+		print("Tile is not grass type - skipping")
 		return
 	
-	# Create fire tile
+	print("Creating fire tile...")
 	
+	# Create fire tile
 	var fire_tile_scene = preload("res://Particles/FireTile.tscn")
+	if not fire_tile_scene:
+		print("ERROR: Could not load FireTile.tscn")
+		return
+	
 	var fire_tile = fire_tile_scene.instantiate()
+	if not fire_tile:
+		print("ERROR: Could not instantiate fire tile")
+		return
 	
 	# Set the tile position
 	fire_tile.set_tile_position(tile_pos)
 	
 	# Find the camera container to add the fire tile to (so it moves with the world)
 	var camera_container = _find_camera_container()
+	print("Camera container found:", camera_container != null)
+	
 	if not camera_container:
+		print("Adding fire tile to current scene")
 		get_tree().current_scene.add_child(fire_tile)
 	else:
+		print("Adding fire tile to camera container")
 		# Add to camera container so it moves with the world
 		camera_container.add_child(fire_tile)
 	
 	# Position the fire tile at the tile center (relative to its parent)
 	var tile_center = Vector2(tile_pos.x * CELL_SIZE + CELL_SIZE / 2, tile_pos.y * CELL_SIZE + CELL_SIZE / 2)
+	print("Tile center position:", tile_center)
+	
 	if camera_container:
 		# If added to camera container, position relative to camera container
 		fire_tile.position = tile_center
@@ -445,21 +481,30 @@ func _create_fire_tile_at_explosion_position():
 	# Connect to completion signal
 	fire_tile.fire_tile_completed.connect(_on_fire_tile_completed)
 	
+	print("Fire tile created successfully!")
+	print("=== END FIRE TILE CREATION DEBUG ===")
+	
 
 func _is_tile_on_fire_or_scorched(tile_pos: Vector2i) -> bool:
 	"""Check if a tile is currently on fire or has been scorched"""
 	# Check for existing fire tiles in the scene
 	var fire_tiles = get_tree().get_nodes_in_group("fire_tiles")
+	print("Checking", fire_tiles.size(), "existing fire tiles")
 	for fire_tile in fire_tiles:
 		# Add null check before accessing fire tile properties
 		if is_instance_valid(fire_tile) and fire_tile.get_tile_position() == tile_pos:
+			print("Found existing fire tile at position:", tile_pos)
 			return true
 	
 	# Check if tile is scorched via map manager
 	var map_manager = _find_map_manager()
 	if map_manager and map_manager.has_method("is_tile_scorched"):
-		return map_manager.is_tile_scorched(tile_pos.x, tile_pos.y)
+		var is_scorched = map_manager.is_tile_scorched(tile_pos.x, tile_pos.y)
+		if is_scorched:
+			print("Tile is scorched at position:", tile_pos)
+		return is_scorched
 	
+	print("Tile is not on fire or scorched")
 	return false
 
 func _is_grass_tile(tile_type: String) -> bool:
@@ -470,7 +515,10 @@ func _get_tile_type(tile_pos: Vector2i) -> String:
 	"""Get the tile type at the given position"""
 	var map_manager = _find_map_manager()
 	if map_manager and map_manager.has_method("get_tile_type"):
-		return map_manager.get_tile_type(tile_pos.x, tile_pos.y)
+		var tile_type = map_manager.get_tile_type(tile_pos.x, tile_pos.y)
+		print("Map manager returned tile type:", tile_type)
+		return tile_type
+	print("Map manager not found or no get_tile_type method")
 	return "Unknown"
 
 func _find_map_manager() -> Node:
@@ -478,6 +526,7 @@ func _find_map_manager() -> Node:
 	# Method 1: Try to get from course
 	var course = _find_course_script()
 	if course and course.has_node("MapManager"):
+		print("Found MapManager via course")
 		return course.get_node("MapManager")
 	
 	# Method 2: Search scene tree for MapManager
@@ -487,8 +536,10 @@ func _find_map_manager() -> Node:
 	for node in all_nodes:
 		# Add null check before calling get_script()
 		if is_instance_valid(node) and node.get_script() and node.get_script().resource_path.ends_with("MapManager.gd"):
+			print("Found MapManager via scene tree search")
 			return node
 	
+	print("MapManager not found")
 	return null
 
 func _find_camera_container() -> Node:

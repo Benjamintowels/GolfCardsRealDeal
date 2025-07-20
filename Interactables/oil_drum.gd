@@ -768,7 +768,11 @@ func _explode_oil_drum(ball: Node2D) -> void:
 		tipped_collision_area.monitorable = false
 	
 	# Create explosion effect at the oil drum's position
+	print("=== OIL DRUM EXPLOSION DEBUG ===")
+	print("Oil drum position:", global_position)
 	var explosion = Explosion.create_explosion_at_position(global_position, get_parent())
+	print("Explosion created:", explosion != null)
+	print("=== END OIL DRUM EXPLOSION DEBUG ===")
 	
 	if explosion:
 		# Launch the golf ball with boosted velocity away from the explosion
