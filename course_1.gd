@@ -2406,9 +2406,18 @@ func update_hole_and_score_display():
 		label.z_index = 200
 
 func _on_draw_cards_pressed() -> void:
-	# In driving_range puzzle type, draw modifier cards instead of normal cards
-	if game_state_manager.get_current_puzzle_type() == "driving_range":
-		print("Driving Range Puzzle Type: Drawing modifier cards")
+	# In driving_range puzzle type or with ShineStar equipment, draw modifier cards instead of normal cards
+	var is_damage_round = game_state_manager.get_current_puzzle_type() == "driving_range"
+	var has_shine_star = false
+	
+	# Check if player has ShineStar equipment (allows modifier cards on any hole)
+	if not is_damage_round:
+		var equipment_manager = get_node_or_null("EquipmentManager")
+		has_shine_star = equipment_manager and equipment_manager.has_equipment("Shine Star")
+	
+	if is_damage_round or has_shine_star:
+		var reason = "Driving Range Puzzle Type" if is_damage_round else "ShineStar equipment"
+		print(reason, ": Drawing modifier cards")
 		if card_stack_display.has_node("CardDraw"):
 			var card_draw_sound = card_stack_display.get_node("CardDraw")
 			if card_draw_sound and card_draw_sound.stream:
@@ -4129,12 +4138,20 @@ func draw_modifier_cards_for_tee_start() -> void:
 	# Clear existing cards from hand
 	deck_manager.hand.clear()
 	
-	# Check if this is a DamageRound puzzle type hole
+	# Check if this is a DamageRound puzzle type hole or if player has ShineStar equipment
 	var is_damage_round = game_state_manager.get_current_puzzle_type() == "driving_range"
+	var has_shine_star = false
+	
+	# Check if player has ShineStar equipment (allows modifier cards on any hole)
+	if not is_damage_round:
+		var equipment_manager = get_node_or_null("EquipmentManager")
+		has_shine_star = equipment_manager and equipment_manager.has_equipment("Shine Star")
+		if has_shine_star:
+			print("ShineStar equipment detected - allowing modifier cards on normal hole")
 	
 	var available_modifier_cards: Array[CardData] = []
 	
-	if is_damage_round:
+	if is_damage_round or has_shine_star:
 		# DamageRound puzzle type: Draw from all modifier cards
 		print("DamageRound puzzle type detected - drawing from all modifier cards")
 		available_modifier_cards = [
@@ -4150,8 +4167,8 @@ func draw_modifier_cards_for_tee_start() -> void:
 			preload("res://Cards/BagCheck.tres")
 		]
 	else:
-		# Normal holes: Only draw from modifier cards the player has in their deck
-		print("Normal hole detected - drawing only from player's deck modifier cards")
+		# Normal holes without ShineStar: Only draw from modifier cards the player has in their deck
+		print("Normal hole without ShineStar detected - drawing only from player's deck modifier cards")
 		
 		# Get all modifier cards from the player's action deck
 		var action_deck = deck_manager.get_action_deck_remaining_cards()

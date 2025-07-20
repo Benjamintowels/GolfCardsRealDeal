@@ -1024,8 +1024,16 @@ func show_draw_cards_button_for_turn_start() -> void:
 			draw_cards_button.visible = true
 		return
 	
-	# For normal holes, don't show the draw cards button - only club cards should be available
-	print("Normal hole: Hiding draw cards button - only club cards allowed")
+	# Check if player has ShineStar equipment (allows modifier cards on any hole)
+	var equipment_manager = course.get_node_or_null("EquipmentManager")
+	if equipment_manager and equipment_manager.has_equipment("Shine Star"):
+		print("ShineStar equipment detected - showing draw cards button for modifiers on normal hole")
+		if draw_cards_button:
+			draw_cards_button.visible = true
+		return
+	
+	# For normal holes without ShineStar, don't show the draw cards button - only club cards should be available
+	print("Normal hole without ShineStar: Hiding draw cards button - only club cards allowed")
 	if draw_cards_button:
 		draw_cards_button.visible = false
 
@@ -1040,16 +1048,25 @@ func show_draw_club_cards_button() -> void:
 			draw_club_cards_button.visible = false
 			print("Draw Club Cards button hidden - no available shots")
 		
-		# Only show the draw cards button for modifiers on DamageRound holes when player is on tee
+		# Show the draw cards button for modifiers on DamageRound holes or if player has ShineStar equipment when player is on tee
 		if course.game_state_manager and course.game_state_manager.get_game_phase() == "draw_cards":
 			if draw_cards_button:
-				# Only show draw cards button for DamageRound holes and if player has modifier cards in hand
-				if course.game_state_manager.get_current_puzzle_type() == "driving_range" and course.deck_manager and course.deck_manager.hand.size() > 0:
+				# Check if this is a DamageRound hole or if player has ShineStar equipment
+				var is_damage_round = course.game_state_manager.get_current_puzzle_type() == "driving_range"
+				var has_shine_star = false
+				
+				if not is_damage_round:
+					var equipment_manager = course.get_node_or_null("EquipmentManager")
+					has_shine_star = equipment_manager and equipment_manager.has_equipment("Shine Star")
+				
+				# Show draw cards button for DamageRound holes, ShineStar equipment, and if player has modifier cards in hand
+				if (is_damage_round or has_shine_star) and course.deck_manager and course.deck_manager.hand.size() > 0:
 					draw_cards_button.visible = true
-					print("Draw Cards button shown for modifiers - player has", course.deck_manager.hand.size(), "modifier cards")
+					var reason = "DamageRound hole" if is_damage_round else "ShineStar equipment"
+					print("Draw Cards button shown for modifiers -", reason, "- player has", course.deck_manager.hand.size(), "modifier cards")
 				else:
 					draw_cards_button.visible = false
-					print("Draw Cards button hidden - not DamageRound hole or no modifier cards available")
+					print("Draw Cards button hidden - not DamageRound hole, no ShineStar equipment, or no modifier cards available")
 
 func enter_draw_cards_phase() -> void:
 	"""Enter the draw cards phase - start with club selection"""

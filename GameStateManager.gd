@@ -737,8 +737,17 @@ func start_round_after_tee_selection(course: Node, player_manager: Node, deck_ma
 	# Start with club selection phase
 	ui_manager.enter_draw_cards_phase()
 	
-	# Only draw modifier cards for DamageRound holes
-	if get_current_puzzle_type() == "driving_range" and course.has_method("draw_modifier_cards_for_tee_start"):
+	# Draw modifier cards for DamageRound holes or if player has ShineStar equipment
+	var should_draw_modifiers = get_current_puzzle_type() == "driving_range"
+	
+	# Check if player has ShineStar equipment (allows modifier cards on any hole)
+	if not should_draw_modifiers:
+		var equipment_manager = course.get_node_or_null("EquipmentManager")
+		if equipment_manager and equipment_manager.has_equipment("Shine Star"):
+			should_draw_modifiers = true
+			print("ShineStar equipment detected - allowing modifier cards on normal hole")
+	
+	if should_draw_modifiers and course.has_method("draw_modifier_cards_for_tee_start"):
 		course.draw_modifier_cards_for_tee_start()
 	
 	print("Round started! Player at position:", player_manager.get_player_grid_pos())
