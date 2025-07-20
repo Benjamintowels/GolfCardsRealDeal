@@ -404,10 +404,7 @@ func handle_ball_flying_input(event: InputEvent, course_instance):
 		var delta: Vector2 = event.position - course_instance.pan_start_pos
 		var new_position = course_instance.camera.position - delta
 		
-		# Apply camera limits to prevent panning outside bounds
-		if course_instance.camera.has_method("limit_left") and course_instance.camera.has_method("limit_right") and course_instance.camera.has_method("limit_top") and course_instance.camera.has_method("limit_bottom"):
-			new_position.x = clamp(new_position.x, course_instance.camera.limit_left, course_instance.camera.limit_right)
-			new_position.y = clamp(new_position.y, course_instance.camera.limit_top, course_instance.camera.limit_bottom)
+		# Camera limits removed for course1 - allow free panning
 		
 		course_instance.camera.position = new_position
 		course_instance.pan_start_pos = event.position
@@ -425,10 +422,7 @@ func handle_mouse_input(event: InputEvent, course_instance):
 		var delta: Vector2 = event.position - course_instance.pan_start_pos
 		var new_position = course_instance.camera.position - delta
 		
-		# Apply camera limits to prevent panning outside bounds
-		if course_instance.camera.has_method("limit_left") and course_instance.camera.has_method("limit_right") and course_instance.camera.has_method("limit_top") and course_instance.camera.has_method("limit_bottom"):
-			new_position.x = clamp(new_position.x, course_instance.camera.limit_left, course_instance.camera.limit_right)
-			new_position.y = clamp(new_position.y, course_instance.camera.limit_top, course_instance.camera.limit_bottom)
+		# Camera limits removed for course1 - allow free panning
 		
 		course_instance.camera.position = new_position
 		course_instance.pan_start_pos = event.position

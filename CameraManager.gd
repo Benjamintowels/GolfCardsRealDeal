@@ -218,6 +218,14 @@ func cancel_pin_to_tee_transition() -> void:
 		print("Cancelling ongoing pin-to-tee transition")
 		pin_to_tee_tween.kill()
 		pin_to_tee_tween = null
+	
+	# Also stop any idle zoom timer that might have been started
+	stop_idle_zoom_timer()
+	
+	# If we're in the middle of a zoomed-out transition, immediately zoom to default position
+	if camera and camera.has_method("zoom_in_after_movement"):
+		print("CameraManager: Cancelling transition - immediately zooming to default position")
+		camera.zoom_in_after_movement()
 
 func start_aiming_camera_tracking(club_distance: float = 800.0) -> void:
 	"""Start the aiming camera tracking system"""
@@ -266,11 +274,8 @@ func update_aiming_camera_tracking(aiming_circle_position: Vector2) -> void:
 	if not aiming_tracking_active or not camera or camera_stationary:
 		return
 	
-	# Apply camera limits if they exist
+	# Camera limits removed for course1 - use target position directly
 	var target_position = aiming_circle_position
-	if camera.has_method("limit_left") and camera.has_method("limit_right") and camera.has_method("limit_top") and camera.has_method("limit_bottom"):
-		target_position.x = clamp(target_position.x, camera.limit_left, camera.limit_right)
-		target_position.y = clamp(target_position.y, camera.limit_top, camera.limit_bottom)
 	
 	# Check if camera is far enough from target to warrant a tween
 	var distance_to_target = camera.position.distance_to(target_position)
@@ -342,10 +347,7 @@ func handle_camera_panning(event: InputEvent) -> bool:
 		var delta: Vector2 = event.position - pan_start_pos
 		var new_position = camera.position - delta
 		
-		# Apply camera limits to prevent panning outside bounds
-		if camera.has_method("limit_left") and camera.has_method("limit_right") and camera.has_method("limit_top") and camera.has_method("limit_bottom"):
-			new_position.x = clamp(new_position.x, camera.limit_left, camera.limit_right)
-			new_position.y = clamp(new_position.y, camera.limit_top, camera.limit_bottom)
+		# Camera limits removed for course1 - allow free panning
 		
 		camera.position = new_position
 		pan_start_pos = event.position
@@ -394,6 +396,81 @@ func cleanup() -> void:
 		idle_zoom_tween = null
 
 # ===== ZOOM MANAGEMENT =====
+
+func start_new_hole_with_zoomed_out_view(pin_position: Vector2, get_tee_center_func: Callable = Callable()) -> void:
+	"""Start a new hole with a zoomed-out view that transitions to natural idle zoom"""
+	
+	# Add a small delay to ensure everything is properly added to the scene
+	await get_tree().process_frame
+	
+	if pin_position == Vector2.ZERO:
+		camera.position = Vector2(0, 0)
+		return
+	
+	# Position camera directly on pin (no tween - immediate positioning)
+	camera.position = pin_position
+	camera_snap_back_pos = pin_position
+	
+	# Reset parallax layer offsets when camera is repositioned
+	if background_manager:
+		background_manager.reset_layer_offsets()
+		print("✓ Reset parallax layer offsets after camera repositioning")
+	
+	# Start with a zoomed-out view (reduced zoom level - not as extreme as minimum)
+	if camera and camera.has_method("set_zoom_level"):
+		# Use a moderate zoom-out level instead of the absolute minimum
+		var moderate_zoom_out = 0.3  # Less extreme than the minimum zoom (0.6)
+		print("CameraManager: Starting new hole with moderate zoomed-out view at", moderate_zoom_out)
+		# Set zoom instantly without tween since screen is black
+		camera.target_zoom = moderate_zoom_out
+		camera.zoom = Vector2(moderate_zoom_out, moderate_zoom_out)
+	
+	# Start the pin-to-tee transition after a brief pause
+	if get_tee_center_func.is_valid():
+		# Wait a moment at the pin with zoomed-out view, then transition to tee
+		var pin_wait_timer = get_tree().create_timer(1.0)  # Wait 1 second at pin
+		pin_wait_timer.timeout.connect(func():
+			start_pin_to_tee_transition_for_new_hole(get_tee_center_func)
+		)
+
+func start_pin_to_tee_transition_for_new_hole(get_tee_center_func: Callable) -> void:
+	"""Start the pin-to-tee transition for new holes with zoomed-out start"""
+	
+	# Store the tween reference so we can cancel it if needed
+	pin_to_tee_tween = get_tree().create_tween()
+	pin_to_tee_tween.set_parallel(false)  # Sequential tweens
+	
+	# Tween to tee area
+	var tee_center = get_tee_center_func.call()
+	var tee_center_global = grid_manager.get_camera_container().position + tee_center
+	pin_to_tee_tween.tween_property(camera, "position", tee_center_global, 2.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	
+	# Update camera snap back position
+	pin_to_tee_tween.tween_callback(func(): 
+		camera_snap_back_pos = tee_center_global
+	)
+	
+	# After camera reaches tee area, zoom back in to default position
+	pin_to_tee_tween.tween_callback(func():
+		if camera and camera.has_method("zoom_in_after_movement"):
+			print("CameraManager: Reached tee area, zooming back in to default position")
+			camera.zoom_in_after_movement()
+		else:
+			print("CameraManager: Camera zoom method not available")
+	)
+	
+	# After zoom in completes, start the natural idle zoom system
+	pin_to_tee_tween.tween_interval(1.5)  # Wait for zoom tween to complete
+	pin_to_tee_tween.tween_callback(func():
+		# Start idle zoom timer to let natural zoom system take control
+		start_idle_zoom_timer()
+		print("CameraManager: Zoom in complete, starting natural idle zoom system")
+	)
+	
+	# Clean up the tween reference when it completes
+	pin_to_tee_tween.finished.connect(func():
+		pin_to_tee_tween = null
+	)
 
 func restore_zoom_after_aiming(course: Node) -> void:
 	"""Restore camera zoom to the level it was at before entering aiming phase"""

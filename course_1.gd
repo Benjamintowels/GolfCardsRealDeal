@@ -2964,9 +2964,9 @@ func position_camera_on_pin(start_transition: bool = true):
 		camera.position = Vector2(0, 0)
 		return
 	
-	# Use camera manager to position camera on pin
+	# Use camera manager to position camera on pin with zoomed-out view for new holes
 	var get_tee_center_func = Callable(self, "_get_tee_area_center")
-	camera_manager.position_camera_on_pin(pin_position, start_transition, get_tee_center_func)
+	camera_manager.start_new_hole_with_zoomed_out_view(pin_position, get_tee_center_func)
 
 # start_pin_to_tee_transition function moved to CameraManager
 

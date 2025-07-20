@@ -27,11 +27,7 @@ func _ready():
 	current_min_zoom = min_zoom
 	current_max_zoom = max_zoom
 	
-	# Set camera limits to prevent excessive panning (ignoring far-out parallax layers)
-	limit_left = -2000.0  # Prevent panning too far left
-	limit_right = 2000.0  # Prevent panning too far right
-	limit_top = -2000.0   # Prevent panning too far up
-	limit_bottom = 2000.0 # Prevent panning too far down
+	# Camera limits removed for course1 - allow free camera movement
 
 func _input(event):
 	if event is InputEventMouseButton:
