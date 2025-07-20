@@ -1,11 +1,11 @@
-[gd_scene load_steps=2 format=3 uid="uid://damage_bar"]
+[gd_scene load_steps=2 format=3 uid="uid://l541mtex41ue"]
 
-[ext_resource type="Script" path="res://DamageBar.gd" id="1_damage_bar"]
+[ext_resource type="Script" uid="uid://cdsfie5c4hsdg" path="res://DamageBar.gd" id="1_damage_bar"]
 
 [node name="DamageBar" type="Control"]
+custom_minimum_size = Vector2(200, 40)
 layout_mode = 3
 anchors_preset = 0
-custom_minimum_size = Vector2(200, 40)
 script = ExtResource("1_damage_bar")
 
 [node name="DamageBar" type="ProgressBar" parent="."]
@@ -13,13 +13,8 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 0.0
-offset_top = 0.0
-offset_right = 0.0
-offset_bottom = 0.0
 grow_horizontal = 2
 grow_vertical = 2
-value = 0.0
 show_percentage = false
 
 [node name="DamageLabel" type="Label" parent="."]
@@ -27,12 +22,10 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 0.0
-offset_top = 0.0
-offset_right = 0.0
-offset_bottom = 0.0
+offset_top = -0.115
+offset_bottom = -0.115002
 grow_horizontal = 2
 grow_vertical = 2
 text = "0 damage"
 horizontal_alignment = 1
-vertical_alignment = 1 
+vertical_alignment = 1

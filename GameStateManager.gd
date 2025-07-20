@@ -70,6 +70,7 @@ var fire_tiles_that_damaged_player: Array[Vector2i] = []  # Track which fire til
 # Damage Round tracking
 var damage_round_total_damage: int = 0  # Total damage dealt in current shot
 var damage_round_mode_active: bool = false  # Whether damage round mode is active for current shot
+var damage_round_bonus_shots: int = 0  # Bonus shots granted from damage bar expansion
 
 # Driving Range 3-shot system
 var driving_range_shots_taken: int = 0  # Number of shots taken in current driving range
@@ -208,6 +209,16 @@ func add_damage_round_damage(damage: int) -> void:
 		# Update damage bar if available
 		if course and course.damage_bar:
 			course.damage_bar.set_damage(damage_round_total_damage)
+			print("🎯 DAMAGE BAR: Updated with", damage_round_total_damage, "total damage")
+			
+			# Check for bonus shots from damage bar expansion
+			var bonus_shots = course.damage_bar.get_bonus_shots_granted()
+			if bonus_shots > damage_round_bonus_shots:
+				var new_bonus_shots = bonus_shots - damage_round_bonus_shots
+				damage_round_bonus_shots = bonus_shots
+				grant_bonus_shots(new_bonus_shots)
+		else:
+			print("❌ DAMAGE BAR: Course or damage bar is null when adding damage")
 
 func get_damage_round_total_damage() -> int:
 	"""Get the total damage for the current shot"""
@@ -217,7 +228,27 @@ func reset_damage_round_damage() -> void:
 	"""Reset damage round damage tracking"""
 	damage_round_total_damage = 0
 	damage_round_mode_active = false
+	damage_round_bonus_shots = 0
 	print("Damage Round Mode: Reset damage tracking")
+
+func grant_bonus_shots(shots: int) -> void:
+	"""Grant bonus shots from damage bar expansion"""
+	if get_current_puzzle_type() == "driving_range":
+		# In damage round mode, add to driving range shots
+		driving_range_max_shots += shots
+		print("🎯 DAMAGE ROUND: Granted", shots, "bonus shots! Max shots now:", driving_range_max_shots)
+		
+		# Show bonus shot notification
+		if ui_manager:
+			ui_manager.show_turn_message("+" + str(shots) + " Bonus Shots!", 2.0)
+	else:
+		# In normal mode, add to available shots
+		available_shots += shots
+		print("🎯 DAMAGE ROUND: Granted", shots, "bonus shots! Available shots now:", available_shots)
+		
+		# Show bonus shot notification
+		if ui_manager:
+			ui_manager.show_turn_message("+" + str(shots) + " Bonus Shots!", 2.0)
 
 # ===== DRIVING RANGE 3-SHOT SYSTEM =====
 
@@ -225,6 +256,21 @@ func start_driving_range_round() -> void:
 	"""Start a new driving range round with 3 shots"""
 	driving_range_shots_taken = 0
 	driving_range_total_damage = 0
+	driving_range_max_shots = 3  # Reset to base 3 shots
+	damage_round_bonus_shots = 0  # Reset bonus shots
+	
+	# Reset damage bar if available
+	if course and course.damage_bar:
+		course.damage_bar.reset_damage()
+		course.damage_bar.visible = true
+		print("🎯 DAMAGE ROUND: Damage bar reset and made visible")
+	else:
+		print("❌ DAMAGE ROUND: Course or damage bar is null in start_driving_range_round")
+		if not course:
+			print("❌ DAMAGE ROUND: Course is null")
+		if not course.damage_bar:
+			print("❌ DAMAGE ROUND: Damage bar is null")
+	
 	print("Driving Range: Started new round with 3 shots")
 
 func complete_driving_range_shot() -> void:

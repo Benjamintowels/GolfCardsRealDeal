@@ -481,7 +481,7 @@ func calculate_final_power() -> float:
 	
 	if chosen_landing_spot != Vector2.ZERO:
 		var distance_to_target = chosen_landing_spot.length()  # Simplified for driving range
-		var reference_distance = 1200.0  # Driver's max distance as reference
+		var reference_distance = 1600.0  # Driver's max distance as reference
 		var distance_factor = distance_to_target / reference_distance
 		var ball_physics_factor = 0.8 + (distance_factor * 0.4)
 		var base_power_per_distance = 0.6 + (distance_factor * 0.2)

@@ -65,7 +65,7 @@ var return_button: Button = null
 # Club data for driving range
 var club_data = {
 	"Driver": {
-		"max_distance": 1200.0,
+		"max_distance": 1600.0,
 		"min_distance": 800.0,
 		"trailoff_forgiveness": 0.3,
 		"min_height": 10.0,

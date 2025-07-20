@@ -1372,7 +1372,7 @@ func calculate_final_power() -> float:
 			var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
 			var player_center = player_node.global_position + player_size / 2
 			var distance_to_target = player_center.distance_to(chosen_landing_spot)
-			var reference_distance = 1200.0  # Driver's max distance as reference
+			var reference_distance = 1600.0  # Driver's max distance as reference
 			var distance_factor = distance_to_target / reference_distance
 			var ball_physics_factor = 0.8 + (distance_factor * 0.4)
 			var base_power_per_distance = 0.6 + (distance_factor * 0.2)

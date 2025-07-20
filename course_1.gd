@@ -129,7 +129,7 @@ var player_grid_pos: Vector2i:
 
 # Sound effects moved to SoundManager
 var club_max_distances = {
-	"Driver": 1200.0,        # Longest distance
+	"Driver": 1600.0,        # Longest distance
 	"Hybrid": 1050.0,        # Slightly less than Driver
 	"Wood": 800.0,           # Slightly more than Iron
 	"Iron": 600.0,           # Medium distance
@@ -145,7 +145,7 @@ var club_max_distances = {
 # New club data with min distances, trailoff stats, and height ranges
 var club_data = {
 	"Driver": {
-		"max_distance": 1200.0,
+		"max_distance": 1600.0,
 		"min_distance": 800.0,    # Smallest gap (400)
 		"trailoff_forgiveness": 0.3,  # Less forgiving (lower = more severe undercharge penalty)
 		"min_height": 10.0,       # Low min height for driver
@@ -582,10 +582,16 @@ func _ready() -> void:
 	ui_manager.setup($UILayer, self, player_manager, grid_manager, camera_manager, deck_manager, movement_controller, attack_handler, weapon_handler, launch_manager)
 	
 	# Initialize DamageBar for driving range
-	damage_bar = DamageBar.new()
+	var damage_bar_scene = preload("res://DamageBar.tscn")
+	damage_bar = damage_bar_scene.instantiate()
 	$UILayer.add_child(damage_bar)
-	damage_bar.position = Vector2(17, 760)  # Position above health bar
+	damage_bar.position = Vector2(17, 720)  # Position above block health bar
+	damage_bar.z_index = 15  # Ensure it appears above other UI elements
 	damage_bar.visible = false  # Hidden by default
+	print("🎯 DAMAGE BAR: Initialized at position:", damage_bar.position, "z_index:", damage_bar.z_index)
+	
+	# Connect damage bar bonus shot signal
+	damage_bar.bonus_shot_granted.connect(_on_damage_bar_bonus_shot_granted)
 	
 	# Display selected character after UIManager is initialized
 	ui_manager.display_selected_character()
@@ -814,6 +820,16 @@ func adjust_background_positioning() -> void:
 		game_state_manager.set_next_puzzle_type("driving_range")
 		game_state_manager.start_driving_range_round()  # Initialize 3-shot system
 		Global.damage_round_mode = false  # Reset the flag
+		
+		# Show damage bar for driving range mode
+		if damage_bar:
+			damage_bar.visible = true
+			damage_bar.reset_damage()
+			print("🎯 DAMAGE ROUND: Damage bar made visible for driving range mode at position:", damage_bar.position)
+			print("🎯 DAMAGE ROUND: Damage bar z_index:", damage_bar.z_index)
+		else:
+			print("❌ DAMAGE ROUND: Damage bar is null in driving range mode!")
+		
 		print("Driving range mode initialized with 3-shot system")
 	# Check if we should start in back 9 mode
 	elif Global.starting_back_9:
@@ -903,6 +919,15 @@ func adjust_background_positioning() -> void:
 	complete_hole_btn.z_index = 999
 	$UILayer.add_child(complete_hole_btn)
 	complete_hole_btn.pressed.connect(_on_complete_hole_pressed)
+	
+	# Debug button to test damage bar visibility
+	var debug_damage_bar_btn := Button.new()
+	debug_damage_bar_btn.name = "DebugDamageBarButton"
+	debug_damage_bar_btn.text = "Test Damage Bar"
+	debug_damage_bar_btn.position = Vector2(400, 100)
+	debug_damage_bar_btn.z_index = 999
+	$UILayer.add_child(debug_damage_bar_btn)
+	debug_damage_bar_btn.pressed.connect(_on_debug_damage_bar_pressed)
 
 
 func _on_complete_hole_pressed():
@@ -2272,6 +2297,27 @@ func reset_for_next_hole():
 	# Apply the selected puzzle type for this hole
 	game_state_manager.set_current_puzzle_type(game_state_manager.get_next_puzzle_type())
 	print("🎯 PUZZLE TYPE: Applying puzzle type '", game_state_manager.get_current_puzzle_type(), "' to hole", game_state_manager.get_current_hole_index() + 1)
+	
+	# Show damage bar for damage round puzzle types
+	print("🎯 DAMAGE ROUND: Checking puzzle type:", game_state_manager.get_current_puzzle_type())
+	if game_state_manager.get_current_puzzle_type() == "driving_range":
+		# Reset driving range round for new damage round puzzle type hole
+		game_state_manager.start_driving_range_round()
+		print("🎯 DAMAGE ROUND: Reset driving range round for new hole")
+		
+		if damage_bar:
+			damage_bar.visible = true
+			damage_bar.reset_damage()  # Reset for new hole
+			print("🎯 DAMAGE ROUND: Damage bar made visible for new hole at position:", damage_bar.position)
+			print("🎯 DAMAGE ROUND: Damage bar z_index:", damage_bar.z_index)
+		else:
+			print("❌ DAMAGE ROUND: Damage bar is null!")
+	else:
+		if damage_bar:
+			damage_bar.visible = false
+			print("🎯 DAMAGE ROUND: Damage bar hidden for non-damage round hole")
+		else:
+			print("❌ DAMAGE ROUND: Damage bar is null!")
 	
 	# In driving range mode, always load the DamageRoundLayout
 	if game_state_manager.get_driving_range_mode():
@@ -4160,3 +4206,26 @@ func is_basic_action_card(card: CardData) -> bool:
 		"BlockB"
 	]
 	return basic_action_cards.has(card.name)
+
+func _on_damage_bar_bonus_shot_granted(shots_granted: int, total_damage: int) -> void:
+	"""Handle bonus shots granted from damage bar expansion"""
+	print("🎯 DAMAGE BAR: Bonus shots granted -", shots_granted, "shots for", total_damage, "total damage")
+	
+	# The actual bonus shot granting is handled in GameStateManager
+	# This is just for additional UI feedback if needed
+	if ui_manager:
+		ui_manager.show_turn_message("+" + str(shots_granted) + " Bonus Shots!", 2.0)
+
+func _on_debug_damage_bar_pressed() -> void:
+	"""Debug method to test damage bar visibility"""
+	print("=== DEBUG: Testing Damage Bar ===")
+	if damage_bar:
+		damage_bar.visible = true
+		damage_bar.reset_damage()
+		damage_bar.add_damage(50)  # Add some test damage
+		print("🎯 DEBUG: Damage bar made visible at position:", damage_bar.position)
+		print("🎯 DEBUG: Damage bar z_index:", damage_bar.z_index)
+		print("🎯 DEBUG: Damage bar size:", damage_bar.size)
+		print("🎯 DEBUG: Damage bar visible:", damage_bar.visible)
+	else:
+		print("❌ DEBUG: Damage bar is null!")

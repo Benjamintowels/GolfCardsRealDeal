@@ -68,7 +68,7 @@ The Driving Range is a standalone minigame that allows players to practice their
 ## Club System
 
 ### Available Clubs
-- **Driver**: 1200px max distance
+- **Driver**: 1600px max distance
 - **Hybrid**: 1050px max distance  
 - **Wood**: 800px max distance
 - **Iron**: 600px max distance

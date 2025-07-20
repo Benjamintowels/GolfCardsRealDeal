@@ -419,7 +419,7 @@ func start_new_hole_with_zoomed_out_view(pin_position: Vector2, get_tee_center_f
 	# Start with a zoomed-out view (reduced zoom level - not as extreme as minimum)
 	if camera and camera.has_method("set_zoom_level"):
 		# Use a moderate zoom-out level instead of the absolute minimum
-		var moderate_zoom_out = 0.3  # Less extreme than the minimum zoom (0.6)
+		var moderate_zoom_out = 1.5  # Less extreme than the minimum zoom (0.6)
 		print("CameraManager: Starting new hole with moderate zoomed-out view at", moderate_zoom_out)
 		# Set zoom instantly without tween since screen is black
 		camera.target_zoom = moderate_zoom_out

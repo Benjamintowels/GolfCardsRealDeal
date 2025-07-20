@@ -24,7 +24,7 @@ func _ready():
 	launch_manager.selected_club = "Driver"
 	launch_manager.club_data = {
 		"Driver": {
-			"max_distance": 1200.0,
+			"max_distance": 1600.0,
 			"min_distance": 300.0,
 			"trailoff_forgiveness": 0.8,
 			"is_putter": false

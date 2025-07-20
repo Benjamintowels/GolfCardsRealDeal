@@ -391,7 +391,7 @@ func launch_ghost_ball():
 		
 		# Use the EXACT same power calculation as the real ball
 		# Calculate base power needed for the distance (same as course_1.gd)
-		var reference_distance = 1200.0  # Driver's max distance as reference
+		var reference_distance = 1600.0  # Driver's max distance as reference
 		var distance_factor = distance_to_target / reference_distance
 		var ball_physics_factor = 0.8 + (distance_factor * 0.4)
 		var base_power_per_distance = 0.6 + (distance_factor * 0.2)

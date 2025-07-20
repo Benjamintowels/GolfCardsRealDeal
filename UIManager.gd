@@ -159,7 +159,7 @@ func show_damage_round_dialog(total_damage: int) -> void:
 	
 	var dialog_box := ColorRect.new()
 	dialog_box.color = Color(0.2, 0.2, 0.2, 0.9)
-	dialog_box.size = Vector2(400, 230)
+	dialog_box.size = Vector2(400, 250)
 	dialog_box.position = (damage_dialog.size - dialog_box.size) / 2  # Center the dialog
 	dialog_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	damage_dialog.add_child(dialog_box)
@@ -200,11 +200,40 @@ func show_damage_round_dialog(total_damage: int) -> void:
 	damage_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	dialog_box.add_child(damage_label)
 	
+	# Add range and bonus shots information
+	var range_info = ""
+	var bonus_shots = 0
+	if course.damage_bar:
+		var current_range = course.damage_bar.get_current_range()
+		range_info = "Range: %d-%d" % [current_range["min"], current_range["max"]]
+		bonus_shots = course.damage_bar.get_bonus_shots_granted()
+	
+	var range_label := Label.new()
+	range_label.text = range_info
+	range_label.add_theme_font_size_override("font_size", 16)
+	range_label.add_theme_color_override("font_color", Color.LIGHT_GRAY)
+	range_label.add_theme_constant_override("outline_size", 1)
+	range_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	range_label.position = Vector2(150, 150)
+	range_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dialog_box.add_child(range_label)
+	
+	if bonus_shots > 0:
+		var bonus_label := Label.new()
+		bonus_label.text = "+%d bonus shots granted!" % bonus_shots
+		bonus_label.add_theme_font_size_override("font_size", 18)
+		bonus_label.add_theme_color_override("font_color", Color.GOLD)
+		bonus_label.add_theme_constant_override("outline_size", 1)
+		bonus_label.add_theme_color_override("font_outline_color", Color.BLACK)
+		bonus_label.position = Vector2(120, 170)
+		bonus_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		dialog_box.add_child(bonus_label)
+	
 	var instruction_label := Label.new()
 	instruction_label.text = "Click anywhere to continue"
 	instruction_label.add_theme_font_size_override("font_size", 18)
 	instruction_label.add_theme_color_override("font_color", Color.LIGHT_GRAY)
-	instruction_label.position = Vector2(120, 180)
+	instruction_label.position = Vector2(120, 200)
 	instruction_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	dialog_box.add_child(instruction_label)
 	
@@ -306,9 +335,8 @@ func _on_damage_round_dialog_input(event: InputEvent) -> void:
 		if course.game_state_manager:
 			course.game_state_manager.complete_driving_range_shot()
 			
-			# Hide damage bar
-			if course.damage_bar:
-				course.damage_bar.visible = false
+			# Keep damage bar visible for next shot (don't hide it)
+			# The damage bar will be reset for the next shot by GameStateManager
 			
 			# Check if all 3 shots are complete
 			if course.game_state_manager.is_driving_range_complete():
