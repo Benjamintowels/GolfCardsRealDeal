@@ -56,8 +56,9 @@ var boss_health_bar: Control = null
 enum State {IDLE, ATTACKING, DEAD}
 var current_state: State = State.IDLE
 
-# Add BossHand reference
-var boss_hand: Node = null
+# Add BossHand references
+var boss_hand_right: Node = null
+var boss_hand_left: Node = null
 
 # Poise ability: BossEye cannot be knocked back by any attack
 func has_poise() -> bool:
@@ -112,18 +113,34 @@ func _ready():
 	if animation_player.has_animation("idle_float"):
 		animation_player.play("idle_float")
 
-	# Instance and position BossHand to the right of BossEye
-	# Use the already declared 'course' variable
+	# Instance and position BossHands to the right and left of BossEye
 	if course:
 		var obstacle_layer = course.get_node_or_null("CameraContainer/ObstacleLayer")
 		if obstacle_layer:
 			var boss_hand_scene = preload("res://NPC/Bosses/BossHand.tscn")
-			boss_hand = boss_hand_scene.instantiate()
-			obstacle_layer.add_child(boss_hand)
-			boss_hand.global_position = global_position + Vector2(120, 0) # 120px to the right
-			boss_hand.boss_eye = self
-			if boss_hand.has_method("set_original_position"):
-				boss_hand.set_original_position()
+			# Right hand (attacking)
+			boss_hand_right = boss_hand_scene.instantiate()
+			obstacle_layer.add_child(boss_hand_right)
+			boss_hand_right.global_position = global_position + Vector2(120, 0) # 120px to the right
+			boss_hand_right.boss_eye = self
+			if boss_hand_right.has_method("set_original_position"):
+				boss_hand_right.set_original_position()
+			# Left hand (idle, flipped)
+			boss_hand_left = boss_hand_scene.instantiate()
+			obstacle_layer.add_child(boss_hand_left)
+			boss_hand_left.global_position = global_position + Vector2(-120, 0) # 120px to the left
+			boss_hand_left.boss_eye = self
+			if boss_hand_left.has_method("set_original_position"):
+				boss_hand_left.set_original_position()
+			# Flip the left hand horizontally
+			if boss_hand_left.has_node("BossHandSprite"):
+				boss_hand_left.get_node("BossHandSprite").flip_h = true
+			if boss_hand_left.has_node("BossHandFist"):
+				boss_hand_left.get_node("BossHandFist").flip_h = true
+			if boss_hand_left.has_node("BossHandFlat"):
+				boss_hand_left.get_node("BossHandFlat").flip_h = true
+			# Only right hand attacks
+			# boss_hand = boss_hand_right # This line is removed
 
 	print("BossEye: Initialized with health:", current_health)
 
@@ -188,20 +205,20 @@ func take_turn():
 			if chosen_world_pos != null:
 				print("[BossEye] Summoning ElementalCircle at grid:", player_grid_pos + chosen_offset, "world_pos:", chosen_world_pos)
 				# Animate BossHand attack sequence
-				if boss_hand and boss_hand.is_alive:
-					# Camera tracking logic
-					var camera_manager = course.camera_manager if "camera_manager" in course else null
-					if camera_manager:
-						# Move camera to BossHand before attack
-						camera_manager.create_camera_tween(boss_hand.global_position, 0.4)
-						# Tween camera to follow BossHand to target
-						await get_tree().create_timer(0.25).timeout
-						camera_manager.create_camera_tween(chosen_world_pos, 0.4)
+				if boss_hand_right and boss_hand_right.is_alive:
+					# Camera tracking logic (REMOVED - do not move camera during boss attack)
+					# var camera_manager = course.camera_manager if "camera_manager" in course else null
+					# if camera_manager:
+					# 	# Move camera to BossHand before attack
+					# 	camera_manager.create_camera_tween(boss_hand_right.global_position, 0.4)
+					# 	# Tween camera to follow BossHand to target
+					# 	await get_tree().create_timer(0.25).timeout
+					# 	camera_manager.create_camera_tween(chosen_world_pos, 0.4)
 					# Animate hand
-					boss_hand.animate_attack(chosen_world_pos, func():
-						# After attack, return camera to player
-						if camera_manager and player_node:
-							camera_manager.create_camera_tween(player_node.global_position, 0.6)
+					boss_hand_right.animate_attack(chosen_world_pos, func():
+						# After attack, return camera to player (REMOVED)
+						# if camera_manager and player_node:
+						# 	camera_manager.create_camera_tween(player_node.global_position, 0.6)
 						# This callback is after hand returns, but we want to create the ElementalCircle after 1s of hand_smash
 						turn_completed.emit()
 					)

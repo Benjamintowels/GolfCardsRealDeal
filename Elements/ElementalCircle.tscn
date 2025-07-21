@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3 uid="uid://d2me6rtq0t7"]
+[gd_scene load_steps=11 format=3 uid="uid://d2me6rtq0t7"]
 
 [ext_resource type="Texture2D" uid="uid://vd70etdddaqu" path="res://Elements/ElementalCircle.png" id="1_amq0l"]
 [ext_resource type="Script" uid="uid://cw5e1losw1itm" path="res://Elements/elemental_circle.gd" id="1_syvgn"]
@@ -9,6 +9,10 @@
 [ext_resource type="Texture2D" uid="uid://c0orbx33yy6tu" path="res://Weapons/DarkEnergy.png" id="6_8558j"]
 [ext_resource type="Texture2D" uid="uid://8epfyalkbnok" path="res://Particles/IceParticle.png" id="7_8558j"]
 
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_syvgn"]
+particle_flag_disable_z = true
+gravity = Vector3(0, 98, 0)
+
 [sub_resource type="CircleShape2D" id="CircleShape2D_8558j"]
 radius = 78.0577
 
@@ -18,6 +22,11 @@ script = ExtResource("1_syvgn")
 [node name="ElementalCircleSprite" type="Sprite2D" parent="."]
 texture_filter = 1
 texture = ExtResource("1_amq0l")
+
+[node name="EntranceElement" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(0, -46)
+texture = ExtResource("6_8558j")
 
 [node name="EntranceSpark" type="Sprite2D" parent="."]
 texture_filter = 1
@@ -37,14 +46,18 @@ stream = ExtResource("3_scbqb")
 position = Vector2(67, 173)
 stream = ExtResource("4_scbqb")
 
-[node name="EntranceElement" type="Sprite2D" parent="."]
-texture_filter = 1
-position = Vector2(0, -46)
-texture = ExtResource("6_8558j")
-
 [node name="GPUParticles2D" type="GPUParticles2D" parent="."]
+z_index = 9
 texture_filter = 1
+amount_ratio = 0.4683
 texture = ExtResource("7_8558j")
+lifetime = 2.12
+interp_to_end = 0.042
+preprocess = 2.58
+speed_scale = 0.4
+explosiveness = 0.45
+trail_enabled = true
+process_material = SubResource("ParticleProcessMaterial_syvgn")
 
 [node name="Area2D" type="Area2D" parent="."]
 

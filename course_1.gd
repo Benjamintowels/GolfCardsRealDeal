@@ -1654,12 +1654,12 @@ func start_npc_turn_sequence() -> void:
 	
 	# Process each NPC's turn in priority order
 	for npc in visible_npcs:
-		
-		# Transition camera to NPC and wait for it to complete
-		await camera_manager.transition_camera_to_npc(npc)
-		
-		# Wait a moment for camera transition
-		await get_tree().create_timer(0.25).timeout
+		# Only transition camera to NPC if not in boss room mode
+		if not Global.boss_room_mode:
+			# Transition camera to NPC and wait for it to complete
+			await camera_manager.transition_camera_to_npc(npc)
+			# Wait a moment for camera transition
+			await get_tree().create_timer(0.25).timeout
 		
 		# Special handling for squirrels: update ball detection before turn
 		var script_path = npc.get_script().resource_path if npc.get_script() else ""

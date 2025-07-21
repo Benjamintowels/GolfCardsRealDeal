@@ -30,6 +30,9 @@ func _ready():
 	if boss_hand_flat:
 		boss_hand_flat.visible = false
 	if base_collision_area:
+		# Set collision layer/mask to avoid BossEye
+		base_collision_area.collision_layer = 4 # Hand on layer 4
+		base_collision_area.collision_mask = 1 # Only collide with balls (layer 1)
 		base_collision_area.body_entered.connect(_on_body_entered)
 	# Play idle animation if it exists
 	if animation_player and animation_player.has_animation("hand_float"):
