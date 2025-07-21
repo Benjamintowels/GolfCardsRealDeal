@@ -20,6 +20,23 @@ var original_local_position: Vector2
 # Height for ball collision (lower than BossEye)
 var height: int = 200
 
+func get_y_sort_point() -> float:
+	# Dynamically choose the YSortPoint under the currently visible sprite
+	var ysort_point_node: Node2D = null
+	if boss_hand_fist and boss_hand_fist.visible:
+		ysort_point_node = boss_hand_fist.get_node_or_null("YSortPoint")
+	elif boss_hand_flat and boss_hand_flat.visible:
+		ysort_point_node = boss_hand_flat.get_node_or_null("YSortPoint")
+	elif boss_hand_sprite and boss_hand_sprite.visible:
+		ysort_point_node = boss_hand_sprite.get_node_or_null("YSortPoint")
+	if not ysort_point_node:
+		# Fallback to root-level YSortPoint
+		ysort_point_node = get_node_or_null("YSortPoint")
+	if ysort_point_node:
+		return ysort_point_node.global_position.y
+	else:
+		return global_position.y
+
 func _ready():
 	current_health = max_health
 	# Set default sprite visibility
@@ -37,6 +54,8 @@ func _ready():
 	# Play idle animation if it exists
 	if animation_player and animation_player.has_animation("hand_float"):
 		animation_player.play("hand_float")
+	# Update Y-sort on ready
+	Global.update_object_y_sort(self, "characters")
 
 func _on_body_entered(body):
 	if body.name == "GolfBall":
@@ -99,9 +118,7 @@ func _play_hand_smash_animation():
 	if animation_player.has_animation("hand_smash"):
 		animation_player.play("hand_smash")
 	# Play Smash sound 1 second after animation starts
-	if smash_sound:
-		var tween = create_tween()
-		tween.tween_callback(Callable(smash_sound, "play")).set_delay(1.0)
+	
 
 func _after_attack_sequence(after_attack_func: Callable):
 	# Hide fist, show default hand
@@ -117,8 +134,22 @@ func _after_attack_sequence(after_attack_func: Callable):
 	# Resume idle animation if still alive
 	if is_alive and animation_player and animation_player.has_animation("hand_float"):
 		animation_player.play("hand_float")
+	# Update Y-sort after returning to idle
+	Global.update_object_y_sort(self, "characters")
 
 # Add a setter for original_position
 func set_original_position():
 	# Store local position instead of global
 	original_local_position = position
+
+func trigger_camera_shake():
+	# Kill any active camera tweens before shaking
+	if smash_sound:
+		var tween = create_tween()
+		tween.tween_callback(Callable(smash_sound, "play")).set_delay(0.2)
+		# Trigger camera shake after 1 second (coincides with smash)
+		tween.tween_callback(func():
+			var cem = get_tree().current_scene.get_node_or_null("CameraEffectManager")
+			if cem and cem.has_method("shake_camera"):
+				cem.shake_camera(14.0, 0.22)
+		).set_delay(0.2)

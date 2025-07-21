@@ -550,6 +550,8 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 	
 	# Place Generator Switches on fairway tiles (for testing, just place 1 on hole 1)
 	var num_generator_switches = 1 if current_hole == 0 else 0  # Only place 1 on hole 1 for testing
+	if is_boss_room_layout:
+		num_generator_switches = 0  # Do not place generator switches in boss rooms
 	var generator_switches_placed = 0
 	
 	# Get fairway positions for generator switches
@@ -1057,6 +1059,15 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 				print("❌ MINIBOSS PUZZLE: No valid miniboss positions found")
 		else:
 			print("❌ MINIBOSS PUZZLE: No fairway or pin positions found")
+	
+	# Place Pin (flag) on the map if not a boss room
+	if not is_boss_room_layout:
+		# Existing logic for placing the Pin goes here
+		# For example:
+		# positions.pin = ...
+		pass  # Replace this with actual Pin placement logic
+	else:
+		positions.pin = null  # Explicitly set to null or skip
 	
 	return positions
 

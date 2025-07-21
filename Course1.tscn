@@ -1,4 +1,4 @@
-[gd_scene load_steps=37 format=3 uid="uid://dlq5ygh2wv33m"]
+[gd_scene load_steps=38 format=3 uid="uid://dlq5ygh2wv33m"]
 
 [ext_resource type="Script" uid="uid://d4hrfk75nrm45" path="res://course_1.gd" id="1_pe8tc"]
 [ext_resource type="Texture2D" uid="uid://cpe67sk2vh8me" path="res://EDGE.png" id="2_eymfu"]
@@ -14,6 +14,7 @@
 [ext_resource type="PackedScene" uid="uid://bwu8uv1gonuj7" path="res://NPC/WorldTurnManager.tscn" id="11_rkv8t"]
 [ext_resource type="Script" uid="uid://bwql8y8wd3qbr" path="res://CameraZoom.gd" id="11_zoom"]
 [ext_resource type="PackedScene" uid="uid://dna6q0m23qdsl" path="res://Bags/Bag.tscn" id="12_bag"]
+[ext_resource type="PackedScene" uid="uid://27dqeq7414a4" path="res://CameraEffectManager.tscn" id="12_lf4q7"]
 [ext_resource type="PackedScene" uid="uid://kegh7lp2gmr5" path="res://UI/Gimme.tscn" id="13_1r40f"]
 [ext_resource type="PackedScene" path="res://InventoryDialog.tscn" id="13_inventory"]
 [ext_resource type="PackedScene" uid="uid://bx4rfj5obqdvq" path="res://NPC/Bosses/BossHealthBar.tscn" id="13_opida"]
@@ -88,6 +89,8 @@ script = ExtResource("25_bg_manager")
 
 [node name="CoinExplosionManager" type="Node" parent="."]
 script = ExtResource("26_coin_explosion")
+
+[node name="CameraEffectManager" parent="." instance=ExtResource("12_lf4q7")]
 
 [node name="WorldTurnManager" parent="." instance=ExtResource("11_rkv8t")]
 
