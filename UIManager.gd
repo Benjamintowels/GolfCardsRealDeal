@@ -1023,33 +1023,25 @@ func check_and_show_gimme_button() -> void:
 # ===== BUTTON MANAGEMENT =====
 
 func show_draw_cards_button_for_turn_start() -> void:
-	"""Show draw cards button for turn start"""
-	# In driving range mode, don't show the draw cards button since we only want club cards
-	if course and course.game_state_manager and course.game_state_manager.get_driving_range_mode():
-		print("Driving Range Mode: Hiding draw cards button - only club cards allowed")
-		if draw_cards_button:
-			draw_cards_button.visible = false
+	"""Show draw cards button for turn start (always for normal holes, special logic for DamageRound)"""
+	if not draw_cards_button:
 		return
-	
-	# In driving_range puzzle type, show the draw cards button for modifiers
-	if course and course.game_state_manager and course.game_state_manager.get_current_puzzle_type() == "driving_range":
-		print("Driving Range Puzzle Type: Showing draw cards button for modifiers")
-		if draw_cards_button:
+
+	if course and course.game_state_manager:
+		var is_damage_round = course.game_state_manager.get_current_puzzle_type() == "driving_range"
+		if is_damage_round:
+			# --- Original DamageRound logic ---
+			print("DamageRound Puzzle Type: Showing draw cards button for modifiers")
 			draw_cards_button.visible = true
-		return
-	
-	# Check if player has ShineStar equipment (allows modifier cards on any hole)
-	var equipment_manager = course.get_node_or_null("EquipmentManager")
-	if equipment_manager and equipment_manager.has_equipment("Shine Star"):
-		print("ShineStar equipment detected - showing draw cards button for modifiers on normal hole")
-		if draw_cards_button:
-			draw_cards_button.visible = true
-		return
-	
-	# For normal holes without ShineStar, don't show the draw cards button - only club cards should be available
-	print("Normal hole without ShineStar: Hiding draw cards button - only club cards allowed")
-	if draw_cards_button:
+			return
+
+	# For normal holes, always show if level is active
+	if course and course.game_state_manager and not course.game_state_manager.is_game_complete():
+		draw_cards_button.visible = true
+		print("Draw cards button shown for new player turn (normal hole)")
+	else:
 		draw_cards_button.visible = false
+		print("Draw cards button hidden - level is over or transitioning")
 
 func show_draw_club_cards_button() -> void:
 	"""Show draw club cards button only if player has available shots"""

@@ -8,6 +8,8 @@ signal turn_completed
 @onready var sprite: Sprite2D = $BossEyeSprite
 @onready var animation_player: AnimationPlayer = $AnimationPlayer
 @onready var base_collision_area: Area2D = $BaseCollisionArea
+@onready var push_sound: AudioStreamPlayer2D = $Push
+@onready var move_sound: AudioStreamPlayer2D = $BossEyeMove
 
 var grid_position: Vector2i
 var cell_size: int = 48
@@ -18,6 +20,8 @@ var boss_eye_type: String = "default"
 var movement_range: int = 0  # BossEye doesn't move
 var vision_range: int = 15
 var current_action: String = "idle"
+# Poise: BossEye cannot be knocked back by attacks
+var poise: bool = true
 
 # Health and damage properties
 var max_health: int = 500
@@ -44,18 +48,45 @@ var boss_health_bar: Control = null
 enum State {IDLE, ATTACKING, DEAD}
 var current_state: State = State.IDLE
 
+# Poise ability: BossEye cannot be knocked back by any attack
+func has_poise() -> bool:
+	"""Return true if BossEye has Poise (cannot be knocked back)"""
+	return poise
+
 func _ready():
 	# Set up collision detection
 	if base_collision_area:
 		base_collision_area.body_entered.connect(_on_body_entered)
 		base_collision_area.body_exited.connect(_on_body_exited)
 	
+	# Setup HitBox for gun collision detection
+	var hitbox = get_node_or_null("HitBox")
+	if hitbox:
+		hitbox.collision_layer = 2
+		hitbox.collision_mask = 0
+		hitbox.add_to_group("hitboxes")
+	else:
+		print("✗ ERROR: BossEye HitBox not found!")
+	
 	# Store original modulate for freeze effects
 	original_modulate = sprite.modulate
 	
 	# Initialize flash tween
 	flash_tween = create_tween()
-	flash_tween.set_loops()
+	
+	# Register with WorldTurnManager
+	var course = get_tree().get_root().get_node_or_null("Course1")
+	if course:
+		var world_turn_manager = null
+		var possible_paths = ["WorldTurnManager", "NPC/WorldTurnManager", "NPC/world_turn_manager"]
+		for path in possible_paths:
+			if course.has_node(path):
+				world_turn_manager = course.get_node(path)
+				break
+		if world_turn_manager:
+			world_turn_manager.register_npc(self)
+			world_turn_manager.npc_turn_started.connect(_on_turn_started)
+			world_turn_manager.npc_turn_ended.connect(_on_turn_ended)
 	
 	# Find the BossHealthBar in the UI layer
 	var ui_layer = get_tree().get_root().get_node_or_null("Course1/UILayer")
@@ -68,11 +99,26 @@ func _ready():
 	
 	print("BossEye: Initialized with health:", current_health)
 
+# Empty handlers for WorldTurnManager signals
+func _on_turn_started(npc = null):
+	pass
+
+func _on_turn_ended(npc = null):
+	pass
+
 func _on_body_entered(body):
 	# Handle ball collision
 	if body.name == "GolfBall":
 		print("BossEye: Ball collision detected")
-		# Add ball collision logic here
+		# Get velocity from GolfBall
+		var ball_velocity = Vector2.ZERO
+		if body.has_method("get_velocity"):
+			ball_velocity = body.get_velocity()
+		elif "velocity" in body:
+			ball_velocity = body.velocity
+		var damage = _calculate_velocity_damage(ball_velocity.length())
+		print("BossEye: Calculated velocity-based damage:", damage)
+		take_damage(damage)
 
 func _on_body_exited(body):
 	# Handle ball exit
@@ -80,8 +126,14 @@ func _on_body_exited(body):
 		print("BossEye: Ball exited collision area")
 
 func take_turn():
-	"""Take the BossEye's turn"""
+	"""Take the BossEye's turn (skip if dead or frozen, always emit turn_completed)"""
+	if is_dead or is_frozen:
+		turn_completed.emit()
+		return
 	print("BossEye taking turn")
+	# Play move sound if BossEye moves (placeholder, since BossEye doesn't move yet)
+	if move_sound:
+		move_sound.play()
 	# Add boss turn logic here
 	# For now, just complete the turn immediately
 	turn_completed.emit()
@@ -126,11 +178,12 @@ func take_damage(amount: int):
 	"""Take damage"""
 	current_health -= amount
 	print("BossEye took", amount, "damage. Health:", current_health)
-	
+	# Play push sound
+	if push_sound:
+		push_sound.play()
 	# Flash red when taking damage
 	flash_red()
 	update_boss_health_bar()
-	
 	if current_health <= 0:
 		die()
 
@@ -148,21 +201,30 @@ func flash_red():
 	"""Flash red when taking damage"""
 	if is_flashing:
 		return  # Don't start another flash if already flashing
-	
 	is_flashing = true
-	
 	# Stop any existing tween
 	if flash_tween:
 		flash_tween.kill()
-	
 	# Create new tween for flash effect
 	flash_tween = create_tween()
-	flash_tween.set_loops()
-	
 	# Flash red for 0.2 seconds, then return to normal
 	flash_tween.tween_property(sprite, "modulate", Color.RED, 0.1)
 	flash_tween.tween_property(sprite, "modulate", original_modulate, 0.1)
-	
-	# Stop the tween after one cycle
+	# Wait for the tween to finish, then reset is_flashing
 	await flash_tween.finished
 	is_flashing = false
+
+func _calculate_velocity_damage(velocity_magnitude: float) -> int:
+	"""Calculate damage based on ball velocity magnitude"""
+	# Define velocity ranges for damage scaling
+	const MIN_VELOCITY = 25.0  # Minimum velocity for 1 damage
+	const MAX_VELOCITY = 1200.0  # Maximum velocity for 88 damage
+	# Clamp velocity to our defined range
+	var clamped_velocity = clamp(velocity_magnitude, MIN_VELOCITY, MAX_VELOCITY)
+	# Calculate damage percentage (0.0 to 1.0)
+	var damage_percentage = (clamped_velocity - MIN_VELOCITY) / (MAX_VELOCITY - MIN_VELOCITY)
+	# Scale damage from 1 to 88
+	var damage = 1 + (damage_percentage * 87)
+	# Return as integer
+	var final_damage = int(damage)
+	return final_damage
