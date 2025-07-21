@@ -1,0 +1,238 @@
+[gd_scene load_steps=17 format=3 uid="uid://di7savv68bs2x"]
+
+[ext_resource type="Script" uid="uid://dvd1d2v7yf6nr" path="res://NPC/Bosses/boss_hand.gd" id="1_cmr8r"]
+[ext_resource type="Texture2D" uid="uid://cu6g5iqa2666w" path="res://NPC/Animals/Ash/Shadow.png" id="1_g0tpi"]
+[ext_resource type="Texture2D" uid="uid://b8uwkqthg1k0h" path="res://NPC/Bosses/BossHand.png" id="2_xuhay"]
+[ext_resource type="Texture2D" uid="uid://di0twus6tcv3i" path="res://NPC/Bosses/BossHandFist.png" id="3_xuhay"]
+[ext_resource type="Texture2D" uid="uid://dq2q576lecgps" path="res://NPC/Bosses/BossHandFlat.png" id="4_cmr8r"]
+[ext_resource type="AudioStream" uid="uid://bqapw1q4hlopt" path="res://Sounds/Push.mp3" id="4_hqdm8"]
+[ext_resource type="AudioStream" uid="uid://d2tn1hy7bw4ov" path="res://Sounds/Smack.mp3" id="5_m2xv7"]
+[ext_resource type="AudioStream" uid="uid://cmkr7km06qsqx" path="res://Sounds/Smash.mp3" id="6_bxewt"]
+[ext_resource type="AudioStream" uid="uid://cj6b3i3fgu2kj" path="res://Sounds/Snap.mp3" id="7_7xjtq"]
+[ext_resource type="AudioStream" uid="uid://bu0i4qbsh13o1" path="res://Sounds/BossEyeMoveSound.mp3" id="8_dx5gc"]
+
+[sub_resource type="Animation" id="Animation_xuhay"]
+resource_name = "hand_smash"
+length = 1.5025
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("BossHandFist:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0.0666667, 0.3, 0.533333, 0.766667, 1.03333, 1.43333),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1),
+"update": 0,
+"values": [Vector2(-11, -50), Vector2(-14, -69), Vector2(-18, -72), Vector2(-1.90735e-06, -13), Vector2(1, -10), Vector2(-11, -50)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("BossHandFist:rotation")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0.0666667, 0.5, 0.966667, 1.46667),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 0,
+"values": [0.0, -0.453786, 0.654498, 0.0]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Shadow:scale")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0.0666667, 0.5, 0.733333, 1.6),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 0,
+"values": [Vector2(2.385, 1.975), Vector2(1.518, 1.707), Vector2(2.235, 2.329), Vector2(2.385, 1.975)]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("Shadow:position")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0.0333333, 0.5, 0.733333, 1.53333),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 0,
+"values": [Vector2(0, 0), Vector2(-10, 0), Vector2(1, 0), Vector2(0, 0)]
+}
+
+[sub_resource type="Animation" id="Animation_cmr8r"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("BossHandFist:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(-11, -50)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("BossHandFist:rotation")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [0.0]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Shadow:scale")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(2.385, 1.975)]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("Shadow:position")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(0, 0)]
+}
+
+[sub_resource type="Animation" id="Animation_hqdm8"]
+resource_name = "hand_float"
+length = 2.092
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("BossHandSprite:position:y")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.866667, 1.36667, 1.83333),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 0,
+"values": [-90.0, -94.0, -92.0, -90.0]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Shadow:scale")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.866667, 1.83333),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [Vector2(2.385, 1.975), Vector2(2.1, 1.74), Vector2(2.385, 1.975)]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_hqdm8"]
+_data = {
+&"RESET": SubResource("Animation_cmr8r"),
+&"hand_float": SubResource("Animation_hqdm8"),
+&"hand_smash": SubResource("Animation_xuhay")
+}
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_xwha3"]
+radius = 39.8799
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_tpy6d"]
+radius = 76.6631
+
+[node name="BossHand" type="Node2D"]
+script = ExtResource("1_cmr8r")
+
+[node name="Shadow" type="Sprite2D" parent="."]
+texture_filter = 1
+scale = Vector2(2.385, 1.975)
+texture = ExtResource("1_g0tpi")
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+libraries = {
+&"": SubResource("AnimationLibrary_hqdm8")
+}
+
+[node name="BossHandSprite" type="Sprite2D" parent="."]
+z_index = 10
+texture_filter = 1
+position = Vector2(1, -91.5138)
+scale = Vector2(0.667717, 0.669777)
+texture = ExtResource("2_xuhay")
+offset = Vector2(0, 61.385)
+
+[node name="YSortPoint" type="Node2D" parent="BossHandSprite"]
+position = Vector2(0, 56.7353)
+
+[node name="BossHandFist" type="Sprite2D" parent="."]
+visible = false
+z_index = 4
+texture_filter = 1
+position = Vector2(-11, -50)
+scale = Vector2(0.68, 0.68)
+texture = ExtResource("3_xuhay")
+
+[node name="BossHandFlat" type="Sprite2D" parent="."]
+visible = false
+texture_filter = 1
+position = Vector2(12, -33)
+scale = Vector2(0.68, 0.68)
+texture = ExtResource("4_cmr8r")
+
+[node name="YSortPoint" type="Marker2D" parent="."]
+position = Vector2(1, 0)
+scale = Vector2(0.667717, 0.669777)
+
+[node name="TopHeight" type="Marker2D" parent="."]
+position = Vector2(1, -84)
+scale = Vector2(0.667717, 0.669777)
+
+[node name="BaseCollisionArea" type="Area2D" parent="."]
+position = Vector2(1, -23)
+scale = Vector2(0.667717, 0.669777)
+
+[node name="BaseCollision" type="CollisionShape2D" parent="BaseCollisionArea"]
+position = Vector2(-1.49764, 34.3398)
+scale = Vector2(1.55, 0.593)
+shape = SubResource("CircleShape2D_xwha3")
+
+[node name="HitBox" type="Area2D" parent="."]
+visible = false
+position = Vector2(5, -23)
+scale = Vector2(0.497057, 0.437859)
+
+[node name="HitBoxShape" type="CollisionShape2D" parent="HitBox"]
+position = Vector2(-8.65401, -48.3986)
+scale = Vector2(1.405, 1.035)
+shape = SubResource("CircleShape2D_tpy6d")
+
+[node name="Push" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("4_hqdm8")
+
+[node name="Smack" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("5_m2xv7")
+
+[node name="Smash" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("6_bxewt")
+
+[node name="Snap" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("7_7xjtq")
+
+[node name="BossEyeMove" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("8_dx5gc")

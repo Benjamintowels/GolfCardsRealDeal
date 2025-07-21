@@ -56,6 +56,9 @@ var boss_health_bar: Control = null
 enum State {IDLE, ATTACKING, DEAD}
 var current_state: State = State.IDLE
 
+# Add BossHand reference
+var boss_hand: Node = null
+
 # Poise ability: BossEye cannot be knocked back by any attack
 func has_poise() -> bool:
 	"""Return true if BossEye has Poise (cannot be knocked back)"""
@@ -109,6 +112,19 @@ func _ready():
 	if animation_player.has_animation("idle_float"):
 		animation_player.play("idle_float")
 
+	# Instance and position BossHand to the right of BossEye
+	# Use the already declared 'course' variable
+	if course:
+		var obstacle_layer = course.get_node_or_null("CameraContainer/ObstacleLayer")
+		if obstacle_layer:
+			var boss_hand_scene = preload("res://NPC/Bosses/BossHand.tscn")
+			boss_hand = boss_hand_scene.instantiate()
+			obstacle_layer.add_child(boss_hand)
+			boss_hand.global_position = global_position + Vector2(120, 0) # 120px to the right
+			boss_hand.boss_eye = self
+			if boss_hand.has_method("set_original_position"):
+				boss_hand.set_original_position()
+
 	print("BossEye: Initialized with health:", current_health)
 
 # Empty handlers for WorldTurnManager signals
@@ -153,35 +169,84 @@ func take_turn():
 		if player_node:
 			var player_grid_pos = course.player_manager.get_player_grid_pos()
 			var offsets = []
-			for dx in range(-1, 2):
-				for dy in range(-1, 2):
+			for dx in range(-3, 4):
+				for dy in range(-3, 4):
 					offsets.append(Vector2i(dx, dy))
 			offsets.shuffle()
+
+			# Pick the first valid offset and world_pos
+			var chosen_offset = null
+			var chosen_world_pos = null
 			for offset in offsets:
 				var target_grid = player_grid_pos + offset
 				var cell_size = course.cell_size if "cell_size" in course else 48
 				var world_pos = Vector2(target_grid.x * cell_size + cell_size/2, target_grid.y * cell_size + cell_size/2)
-				print("[BossEye] Summoning ElementalCircle at grid:", target_grid, "world_pos:", world_pos)
-				# Instance the ElementalCircle
-				var elemental_circle_scene = preload("res://Elements/ElementalCircle.tscn")
-				var elemental_circle = elemental_circle_scene.instantiate()
-				# Optionally pass BossEye reference for cleanup
-				if "boss_eye_ref" in elemental_circle:
-					elemental_circle.boss_eye_ref = self
-				# Set position
-				elemental_circle.position = world_pos
-				# Add to CameraContainer/ObstacleLayer
-				var obstacle_layer = course.get_node_or_null("CameraContainer/ObstacleLayer")
-				if obstacle_layer:
-					obstacle_layer.add_child(elemental_circle)
-					print("[BossEye] Added ElementalCircle to CameraContainer/ObstacleLayer, child count:", obstacle_layer.get_child_count())
-				else:
-					print("[BossEye] ERROR: CameraContainer/ObstacleLayer not found! Adding to course root as fallback.")
-					course.add_child(elemental_circle)
-					print("[BossEye] Added ElementalCircle to course root, child count:", course.get_child_count())
-				break # Only summon one per turn
+				chosen_offset = offset
+				chosen_world_pos = world_pos
+				break # Only pick one
 
-	turn_completed.emit()
+			if chosen_world_pos != null:
+				print("[BossEye] Summoning ElementalCircle at grid:", player_grid_pos + chosen_offset, "world_pos:", chosen_world_pos)
+				# Animate BossHand attack sequence
+				if boss_hand and boss_hand.is_alive:
+					# Camera tracking logic
+					var camera_manager = course.camera_manager if "camera_manager" in course else null
+					if camera_manager:
+						# Move camera to BossHand before attack
+						camera_manager.create_camera_tween(boss_hand.global_position, 0.4)
+						# Tween camera to follow BossHand to target
+						await get_tree().create_timer(0.25).timeout
+						camera_manager.create_camera_tween(chosen_world_pos, 0.4)
+					# Animate hand
+					boss_hand.animate_attack(chosen_world_pos, func():
+						# After attack, return camera to player
+						if camera_manager and player_node:
+							camera_manager.create_camera_tween(player_node.global_position, 0.6)
+						# This callback is after hand returns, but we want to create the ElementalCircle after 1s of hand_smash
+						turn_completed.emit()
+					)
+					# Wait 1 second after hand_smash starts before creating the ElementalCircle
+					await get_tree().create_timer(1.0).timeout
+					# Instance the ElementalCircle
+					var elemental_circle_scene = preload("res://Elements/ElementalCircle.tscn")
+					var elemental_circle = elemental_circle_scene.instantiate()
+					if "boss_eye_ref" in elemental_circle:
+						elemental_circle.boss_eye_ref = self
+					# Set position
+					elemental_circle.position = chosen_world_pos
+					# Add to CameraContainer/ObstacleLayer
+					var obstacle_layer = course.get_node_or_null("CameraContainer/ObstacleLayer")
+					if obstacle_layer:
+						obstacle_layer.add_child(elemental_circle)
+						print("[BossEye] Added ElementalCircle to CameraContainer/ObstacleLayer, child count:", obstacle_layer.get_child_count())
+					else:
+						print("[BossEye] ERROR: CameraContainer/ObstacleLayer not found! Adding to course root as fallback.")
+						course.add_child(elemental_circle)
+						print("[BossEye] Added ElementalCircle to course root, child count:", course.get_child_count())
+					# Play entrance animation
+					if elemental_circle.has_method("_animate_entrance"):
+						elemental_circle._animate_entrance()
+				else:
+					# No hand, just play entrance
+					var elemental_circle_scene = preload("res://Elements/ElementalCircle.tscn")
+					var elemental_circle = elemental_circle_scene.instantiate()
+					if "boss_eye_ref" in elemental_circle:
+						elemental_circle.boss_eye_ref = self
+					# Set position
+						elemental_circle.position = chosen_world_pos
+					# Add to CameraContainer/ObstacleLayer
+					var obstacle_layer = course.get_node_or_null("CameraContainer/ObstacleLayer")
+					if obstacle_layer:
+						obstacle_layer.add_child(elemental_circle)
+						print("[BossEye] Added ElementalCircle to CameraContainer/ObstacleLayer, child count:", obstacle_layer.get_child_count())
+					else:
+						print("[BossEye] ERROR: CameraContainer/ObstacleLayer not found! Adding to course root as fallback.")
+						course.add_child(elemental_circle)
+						print("[BossEye] Added ElementalCircle to course root, child count:", course.get_child_count())
+					if elemental_circle.has_method("_animate_entrance"):
+						elemental_circle._animate_entrance()
+					turn_completed.emit()
+			return # Prevent double emit
 
 func get_grid_position() -> Vector2i:
 	"""Get the current grid position"""

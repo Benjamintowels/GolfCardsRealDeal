@@ -145,11 +145,9 @@ shape = SubResource("CircleShape2D_6vppk")
 [node name="HitBox" type="Area2D" parent="."]
 visible = false
 position = Vector2(9, -7)
-scale = Vector2(1.03998, 1.405)
 
 [node name="HitBoxShape" type="CollisionShape2D" parent="HitBox"]
-position = Vector2(-8.65401, -48.3986)
-scale = Vector2(1.405, 1.035)
+position = Vector2(-9, -92)
 shape = SubResource("CircleShape2D_twhwl")
 
 [node name="BossEyeHurt" type="AudioStreamPlayer2D" parent="."]

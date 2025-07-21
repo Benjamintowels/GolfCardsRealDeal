@@ -518,11 +518,11 @@ func _process_next_npc_turn() -> void:
 		_process_next_npc_turn()
 		return
 	
-	# Transition camera to NPC
-	await _transition_camera_to_npc(current_npc)
-	
-	# Wait for camera transition
-	await get_tree().create_timer(CAMERA_TRANSITION_DURATION).timeout
+	# Only transition camera to NPC if not a boss room
+	if not _is_boss_room():
+		await _transition_camera_to_npc(current_npc)
+		# Wait for camera transition
+		await get_tree().create_timer(CAMERA_TRANSITION_DURATION).timeout
 	
 	# Take the NPC's turn
 	print("Taking turn for NPC: ", current_npc.name)
@@ -576,20 +576,20 @@ func _process_together_mode_turn() -> void:
 	print("Priority groups for cascade:")
 	for priority in sorted_priorities:
 		print("  Priority ", priority, ": ", priority_groups[priority].size(), " NPCs")
-	
-	# Find the highest priority NPC for camera focus
-	var highest_priority_npc = _get_highest_priority_npc_for_camera()
-	if highest_priority_npc:
-		print("=== TOGETHER MODE: CAMERA TRANSITION ===")
-		print("Moving camera to highest priority NPC: ", highest_priority_npc.name, " (Priority: ", get_npc_priority(highest_priority_npc), ")")
-		
-		# Transition camera to the highest priority NPC
-		await _transition_camera_to_npc(highest_priority_npc)
-		
-		# Wait for camera transition
-		await get_tree().create_timer(CAMERA_TRANSITION_DURATION).timeout
-	else:
-		print("No valid NPCs found for camera focus")
+
+	# Only transition camera to NPC if not a boss room
+	if not _is_boss_room():
+		# Find the highest priority NPC for camera focus
+		var highest_priority_npc = _get_highest_priority_npc_for_camera()
+		if highest_priority_npc:
+			print("=== TOGETHER MODE: CAMERA TRANSITION ===")
+			print("Moving camera to highest priority NPC: ", highest_priority_npc.name, " (Priority: ", get_npc_priority(highest_priority_npc), ")")
+			# Transition camera to the highest priority NPC
+			await _transition_camera_to_npc(highest_priority_npc)
+			# Wait for camera transition
+			await get_tree().create_timer(CAMERA_TRANSITION_DURATION).timeout
+		else:
+			print("No valid NPCs found for camera focus")
 	
 	# Execute cascade by priority
 	for priority in sorted_priorities:
@@ -962,3 +962,13 @@ func _cleanup_old_data() -> void:
 		npc_priority_cache.clear()
 	
 	_debug_call_stack.pop_back()
+
+# Add a helper to detect boss room
+func _is_boss_room() -> bool:
+	if course_reference and course_reference.has_method("is_boss_room"):
+		return course_reference.is_boss_room()
+	# Fallback: check for BossEye in the scene
+	if course_reference and course_reference.has_node("BossEye"):
+		return true
+	# Could also scan for any BossEye NPCs in the scene
+	return false

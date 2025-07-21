@@ -372,6 +372,16 @@ func get_valid_fairway_positions(layout: Array) -> Array:
 	return fairway_positions
 
 func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include_shop: bool = true, num_gang_members: int = -1, num_oil_drums: int = -1, num_police: int = -1, num_zombies: int = -1, puzzle_type: String = "score") -> Dictionary:
+	# Detect boss room layout (has BOSSEYE)
+	var is_boss_room_layout = false
+	for y in layout.size():
+		for x in layout[y].size():
+			if layout[y][x] == "BOSSEYE":
+				is_boss_room_layout = true
+				break
+		if is_boss_room_layout:
+			break
+	
 	var positions = {
 		"trees": [],
 		"shop": Vector2i.ZERO,
@@ -478,6 +488,9 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 	# Place Squirrels around trees (5 tiles radius, based on difficulty tier)
 	var squirrels_placed = 0
 	var max_squirrels = npc_counts.squirrels
+	# Prevent squirrels in boss room
+	if is_boss_room_layout:
+		max_squirrels = 0
 	
 	# Get all valid positions within 5 tiles of any tree
 	var squirrel_candidate_positions: Array = []
