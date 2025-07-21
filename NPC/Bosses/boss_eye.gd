@@ -38,8 +38,7 @@ var flash_tween: Tween
 # base_collision_area is already declared above
 
 # Health bar
-var health_bar: HealthBar
-var health_bar_container: Control
+var boss_health_bar: Control = null
 
 # State Machine
 enum State {IDLE, ATTACKING, DEAD}
@@ -57,6 +56,15 @@ func _ready():
 	# Initialize flash tween
 	flash_tween = create_tween()
 	flash_tween.set_loops()
+	
+	# Find the BossHealthBar in the UI layer
+	var ui_layer = get_tree().get_root().get_node_or_null("Course1/UILayer")
+	if ui_layer:
+		boss_health_bar = ui_layer.get_node_or_null("BossHealthBar")
+		if boss_health_bar:
+			boss_health_bar.visible = true
+			boss_health_bar.get_node("BossName").text = "Docculus the Brave"
+			update_boss_health_bar()
 	
 	print("BossEye: Initialized with health:", current_health)
 
@@ -107,6 +115,13 @@ func get_priority() -> int:
 	"""Get the turn priority (higher = goes first)"""
 	return 10  # High priority for boss
 
+func update_boss_health_bar():
+	if boss_health_bar:
+		var health_bar_sprite = boss_health_bar.get_node("HealthBar")
+		var percent = clamp(float(current_health) / float(max_health), 0, 1)
+		# The default scale.x is 0.95, so multiply that by percent
+		health_bar_sprite.scale.x = 0.95 * percent
+
 func take_damage(amount: int):
 	"""Take damage"""
 	current_health -= amount
@@ -114,6 +129,7 @@ func take_damage(amount: int):
 	
 	# Flash red when taking damage
 	flash_red()
+	update_boss_health_bar()
 	
 	if current_health <= 0:
 		die()
@@ -124,6 +140,8 @@ func die():
 	is_dead = true
 	current_state = State.DEAD
 	print("BossEye defeated!")
+	if boss_health_bar:
+		boss_health_bar.visible = false
 	turn_completed.emit()
 
 func flash_red():

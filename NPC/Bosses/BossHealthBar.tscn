@@ -1,0 +1,39 @@
+[gd_scene load_steps=5 format=3 uid="uid://bx4rfj5obqdvq"]
+
+[ext_resource type="Script" uid="uid://bttms8cdo016t" path="res://NPC/Bosses/boss_health_bar.gd" id="1_1rx2f"]
+[ext_resource type="Texture2D" uid="uid://orw002i1mpd3" path="res://NPC/Bosses/BossHealthBar.png" id="2_yxi10"]
+[ext_resource type="Texture2D" uid="uid://cgiv4bjme8for" path="res://NPC/Bosses/BossHealthBarTop.png" id="3_7h8kl"]
+[ext_resource type="Texture2D" uid="uid://421k3srplmn5" path="res://NPC/Bosses/RedHealthBar.png" id="3_yxi10"]
+
+[node name="BossHealthBar" type="Control"]
+visible = false
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("1_1rx2f")
+
+[node name="HealthBarBackground" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(959.5, 713)
+scale = Vector2(0.714002, 0.396347)
+texture = ExtResource("2_yxi10")
+
+[node name="HealthBar" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(959.5, 713)
+scale = Vector2(0.678302, 0.396347)
+texture = ExtResource("3_yxi10")
+
+[node name="HealthBarContainerTop" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(959.5, 713)
+scale = Vector2(0.714002, 0.396347)
+texture = ExtResource("3_7h8kl")
+
+[node name="BossName" type="Label" parent="."]
+layout_mode = 0
+offset_left = 618.0
+offset_top = 671.0
+offset_right = 722.0
+offset_bottom = 694.0
+scale = Vector2(1.72291, 1.12388)
+text = "\"Boss_Name\""

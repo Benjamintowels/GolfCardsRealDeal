@@ -130,7 +130,7 @@ func _on_attack_card_pressed(card: CardData) -> void:
 	"""Handle when an attack card is pressed"""
 	selected_card = card
 	attack_damage = card.damage
-	attack_range = card.range
+	attack_range = card.damage_range
 	
 	# Enter attack mode
 	is_attack_mode = true
@@ -148,7 +148,7 @@ func _on_aoe_attack_card_pressed(card: CardData) -> void:
 	"""Handle when an AOE attack card is pressed"""
 	selected_card = card
 	attack_damage = card.damage
-	attack_range = card.range
+	attack_range = card.aoe_range
 	
 	# Enter attack mode
 	is_attack_mode = true
@@ -164,7 +164,6 @@ func _on_aoe_attack_card_pressed(card: CardData) -> void:
 
 func calculate_valid_attack_tiles() -> void:
 	valid_attack_tiles.clear()
-	
 	# Get grid size from the course
 	var grid_size = Vector2i(100, 100)  # Default grid size
 	if card_effect_handler and card_effect_handler.course:
@@ -172,25 +171,13 @@ func calculate_valid_attack_tiles() -> void:
 			grid_size = card_effect_handler.course.get_grid_size()
 		elif "grid_size" in card_effect_handler.course:
 			grid_size = card_effect_handler.course.grid_size
-	
-	# Get all interactables for oil drum detection
-	var interactables = get_tree().get_nodes_in_group("interactables")
-	
-	for interactable in interactables:
-		if is_instance_valid(interactable) and interactable.has_method("get_grid_position") and interactable.name.begins_with("OilDrum"):
-			pass  # Oil drum found, continue processing
 
+	# Always add all tiles within range (excluding the player's own tile)
 	for y in grid_size.y:
 		for x in grid_size.x:
 			var pos := Vector2i(x, y)
-
 			if calculate_grid_distance(player_grid_pos, pos) <= attack_range and pos != player_grid_pos:
-				# Check if there's an NPC at this position
-				if has_npc_at_position(pos):
-					valid_attack_tiles.append(pos)
-				# Check if there's an oil drum at this position (for KickB card)
-				elif has_oil_drum_at_position(pos):
-					valid_attack_tiles.append(pos)
+				valid_attack_tiles.append(pos)
 
 func calculate_valid_aoe_attack_tiles() -> void:
 	valid_attack_tiles.clear()
@@ -338,13 +325,19 @@ func get_npc_at_position(pos: Vector2i) -> Node:
 
 func show_attack_highlights() -> void:
 	hide_all_attack_highlights()
-	
 	for pos in valid_attack_tiles:
-		grid_tiles[pos.y][pos.x].get_node("AttackHighlight").visible = true
-	
+		if pos.y < grid_tiles.size() and pos.x < grid_tiles[pos.y].size():
+			var tile = grid_tiles[pos.y][pos.x]
+			var highlight = tile.get_node_or_null("AttackHighlight")
+			if highlight:
+				highlight.visible = true
+				print("Highlighting tile at:", pos)
+			else:
+				print("No AttackHighlight node at:", pos)
+		else:
+			print("Invalid tile position:", pos)
 	# Animate CardRow down to get out of the way of range display
 	animate_card_row_down()
-	
 	# Zoom out camera for Meteor card to show the full attack range
 	if selected_card and selected_card.name == "Meteor":
 		zoom_out_camera_for_meteor_range()
@@ -576,12 +569,15 @@ func perform_attack(npc: Node, target_pos: Vector2i) -> void:
 	
 	if is_dead:
 		print("Attacking dead NPC - pushing corpse")
-		# Don't deal damage to dead NPCs, just push them
 		attack_damage = 0
 	else:
 		# Deal damage to the NPC
 		if npc.has_method("take_damage"):
-			npc.take_damage(attack_damage)
+			# Use selected_card.damage for attack cards
+			if selected_card and selected_card.effect_type in ["Attack", "AOEAttack"]:
+				npc.take_damage(selected_card.damage)
+			else:
+				npc.take_damage(attack_damage)
 		else:
 			print("NPC does not have take_damage method")
 	

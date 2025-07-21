@@ -17,6 +17,15 @@ class_name CardData
 @export var weapon_shots_bonus: int = 1  # Additional shots for weapon cards
 @export var effect_bonus: int = 1  # Additional effect strength for modify cards
 
+@export var damage: int = 0 # Base damage for Attack/Weapon/Etc cards
+@export var damage_range: int = 1 # How far away the attack can target (Attack/Weapon)
+@export var aoe_range: int = 0 # For AOEAttack, how far away you can place the AOE
+
+# Upgrade bonuses
+@export var damage_bonus: int = 0
+@export var range_bonus: int = 0
+@export var aoe_range_bonus: int = 0
+
 func is_upgraded() -> bool:
 	"""Check if the card is upgraded"""
 	return level > 1 and level <= max_level

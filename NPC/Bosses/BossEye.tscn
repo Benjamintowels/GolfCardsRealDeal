@@ -1,9 +1,13 @@
-[gd_scene load_steps=7 format=3 uid="uid://cfmv1l0y1wmcc"]
+[gd_scene load_steps=11 format=3 uid="uid://cfmv1l0y1wmcc"]
 
 [ext_resource type="Script" uid="uid://c51tw1d74c5mk" path="res://NPC/Bosses/boss_eye.gd" id="1_41upc"]
 [ext_resource type="Texture2D" uid="uid://dor8cmpdpsm7i" path="res://NPC/Bosses/BossEye.png" id="2_uxiex"]
 [ext_resource type="AudioStream" uid="uid://d2h88cbofxus" path="res://Sounds/Wraith.mp3" id="4_yv2m1"]
+[ext_resource type="AudioStream" uid="uid://d2tn1hy7bw4ov" path="res://Sounds/Smack.mp3" id="5_ukga6"]
+[ext_resource type="AudioStream" uid="uid://bu0i4qbsh13o1" path="res://Sounds/BossEyeMoveSound.mp3" id="5_uxiex"]
 [ext_resource type="AudioStream" uid="uid://bqapw1q4hlopt" path="res://Sounds/Push.mp3" id="6_g8lfo"]
+[ext_resource type="AudioStream" uid="uid://cmkr7km06qsqx" path="res://Sounds/Smash.mp3" id="6_yv2m1"]
+[ext_resource type="AudioStream" uid="uid://cj6b3i3fgu2kj" path="res://Sounds/Snap.mp3" id="7_7fc0p"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_6vppk"]
 radius = 68.3913
@@ -48,9 +52,21 @@ position = Vector2(-8.65401, -48.3986)
 scale = Vector2(1.405, 1.035)
 shape = SubResource("CircleShape2D_twhwl")
 
-[node name="WraithHurt" type="AudioStreamPlayer2D" parent="."]
+[node name="BossEyeHurt" type="AudioStreamPlayer2D" parent="."]
 position = Vector2(0, -46)
 stream = ExtResource("4_yv2m1")
 
 [node name="Push" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("6_g8lfo")
+
+[node name="Smack" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("5_ukga6")
+
+[node name="Smash" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("6_yv2m1")
+
+[node name="Snap" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("7_7fc0p")
+
+[node name="BossEyeMove" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("5_uxiex")
