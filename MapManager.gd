@@ -75,6 +75,14 @@ func world_to_map(world_pos: Vector2) -> Vector2i:
 
 # ===== ENVIRONMENT TILE MANAGEMENT =====
 
+func advance_elemental_circles() -> void:
+	"""Advance all elemental circles to the next turn"""
+	var circles = get_tree().get_nodes_in_group("elemental_circles")
+	for circle in circles:
+		if is_instance_valid(circle) and circle.has_method("advance_turn"):
+			circle.advance_turn()
+	print("Advanced elemental circles to next turn")
+
 func advance_fire_tiles() -> void:
 	"""Advance all fire tiles to the next turn"""
 	var fire_tiles = get_tree().get_nodes_in_group("fire_tiles")

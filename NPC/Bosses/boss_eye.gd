@@ -138,11 +138,44 @@ func take_turn():
 		turn_completed.emit()
 		return
 	print("BossEye taking turn")
-	# Play move sound if BossEye moves (placeholder, since BossEye doesn't move yet)
 	if move_sound:
 		move_sound.play()
-	# Add boss turn logic here
-	# For now, just complete the turn immediately
+
+	# === SUMMON ELEMENTAL CIRCLE ATTACK ===
+	var course = get_tree().get_root().get_node_or_null("Course1")
+	if course and course.player_manager:
+		var player_node = course.player_manager.get_player_node()
+		if player_node:
+			var player_grid_pos = course.player_manager.get_player_grid_pos()
+			var offsets = []
+			for dx in range(-1, 2):
+				for dy in range(-1, 2):
+					offsets.append(Vector2i(dx, dy))
+			offsets.shuffle()
+			for offset in offsets:
+				var target_grid = player_grid_pos + offset
+				var cell_size = course.cell_size if "cell_size" in course else 48
+				var world_pos = Vector2(target_grid.x * cell_size + cell_size/2, target_grid.y * cell_size + cell_size/2)
+				print("[BossEye] Summoning ElementalCircle at grid:", target_grid, "world_pos:", world_pos)
+				# Instance the ElementalCircle
+				var elemental_circle_scene = preload("res://Elements/ElementalCircle.tscn")
+				var elemental_circle = elemental_circle_scene.instantiate()
+				# Optionally pass BossEye reference for cleanup
+				if "boss_eye_ref" in elemental_circle:
+					elemental_circle.boss_eye_ref = self
+				# Set position
+				elemental_circle.position = world_pos
+				# Add to CameraContainer/ObstacleLayer
+				var obstacle_layer = course.get_node_or_null("CameraContainer/ObstacleLayer")
+				if obstacle_layer:
+					obstacle_layer.add_child(elemental_circle)
+					print("[BossEye] Added ElementalCircle to CameraContainer/ObstacleLayer, child count:", obstacle_layer.get_child_count())
+				else:
+					print("[BossEye] ERROR: CameraContainer/ObstacleLayer not found! Adding to course root as fallback.")
+					course.add_child(elemental_circle)
+					print("[BossEye] Added ElementalCircle to course root, child count:", course.get_child_count())
+				break # Only summon one per turn
+
 	turn_completed.emit()
 
 func get_grid_position() -> Vector2i:

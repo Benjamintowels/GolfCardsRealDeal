@@ -1,14 +1,29 @@
-[gd_scene load_steps=5 format=3 uid="uid://d2me6rtq0t7"]
+[gd_scene load_steps=10 format=3 uid="uid://d2me6rtq0t7"]
 
 [ext_resource type="Texture2D" uid="uid://vd70etdddaqu" path="res://Elements/ElementalCircle.png" id="1_amq0l"]
+[ext_resource type="Script" uid="uid://cw5e1losw1itm" path="res://Elements/elemental_circle.gd" id="1_syvgn"]
+[ext_resource type="Texture2D" uid="uid://buuk33xvw6sjw" path="res://Elements/ElectricBolt.png" id="2_8558j"]
 [ext_resource type="AudioStream" uid="uid://crq1nte6xgrtj" path="res://Sounds/ElectricPulse.mp3" id="2_fejji"]
 [ext_resource type="AudioStream" uid="uid://b0r3d4rypbpdj" path="res://Sounds/FlamePulse.mp3" id="3_scbqb"]
 [ext_resource type="AudioStream" uid="uid://c5ivtcpdi6wjn" path="res://Sounds/IcePulse.mp3" id="4_scbqb"]
+[ext_resource type="Texture2D" uid="uid://c0orbx33yy6tu" path="res://Weapons/DarkEnergy.png" id="6_8558j"]
+[ext_resource type="Texture2D" uid="uid://8epfyalkbnok" path="res://Particles/IceParticle.png" id="7_8558j"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_8558j"]
+radius = 78.0577
 
 [node name="ElementalCircle" type="Node2D"]
+script = ExtResource("1_syvgn")
 
-[node name="Sprite2D" type="Sprite2D" parent="."]
+[node name="ElementalCircleSprite" type="Sprite2D" parent="."]
+texture_filter = 1
 texture = ExtResource("1_amq0l")
+
+[node name="EntranceSpark" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(-12, -137)
+scale = Vector2(1.995, 6.115)
+texture = ExtResource("2_8558j")
 
 [node name="ElectricPulse" type="AudioStreamPlayer2D" parent="."]
 position = Vector2(64, 164)
@@ -21,3 +36,17 @@ stream = ExtResource("3_scbqb")
 [node name="IcePulse" type="AudioStreamPlayer2D" parent="."]
 position = Vector2(67, 173)
 stream = ExtResource("4_scbqb")
+
+[node name="EntranceElement" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(0, -46)
+texture = ExtResource("6_8558j")
+
+[node name="GPUParticles2D" type="GPUParticles2D" parent="."]
+texture_filter = 1
+texture = ExtResource("7_8558j")
+
+[node name="Area2D" type="Area2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D"]
+shape = SubResource("CircleShape2D_8558j")

@@ -1524,6 +1524,8 @@ func _end_turn_logic() -> void:
 	map_manager.advance_fire_tiles()
 	# Advance ice tiles to next turn
 	map_manager.advance_ice_tiles()
+	# Advance elemental circles to next turn
+	map_manager.advance_elemental_circles()
 	
 	# Block persists during world turn - will be cleared when player's next turn begins
 	# clear_block()  # REMOVED: Block should persist during world turn

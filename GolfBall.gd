@@ -1233,7 +1233,22 @@ func _on_area_entered(area):
 		# Notify course to re-enable player collision since ball hit bush
 		notify_course_of_collision()
 		print("=== END GOLFBALL BUSH COLLISION ===")
-
+	# Check if this is an ElementalCircle collision
+	elif area.get_parent() and area.get_parent().is_in_group("elemental_circles"):
+		var circle = area.get_parent()
+		# Only apply if ball is not above the circle's height
+		if has_method("get_height") and "height" in circle:
+			var ball_height = get_height()
+			var circle_height = circle.height
+			if ball_height <= circle_height:
+				if circle.has_method("_apply_ice_to_ball"):
+					print("[GolfBall] Entered ElementalCircle, applying ice effect.")
+					circle._apply_ice_to_ball(self)
+				else:
+					print("[GolfBall] ElementalCircle missing _apply_ice_to_ball method!")
+			else:
+				print("[GolfBall] Ball is above ElementalCircle height, no effect.")
+		return
 
 func _on_area_exited(area):
 	# Area exit handling if needed
