@@ -10,6 +10,11 @@ signal turn_completed
 @onready var base_collision_area: Area2D = $BaseCollisionArea
 @onready var push_sound: AudioStreamPlayer2D = $Push
 @onready var move_sound: AudioStreamPlayer2D = $BossEyeMove
+# Blink textures
+@onready var boss_eye_closed: Texture2D = preload("res://NPC/Bosses/BossEyeClosed.png")
+@onready var boss_eye_opening1: Texture2D = preload("res://NPC/Bosses/BossEyeOpening1.png")
+@onready var boss_eye_opening2: Texture2D = preload("res://NPC/Bosses/BossEyeOpening2.png")
+@onready var boss_eye_open: Texture2D = preload("res://NPC/Bosses/BossEye.png")
 
 var grid_position: Vector2i
 var cell_size: int = 48
@@ -37,6 +42,8 @@ var original_modulate: Color
 # Damage flash effect properties
 var is_flashing: bool = false
 var flash_tween: Tween
+# Blink effect flag
+var is_blinking: bool = false
 
 # Collision and height properties
 # base_collision_area is already declared above
@@ -183,6 +190,7 @@ func take_damage(amount: int):
 		push_sound.play()
 	# Flash red when taking damage
 	flash_red()
+	blink_eye()
 	update_boss_health_bar()
 	if current_health <= 0:
 		die()
@@ -213,6 +221,19 @@ func flash_red():
 	# Wait for the tween to finish, then reset is_flashing
 	await flash_tween.finished
 	is_flashing = false
+
+func blink_eye():
+	if is_blinking or not sprite:
+		return
+	is_blinking = true
+	sprite.texture = boss_eye_closed
+	await get_tree().create_timer(0.08).timeout
+	sprite.texture = boss_eye_opening1
+	await get_tree().create_timer(0.06).timeout
+	sprite.texture = boss_eye_opening2
+	await get_tree().create_timer(0.06).timeout
+	sprite.texture = boss_eye_open
+	is_blinking = false
 
 func _calculate_velocity_damage(velocity_magnitude: float) -> int:
 	"""Calculate damage based on ball velocity magnitude"""
