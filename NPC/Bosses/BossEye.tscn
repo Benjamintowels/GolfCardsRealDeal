@@ -1,13 +1,100 @@
-[gd_scene load_steps=11 format=3 uid="uid://cfmv1l0y1wmcc"]
+[gd_scene load_steps=15 format=3 uid="uid://cfmv1l0y1wmcc"]
 
 [ext_resource type="Script" uid="uid://c51tw1d74c5mk" path="res://NPC/Bosses/boss_eye.gd" id="1_41upc"]
 [ext_resource type="Texture2D" uid="uid://dor8cmpdpsm7i" path="res://NPC/Bosses/BossEye.png" id="2_uxiex"]
+[ext_resource type="Texture2D" uid="uid://cu6g5iqa2666w" path="res://NPC/Animals/Ash/Shadow.png" id="2_yv2m1"]
 [ext_resource type="AudioStream" uid="uid://d2h88cbofxus" path="res://Sounds/Wraith.mp3" id="4_yv2m1"]
 [ext_resource type="AudioStream" uid="uid://d2tn1hy7bw4ov" path="res://Sounds/Smack.mp3" id="5_ukga6"]
 [ext_resource type="AudioStream" uid="uid://bu0i4qbsh13o1" path="res://Sounds/BossEyeMoveSound.mp3" id="5_uxiex"]
 [ext_resource type="AudioStream" uid="uid://bqapw1q4hlopt" path="res://Sounds/Push.mp3" id="6_g8lfo"]
 [ext_resource type="AudioStream" uid="uid://cmkr7km06qsqx" path="res://Sounds/Smash.mp3" id="6_yv2m1"]
 [ext_resource type="AudioStream" uid="uid://cj6b3i3fgu2kj" path="res://Sounds/Snap.mp3" id="7_7fc0p"]
+
+[sub_resource type="Animation" id="Animation_yv2m1"]
+resource_name = "idle_float"
+length = 3.992
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("BossEyeSprite:position:y")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0.0333333, 0.9, 1.4, 1.86667, 2.86667, 3.96667),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1),
+"update": 0,
+"values": [-90.0, -94.0, -92.0, -90.0, -92.0, -90.0]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Shadow:scale:x")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.9, 1.43333, 1.96667, 2.8),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [2.385, 2.273, 2.337, 2.4, 2.281]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Shadow:scale:y")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0.0333333, 0.933333, 1.46667, 2, 2.83333),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [2.385, 2.273, 2.337, 2.4, 2.281]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("Shadow:texture")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(),
+"transitions": PackedFloat32Array(),
+"update": 1,
+"values": []
+}
+
+[sub_resource type="Animation" id="Animation_7fc0p"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("BossEyeSprite:position:y")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [-103.0]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Shadow:scale:x")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [2.385]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_g8lfo"]
+_data = {
+&"RESET": SubResource("Animation_7fc0p"),
+&"idle_float": SubResource("Animation_yv2m1")
+}
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_6vppk"]
 radius = 68.3913
@@ -18,24 +105,37 @@ radius = 76.6631
 [node name="BossEye" type="CharacterBody2D"]
 script = ExtResource("1_41upc")
 
+[node name="Shadow" type="Sprite2D" parent="."]
+texture_filter = 1
+scale = Vector2(2.385, 2.38209)
+texture = ExtResource("2_yv2m1")
+
 [node name="BossEyeSprite" type="Sprite2D" parent="."]
 z_index = 10
 texture_filter = 1
-position = Vector2(0.5, -62.5)
+position = Vector2(1, -103)
+scale = Vector2(0.667717, 0.669777)
 texture = ExtResource("2_uxiex")
 
 [node name="YSortPoint" type="Node2D" parent="BossEyeSprite"]
-position = Vector2(0, 62.5)
+position = Vector2(0, 71.6657)
 
 [node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+libraries = {
+&"": SubResource("AnimationLibrary_g8lfo")
+}
 
 [node name="YSortPoint" type="Marker2D" parent="."]
 position = Vector2(1, 0)
+scale = Vector2(0.667717, 0.669777)
 
 [node name="TopHeight" type="Marker2D" parent="."]
-position = Vector2(1, -189)
+position = Vector2(0, -156)
+scale = Vector2(0.667717, 0.669777)
 
 [node name="BaseCollisionArea" type="Area2D" parent="."]
+position = Vector2(1, -23)
+scale = Vector2(0.667717, 0.669777)
 
 [node name="BaseCollision" type="CollisionShape2D" parent="BaseCollisionArea"]
 position = Vector2(0.5, -10.5)

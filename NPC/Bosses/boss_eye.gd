@@ -15,6 +15,7 @@ signal turn_completed
 @onready var boss_eye_opening1: Texture2D = preload("res://NPC/Bosses/BossEyeOpening1.png")
 @onready var boss_eye_opening2: Texture2D = preload("res://NPC/Bosses/BossEyeOpening2.png")
 @onready var boss_eye_open: Texture2D = preload("res://NPC/Bosses/BossEye.png")
+@onready var shadow: Sprite2D = $Shadow
 
 var grid_position: Vector2i
 var cell_size: int = 48
@@ -103,7 +104,11 @@ func _ready():
 			boss_health_bar.visible = true
 			boss_health_bar.get_node("BossName").text = "Docculus the Brave"
 			update_boss_health_bar()
-	
+
+	# Start idle float animation if it exists
+	if animation_player.has_animation("idle_float"):
+		animation_player.play("idle_float")
+
 	print("BossEye: Initialized with health:", current_health)
 
 # Empty handlers for WorldTurnManager signals
