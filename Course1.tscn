@@ -97,6 +97,7 @@ script = ExtResource("26_coin_explosion")
 [node name="UILayer" type="CanvasLayer" parent="."]
 
 [node name="BossHealthBar" parent="UILayer" instance=ExtResource("13_opida")]
+visible = false
 mouse_filter = 2
 
 [node name="Gimme" parent="UILayer" instance=ExtResource("13_1r40f")]

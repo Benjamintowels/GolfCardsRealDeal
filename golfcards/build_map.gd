@@ -118,10 +118,8 @@ func clear_existing_objects() -> void:
 	# --- Clear MapManager arrays ---
 	var map_manager = _find_map_manager()
 	if map_manager:
-		if map_manager.has("scorched_tiles"):
-			map_manager.scorched_tiles.clear()
-		if map_manager.has("ice_tiles"):
-			map_manager.ice_tiles.clear()
+		map_manager.scorched_tiles.clear()
+		map_manager.ice_tiles.clear()
 		# If using methods, prefer those:
 		if map_manager.has_method("get_scorched_tiles"):
 			map_manager.get_scorched_tiles().clear()
@@ -1083,7 +1081,7 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 				print("❌ MINIBOSS PUZZLE: No valid miniboss positions found")
 		else:
 			print("❌ MINIBOSS PUZZLE: No fairway or pin positions found")
-	
+
 	# Place Pin (flag) on the map if not a boss room
 	if not is_boss_room_layout:
 		# Existing logic for placing the Pin goes here
@@ -1092,7 +1090,7 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 		pass  # Replace this with actual Pin placement logic
 	else:
 		positions.pin = null  # Explicitly set to null or skip
-	
+
 	return positions
 
 func place_treeline_vert_borders(layout: Array) -> void:

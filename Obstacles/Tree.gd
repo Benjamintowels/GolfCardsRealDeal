@@ -210,12 +210,14 @@ func _reflect_projectile(projectile: Node2D):
 		projectile.velocity = reflected_velocity
 
 func set_transparent(is_transparent: bool):
-	var sprite = get_node_or_null("Sprite2D")
-	if sprite:
-		if is_transparent:
-			sprite.modulate.a = 0.4
-		else:
-			sprite.modulate.a = 1.0
+	var anim_player = get_node_or_null("Sprite2D/AnimationPlayer")
+	if not anim_player:
+		return
+
+	if is_transparent:
+		anim_player.play("hover_fade_in")
+	else:
+		anim_player.play_backwards("hover_fade_in")
 
 func _setup_hitbox() -> void:
 	"""Setup HitBox for gun collision detection"""
