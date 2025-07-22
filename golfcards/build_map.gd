@@ -105,6 +105,30 @@ func clear_existing_objects() -> void:
 		print("WARNING: obstacle_layer is null in clear_existing_objects()")
 		return
 	
+	# --- Clear fire/ice tile nodes ---
+	var fire_tiles = get_tree().get_nodes_in_group("fire_tiles")
+	for fire_tile in fire_tiles:
+		if is_instance_valid(fire_tile):
+			fire_tile.queue_free()
+	var ice_tiles = get_tree().get_nodes_in_group("ice_tiles")
+	for ice_tile in ice_tiles:
+		if is_instance_valid(ice_tile):
+			ice_tile.queue_free()
+	
+	# --- Clear MapManager arrays ---
+	var map_manager = _find_map_manager()
+	if map_manager:
+		if map_manager.has("scorched_tiles"):
+			map_manager.scorched_tiles.clear()
+		if map_manager.has("ice_tiles"):
+			map_manager.ice_tiles.clear()
+		# If using methods, prefer those:
+		if map_manager.has_method("get_scorched_tiles"):
+			map_manager.get_scorched_tiles().clear()
+		if map_manager.has_method("get_ice_tiles"):
+			map_manager.get_ice_tiles().clear()
+	
+	# --- Existing object clearing logic ---
 	for child in obstacle_layer.get_children():
 		child.queue_free()
 		objects_removed += 1
@@ -2141,3 +2165,20 @@ func _place_miniboss_puzzle_system(object_positions: Dictionary, layout: Array):
 	print("  - Miniboss (Wraith) placed at:", miniboss_pos)
 	print("  - Force field dome placed at:", actual_pin_pos, "(actual pin position)")
 	print("  - Miniboss reference connected to dome")
+
+func _find_map_manager() -> Node:
+	# Try to find MapManager in the scene tree
+	var root = get_tree().get_root()
+	# Try common locations
+	if has_node("/root/MapManager"):
+		return get_node("/root/MapManager")
+	if get_parent() and get_parent().has_node("MapManager"):
+		return get_parent().get_node("MapManager")
+	# Fallback: search the tree
+	for node in get_tree().get_nodes_in_group("MapManager"):
+		return node
+	# Fallback: search all children
+	for child in root.get_children():
+		if child.get_class() == "MapManager":
+			return child
+	return null

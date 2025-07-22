@@ -125,6 +125,8 @@ func _ready():
 			boss_hand_right.boss_eye = self
 			if boss_hand_right.has_method("set_original_position"):
 				boss_hand_right.set_original_position()
+			# Ensure Y-sorting is correct after positioning
+			Global.update_object_y_sort(boss_hand_right, "characters")
 			# Left hand (idle, flipped)
 			boss_hand_left = boss_hand_scene.instantiate()
 			obstacle_layer.add_child(boss_hand_left)
@@ -139,6 +141,8 @@ func _ready():
 				boss_hand_left.get_node("BossHandFist").flip_h = true
 			if boss_hand_left.has_node("BossHandFlat"):
 				boss_hand_left.get_node("BossHandFlat").flip_h = true
+			# Ensure Y-sorting is correct after positioning
+			Global.update_object_y_sort(boss_hand_left, "characters")
 			# Only right hand attacks
 			# boss_hand = boss_hand_right # This line is removed
 
