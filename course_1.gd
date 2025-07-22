@@ -4267,3 +4267,7 @@ func _on_debug_damage_bar_pressed() -> void:
 		print("🎯 DEBUG: Damage bar visible:", damage_bar.visible)
 	else:
 		print("❌ DEBUG: Damage bar is null!")
+
+func transition_camera_to_npc(npc: Node) -> void:
+	# Forward to CameraManager for tweened camera movement
+	await camera_manager.transition_camera_to_npc(npc)

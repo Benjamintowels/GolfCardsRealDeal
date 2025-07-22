@@ -11,72 +11,6 @@
 [ext_resource type="AudioStream" uid="uid://cj6b3i3fgu2kj" path="res://Sounds/Snap.mp3" id="7_7xjtq"]
 [ext_resource type="AudioStream" uid="uid://bu0i4qbsh13o1" path="res://Sounds/BossEyeMoveSound.mp3" id="8_dx5gc"]
 
-[sub_resource type="Animation" id="Animation_xuhay"]
-resource_name = "hand_smash"
-length = 1.5025
-tracks/0/type = "value"
-tracks/0/imported = false
-tracks/0/enabled = true
-tracks/0/path = NodePath("BossHandFist:position")
-tracks/0/interp = 1
-tracks/0/loop_wrap = true
-tracks/0/keys = {
-"times": PackedFloat32Array(0.0666667, 0.3, 0.533333, 0.766667, 1.03333, 1.43333),
-"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1),
-"update": 0,
-"values": [Vector2(-11, -50), Vector2(-14, -69), Vector2(-18, -72), Vector2(-1.90735e-06, -13), Vector2(1, -10), Vector2(-11, -50)]
-}
-tracks/1/type = "value"
-tracks/1/imported = false
-tracks/1/enabled = true
-tracks/1/path = NodePath("BossHandFist:rotation")
-tracks/1/interp = 1
-tracks/1/loop_wrap = true
-tracks/1/keys = {
-"times": PackedFloat32Array(0.0666667, 0.5, 0.966667, 1.46667),
-"transitions": PackedFloat32Array(1, 1, 1, 1),
-"update": 0,
-"values": [0.0, -0.453786, 0.654498, 0.0]
-}
-tracks/2/type = "value"
-tracks/2/imported = false
-tracks/2/enabled = true
-tracks/2/path = NodePath("Shadow:scale")
-tracks/2/interp = 1
-tracks/2/loop_wrap = true
-tracks/2/keys = {
-"times": PackedFloat32Array(0.0666667, 0.5, 0.733333, 1.6),
-"transitions": PackedFloat32Array(1, 1, 1, 1),
-"update": 0,
-"values": [Vector2(2.385, 1.975), Vector2(1.518, 1.707), Vector2(2.235, 2.329), Vector2(2.385, 1.975)]
-}
-tracks/3/type = "value"
-tracks/3/imported = false
-tracks/3/enabled = true
-tracks/3/path = NodePath("Shadow:position")
-tracks/3/interp = 1
-tracks/3/loop_wrap = true
-tracks/3/keys = {
-"times": PackedFloat32Array(0.0333333, 0.5, 0.733333, 1.53333),
-"transitions": PackedFloat32Array(1, 1, 1, 1),
-"update": 0,
-"values": [Vector2(0, 0), Vector2(-10, 0), Vector2(1, 0), Vector2(0, 0)]
-}
-tracks/4/type = "method"
-tracks/4/imported = false
-tracks/4/enabled = true
-tracks/4/path = NodePath(".")
-tracks/4/interp = 1
-tracks/4/loop_wrap = true
-tracks/4/keys = {
-"times": PackedFloat32Array(0.766667),
-"transitions": PackedFloat32Array(1),
-"values": [{
-"args": [],
-"method": &"trigger_camera_shake"
-}]
-}
-
 [sub_resource type="Animation" id="Animation_cmr8r"]
 length = 0.001
 tracks/0/type = "value"
@@ -155,6 +89,72 @@ tracks/1/keys = {
 "transitions": PackedFloat32Array(1, 1, 1),
 "update": 0,
 "values": [Vector2(2.385, 1.975), Vector2(2.1, 1.74), Vector2(2.385, 1.975)]
+}
+
+[sub_resource type="Animation" id="Animation_xuhay"]
+resource_name = "hand_smash"
+length = 1.5025
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("BossHandFist:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0.0666667, 0.3, 0.533333, 0.766667, 1.03333, 1.43333),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1),
+"update": 0,
+"values": [Vector2(-11, -50), Vector2(-14, -69), Vector2(-18, -72), Vector2(-1.90735e-06, -13), Vector2(1, -10), Vector2(-11, -50)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("BossHandFist:rotation")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0.0666667, 0.5, 0.966667, 1.46667),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 0,
+"values": [0.0, -0.453786, 0.654498, 0.0]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Shadow:scale")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0.0666667, 0.5, 0.733333, 1.6),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 0,
+"values": [Vector2(2.385, 1.975), Vector2(1.518, 1.707), Vector2(2.235, 2.329), Vector2(2.385, 1.975)]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("Shadow:position")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0.0333333, 0.5, 0.733333, 1.53333),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 0,
+"values": [Vector2(0, 0), Vector2(-10, 0), Vector2(1, 0), Vector2(0, 0)]
+}
+tracks/4/type = "method"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath(".")
+tracks/4/interp = 1
+tracks/4/loop_wrap = true
+tracks/4/keys = {
+"times": PackedFloat32Array(0.766667),
+"transitions": PackedFloat32Array(1),
+"values": [{
+"args": [],
+"method": &"trigger_camera_shake"
+}]
 }
 
 [sub_resource type="AnimationLibrary" id="AnimationLibrary_hqdm8"]
