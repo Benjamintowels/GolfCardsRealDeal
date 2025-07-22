@@ -161,7 +161,7 @@ var background_themes = {
 				"scale": Vector2(1.5, 1.0),
 				"repeat_horizontal": true,
 				"repeat_vertical": false,
-				"custom_y_position": -1500  # Override Y position
+				"custom_y_position": -1086.54  # Override Y position
 			},
 			{
 				"name": "Horizon",
@@ -171,7 +171,7 @@ var background_themes = {
 				"scale": Vector2(100.0, 100.0),
 				"repeat_horizontal": true,
 				"repeat_vertical": false,
-				"custom_y_position": 2535  # Same Y position as mountains
+				"custom_y_position": 3003.02  # Same Y position as mountains
 			},
 			{
 				"name": "DistantHill",
@@ -181,7 +181,7 @@ var background_themes = {
 				"scale": Vector2(1.4, 1.0),
 				"repeat_horizontal": true,
 				"repeat_vertical": false,
-				"custom_y_position": -1400  # Override Y position
+				"custom_y_position": -1115.705  # Override Y position
 			},
 			{
 				"name": "Hill",
@@ -190,7 +190,8 @@ var background_themes = {
 				"z_index": -190,
 				"scale": Vector2(0.9, 0.3),
 				"repeat_horizontal": true,
-				"repeat_vertical": false
+				"repeat_vertical": false,
+				"custom_y_position": -822
 			},
 			{
 				"name": "City",
@@ -200,7 +201,7 @@ var background_themes = {
 				"scale": Vector2(1.2, 1.0),
 				"repeat_horizontal": true,
 				"repeat_vertical": false,
-				"custom_y_position": -1390  # Override Y position
+				"custom_y_position": -927  # Override Y position
 			},
 			{
 				"name": "Clouds",
@@ -210,7 +211,7 @@ var background_themes = {
 				"scale": Vector2(1.3, 1.0),
 				"repeat_horizontal": true,
 				"repeat_vertical": false,
-				"custom_y_position": -1700  # Override Y position
+				"custom_y_position": -1183.885  # Override Y position
 			},
 			{
 				"name": "TreeLine3",
@@ -220,7 +221,7 @@ var background_themes = {
 				"scale": Vector2(1.1, 1.0),
 				"repeat_horizontal": false,
 				"repeat_vertical": false,
-				"custom_y_position": -1029  # Override Y position
+				"custom_y_position": -751.215  # Override Y position
 			},
 			{
 				"name": "TreeLine2",
@@ -230,7 +231,7 @@ var background_themes = {
 				"scale": Vector2(0.9, 0.9),
 				"repeat_horizontal": true,
 				"repeat_vertical": false,
-				"custom_y_position": -1010  # Override Y position
+				"custom_y_position": -697.275  # Override Y position
 			},
 			{
 				"name": "Foreground",
@@ -240,7 +241,7 @@ var background_themes = {
 				"scale": Vector2(1.8, 1.8),
 				"repeat_horizontal": true,
 				"repeat_vertical": false,
-				"custom_y_position": -720  # Override Y position
+				"custom_y_position": -444  # Override Y position
 			},
 			{
 				"name": "TreeLine",
@@ -249,7 +250,8 @@ var background_themes = {
 				"z_index": -80,
 				"scale": Vector2(1.0, 1.0),
 				"repeat_horizontal": true,
-				"repeat_vertical": false
+				"repeat_vertical": false,
+				"custom_y_position": -600
 			}
 		]
 	},
@@ -351,7 +353,7 @@ var background_themes = {
 				"scale": Vector2(1.8, 1.8),
 				"repeat_horizontal": true,
 				"repeat_vertical": false,
-				"custom_y_position": -400  # Closer Y position for tighter spacing
+				"custom_y_position": -449.925  # Closer Y position for tighter spacing
 			},
 			{
 				"name": "TreeLine1",
