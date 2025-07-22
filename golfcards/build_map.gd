@@ -985,20 +985,20 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 			placed_objects.append(positions.suitcase)
 	
 	# Place Stone Walls around map edges (only top and bottom, every other tile to prevent overlap)
-	var edge_positions: Array = []
-	var layout_width = layout[0].size()
-	var layout_height = layout.size()
-	
-	# Add top edge only, every other tile to prevent overlap
-	for x in range(0, layout_width, 2):  # Step by 2 to place every other tile
-		# Top edge
-		if layout[0][x] != "W":  # Don't place on water
-			edge_positions.append(Vector2i(x, 0))
-	
-	# Add stone walls to edge positions
-	for wall_pos in edge_positions:
-		positions.stone_walls.append(wall_pos)
-		placed_objects.append(wall_pos)
+	# var edge_positions: Array = []
+	# var layout_width = layout[0].size()
+	# var layout_height = layout.size()
+	# 
+	# # Add top edge only, every other tile to prevent overlap
+	# for x in range(0, layout_width, 2):  # Step by 2 to place every other tile
+	#     # Top edge
+	#     if layout[0][x] != "W":  # Don't place on water
+	#         edge_positions.append(Vector2i(x, 0))
+	# 
+	# # Add stone walls to edge positions
+	# for wall_pos in edge_positions:
+	#     positions.stone_walls.append(wall_pos)
+	#     placed_objects.append(wall_pos)
 	
 	# Place Bonfires every other hole (hole 2, 4, 6, 8, etc.)
 	if (current_hole + 1) % 2 == 0:  # Even holes (2, 4, 6, 8, etc.)
@@ -1735,32 +1735,6 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		
 		ysort_objects.append({"node": oil_drum, "grid_pos": oil_pos})
 		obstacle_layer.add_child(oil_drum)
-	
-	# Place Stone Walls
-	for wall_pos in object_positions.stone_walls:
-		var scene: PackedScene = object_scene_map["WALL"]
-		if scene == null:
-			push_error("🚫 StoneWall scene is null")
-			continue
-		var stone_wall: Node2D = scene.instantiate() as Node2D
-		if stone_wall == null:
-			push_error("❌ StoneWall instantiation failed at (%d,%d)" % [wall_pos.x, wall_pos.y])
-			continue
-		var world_pos: Vector2 = Vector2(wall_pos.x, wall_pos.y) * cell_size
-		stone_wall.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
-		
-		# Always set the grid_position property unconditionally
-		stone_wall.set_meta("grid_position", wall_pos)
-		
-		# Add stone wall to groups for smart optimization
-		stone_wall.add_to_group("obstacles")
-		stone_wall.add_to_group("collision_objects")
-		stone_wall.add_to_group("rectangular_obstacles")  # Add to rectangular_obstacles group for rolling collision detection
-		
-		ysort_objects.append({"node": stone_wall, "grid_pos": wall_pos})
-		obstacle_layer.add_child(stone_wall)
-		if stone_wall.has_method("blocks") and stone_wall.blocks():
-			obstacle_map[wall_pos] = stone_wall
 	
 	# Place Squirrels
 	if "SQUIRREL" in object_scene_map:
