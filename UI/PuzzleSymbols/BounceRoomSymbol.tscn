@@ -1,0 +1,9 @@
+[gd_scene load_steps=2 format=3 uid="uid://cujc7shfcgty4"]
+
+[ext_resource type="Texture2D" uid="uid://b6lkjdxcuxfga" path="res://UI/PuzzleSymbols/BounceRoomSymbol.png" id="1_grfga"]
+
+[node name="BounceRoomSymbol" type="Node2D"]
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture_filter = 1
+texture = ExtResource("1_grfga")

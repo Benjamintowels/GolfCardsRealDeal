@@ -20,6 +20,7 @@ const Hole16Layout = preload("res://Maps/Hole16Layout.gd")
 const Hole17Layout = preload("res://Maps/Hole17Layout.gd")
 const Hole18Layout = preload("res://Maps/Hole18Layout.gd")
 const DamageRoundLayout = preload("res://Maps/DamageRoundLayout.gd")
+const BounceRoomLayout = preload("res://Maps/BounceRoomLayout.gd")
 
 const HOLE_LAYOUTS := [
 	Hole1Layout.LAYOUT,
@@ -56,6 +57,10 @@ static func get_hole_layout(hole_index: int) -> Array:
 # Returns the damage round layout for special fun mode
 static func get_damage_round_layout() -> Array:
 	return DamageRoundLayout.LAYOUT
+
+# Returns the bounce room layout for the BounceRoom puzzle type
+static func get_bounce_room_layout() -> Array:
+	return BounceRoomLayout.LAYOUT
 
 # Returns the par value for the given hole index (0-based)
 static func get_hole_par(hole_index: int) -> int:

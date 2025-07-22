@@ -881,6 +881,9 @@ func adjust_background_positioning() -> void:
 	elif game_state_manager.get_driving_range_mode():
 		map_manager.load_map_data(GolfCourseLayout.get_damage_round_layout())
 		print("Loading Driving Range layout")
+	elif game_state_manager.get_current_puzzle_type() == "bounce_room":
+		map_manager.load_map_data(GolfCourseLayout.get_bounce_room_layout())
+		print("Loading BounceRoom layout")
 	else:
 		map_manager.load_map_data(GolfCourseLayout.get_hole_layout(game_state_manager.get_current_hole_index()))
 	build_map.build_map_from_layout_with_randomization(map_manager.level_layout)
@@ -2344,6 +2347,9 @@ func reset_for_next_hole():
 	if game_state_manager.get_driving_range_mode():
 		map_manager.load_map_data(GolfCourseLayout.get_damage_round_layout())
 		print("Driving Range Mode: Loading DamageRoundLayout for next hole")
+	elif game_state_manager.get_current_puzzle_type() == "bounce_room":
+		map_manager.load_map_data(GolfCourseLayout.get_bounce_room_layout())
+		print("BounceRoom Mode: Loading BounceRoomLayout for next hole")
 	else:
 		map_manager.load_map_data(GolfCourseLayout.get_hole_layout(game_state_manager.get_current_hole_index()))
 	
@@ -4271,3 +4277,26 @@ func _on_debug_damage_bar_pressed() -> void:
 func transition_camera_to_npc(npc: Node) -> void:
 	# Forward to CameraManager for tweened camera movement
 	await camera_manager.transition_camera_to_npc(npc)
+
+# After ball instantiation (wherever the ball is created for a new hole)
+# Pseudocode:
+# if game_state_manager.get_current_puzzle_type() == "bounce_room":
+#     ball.ball_bounced.connect(_on_ball_bounced_bounce_room)
+#
+# Add the handler function:
+func _on_ball_bounced_bounce_room():
+	if game_state_manager:
+		game_state_manager.increment_bounce_room_bounce_count()
+		_update_bounce_room_hud()
+
+# Add a function to update the HUD:
+func _update_bounce_room_hud():
+	if game_state_manager.get_current_puzzle_type() == "bounce_room" and hud:
+		var count = game_state_manager.get_bounce_room_bounce_count()
+		hud.get_node("BounceRoomLabel").text = "Bounces: %d" % count
+		hud.get_node("BounceRoomLabel").visible = true
+	else:
+		if hud and hud.has_node("BounceRoomLabel"):
+			hud.get_node("BounceRoomLabel").visible = false
+# ... existing code ...
+# On hole/round reset, call _update_bounce_room_hud() to ensure the label is correct

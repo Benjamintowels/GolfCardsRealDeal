@@ -58,6 +58,9 @@ var current_club_index: int = 2  # Default to Iron (index 2)
 var current_puzzle_type: String = "score"  # Default puzzle type
 var next_puzzle_type: String = "score"     # Puzzle type for next hole
 
+# BounceRoom minigame tracking
+var bounce_room_bounce_count: int = 0
+
 # Shop interaction variables
 var shop_entrance_detected := false
 var shop_grid_pos := Vector2i(2, 4)  # Position of shop from map layout
@@ -674,6 +677,16 @@ func reset_for_new_hole() -> void:
 	# Apply the selected puzzle type for this hole
 	current_puzzle_type = next_puzzle_type
 	print("🎯 PUZZLE TYPE: Applying puzzle type '", current_puzzle_type, "' to hole", current_hole + 1)
+
+	# Reset bounce count for BounceRoom
+	if current_puzzle_type == "bounce_room":
+		bounce_room_bounce_count = 0
+
+func increment_bounce_room_bounce_count() -> void:
+	bounce_room_bounce_count += 1
+
+func get_bounce_room_bounce_count() -> int:
+	return bounce_room_bounce_count
 
 func get_round_end_hole() -> int:
 	"""Get the round end hole index"""

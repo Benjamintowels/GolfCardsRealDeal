@@ -1,15 +1,29 @@
-[gd_scene load_steps=6 format=3 uid="uid://dciqeesmkcon4"]
+[gd_scene load_steps=8 format=3 uid="uid://dciqeesmkcon4"]
 
 [ext_resource type="Texture2D" uid="uid://bnk5whhwvo15t" path="res://Interactables/BonfireBase.png" id="1_7gas3"]
 [ext_resource type="Script" uid="uid://dinirimtyeo1l" path="res://Interactables/bonfire.gd" id="1_o2idl"]
 [ext_resource type="AudioStream" uid="uid://icvi7c2ur6mm" path="res://Sounds/FlameOn.mp3" id="3_5i0pr"]
 [ext_resource type="AudioStream" uid="uid://duwk4vvnma6e2" path="res://Sounds/Meditate.mp3" id="4_a00a4"]
+[ext_resource type="Texture2D" uid="uid://cy1hihh6j0q85" path="res://Particles/RedParticle.png" id="5_fcpec"]
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_pcmrm"]
+particle_flag_disable_z = true
+direction = Vector3(0, -1, 0)
+initial_velocity_max = 57.38
+gravity = Vector3(0, -99, 0)
+scale_over_velocity_min = 303.27
+scale_over_velocity_max = 639.34
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_o2idl"]
 radius = 44.0
 
 [node name="Bonfire" type="Node2D"]
 script = ExtResource("1_o2idl")
+
+[node name="GPUParticles2D" type="GPUParticles2D" parent="."]
+visible = false
+texture = ExtResource("5_fcpec")
+process_material = SubResource("ParticleProcessMaterial_pcmrm")
 
 [node name="BonfireBaseSprite" type="Sprite2D" parent="."]
 texture_filter = 1

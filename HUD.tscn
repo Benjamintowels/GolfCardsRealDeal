@@ -1,0 +1,9 @@
+[node name="BounceRoomLabel" type="Label" parent="."]
+visible = false
+text = "Bounces: 0"
+position = Vector2(40, 120)
+custom_fonts/font = ExtResource("1_font")
+custom_colors/font_color = Color(1, 1, 0)
+custom_constants/outline_size = 2
+custom_colors/font_outline_color = Color(0, 0, 0)
+font_size = 32 

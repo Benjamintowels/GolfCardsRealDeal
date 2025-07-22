@@ -38,6 +38,11 @@ var puzzle_types = {
 		"name": "Damage Round",
 		"description": "Special fun mode with extra NPCs and oil drums - only club cards allowed",
 		"symbol_scene": preload("res://UI/PuzzleSymbols/DrivingRangeSymbol.tscn")
+	},
+	"bounce_room": {
+		"name": "Bounce Room",
+		"description": "Track how many times your ball bounces or reflects before finishing the hole.",
+		"symbol_scene": preload("res://UI/PuzzleSymbols/BounceRoomSymbol.tscn")
 	}
 }
 
@@ -135,6 +140,8 @@ func show_puzzle_selection():
 			sprite_node = symbol_instance.get_node("MinibossSymbol")
 		elif symbol_instance.has_node("DrivingRangeSymbol"):
 			sprite_node = symbol_instance.get_node("DrivingRangeSymbol")
+		elif symbol_instance.has_node("BounceRoomSymbol"):
+			sprite_node = symbol_instance.get_node("BounceRoomSymbol")
 		
 		if sprite_node and sprite_node.texture:
 			left_symbol.texture = sprite_node.texture
@@ -167,6 +174,8 @@ func show_puzzle_selection():
 			sprite_node = symbol_instance.get_node("MinibossSymbol")
 		elif symbol_instance.has_node("DrivingRangeSymbol"):
 			sprite_node = symbol_instance.get_node("DrivingRangeSymbol")
+		elif symbol_instance.has_node("BounceRoomSymbol"):
+			sprite_node = symbol_instance.get_node("BounceRoomSymbol")
 		
 		if sprite_node and sprite_node.texture:
 			right_symbol.texture = sprite_node.texture

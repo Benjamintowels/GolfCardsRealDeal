@@ -6,6 +6,7 @@ const ElementData = preload("res://Elements/ElementData.gd")
 signal landed(final_tile: Vector2i)
 signal out_of_bounds()  # New signal for out of bounds
 signal sand_landing()  # New signal for sand landing
+signal ball_bounced()
 
 var cell_size: int = 48 # This will be set by the main script
 var map_manager: Node = null  # Will be set by the course to check tile types
@@ -612,6 +613,7 @@ func _process(delta):
 					
 					# Reduce horizontal velocity slightly on bounce
 					velocity *= 0.98
+					ball_bounced.emit()
 			else:
 				# Start rolling
 				vz = 0.0
@@ -696,6 +698,7 @@ func _process(delta):
 					
 					# Reduce horizontal velocity slightly on bounce
 					velocity *= 0.98
+					ball_bounced.emit()
 			else:
 				# Start rolling only after minimum bounces are complete
 				vz = 0.0

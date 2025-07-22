@@ -560,6 +560,11 @@ func launch_golf_ball(launch_direction: Vector2, final_power: float, height: flo
 	
 	# Exit launch phase to transition to ball flying phase
 	exit_launch_phase()
+	
+	# BounceRoom: Connect bounce signal to course handler
+	if course_reference and course_reference.game_state_manager and course_reference.game_state_manager.get_current_puzzle_type() == "bounce_room":
+		if not golf_ball.ball_bounced.is_connected(course_reference._on_ball_bounced_bounce_room):
+			golf_ball.ball_bounced.connect(course_reference._on_ball_bounced_bounce_room)
 
 func launch_throwing_knife(launch_direction: Vector2, final_power: float, height: float, launch_spin: float = 0.0, spin_strength_category: int = 0):
 	"""Launch the throwing knife with the specified parameters"""

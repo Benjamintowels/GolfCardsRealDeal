@@ -7,6 +7,7 @@ extends Node2D
 @onready var detect_area: Area2D = $DetectArea2D
 @onready var top_height_marker: Marker2D = $TopHeight
 @onready var ysort_point: Marker2D = $YsortPoint
+@onready var bonfire_particles: GPUParticles2D = $GPUParticles2D
 
 # Flame animation properties
 var flame_frames: Array[Texture2D] = []
@@ -282,25 +283,26 @@ func set_bonfire_active(active: bool):
 	if active:
 		# Activate bonfire
 		bonfire_flame.visible = true
-		
+		if bonfire_particles:
+			bonfire_particles.visible = true
+			bonfire_particles.restart()
 		# Reset meditation cooldown so first meditation can trigger immediately
 		last_meditation_trigger_time = 0.0
-		
 		# Play activation sound
 		var bonfire_sound = get_node_or_null("BonfireOn")
 		if bonfire_sound and bonfire_sound.stream:
 			bonfire_sound.play()
-		
 		# Check for meditation immediately when bonfire becomes active
 		# Use deferred call to ensure this happens after the bonfire is fully activated
 		print("Bonfire: Just became active, checking for adjacent player...")
 		call_deferred("_check_for_player_meditation")
-		
 		# Also check if player is already in the area
 		call_deferred("_check_for_player_in_area")
 	else:
 		# Deactivate bonfire
 		bonfire_flame.visible = false
+		if bonfire_particles:
+			bonfire_particles.visible = false
 
 func _find_player_in_hierarchy(node: Node) -> Node:
 	"""Find the Player node in the parent hierarchy"""
