@@ -238,9 +238,6 @@ var max_charge_time := 3.0  # Maximum time to fully charge (varies by distance)
 # Add this variable to track objects and their grid positions
 var ysort_objects := [] # Array of {node: Node2D, grid_pos: Vector2i}
 
-# Shop interaction variables
-# shop_dialog, shop_overlay, mid_game_shop_overlay moved to UIManager
-
 # Smart Performance Optimizer
 var smart_optimizer: Node
 
@@ -700,6 +697,8 @@ func _ready() -> void:
 	# Initialize background manager
 	if background_manager:
 		background_manager.set_camera_reference(camera)
+		var course1_layers = $BackgroundLayersCourse1
+		background_manager.set_use_existing_layers(true, course1_layers)
 		background_manager.set_theme("course1")
 		print("✓ Background manager initialized with course1 theme")
 		

@@ -159,7 +159,7 @@ var background_themes = {
 				"parallax_factor": 6.5,  # EXTREME - hyperspeed parallax
 				"z_index": -250,
 				"scale": Vector2(1.5, 1.0),
-				"repeat_horizontal": true,
+				"repeat_horizontal": false,
 				"repeat_vertical": false,
 				"custom_y_position": -1086.54  # Override Y position
 			},
@@ -179,7 +179,7 @@ var background_themes = {
 				"parallax_factor": 5.5,  # In front of mountains
 				"z_index": -220,
 				"scale": Vector2(1.4, 1.0),
-				"repeat_horizontal": true,
+				"repeat_horizontal": false,
 				"repeat_vertical": false,
 				"custom_y_position": -1115.705  # Override Y position
 			},
@@ -198,8 +198,7 @@ var background_themes = {
 				"texture_path": "res://Backgrounds/city_skyline.png",
 				"parallax_factor": 5.0,  # Between hill layers
 				"z_index": -210,
-				"scale": Vector2(1.2, 1.0),
-				"repeat_horizontal": true,
+				"repeat_horizontal": false,
 				"repeat_vertical": false,
 				"custom_y_position": -927  # Override Y position
 			},
@@ -209,7 +208,7 @@ var background_themes = {
 				"parallax_factor": 9.0,  # EXTREME - very high hyperspeed parallax
 				"z_index": -200,
 				"scale": Vector2(1.3, 1.0),
-				"repeat_horizontal": true,
+				"repeat_horizontal": false,
 				"repeat_vertical": false,
 				"custom_y_position": -1183.885  # Override Y position
 			},
@@ -217,7 +216,7 @@ var background_themes = {
 				"name": "TreeLine3",
 				"texture_path": "res://Backgrounds/tree_line_3.png",
 				"parallax_factor": 2.5,  # EXTREME - medium-high hyperspeed parallax
-				"z_index": -120,
+				"z_index": -215,
 				"scale": Vector2(1.1, 1.0),
 				"repeat_horizontal": false,
 				"repeat_vertical": false,
@@ -638,7 +637,7 @@ func update_vertical_parallax() -> void:
 		if sprite:
 			if anchor_to_grid:
 				# For anchored layers (like TreeLine1), keep them at the grid top position
-				sprite.position.y = 0  # Grid top is at Y=0
+				sprite.position.y = 0 # Grid top is at Y=0
 			else:
 				# Calculate target Y position based on zoom
 				var target_y = lerp(zoomed_out_y, zoomed_in_y, zoom_ratio)
