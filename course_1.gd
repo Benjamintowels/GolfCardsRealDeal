@@ -35,6 +35,7 @@ signal player_turn_ended
 @onready var bag_upgrade_test_button: Button = $UILayer/BagUpgradeTestButton
 @onready var background_manager: Node = $BackgroundManager
 @onready var reach_ball_button: Control = $UILayer/ReachBallButton
+@onready var background_animation_player: AnimationPlayer = $BackgroundLayersCourse1/AnimationPlayer
 
 # WorldTurnManager reference
 @onready var world_turn_manager: Node = $WorldTurnManager
@@ -2388,6 +2389,9 @@ func reset_for_next_hole():
 	var entities = get_node_or_null("Entities")
 	if entities:
 		entities.re_register_all_npcs()
+	
+	# Play background squish animation in reverse when new hole fades in
+	play_background_squish_animation_reverse()
 		
 func _connect_pin_signals():
 	var pin = find_pin_in_scene()
@@ -4272,6 +4276,22 @@ func _on_debug_damage_bar_pressed() -> void:
 		print("🎯 DEBUG: Damage bar visible:", damage_bar.visible)
 	else:
 		print("❌ DEBUG: Damage bar is null!")
+
+func play_background_squish_animation() -> void:
+	"""Play the background squish animation on hole completion"""
+	if background_animation_player and background_animation_player.has_animation("background_squish"):
+		print("Playing background squish animation on hole completion")
+		background_animation_player.play("background_squish")
+	else:
+		print("Warning: Background animation player or background_squish animation not found")
+
+func play_background_squish_animation_reverse() -> void:
+	"""Play the background squish animation in reverse when new hole fades in"""
+	if background_animation_player and background_animation_player.has_animation("background_squish"):
+		print("Playing background squish animation in reverse for new hole")
+		background_animation_player.play_backwards("background_squish")
+	else:
+		print("Warning: Background animation player or background_squish animation not found")
 
 func transition_camera_to_npc(npc: Node) -> void:
 	# Forward to CameraManager for tweened camera movement

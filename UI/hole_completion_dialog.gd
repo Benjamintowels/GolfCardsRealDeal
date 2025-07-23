@@ -25,6 +25,10 @@ func setup_dialog(course_ref: Node, ui_layer_ref: CanvasLayer) -> void:
 	if hole_complete_sound and hole_complete_sound.stream:
 		hole_complete_sound.play()
 	
+	# Play background squish animation on hole completion
+	if course.has_method("play_background_squish_animation"):
+		course.play_background_squish_animation()
+	
 	# Give $Looty reward for completing the hole
 	var looty_reward = Global.give_hole_completion_reward()
 	
