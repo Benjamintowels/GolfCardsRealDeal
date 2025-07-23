@@ -20,6 +20,11 @@ func _ready():
 	add_to_group("grass_elements")
 	add_to_group("visual_objects")
 	
+	# Play idle_sway animation if AnimationPlayer exists
+	var anim_player = get_node_or_null("GrassSprite/AnimationPlayer")
+	if anim_player:
+		anim_player.play("idle_sway")
+	
 	# Grass data will be applied externally via set_grass_data()
 	
 	# Initialize Y-sort once on ready

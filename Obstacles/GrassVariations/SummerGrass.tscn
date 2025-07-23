@@ -1,7 +1,69 @@
-[gd_scene load_steps=3 format=3 uid="uid://sb58hx2holiw"]
+[gd_scene load_steps=6 format=3 uid="uid://sb58hx2holiw"]
 
 [ext_resource type="Texture2D" uid="uid://bjlm348in7dew" path="res://Obstacles/SummerGrass1.png" id="1_cedim"]
 [ext_resource type="Script" uid="uid://by5ksxcn0x4os" path="res://Obstacles/GrassVariations/summer_grass.gd" id="1_ltwjw"]
+
+[sub_resource type="Animation" id="Animation_ss40t"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".:skew")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [0.0]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath(".:position")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(0, -32)]
+}
+
+[sub_resource type="Animation" id="Animation_ltwjw"]
+resource_name = "idle_sway"
+length = 2.996
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".:skew")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0.0333333, 1.5, 2.96667),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [0.0, -0.185005, 0.0]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath(".:position")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0.0333333, 1.46667, 2.96667),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [Vector2(0, -32), Vector2(-1.638, -32), Vector2(0, -32)]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_ywklj"]
+_data = {
+&"RESET": SubResource("Animation_ss40t"),
+&"idle_sway": SubResource("Animation_ltwjw")
+}
 
 [node name="SummerGrass" type="Node2D"]
 script = ExtResource("1_ltwjw")
@@ -10,6 +72,11 @@ script = ExtResource("1_ltwjw")
 texture_filter = 1
 position = Vector2(0, -32)
 texture = ExtResource("1_cedim")
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="GrassSprite"]
+libraries = {
+&"": SubResource("AnimationLibrary_ywklj")
+}
 
 [node name="TopHeight" type="Marker2D" parent="."]
 position = Vector2(0, -41)
