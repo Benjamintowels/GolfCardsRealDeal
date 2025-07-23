@@ -1161,6 +1161,7 @@ func _on_area_entered(area):
 		# GolfBall: NPC collision detected
 		print("GolfBall: Processing body area collision with ", area.get_parent().name)
 		area.get_parent()._handle_ball_collision(self)
+		_notify_bounce_room_bounce()
 	# Check if this is a Player collision
 	elif area.get_parent() and area.get_parent().has_method("take_damage"):
 		# Player collision detected - check if collision should be allowed
@@ -1179,18 +1180,21 @@ func _on_area_entered(area):
 	elif area.get_parent() and area.get_parent().has_method("_handle_trunk_collision"):
 		# Tree collision detected - use new roof bounce system
 		_handle_roof_bounce_collision(area.get_parent())
+		_notify_bounce_room_bounce()
 		# Notify course to re-enable player collision since ball hit tree
 		notify_course_of_collision()
 	# Check if this is a Shop collision
 	elif area.get_parent() and area.get_parent().has_method("_handle_shop_collision"):
 		# Shop collision detected - use new roof bounce system
 		_handle_roof_bounce_collision(area.get_parent())
+		_notify_bounce_room_bounce()
 		# Notify course to re-enable player collision since ball hit shop
 		notify_course_of_collision()
 	# Check if this is a StoneWall collision
 	elif area.get_parent() and area.get_parent().has_method("_handle_wall_area_collision"):
 		# StoneWall collision detected - use new roof bounce system
 		_handle_roof_bounce_collision(area.get_parent())
+		_notify_bounce_room_bounce()
 		# Notify course to re-enable player collision since ball hit stone wall
 		notify_course_of_collision()
 	# Check if this is an Oil Drum collision
@@ -1201,18 +1205,21 @@ func _on_area_entered(area):
 		else:
 			# Fallback to roof bounce system
 			_handle_roof_bounce_collision(area.get_parent())
+		_notify_bounce_room_bounce()
 		# Notify course to re-enable player collision since ball hit oil drum
 		notify_course_of_collision()
 	# Check if this is a Boulder collision
 	elif area.get_parent() and area.get_parent().has_method("_handle_boulder_collision"):
 		# Boulder collision detected - use roof bounce system
 		_handle_roof_bounce_collision(area.get_parent())
+		_notify_bounce_room_bounce()
 		# Notify course to re-enable player collision since ball hit boulder
 		notify_course_of_collision()
 	# Check if this is a Generator Switch collision
 	elif area.get_parent() and area.get_parent().has_method("_handle_generator_switch_collision"):
 		# Generator Switch collision detected - use roof bounce system
 		_handle_roof_bounce_collision(area.get_parent())
+		_notify_bounce_room_bounce()
 		# Notify course to re-enable player collision since ball hit generator switch
 		notify_course_of_collision()
 	# Check if this is a Force Field collision
@@ -1223,6 +1230,7 @@ func _on_area_entered(area):
 		print("About to call force field's _handle_roof_bounce_collision method")
 		# Force Field collision detected - call the force field's collision handler directly
 		area.get_parent()._handle_roof_bounce_collision(self)
+		_notify_bounce_room_bounce()
 		print("Finished calling force field's _handle_roof_bounce_collision method")
 		# Notify course to re-enable player collision since ball hit force field
 		notify_course_of_collision()
@@ -1233,8 +1241,7 @@ func _on_area_entered(area):
 		print("Area parent type:", area.get_parent().get_class())
 		# Bush collision detected - use bush velocity damping system
 		_handle_bush_collision(area.get_parent())
-		# Notify course to re-enable player collision since ball hit bush
-		notify_course_of_collision()
+		_notify_bounce_room_bounce()
 		print("=== END GOLFBALL BUSH COLLISION ===")
 	# Check if this is an ElementalCircle collision
 	elif area.get_parent() and area.get_parent().is_in_group("elemental_circles"):
@@ -1486,6 +1493,7 @@ func _reflect_off_object(object: Node2D) -> void:
 	
 	# Apply the reflected velocity to the ball
 	velocity = reflected_velocity
+	_notify_bounce_room_bounce()
 
 func _set_ground_level(height: float) -> void:
 	"""
@@ -1632,10 +1640,10 @@ func _reflect_from_out_of_bounds(tile_pos: Vector2i) -> void:
 	
 	# Apply the reflected velocity to the ball
 	velocity = reflected_velocity
-	
 	# Play collision sound if available
 	if ball_land_sound and ball_land_sound.stream:
 		ball_land_sound.play()
+	_notify_bounce_room_bounce()
 
 func _check_rolling_collision_delay() -> void:
 	"""
@@ -2099,3 +2107,9 @@ func reset_ball_state() -> void:
 	ice_tiles_created.clear()
 	
 	print("GolfBall: Ball state reset for new shot")
+
+func _notify_bounce_room_bounce() -> void:
+	# Find the course script and notify it for bounce_room tracking
+	var course_script = get_parent().get_parent()  # camera_container -> course_1
+	if course_script and course_script.has_method("_on_ball_bounced_bounce_room"):
+		course_script._on_ball_bounced_bounce_room()

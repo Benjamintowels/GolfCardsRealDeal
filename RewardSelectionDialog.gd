@@ -969,8 +969,7 @@ func handle_reward_selection(reward_data: Resource, reward_type: String):
 	if reward_type == "looty":
 		# Clear all reward buttons
 		clear_reward_buttons()
-		# Add $Looty directly
-		add_reward_to_inventory(reward_data, reward_type)
+		# Only emit the signal, do not add reward here
 		reward_selected.emit(reward_data, reward_type)
 		hide_crowd()
 		visible = false
@@ -993,7 +992,6 @@ func handle_reward_selection(reward_data: Resource, reward_type: String):
 			# If two rewards selected, emit both and close
 			if selected_rewards.size() >= max_rewards_to_select:
 				for sel in selected_rewards:
-					add_reward_to_inventory(sel["data"], sel["type"])
 					reward_selected.emit(sel["data"], sel["type"])
 				hide_crowd()
 				visible = false
@@ -1003,7 +1001,6 @@ func handle_reward_selection(reward_data: Resource, reward_type: String):
 			return
 		# If not hole-in-one, normal flow:
 		clear_reward_buttons()
-		add_reward_to_inventory(reward_data, reward_type)
 		reward_selected.emit(reward_data, reward_type)
 		hide_crowd()
 		visible = false
@@ -1039,38 +1036,8 @@ func trigger_replacement_system(reward_data: Resource, reward_type: String):
 
 func add_reward_to_inventory(reward_data: Resource, reward_type: String):
 	"""Add reward to the appropriate inventory"""
-	if reward_type == "card":
-		add_card_to_current_deck(reward_data)
-	elif reward_type == "equipment":
-		add_equipment_to_manager(reward_data)
-	elif reward_type == "bag_upgrade":
-		apply_bag_upgrade(reward_data)
-	elif reward_type == "looty":
-		add_looty_reward(reward_data)
-
-func add_card_to_current_deck(card_data: CardData):
-	"""Add a card to the CurrentDeckManager"""
-	var current_deck_manager = get_tree().current_scene.get_node_or_null("CurrentDeckManager")
-	if current_deck_manager:
-		current_deck_manager.add_card_to_deck(card_data)
-
-func add_equipment_to_manager(equipment_data: EquipmentData):
-	"""Add equipment to the EquipmentManager"""
-	var equipment_manager = get_tree().current_scene.get_node_or_null("EquipmentManager")
-	if equipment_manager:
-		equipment_manager.add_equipment(equipment_data)
-
-func apply_bag_upgrade(bag_data: BagData):
-	"""Apply a bag upgrade to the current bag"""
-	var bag = get_tree().current_scene.get_node_or_null("UILayer/Bag")
-	if bag:
-		bag.set_bag_level(bag_data.level)
-
-func add_looty_reward(reward_data: Resource):
-	"""Add $Looty reward to player's balance"""
-	var looty_amount = reward_data.get_meta("looty_amount", 15)  # Default to 15 if not set
-	Global.add_looty(looty_amount)
-	print("Added", looty_amount, "$Looty from reward selection")
+	# This function is now unused; reward addition is handled by the manager.
+	pass
 
 func _exit_tree():
 	"""Clean up when the dialog is removed"""

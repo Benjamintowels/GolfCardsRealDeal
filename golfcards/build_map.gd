@@ -30,7 +30,7 @@ func setup(tile_scene_map_: Dictionary, object_scene_map_: Dictionary, object_to
 	obstacle_map = obstacle_map_
 	ysort_objects = ysort_objects_
 
-func build_map_from_layout(layout: Array) -> void:
+func build_map_from_layout(layout: Array, puzzle_type: String = "score") -> void:
 	obstacle_map.clear()
 	ysort_objects.clear()
 	for y in layout.size():
@@ -38,7 +38,6 @@ func build_map_from_layout(layout: Array) -> void:
 			var code: String = layout[y][x]
 			var pos: Vector2i = Vector2i(x, y)
 			var world_pos: Vector2 = Vector2(x, y) * cell_size
-
 			var tile_code: String = code
 			if object_scene_map.has(code):
 				tile_code = object_to_tile_mapping[code]
@@ -94,7 +93,7 @@ func build_map_from_layout(layout: Array) -> void:
 				pass
 	
 	# Place TreeLineVert borders
-	place_treeline_vert_borders(layout)
+	place_treeline_vert_borders(layout, puzzle_type)
 
 # --- Clear all existing objects from the map ---
 func clear_existing_objects() -> void:
@@ -1093,32 +1092,30 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 
 	return positions
 
-func place_treeline_vert_borders(layout: Array) -> void:
-	"""Place TreeLineVert scene on the left border of the map"""
+func place_treeline_vert_borders(layout: Array, puzzle_type: String = "score") -> void:
+	"""Place TreeLineVert scene on the left border of the map, unless it's a bounce_room"""
+	if puzzle_type == "bounce_room":
+		print("Skipping TreeLineVert for bounce_room puzzle type")
+		return
 	# Load the TreeLineVert scene
 	var treeline_scene = load("res://Backgrounds/TreeLineVert.tscn")
 	if not treeline_scene:
 		push_error("🚫 TreeLineVert scene not found")
 		return
-	
 	# Calculate map dimensions
 	var layout_width = layout[0].size()
 	var layout_height = layout.size()
 	var map_width = layout_width * cell_size
 	var map_height = layout_height * cell_size
-	
 	# Create left border TreeLineVert
 	var left_treeline = treeline_scene.instantiate() as Node2D
 	if not left_treeline:
 		push_error("❌ Failed to instantiate left TreeLineVert scene")
 		return
-	
 	left_treeline.z_index = 5  # Higher z-index to appear in front of map tiles (-5)
 	left_treeline.position = Vector2(-cell_size, map_height / 2)  # Left edge, centered vertically
-	
 	# Add to obstacle layer
 	obstacle_layer.add_child(left_treeline)
-	
 	print("✓ TreeLineVert border placed - Left at (-48, ", map_height / 2, ")")
 	print("✓ Using TreeLineVert.tscn scene file for better alignment control")
 
@@ -1156,7 +1153,7 @@ func build_map_from_layout_with_randomization(layout: Array, hole_index: int = -
 	
 	place_objects_at_positions(object_positions, layout)
 	# Place TreeLineVert borders
-	place_treeline_vert_borders(layout)
+	place_treeline_vert_borders(layout, puzzle_type)
 	# position_camera_on_pin()  # This should be called from the main scene if needed
 
 func extract_boss_eye_positions_from_layout(layout: Array, object_positions: Dictionary) -> void:

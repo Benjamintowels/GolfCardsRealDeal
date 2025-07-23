@@ -177,6 +177,9 @@ layout_mode = 2
 [node name="ShotLabel" type="Label" parent="UILayer/HUD"]
 layout_mode = 2
 
+[node name="BounceRoomLabel" type="Label" parent="UILayer/HUD"]
+layout_mode = 2
+
 [node name="CardHandAnchor" type="Control" parent="UILayer"]
 z_index = 245
 texture_filter = 1
