@@ -87,8 +87,7 @@ func _on_driving_range_button_pressed():
 	# Store the selected character in a global variable
 	Global.selected_character = selected_character
 	print("Selected character: ", selected_character, " - Starting Driving Range")
-	
-	# Change to Course1 scene with driving range mode
+	# Change to the driving range scene
 	call_deferred("_change_to_driving_range")
 
 func _on_boss_room_button_pressed():
@@ -114,8 +113,7 @@ func _change_scene():
 
 func _change_to_driving_range():
 	# Start fade to black first
-	FadeManager.fade_to_black(func(): get_tree().change_scene_to_file("res://Course1.tscn"), 0.5)
-	
+	FadeManager.fade_to_black(func(): get_tree().change_scene_to_file("res://Stages/DrivingRange.tscn"), 0.5)
 	# Play door sounds during the fade
 	$DoorOpen.play()
 	await $DoorOpen.finished

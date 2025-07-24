@@ -203,6 +203,7 @@ var object_to_tile_mapping := {
 }
 
 func _ready():
+	print("[DRIVING RANGE DEBUG] _ready() called!")
 	# Initialize the driving range
 	setup_driving_range()
 	
@@ -874,6 +875,7 @@ func tween_camera_back_to_player():
 		print("DEBUG: Camera return_to_player method not found")
 
 func show_session_complete_dialog():
+	print("[DRIVING RANGE DEBUG] show_session_complete_dialog() called! shots_taken=", shots_taken, " max_shots=", max_shots)
 	"""Show session complete dialog"""
 	print("Showing session complete dialog")
 	game_phase = "session_complete"
@@ -889,6 +891,7 @@ func show_session_complete_dialog():
 	dialog.confirmed.connect(_on_session_complete_confirmed)
 
 func _on_session_complete_confirmed():
+	print("[DRIVING RANGE DEBUG] _on_session_complete_confirmed() called!")
 	"""Handle session complete confirmation"""
 	print("Session complete confirmed")
 	
