@@ -183,27 +183,28 @@ func enter_launch_phase() -> void:
 		launch_height = fixed_height
 		# Don't show height meter since height is fixed
 		# Start with power charging immediately for fixed height clubs
+		print("LaunchManager: Fixed height club detected, showing power meter")
+		show_power_meter()
+		var scaled_min_power = power_meter.get_meta("scaled_min_power", MIN_LAUNCH_POWER)
+		launch_power = scaled_min_power
+	elif is_putting:
+		# Putters start with power charging immediately
+		launch_height = 0.0
+		print("LaunchManager: Putter detected, showing power meter")
 		show_power_meter()
 		var scaled_min_power = power_meter.get_meta("scaled_min_power", MIN_LAUNCH_POWER)
 		launch_power = scaled_min_power
 	else:
-		if not is_putting:
-			# Start with height selection phase
-			print("LaunchManager: Starting height selection phase for club:", selected_club)
-			show_height_meter()
-			# Start at club's min height instead of 0
-			var club_min_height = club_data.get(selected_club, {}).get("min_height", 0.0)
-			launch_height = club_min_height
-			is_selecting_height = true
-			print("LaunchManager: Height selection activated - is_selecting_height:", is_selecting_height, " launch_height:", launch_height)
-			# Emit signal to notify about height selection phase
-			emit_signal("charging_state_changed", is_charging, is_charging_height)
-		else:
-			# Putters start with power charging immediately
-			launch_height = 0.0
-			show_power_meter()
-			var scaled_min_power = power_meter.get_meta("scaled_min_power", MIN_LAUNCH_POWER)
-			launch_power = scaled_min_power
+		# Start with height selection phase for non-putter clubs
+		print("LaunchManager: Starting height selection phase for club:", selected_club)
+		show_height_meter()
+		# Start at club's min height instead of 0
+		var club_min_height = club_data.get(selected_club, {}).get("min_height", 0.0)
+		launch_height = club_min_height
+		is_selecting_height = true
+		print("LaunchManager: Height selection activated - is_selecting_height:", is_selecting_height, " launch_height:", launch_height)
+		# Emit signal to notify about height selection phase
+		emit_signal("charging_state_changed", is_charging, is_charging_height)
 	
 	if chosen_landing_spot != Vector2.ZERO:
 		var sprite = player_node.get_node_or_null("Sprite2D")
@@ -233,11 +234,17 @@ func exit_launch_phase() -> void:
 	hide_height_meter()
 	
 	# Hide the PowerMeter when completely exiting launch phase
+	# But don't hide it for putters and fixed height clubs during power charging
 	var course = card_effect_handler.course if card_effect_handler else null
+	var is_putter = club_data.get(selected_club, {}).get("is_putter", false)
+	var fixed_height = club_data.get(selected_club, {}).get("fixed_height", -1.0)
+	
 	if course and course.power_meter and course.power_meter.visible:
-		course.power_meter.visible = false
-		if course.power_meter.has_method("stop_power_meter"):
-			course.power_meter.stop_power_meter()
+		# Only hide if we're not in power charging phase for putters/fixed height clubs
+		if not ((is_putter or fixed_height >= 0.0) and is_charging):
+			course.power_meter.visible = false
+			if course.power_meter.has_method("stop_power_meter"):
+				course.power_meter.stop_power_meter()
 	
 	is_charging = false
 	is_charging_height = false
@@ -932,11 +939,17 @@ func launch_shuriken(launch_direction: Vector2, final_power: float, height: floa
 	exit_launch_phase()
 
 func show_power_meter():
+	print("LaunchManager: show_power_meter() called for club:", selected_club)
 	# Check if PowerMeter is already visible from the course (height phase)
 	var course = card_effect_handler.course if card_effect_handler else null
-	if course and course.power_meter and course.power_meter.visible:
-		# Use the existing PowerMeter from the course
+	if course and course.power_meter:
+		# Use the existing PowerMeter from the course (make it visible if needed)
 		power_meter = course.power_meter
+		if not course.power_meter.visible:
+			course.power_meter.visible = true
+			print("LaunchManager: Made course power meter visible")
+		print("LaunchManager: Using existing PowerMeter from course")
+		print("LaunchManager: Course power meter visible state:", course.power_meter.visible)
 		
 		print("LaunchManager: Using existing PowerMeter from course (height phase)")
 		
@@ -979,6 +992,8 @@ func show_power_meter():
 		power_meter.queue_free()
 	
 	print("LaunchManager: Creating new PowerMeter - selected_club:", selected_club, " club_data:", club_data)
+	print("LaunchManager: Course has power_meter:", course.power_meter if course else "No course")
+	print("LaunchManager: Course power_meter visible:", course.power_meter.visible if course and course.power_meter else "N/A")
 	
 	power_for_target = MIN_LAUNCH_POWER  # Default if no target
 	max_power_for_bar = MAX_LAUNCH_POWER  # Default
@@ -1019,8 +1034,9 @@ func show_power_meter():
 		power_meter.power_changed.connect(_on_power_meter_changed)
 		power_meter.sweet_spot_hit.connect(_on_sweet_spot_hit)
 		
-		# Start the power meter
-		power_meter.start_power_meter()
+			# Start the power meter
+	power_meter.start_power_meter()
+	print("LaunchManager: Power meter started, visible state:", power_meter.visible)
 	
 	power_meter.set_meta("max_power_for_bar", max_power_for_bar)
 	power_meter.set_meta("power_for_target", power_for_target)
@@ -1191,6 +1207,13 @@ func handle_input(event: InputEvent) -> bool:
 					is_charging = true
 					charge_time = 0.0
 					current_charge_mouse_pos = camera.get_global_mouse_position()
+					
+					# Show power meter for putters and fixed height clubs if not already visible
+					var is_putter = club_data.get(selected_club, {}).get("is_putter", false)
+					var fixed_height = club_data.get(selected_club, {}).get("fixed_height", -1.0)
+					if (is_putter or fixed_height >= 0.0) and not power_meter:
+						show_power_meter()
+					
 					emit_signal("charging_state_changed", is_charging, is_charging_height)
 					return true
 			else:

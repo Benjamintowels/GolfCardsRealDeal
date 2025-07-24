@@ -2925,32 +2925,6 @@ var vampire_mode_tween: Tween
 var dodge_mode_active: bool = false
 var dodge_mode_tween: Tween
 
-# Create ghost ball function moved to LaunchManager
-
-# Activate ghost mode function moved to PlayerManager
-
-# Deactivate ghost mode function moved to PlayerManager
-
-# Is ghost mode active function moved to PlayerManager
-
-# Activate vampire mode function moved to PlayerManager
-
-# Deactivate vampire mode function moved to PlayerManager
-
-# Is vampire mode active function moved to PlayerManager
-
-# Activate dodge mode function moved to PlayerManager
-
-# Removed switch_to_dodge_ready_sprite() - no longer needed with hue effect approach
-
-# Dodge animation functions moved to PlayerManager
-
-# Update ghost ball function moved to LaunchManager
-
-# Remove ghost ball function moved to LaunchManager
-
-
-
 var total_score := 0
 var is_in_pin_transition := false
 

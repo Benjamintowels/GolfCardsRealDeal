@@ -59,6 +59,7 @@ volume_db = 2.93
 
 [node name="ZombieAttack" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("5_mad2c")
+volume_db = -5.266
 
 [node name="HitBox" type="Area2D" parent="."]
 visible = false
