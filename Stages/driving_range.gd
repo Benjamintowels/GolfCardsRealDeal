@@ -164,6 +164,7 @@ var tile_scene_map := {
 	"Tee": preload("res://Obstacles/Tee.tscn"),
 	"Base": preload("res://Obstacles/Base.tscn"),
 	"SHOP": preload("res://Obstacles/Base.tscn"),
+	"SW": preload("res://Obstacles/SideWalk.tscn"),
 }
 
 var object_scene_map := {

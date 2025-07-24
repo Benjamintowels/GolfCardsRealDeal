@@ -1,0 +1,11 @@
+[gd_scene load_steps=3 format=3 uid="uid://b23ikdqc4h8s7"]
+
+[ext_resource type="Script" uid="uid://dsh3dry5o37w0" path="res://Obstacles/side_walk.gd" id="1_kfwv6"]
+[ext_resource type="Texture2D" uid="uid://kwghbv0sp0a7" path="res://Obstacles/SideWalk2.png" id="2_kfwv6"]
+
+[node name="SideWalk" type="Node2D"]
+script = ExtResource("1_kfwv6")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture_filter = 1
+texture = ExtResource("2_kfwv6")

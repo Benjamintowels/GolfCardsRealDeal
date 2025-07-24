@@ -18,6 +18,7 @@ var ball_land_sound: AudioStreamPlayer2D
 var ball_stop_sound: AudioStreamPlayer2D
 var land_on_green_sound: AudioStreamPlayer2D
 var rough_sound: AudioStreamPlayer2D
+var sw_bounce_sound: AudioStreamPlayer2D
 
 var velocity := Vector2.ZERO
 var gravity := 720.0  # Increased gravity for more satisfying ball trajectories
@@ -598,8 +599,7 @@ func _process(delta):
 					# Natural physics-based bounce logic
 					bounce_count += 1
 					# Play ball landing sound on every bounce
-					if ball_land_sound and ball_land_sound.stream:
-						ball_land_sound.play()
+					_play_bounce_sound()
 					
 					# Check for explosive shot effect on first bounce
 					if explosive_shot_active and bounce_count == 1:
@@ -683,8 +683,7 @@ func _process(delta):
 					# Natural physics-based bounce logic
 					bounce_count += 1
 					# Play ball landing sound on every bounce
-					if ball_land_sound and ball_land_sound.stream:
-						ball_land_sound.play()
+					_play_bounce_sound()
 					
 					# Check for explosive shot effect on first bounce
 					if explosive_shot_active and bounce_count == 1:
@@ -767,8 +766,7 @@ func _process(delta):
 					# Natural physics-based bounce logic
 					bounce_count += 1
 					# Play ball landing sound on every bounce
-					if ball_land_sound and ball_land_sound.stream:
-						ball_land_sound.play()
+					_play_bounce_sound()
 					
 					# Check for fire spreading on bounce
 					print("=== BOUNCE FIRE SPREADING CHECK ===")
@@ -1089,6 +1087,7 @@ func _ready():
 	ball_stop_sound = get_node_or_null("BallStop")
 	land_on_green_sound = get_node_or_null("LandOnGreen")
 	rough_sound = get_node_or_null("RoughSound")
+	sw_bounce_sound = get_node_or_null("SWbounce")
 	
 	# Get references to sprite and shadow
 	sprite = get_node_or_null("Sprite2D")
@@ -1313,6 +1312,33 @@ func _handle_player_collision(player: Node2D) -> void:
 	
 	# Apply the reflected velocity to the ball
 	velocity = reflected_velocity
+
+func _play_bounce_sound() -> void:
+	"""Play the appropriate bounce sound based on the current tile type"""
+	if map_manager == null:
+		# Fallback to normal bounce sound if no map manager
+		if ball_land_sound and ball_land_sound.stream:
+			ball_land_sound.play()
+		return
+	
+	# Get current tile type
+	var tile_x = int(floor(position.x / cell_size))
+	var tile_y = int(floor(position.y / cell_size))
+	var tile_type = map_manager.get_tile_type(tile_x, tile_y)
+	
+	# Play appropriate sound based on tile type
+	if tile_type == "SW":
+		# SideWalk tile - play special SW bounce sound
+		if sw_bounce_sound and sw_bounce_sound.stream:
+			sw_bounce_sound.play()
+		else:
+			# Fallback to normal bounce sound if SW sound not available
+			if ball_land_sound and ball_land_sound.stream:
+				ball_land_sound.play()
+	else:
+		# Normal tile - play regular bounce sound
+		if ball_land_sound and ball_land_sound.stream:
+			ball_land_sound.play()
 
 func reset_shot_effects() -> void:
 	"""Reset all shot modification effects after the ball has landed"""
