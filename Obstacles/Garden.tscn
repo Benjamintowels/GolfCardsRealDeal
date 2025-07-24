@@ -1,0 +1,11 @@
+[gd_scene load_steps=3 format=3 uid="uid://cubwggek8v3v8"]
+
+[ext_resource type="Script" uid="uid://cdnipkuagjdhd" path="res://Obstacles/garden.gd" id="1_ee33h"]
+[ext_resource type="Texture2D" uid="uid://byfg2k5vx74vh" path="res://Obstacles/DirtTile.png" id="2_ee33h"]
+
+[node name="Garden" type="Node2D"]
+script = ExtResource("1_ee33h")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture_filter = 1
+texture = ExtResource("2_ee33h")
