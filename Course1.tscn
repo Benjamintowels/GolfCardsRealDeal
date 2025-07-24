@@ -1,4 +1,4 @@
-[gd_scene load_steps=52 format=3 uid="uid://dlq5ygh2wv33m"]
+[gd_scene load_steps=53 format=3 uid="uid://dlq5ygh2wv33m"]
 
 [ext_resource type="Script" uid="uid://d4hrfk75nrm45" path="res://course_1.gd" id="1_pe8tc"]
 [ext_resource type="Texture2D" uid="uid://cpe67sk2vh8me" path="res://EDGE.png" id="2_eymfu"]
@@ -48,6 +48,7 @@
 [ext_resource type="Texture2D" uid="uid://ccko1puj56w45" path="res://Backgrounds/tree_line_2.png" id="46_ygsgr"]
 [ext_resource type="Texture2D" uid="uid://jtatsf4hellw" path="res://Backgrounds/foreground.png" id="47_c6eq5"]
 [ext_resource type="Texture2D" uid="uid://rjr1uhg7lttn" path="res://Backgrounds/tree_line_1.png" id="48_ifs0d"]
+[ext_resource type="Texture2D" uid="uid://bgei7qlw6p2ns" path="res://Backgrounds/FrontLineWall.png" id="49_vp4yc"]
 
 [sub_resource type="Animation" id="Animation_vp4yc"]
 length = 0.001
@@ -603,6 +604,7 @@ scale = Vector2(1.575, 1.575)
 texture = ExtResource("42_skg1a")
 
 [node name="TreeLine3" type="Sprite2D" parent="BackgroundLayersCourse1"]
+visible = false
 z_index = -215
 texture_filter = 1
 position = Vector2(449, -1034)
@@ -635,8 +637,14 @@ texture = ExtResource("47_c6eq5")
 
 [node name="TreeLine1" type="Sprite2D" parent="BackgroundLayersCourse1"]
 texture_filter = 1
-position = Vector2(-34, -797)
-scale = Vector2(3.235, 2.715)
+position = Vector2(995, -736)
+scale = Vector2(1.13, 0.948)
+texture = ExtResource("49_vp4yc")
+
+[node name="FrontLineWall" type="Sprite2D" parent="BackgroundLayersCourse1"]
+texture_filter = 1
+position = Vector2(305, -865)
+scale = Vector2(2.799, 2.348)
 texture = ExtResource("48_ifs0d")
 
 [node name="AnimationPlayer" type="AnimationPlayer" parent="BackgroundLayersCourse1"]

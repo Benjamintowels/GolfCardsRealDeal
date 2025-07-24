@@ -43,7 +43,7 @@ var screen_size: Vector2 = Vector2.ZERO
 
 # Performance optimization
 var last_camera_position: Vector2 = Vector2.ZERO
-var update_threshold: float = 1.0  # Only update if camera moves more than this (reduced for testing)
+var update_threshold: float = 0.1  # Smooth parallax - update every 0.1 pixels of movement
 
 # Parallax configuration
 var max_parallax_factor: float = 0.3  # Dramatically reduced from 1.0
@@ -198,9 +198,18 @@ func calculate_reversed_parallax_factor(layer: BackgroundLayer) -> float:
 	"""
 	# Check if this layer has a custom parallax factor that should override the calculation
 	if layer.parallax_factor > 0.0 and layer.parallax_factor != 0.0:
-		# Use the custom parallax factor, but scale it to the max_parallax_factor range
-		var custom_factor = layer.parallax_factor * max_parallax_factor / 10.0  # Scale from 0-10 range to 0-max_parallax_factor
-		return custom_factor
+		# Tiered scaling system for different parallax ranges
+		if layer.parallax_factor <= 1.0:
+			# Small values (0.0-1.0): Use directly scaled by max_parallax_factor
+			return layer.parallax_factor * max_parallax_factor
+		elif layer.parallax_factor <= 3.0:
+			# Medium values (1.0-3.0): Scale more gently for visible movement
+			var medium_factor = (layer.parallax_factor - 1.0) / 2.0  # Normalize 1.0-3.0 to 0.0-1.0
+			return max_parallax_factor + (medium_factor * max_parallax_factor * 2.0)  # Range: 0.3-0.9
+		else:
+			# Large values (3.0+): Scale down more aggressively for extreme hyperspeed
+			var extreme_factor = layer.parallax_factor * max_parallax_factor / 10.0
+			return extreme_factor
 	
 	# Otherwise use the reversed calculation
 	if tree_line_index == -1:
@@ -321,8 +330,13 @@ func check_camera_movement() -> void:
 	if not camera:
 		return
 	
+	# Quick check - if camera position is exactly the same, skip expensive distance calculation
+	var current_camera_position = camera.global_position
+	if current_camera_position == last_camera_position:
+		return
+	
 	# Check if camera moved enough to warrant an update
-	var camera_movement = camera.global_position.distance_to(last_camera_position)
+	var camera_movement = current_camera_position.distance_to(last_camera_position)
 	if camera_movement < update_threshold:
 		return
 	
@@ -330,7 +344,7 @@ func check_camera_movement() -> void:
 	var previous_camera_position = last_camera_position
 	
 	# Update last camera position AFTER updating layers
-	last_camera_position = camera.global_position
+	last_camera_position = current_camera_position
 	
 	# Update all layers with the correct movement calculation
 	update_all_layers_with_movement(previous_camera_position)

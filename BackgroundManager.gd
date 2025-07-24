@@ -156,7 +156,7 @@ var background_themes = {
 			{
 				"name": "Mountains",
 				"texture_path": "res://Backgrounds/distant_mountains.png",
-				"parallax_factor": 6.5,  # EXTREME - hyperspeed parallax
+				"parallax_factor": 8.5,  # EXTREME - hyperspeed parallax
 				"z_index": -250,
 				"scale": Vector2(1.5, 1.0),
 				"repeat_horizontal": false,
@@ -176,7 +176,7 @@ var background_themes = {
 			{
 				"name": "DistantHill",
 				"texture_path": "res://Backgrounds/distant_hill.png",
-				"parallax_factor": 5.5,  # In front of mountains
+				"parallax_factor": 7.5,  # In front of mountains
 				"z_index": -220,
 				"scale": Vector2(1.4, 1.0),
 				"repeat_horizontal": false,
@@ -196,7 +196,7 @@ var background_themes = {
 			{
 				"name": "City",
 				"texture_path": "res://Backgrounds/city_skyline.png",
-				"parallax_factor": 5.0,  # Between hill layers
+				"parallax_factor": 6.0,  # Between hill layers
 				"z_index": -210,
 				"repeat_horizontal": false,
 				"repeat_vertical": false,
@@ -215,7 +215,7 @@ var background_themes = {
 			{
 				"name": "TreeLine3",
 				"texture_path": "res://Backgrounds/tree_line_3.png",
-				"parallax_factor": 2.5,  # EXTREME - medium-high hyperspeed parallax
+				"parallax_factor": 0.8,  # EXTREME - medium-high hyperspeed parallax
 				"z_index": -215,
 				"scale": Vector2(1.1, 1.0),
 				"repeat_horizontal": false,
@@ -225,10 +225,10 @@ var background_themes = {
 			{
 				"name": "TreeLine2",
 				"texture_path": "res://Backgrounds/tree_line_2.png",
-				"parallax_factor": 1.5,  # EXTREME - medium hyperspeed parallax
+				"parallax_factor": 0.7,  # EXTREME - medium hyperspeed parallax
 				"z_index": -100,
 				"scale": Vector2(0.9, 0.9),
-				"repeat_horizontal": true,
+				"repeat_horizontal": false,
 				"repeat_vertical": false,
 				"custom_y_position": -697.275  # Override Y position
 			},
@@ -241,6 +241,16 @@ var background_themes = {
 				"repeat_horizontal": true,
 				"repeat_vertical": false,
 				"custom_y_position": -444  # Override Y position
+			},
+			{
+				"name": "FrontLineWall",
+				"texture_path": "res://Backgrounds/FrontLineWall.png",
+				"parallax_factor": 0.1,  # Slight parallax movement behind TreeLine1
+				"z_index": -85,  # Behind TreeLine1
+				"scale": Vector2(3.235, 2.715),
+				"repeat_horizontal": true,
+				"repeat_vertical": false,
+				"custom_y_position": -797  # Same Y position as in scene
 			},
 			{
 				"name": "TreeLine",
@@ -353,6 +363,16 @@ var background_themes = {
 				"repeat_horizontal": true,
 				"repeat_vertical": false,
 				"custom_y_position": -449.925  # Closer Y position for tighter spacing
+			},
+			{
+				"name": "FrontLineWall",
+				"texture_path": "res://Backgrounds/FrontLineWall.png",
+				"parallax_factor": 0.5,  # Slight parallax movement behind TreeLine1
+				"z_index": -85,  # Behind TreeLine1
+				"scale": Vector2(3.235, 2.715),
+				"repeat_horizontal": true,
+				"repeat_vertical": false,
+				"custom_y_position": -865.0  # Same Y position as in scene
 			},
 			{
 				"name": "TreeLine1",
@@ -670,7 +690,7 @@ func setup_driving_range_vertical_parallax() -> void:
 		print("WARNING: BackgroundLayersZoomedIn not found! Using fallback positions.")
 	
 	# Define layer names to process
-	var layer_names = ["Sky", "Mountains", "Horizon", "DistantHill", "City", "Hill", "Clouds", "TreeLine3", "TreeLine2", "Foreground", "TreeLine1"]
+	var layer_names = ["Sky", "Mountains", "Horizon", "DistantHill", "City", "Hill", "Clouds", "TreeLine3", "TreeLine2", "Foreground", "FrontLineWall", "TreeLine1"]
 	
 	# Find sprites and set up vertical parallax data
 	for sprite_name in layer_names:
