@@ -569,8 +569,10 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 			boulders_placed += 1
 		valid_positions.remove_at(boulder_index)
 	
-	# Place Generator Switches on fairway tiles (for testing, just place 1 on hole 1)
-	var num_generator_switches = 1 if current_hole == 0 else 0  # Only place 1 on hole 1 for testing
+	# Place Generator Switches only for generator puzzle type
+	var num_generator_switches = 0
+	if puzzle_type == "generator":
+		num_generator_switches = 1  # Place 1 generator switch for generator puzzle
 	if is_boss_room_layout:
 		num_generator_switches = 0  # Do not place generator switches in boss rooms
 	var generator_switches_placed = 0

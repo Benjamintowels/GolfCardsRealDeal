@@ -227,6 +227,8 @@ func _play_leaves_rustle() -> void:
 	"""Play the leaves rustle sound effect and bush shake animation"""
 	var leaves_sound = get_node_or_null("LeavesRustle")
 	if leaves_sound and leaves_sound.stream:
+		# Add random pitch variation between 0.8 and 1.2 for variety
+		leaves_sound.pitch_scale = randf_range(0.8, 1.2)
 		leaves_sound.play()
 		print("Leaves rustle sound played")
 		if bush_data:

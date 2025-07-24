@@ -238,6 +238,8 @@ func _play_flower_rustle() -> void:
 	"""Play the flower rustle sound effect and flower shake animation"""
 	var rustle_sound = get_node_or_null("LeavesRustle")
 	if rustle_sound and rustle_sound.stream:
+		# Add random pitch variation between 0.8 and 1.2 for variety
+		rustle_sound.pitch_scale = randf_range(0.8, 1.2)
 		rustle_sound.play()
 		print("Flower rustle sound played")
 		if flower_data:
