@@ -1465,6 +1465,66 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		else:
 			push_error("❌ No bush data available")
 	
+	# Place Flowers on Garden tiles (B)
+	print("🌺 PLACING FLOWERS ON GARDEN TILES...")
+	
+	# Get FlowerManager for random flower variations
+	var flower_manager = get_node_or_null("/root/FlowerManager")
+	if not flower_manager:
+		# Create FlowerManager if it doesn't exist
+		var FlowerManager = preload("res://Obstacles/FlowerManager.gd")
+		flower_manager = FlowerManager.new()
+		get_tree().root.add_child(flower_manager)
+		flower_manager.name = "FlowerManager"
+	
+	# Find all Garden tiles in the layout
+	var garden_positions: Array = []
+	for y in layout.size():
+		for x in layout[y].size():
+			if layout[y][x] == "B":  # Garden tile
+				garden_positions.append(Vector2i(x, y))
+	
+	print("🌺 Found", garden_positions.size(), "Garden tiles for flower placement")
+	
+	# Place flowers on all Garden tiles
+	for flower_pos in garden_positions:
+		var scene: PackedScene = object_scene_map["FLOWER"]
+		if scene == null:
+			push_error("🚫 Flower scene is null")
+			continue
+		var flower: Node2D = scene.instantiate() as Node2D
+		if flower == null:
+			push_error("❌ Flower instantiation failed at (%d,%d)" % [flower_pos.x, flower_pos.y])
+			continue
+		
+		# Store flower data for later application (after adding to scene tree)
+		var flower_data = flower_manager.get_random_flower_data()
+		
+		var world_pos: Vector2 = Vector2(flower_pos.x, flower_pos.y) * cell_size
+		flower.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
+		
+		# Always set the grid_position property unconditionally
+		flower.set_meta("grid_position", flower_pos)
+		
+		# Add flower to groups for smart optimization
+		# Flowers are added to "bushes" group so they work with existing bush collision detection
+		flower.add_to_group("flowers")
+		flower.add_to_group("bushes")  # This allows flowers to work with existing bush systems
+		flower.add_to_group("collision_objects")
+		
+		ysort_objects.append({"node": flower, "grid_pos": flower_pos})
+		obstacle_layer.add_child(flower)
+		
+		# Apply flower variety after adding to scene tree
+		if flower_data:
+			# Use call_deferred to ensure the flower is fully in the scene tree
+			flower.call_deferred("set_flower_data", flower_data)
+			print("🌺 Placed", flower_data.name, "flower at (", flower_pos.x, ",", flower_pos.y, ")")
+		else:
+			print("🌺 Placed default flower at (", flower_pos.x, ",", flower_pos.y, ")")
+	
+	print("🌺 FLOWER PLACEMENT COMPLETE! Placed", garden_positions.size(), "flowers")
+	
 	# Place Grass
 	
 	# Get GrassManager for random grass variations

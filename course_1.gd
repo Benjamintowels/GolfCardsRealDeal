@@ -253,6 +253,7 @@ var tile_scene_map := {
 	"Base": preload("res://Obstacles/Base.tscn"),
 	"SHOP": preload("res://Obstacles/Base.tscn"),
 	"SW": preload("res://Obstacles/SideWalk.tscn"),
+	"B": preload("res://Obstacles/Garden.tscn"),  # Garden tile for flowers
 }
 
 var object_scene_map := {
@@ -266,6 +267,7 @@ var object_scene_map := {
 	"WALL": preload("res://Obstacles/StoneWall.tscn"),
 	"BOULDER": preload("res://Obstacles/Boulder.tscn"),
 	"BUSH": preload("res://Obstacles/Bush.tscn"),
+	"FLOWER": preload("res://Obstacles/Flower.tscn"),  # Flower object for gardens
 	"GRASS": preload("res://Obstacles/GrassVariations/SummerGrass.tscn"),
 	"ZOMBIE": preload("res://NPC/Zombies/ZombieGolfer.tscn"),
 	"SQUIRREL": preload("res://NPC/Animals/Squirrel.tscn"),
@@ -290,6 +292,7 @@ var object_to_tile_mapping := {
 	"WALL": "Base",
 	"BOULDER": "Base",
 	"BUSH": "Base",
+	"FLOWER": "B",  # Flowers go on Garden tiles (B)
 	"GRASS": "Base",
 	"ZOMBIE": "S",
 	"SQUIRREL": "Base",
