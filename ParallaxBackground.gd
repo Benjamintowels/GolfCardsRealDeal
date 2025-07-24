@@ -43,7 +43,9 @@ var screen_size: Vector2 = Vector2.ZERO
 
 # Performance optimization
 var last_camera_position: Vector2 = Vector2.ZERO
-var update_threshold: float = 0.1  # Smooth parallax - update every 0.1 pixels of movement
+var update_threshold: float = 0.5  # Balanced performance - update every 0.5 pixels of movement
+var viewport_culling_enabled: bool = true  # Enable viewport culling for better performance
+var viewport_margin: float = 200.0  # Extra margin around viewport for smooth transitions
 
 # Parallax configuration
 var max_parallax_factor: float = 0.3  # Dramatically reduced from 1.0
@@ -237,9 +239,34 @@ func calculate_reversed_parallax_factor(layer: BackgroundLayer) -> float:
 			var factor = max_parallax_factor * 0.1 * (1.0 - float(relative_index) / float(layers_after_tree))
 			return max(0.0, factor)
 
+func is_layer_visible(layer: BackgroundLayer) -> bool:
+	"""Check if a background layer is visible in the current viewport"""
+	if not viewport_culling_enabled or not camera or not layer.sprite:
+		return true  # If culling is disabled or no camera, assume visible
+	
+	# Get camera viewport bounds with margin
+	var viewport_size = get_viewport().get_visible_rect().size
+	var camera_pos = camera.global_position
+	var viewport_rect = Rect2(
+		camera_pos - viewport_size / 2 - Vector2(viewport_margin, viewport_margin),
+		viewport_size + Vector2(viewport_margin * 2, viewport_margin * 2)
+	)
+	
+	# Get sprite bounds
+	var sprite = layer.sprite
+	var sprite_size = sprite.texture.get_size() * sprite.scale if sprite.texture else Vector2(100, 100)
+	var sprite_rect = Rect2(sprite.global_position - sprite_size / 2, sprite_size)
+	
+	# Check if sprite intersects with viewport
+	return viewport_rect.intersects(sprite_rect)
+
 func update_layer_position(layer: BackgroundLayer) -> void:
 	"""Update the position of a specific background layer"""
 	if not layer or not layer.sprite or not camera:
+		return
+	
+	# Skip update if layer is not visible (viewport culling optimization)
+	if not is_layer_visible(layer):
 		return
 	
 	# Calculate camera movement relative to world grid
@@ -270,6 +297,10 @@ func update_layer_position(layer: BackgroundLayer) -> void:
 func update_layer_position_with_movement(layer: BackgroundLayer, previous_camera_position: Vector2) -> void:
 	"""Update the position of a specific background layer with explicit camera movement"""
 	if not layer or not layer.sprite or not camera:
+		return
+	
+	# Skip update if layer is not visible (viewport culling optimization)
+	if not is_layer_visible(layer):
 		return
 	
 	# Calculate camera movement relative to world grid using the provided previous position
@@ -443,3 +474,29 @@ func set_max_parallax_factor(new_factor: float) -> void:
 	"""Set the maximum parallax factor (dramatically reduced effect)"""
 	max_parallax_factor = clamp(new_factor, 0.0, 1.0)
 	print("✓ Set max parallax factor to: ", max_parallax_factor)
+
+func set_viewport_culling(enabled: bool) -> void:
+	"""Enable or disable viewport culling optimization"""
+	viewport_culling_enabled = enabled
+	print("✓ Viewport culling ", "enabled" if enabled else "disabled")
+
+func get_visible_layer_count() -> int:
+	"""Get the number of currently visible layers (for debugging)"""
+	if not viewport_culling_enabled:
+		return background_layers.size()
+	
+	var visible_count = 0
+	for layer in background_layers:
+		if is_layer_visible(layer):
+			visible_count += 1
+	return visible_count
+
+func get_viewport_culling_info() -> Dictionary:
+	"""Get information about viewport culling for debugging"""
+	return {
+		"culling_enabled": viewport_culling_enabled,
+		"total_layers": background_layers.size(),
+		"visible_layers": get_visible_layer_count(),
+		"culled_layers": background_layers.size() - get_visible_layer_count(),
+		"viewport_margin": viewport_margin
+	}

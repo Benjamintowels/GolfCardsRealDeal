@@ -394,12 +394,8 @@ var background_container: Node2D = null
 var use_existing_layers: bool = false
 var existing_layers_node: Node2D = null
 
-# Vertical parallax for Driving Range
-var vertical_parallax_enabled: bool = false
+# Camera reference for parallax system
 var camera_reference: Camera2D = null
-var driving_range_zoom_min: float = 0.6  # Zoom out limit
-var driving_range_zoom_max: float = 3.0  # Zoom in limit
-var vertical_parallax_layers: Array = []  # Store layer data for vertical parallax
 
 func _ready():
 	# Create background container
@@ -614,131 +610,7 @@ func set_camera_reference(camera: Camera2D) -> void:
 	# Store camera reference for vertical parallax
 	camera_reference = camera
 
-func enable_vertical_parallax(enabled: bool) -> void:
-	"""Enable or disable vertical parallax for Driving Range"""
-	vertical_parallax_enabled = enabled
-	print("BackgroundManager: Vertical parallax ", "enabled" if enabled else "disabled")
-	
-	if enabled:
-		# Start the vertical parallax update process
-		set_process(true)
-	else:
-		# Stop the vertical parallax update process
-		set_process(false)
 
-func cleanup_vertical_parallax() -> void:
-	"""Clean up vertical parallax when leaving Driving Range"""
-	enable_vertical_parallax(false)
-	vertical_parallax_layers.clear()
-	print("BackgroundManager: Vertical parallax cleaned up")
-
-func _process(delta: float) -> void:
-	"""Process vertical parallax updates"""
-	if vertical_parallax_enabled and camera_reference and vertical_parallax_layers.size() > 0:
-		update_vertical_parallax()
-
-func update_vertical_parallax() -> void:
-	"""Update vertical positions of background layers based on camera zoom"""
-	if not camera_reference or not existing_layers_node:
-		return
-	
-	var current_zoom = camera_reference.zoom.x  # Assuming uniform zoom
-	var zoom_ratio = (current_zoom - driving_range_zoom_min) / (driving_range_zoom_max - driving_range_zoom_min)
-	zoom_ratio = clamp(zoom_ratio, 0.0, 1.0)
-	
-	# Update each layer's vertical position
-	for layer_data in vertical_parallax_layers:
-		var sprite = layer_data.sprite
-		var zoomed_out_y = layer_data.zoomed_out_y
-		var zoomed_in_y = layer_data.zoomed_in_y
-		var vertical_factor = layer_data.vertical_factor
-		var anchor_to_grid = layer_data.anchor_to_grid
-		
-		if sprite:
-			if anchor_to_grid:
-				# For anchored layers (like TreeLine1), keep them at the grid top position
-				sprite.position.y = 0 # Grid top is at Y=0
-			else:
-				# Calculate target Y position based on zoom
-				var target_y = lerp(zoomed_out_y, zoomed_in_y, zoom_ratio)
-				
-				# Apply vertical parallax factor (layers closer to camera move more)
-				var parallax_y = target_y + (target_y - zoomed_out_y) * vertical_factor * zoom_ratio
-				
-				# Update sprite Y position (preserve X position)
-				sprite.position.y = parallax_y
-
-func setup_driving_range_vertical_parallax() -> void:
-	"""Set up vertical parallax specifically for Driving Range"""
-	if not existing_layers_node:
-		print("ERROR: No existing layers node for vertical parallax setup!")
-		return
-	
-	print("Setting up Driving Range vertical parallax...")
-	
-	# Clear previous layer data
-	vertical_parallax_layers.clear()
-	
-	# Calculate world map grid boundaries
-	# Driving Range grid: 250x10 cells, cell_size = 48
-	var grid_top_y = 0  # Top of the world map grid
-	var grid_bottom_y = 10 * 48  # Bottom of the world map grid (480)
-	
-	# Get the zoomed in reference node
-	var zoomed_in_reference = existing_layers_node.get_parent().get_node_or_null("BackgroundLayersZoomedIn")
-	if not zoomed_in_reference:
-		print("WARNING: BackgroundLayersZoomedIn not found! Using fallback positions.")
-	
-	# Define layer names to process
-	var layer_names = ["Sky", "Mountains", "Horizon", "DistantHill", "City", "Hill", "Clouds", "TreeLine3", "TreeLine2", "Foreground", "FrontLineWall", "TreeLine1"]
-	
-	# Find sprites and set up vertical parallax data
-	for sprite_name in layer_names:
-		# Find the sprite in the existing layers node (zoomed in position)
-		var sprite = existing_layers_node.get_node_or_null(sprite_name)
-		if not sprite:
-			print("  - WARNING: Sprite not found for vertical parallax: ", sprite_name)
-			continue
-		
-		# Get zoomed in position (current editor position)
-		var zoomed_in_y = sprite.position.y
-		
-		# Get zoomed out position from reference node
-		var zoomed_out_y = zoomed_in_y  # Fallback to current position
-		var anchor_to_grid = false
-		var vertical_factor = 0.0
-		
-		if zoomed_in_reference:
-			var zoomed_out_sprite = zoomed_in_reference.get_node_or_null(sprite_name)
-			if zoomed_out_sprite:
-				zoomed_out_y = zoomed_out_sprite.position.y
-				print("  - Found zoomed out position for ", sprite_name, ": ", zoomed_out_y)
-			else:
-				print("  - WARNING: Zoomed out sprite not found: ", sprite_name)
-		
-		# Special handling for TreeLine1 (anchor to grid)
-		if sprite_name == "TreeLine1":
-			anchor_to_grid = true
-			vertical_factor = 0.0
-			zoomed_in_y = grid_top_y  # Always anchor to grid top
-		else:
-			# Calculate vertical factor based on distance from TreeLine1
-			var distance_from_tree = abs(zoomed_out_y - grid_top_y)
-			vertical_factor = clamp(distance_from_tree / 2000.0, 0.0, 1.0)  # Normalize to 0-1 range
-		
-		# Create layer data
-		var layer_data = {
-			"sprite": sprite,
-			"zoomed_out_y": zoomed_out_y,
-			"zoomed_in_y": zoomed_in_y,
-			"vertical_factor": vertical_factor,
-			"anchor_to_grid": anchor_to_grid
-		}
-		
-		vertical_parallax_layers.append(layer_data)
-		print("  - Set up vertical parallax for ", sprite_name, ": ", zoomed_out_y, " -> ", zoomed_in_y, " (factor: ", vertical_factor, ", anchored: ", anchor_to_grid, ")")
-	
-	print("✓ Driving Range vertical parallax setup complete with ", vertical_parallax_layers.size(), " layers")
 
 func set_world_grid_center(world_center: Vector2) -> void:
 	"""Set the world grid center for parallax calculations"""
@@ -763,8 +635,19 @@ func get_background_info() -> Dictionary:
 	if parallax_system:
 		info.layer_count = parallax_system.get_layer_count()
 		info.layers = parallax_system.get_layer_info()
+		
+		# Add viewport culling info if available
+		if parallax_system.has_method("get_viewport_culling_info"):
+			info.viewport_culling = parallax_system.get_viewport_culling_info()
 	
 	return info
+
+func set_viewport_culling(enabled: bool) -> void:
+	"""Enable or disable viewport culling optimization for parallax system"""
+	if parallax_system and parallax_system.has_method("set_viewport_culling"):
+		parallax_system.set_viewport_culling(enabled)
+	else:
+		print("⚠ Viewport culling not available in parallax system")
 
 	
 	
