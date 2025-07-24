@@ -52,7 +52,8 @@ func _create_default_flower_data():
 	default_flower.is_dense = false
 	default_flower.wind_resistance = 0.8
 	default_flower.rarity = 1.0
-	default_flower.seasons = ["summer"]
+	var seasons_array: Array[String] = ["summer"]
+	default_flower.seasons = seasons_array
 	
 	# Try to load the sunflower texture
 	var sunflower_texture = load("res://Obstacles/Flowers/Sunflower.png")

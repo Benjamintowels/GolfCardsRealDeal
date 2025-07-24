@@ -235,13 +235,19 @@ func _handle_roof_bounce_collision(projectile: Node2D) -> void:
 		_play_flower_rustle()
 
 func _play_flower_rustle() -> void:
-	"""Play the flower rustle sound effect"""
+	"""Play the flower rustle sound effect and flower shake animation"""
 	var rustle_sound = get_node_or_null("LeavesRustle")
 	if rustle_sound and rustle_sound.stream:
 		rustle_sound.play()
 		print("Flower rustle sound played")
 		if flower_data:
 			print("Sound from flower:", flower_data.name)
+	
+	# Play the flower shake animation
+	var animation_player = get_node_or_null("FlowerSprite/AnimationPlayer")
+	if animation_player:
+		animation_player.play("flower_shake")
+		print("Flower shake animation played")
 
 func get_flower_data() -> FlowerData:
 	"""Get the FlowerData for this flower instance"""

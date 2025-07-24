@@ -224,13 +224,19 @@ func _handle_roof_bounce_collision(projectile: Node2D) -> void:
 		_play_leaves_rustle()
 
 func _play_leaves_rustle() -> void:
-	"""Play the leaves rustle sound effect"""
+	"""Play the leaves rustle sound effect and bush shake animation"""
 	var leaves_sound = get_node_or_null("LeavesRustle")
 	if leaves_sound and leaves_sound.stream:
 		leaves_sound.play()
 		print("Leaves rustle sound played")
 		if bush_data:
 			print("Sound from bush:", bush_data.name)
+	
+	# Play the bush shake animation
+	var animation_player = get_node_or_null("BushSprite/AnimationPlayer")
+	if animation_player:
+		animation_player.play("bush_shake")
+		print("Bush shake animation played")
 
 func get_bush_data() -> BushData:
 	"""Get the BushData for this bush instance"""
