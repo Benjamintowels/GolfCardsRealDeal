@@ -584,6 +584,9 @@ func _process(delta):
 					pass  # Ice Club effect: Ball passes through water tile
 					# Continue normal physics - don't stop the ball
 				else:
+					# Trigger water splash animation before going out of bounds
+					_trigger_water_splash_animation()
+					
 					velocity = Vector2.ZERO
 					vz = 0.0
 					landed_flag = true
@@ -2262,3 +2265,22 @@ func create_leaves_explosion_at_ball() -> void:
 		print("✓ Spawned leaf particle at:", leaf_particle.global_position)
 	
 	print("=== LEAVES EXPLOSION COMPLETE ===")
+
+func _trigger_water_splash_animation():
+	"""Trigger water splash animation on the water tile where the ball landed"""
+	if not map_manager:
+		return
+	
+	# Get the ball's current tile position
+	var tile_x = int(floor(position.x / cell_size))
+	var tile_y = int(floor(position.y / cell_size))
+	var tile_pos = Vector2i(tile_x, tile_y)
+	
+	# Find the course script to access the obstacle map
+	var course_script = get_parent().get_parent()  # camera_container -> course_1
+	if course_script and course_script.has_method("_play_water_splash_at_tile"):
+		# Call the course's water splash animation function with tile position
+		course_script._play_water_splash_at_tile(tile_pos)
+		print("Water splash animation triggered from GolfBall at tile:", tile_pos)
+	else:
+		print("Course script not found or missing _play_water_splash_at_tile method")

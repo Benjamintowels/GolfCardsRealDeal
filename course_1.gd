@@ -1819,6 +1819,10 @@ func show_tee_selection_instruction() -> void:
 func _on_golf_ball_out_of_bounds():
 	
 	sound_manager.play_water_plunk()
+	
+	# Play water splash animation on the water tile where the ball landed
+	_play_water_splash_animation()
+	
 	game_state_manager.set_camera_following_ball(false)
 	
 	# In DamageRound mode, count the shot even if it goes out of bounds
@@ -1902,6 +1906,37 @@ func _on_golf_ball_out_of_bounds():
 	
 	game_state_manager.set_game_phase("draw_cards")
 	player_manager.update_player_mouse_facing_state(game_state_manager, launch_manager, camera, weapon_handler)
+
+func _play_water_splash_animation():
+	"""Play water splash animation on the water tile where the ball landed"""
+	if not launch_manager or not launch_manager.golf_ball:
+		return
+	
+	# Get the ball's position and convert to grid coordinates
+	var ball_position = launch_manager.golf_ball.global_position
+	var tile_x = int(floor(ball_position.x / cell_size))
+	var tile_y = int(floor(ball_position.y / cell_size))
+	var tile_pos = Vector2i(tile_x, tile_y)
+	
+	# Find the water tile at this position in the obstacle map
+	if obstacle_map.has(tile_pos):
+		var water_tile = obstacle_map[tile_pos]
+		if water_tile and water_tile.has_method("play_water_splash"):
+			water_tile.play_water_splash()
+			print("Water splash animation triggered at tile:", tile_pos)
+
+func _play_water_splash_at_tile(tile_pos: Vector2i):
+	"""Play water splash animation at a specific tile position"""
+	# Find the water tile at this position in the obstacle map
+	if obstacle_map.has(tile_pos):
+		var water_tile = obstacle_map[tile_pos]
+		if water_tile and water_tile.has_method("play_water_splash"):
+			water_tile.play_water_splash()
+			print("Water splash animation triggered at tile:", tile_pos)
+		else:
+			print("Water tile not found or missing play_water_splash method at tile:", tile_pos)
+	else:
+		print("No obstacle found at tile position:", tile_pos)
 
 # Out of bounds dialog moved to UIManager - direct calls used
 
