@@ -60,14 +60,14 @@ z_index = 1230
 script = ExtResource("1_krybp")
 
 [node name="TreeLineVertSpriteLeft" type="Sprite2D" parent="."]
-z_index = 1230
+z_index = 2820
 texture_filter = 1
 position = Vector2(-458, -865)
 scale = Vector2(0.67, 0.67)
 texture = ExtResource("1_nhxsh")
 
 [node name="TreeLineVertSpriteLeft2" type="Sprite2D" parent="."]
-z_index = 1680
+z_index = 2940
 texture_filter = 1
 position = Vector2(-560, 720)
 scale = Vector2(0.709385, 0.758729)

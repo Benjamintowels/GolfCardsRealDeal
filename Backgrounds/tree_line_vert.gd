@@ -3,18 +3,38 @@ extends Node2D
 
 @onready var anim_player: AnimationPlayer = $AnimationPlayer
 @onready var mouse_area: Area2D = $MouseDetectionArea2D
+@onready var sprite_left: Sprite2D = $TreeLineVertSpriteLeft
+@onready var sprite_left2: Sprite2D = $TreeLineVertSpriteLeft2
+
+var is_hovering = false
+var tween: Tween
 
 func _ready():
 	mouse_area.connect("mouse_entered", Callable(self, "_on_mouse_entered"))
 	mouse_area.connect("mouse_exited", Callable(self, "_on_mouse_exited"))
 
 func _on_mouse_entered():
-	anim_player.speed_scale = 1.0
-	anim_player.play("hover_fade")
+	if not is_hovering:
+		is_hovering = true
+		# Stop any existing tween
+		if tween:
+			tween.kill()
+		
+		# Create new tween for fade out
+		tween = create_tween()
+		tween.set_parallel(true)
+		tween.tween_property(sprite_left, "modulate", Color(1, 1, 1, 0.254902), 1.5)
+		tween.tween_property(sprite_left2, "modulate", Color(1, 1, 1, 0.254902), 1.5)
 
 func _on_mouse_exited():
-	# Play in reverse from current position
-	var pos = anim_player.current_animation_position
-	anim_player.speed_scale = -1.0
-	anim_player.play("hover_fade")
-	anim_player.seek(pos, true)
+	if is_hovering:
+		is_hovering = false
+		# Stop any existing tween
+		if tween:
+			tween.kill()
+		
+		# Create new tween for fade in
+		tween = create_tween()
+		tween.set_parallel(true)
+		tween.tween_property(sprite_left, "modulate", Color(1, 1, 1, 1), 1.5)
+		tween.tween_property(sprite_left2, "modulate", Color(1, 1, 1, 1), 1.5)

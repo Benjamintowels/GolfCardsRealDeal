@@ -34,9 +34,64 @@ var starter_deck: Array[CardData] = [
 	preload("res://Cards/Driver.tres")         # Driver
 ]
 
+# Fighter deck for testing all attack mechanics and NPC combat
+var fighter_deck: Array[CardData] = [
+	# Movement cards (x2 each for mobility)
+	preload("res://Cards/Move1.tres"),
+	preload("res://Cards/Move1.tres"),
+	preload("res://Cards/Move2.tres"),
+	preload("res://Cards/Move2.tres"),
+	preload("res://Cards/Move3.tres"),
+	preload("res://Cards/Move3.tres"),
+	
+	# All Attack cards (x1 each for comprehensive testing)
+	preload("res://Cards/PunchB.tres"),           # Basic melee attack
+	preload("res://Cards/KickB.tres"),            # Basic melee attack
+	preload("res://Cards/AttackDog.tres"),        # Dog attack
+	preload("res://Cards/AssassinDash.tres"),     # Dash attack
+	
+	# All Weapon cards (x1 each for ranged combat testing)
+	preload("res://Cards/PistolCard.tres"),       # Basic pistol
+	preload("res://Cards/BurstShot.tres"),        # Burst fire weapon
+	preload("res://Cards/ShotgunCard.tres"),      # Shotgun weapon
+	preload("res://Cards/SniperCard.tres"),       # Sniper weapon
+	preload("res://Cards/GrenadeCard.tres"),      # Grenade weapon
+	preload("res://Cards/ThrowingKnife.tres"),    # Throwing knife
+	preload("res://Cards/ShurikenCard.tres"),     # Shuriken weapon
+	
+	# All AOE/Explosive cards (x1 each for area damage testing)
+	preload("res://Cards/FireBallCard.tres"),     # Fire ball attack
+	preload("res://Cards/IceBallCard.tres"),      # Ice ball attack
+	preload("res://Cards/MeteorCard.tres"),       # Meteor attack
+	preload("res://Cards/Explosive.tres"),        # Explosive attack
+	
+	# Defense cards (x2 each for survival)
+	preload("res://Cards/BlockB.tres"),
+	preload("res://Cards/BlockB.tres"),
+	preload("res://Cards/DodgeCard.tres"),        # Dodge ability
+	preload("res://Cards/Vampire.tres"),          # Vampire healing
+	
+	# Club cards - 5 basic clubs in order (for golf mechanics)
+	preload("res://Cards/Putter.tres"),        # Putter
+	preload("res://Cards/PitchingWedge.tres"), # PitchingWedge
+	preload("res://Cards/Iron.tres"),          # Iron
+	preload("res://Cards/Wood.tres"),          # Wood
+	preload("res://Cards/Driver.tres")         # Driver
+]
+
 func _ready():
 	print("CurrentDeckManager: _ready() called")
-	initialize_starter_deck()
+	
+	# Check if a deck type has already been selected
+	if Global.selected_deck_type == "fighter":
+		print("CurrentDeckManager: Fighter deck already selected, initializing fighter deck")
+		initialize_fighter_deck()
+	elif Global.selected_deck_type == "starter":
+		print("CurrentDeckManager: Starter deck already selected, initializing starter deck")
+		initialize_starter_deck()
+	else:
+		print("CurrentDeckManager: No deck selected yet, initializing default starter deck")
+		initialize_starter_deck()
 
 func initialize_starter_deck():
 	"""Initialize the deck with the default starter deck"""
@@ -47,6 +102,26 @@ func initialize_starter_deck():
 		print("  -", card.name)
 	emit_signal("deck_updated")
 	print("CurrentDeckManager: Initialized starter deck with", current_deck.size(), "cards")
+
+func initialize_fighter_deck():
+	"""Initialize the deck with the fighter deck for combat testing"""
+	current_deck = fighter_deck.duplicate()
+	print("CurrentDeckManager: Initializing fighter deck with", current_deck.size(), "cards")
+	print("CurrentDeckManager: Fighter deck contents:")
+	for card in current_deck:
+		print("  -", card.name)
+	emit_signal("deck_updated")
+	print("CurrentDeckManager: Initialized fighter deck with", current_deck.size(), "cards")
+
+func switch_to_fighter_deck():
+	"""Switch to the fighter deck for combat testing"""
+	Global.selected_deck_type = "fighter"
+	initialize_fighter_deck()
+
+func switch_to_starter_deck():
+	"""Switch back to the default starter deck"""
+	Global.selected_deck_type = "starter"
+	initialize_starter_deck()
 
 func add_card_to_deck(card: CardData):
 	"""Add a card to the current deck"""

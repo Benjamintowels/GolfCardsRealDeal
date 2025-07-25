@@ -2,6 +2,7 @@ extends Node
 
 # Global variables
 var selected_character = 1  # Default to character 1
+var selected_deck_type = ""  # Track which deck was selected (starter, fighter, etc.)
 var putt_putt_mode = false  # Flag for putt putt mode (only putters)
 var starting_back_9 = false  # Flag for starting back 9 holes
 var in_mid_game_shop_mode = false  # Flag for mid-game shop mode

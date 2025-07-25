@@ -1,0 +1,78 @@
+[gd_scene load_steps=3 format=3 uid="uid://cj67dwiijert0"]
+
+[ext_resource type="Script" uid="uid://bn8qhgsllue4j" path="res://DeckSelectionDialog.gd" id="1_deck_dialog"]
+[ext_resource type="Texture2D" uid="uid://6roqcodb1nka" path="res://UI/AdvanceContainer.png" id="2_f0abr"]
+
+[node name="DeckSelectionDialog" type="Control"]
+z_index = 1000
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_deck_dialog")
+
+[node name="TextureRect" type="TextureRect" parent="."]
+layout_mode = 0
+offset_left = 76.0
+offset_top = 310.0
+offset_right = 619.0
+offset_bottom = 595.0
+texture = ExtResource("2_f0abr")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 351.0
+offset_top = 503.0
+offset_right = 351.0
+offset_bottom = 503.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.7)
+
+[node name="DialogContainer" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = 151.0
+offset_top = 353.0
+offset_right = 551.0
+offset_bottom = 653.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Title" type="Label" parent="DialogContainer"]
+layout_mode = 2
+text = "Select Your Deck"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="HSeparator" type="HSeparator" parent="DialogContainer"]
+layout_mode = 2
+
+[node name="DeckButtons" type="VBoxContainer" parent="DialogContainer"]
+layout_mode = 2
+
+[node name="StarterDeckButton" type="Button" parent="DialogContainer/DeckButtons"]
+layout_mode = 2
+text = "Starter Deck
+Basic cards for normal gameplay"
+
+[node name="FighterDeckButton" type="Button" parent="DialogContainer/DeckButtons"]
+layout_mode = 2
+text = "Fighter Deck
+All attack cards for combat testing"
+
+[node name="HSeparator2" type="HSeparator" parent="DialogContainer"]
+layout_mode = 2
+
+[node name="CancelButton" type="Button" parent="DialogContainer"]
+layout_mode = 2
+text = "Cancel"
