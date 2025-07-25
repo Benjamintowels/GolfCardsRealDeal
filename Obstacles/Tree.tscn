@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3 uid="uid://bxv07b18i4gic"]
+[gd_scene load_steps=13 format=3 uid="uid://bxv07b18i4gic"]
 
 [ext_resource type="Script" uid="uid://dhqerng8o8ik5" path="res://Obstacles/Tree.gd" id="1_tree"]
 [ext_resource type="Texture2D" uid="uid://bqhffygxa0j5o" path="res://Obstacles/Tree.png" id="2_8f3lk"]
@@ -69,6 +69,9 @@ radius = 27.7443
 radius = 19.4332
 height = 160.584
 
+[sub_resource type="OccluderPolygon2D" id="OccluderPolygon2D_8f3lk"]
+polygon = PackedVector2Array(-43, -8, -20, -22, -16, -39, -41, -60, -60, -64, -105, -104, -119, -137, -95, -168, -86, -166, -86, -186, -70, -213, -42, -222, -4, -259, 24, -258, 70, -220, 72, -211, 91, -202, 111, -177, 115, -153, 123, -128, 111, -96, 82, -71, 67, -56, 29, -41, 23, -35, 22, -22, 46, -1, 26, 1, 26, 19, -2, 2, -28, 14, -24, -4)
+
 [node name="Tree" type="CharacterBody2D"]
 script = ExtResource("1_tree")
 
@@ -137,3 +140,6 @@ shape = SubResource("CapsuleShape2D_8f3lk")
 
 [node name="TopHeight" type="Marker2D" parent="."]
 position = Vector2(0, -217)
+
+[node name="LightOccluder2D" type="LightOccluder2D" parent="."]
+occluder = SubResource("OccluderPolygon2D_8f3lk")

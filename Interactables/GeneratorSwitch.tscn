@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3 uid="uid://bw5q7s2jg2c2u"]
+[gd_scene load_steps=8 format=3 uid="uid://bw5q7s2jg2c2u"]
 
 [ext_resource type="Script" uid="uid://d2kf3koahleg" path="res://Interactables/generator_switch.gd" id="1_ns3rd"]
 [ext_resource type="Texture2D" uid="uid://dupbvdbcht38w" path="res://Interactables/GeneratorSwitch.png" id="1_nx7f1"]
@@ -8,6 +8,9 @@
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_7tjvc"]
 radius = 12.2507
+
+[sub_resource type="OccluderPolygon2D" id="OccluderPolygon2D_inkma"]
+polygon = PackedVector2Array(-60, 66, 37, 70, 62, 53, 61, -68, -32, -70, -61, -56)
 
 [node name="GeneratorSwitch" type="Node2D"]
 script = ExtResource("1_ns3rd")
@@ -44,3 +47,6 @@ pitch_scale = 0.86
 stream = ExtResource("5_inkma")
 volume_db = -1.465
 pitch_scale = 0.86
+
+[node name="LightOccluder2D" type="LightOccluder2D" parent="."]
+occluder = SubResource("OccluderPolygon2D_inkma")

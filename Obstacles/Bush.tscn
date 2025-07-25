@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3 uid="uid://dpaepe4khjeko"]
+[gd_scene load_steps=9 format=3 uid="uid://dpaepe4khjeko"]
 
 [ext_resource type="Texture2D" uid="uid://bxonhwa77hsew" path="res://Obstacles/SummerBush1.png" id="1_gh3tr"]
 [ext_resource type="Script" uid="uid://u2l56ft34bno" path="res://Obstacles/bush.gd" id="1_upr5p"]
@@ -67,6 +67,9 @@ _data = {
 [sub_resource type="CircleShape2D" id="CircleShape2D_upr5p"]
 radius = 38.0501
 
+[sub_resource type="OccluderPolygon2D" id="OccluderPolygon2D_upr5p"]
+polygon = PackedVector2Array(-52, 7, -34, 13, 26, 13, 45, 5, 48, -6, 44, -15, 37, -16, 41, -22, 37, -31, 28, -33, 31, -38, 25, -46, 19, -45, 10, -55, 1, -50, -3, -56, -14, -54, -22, -46, -26, -49, -39, -38, -37, -31, -46, -31, -52, -20, -49, -16, -56, -6, -50, 0)
+
 [node name="Bush" type="Node2D"]
 script = ExtResource("1_upr5p")
 
@@ -96,3 +99,6 @@ volume_db = -4.224
 position = Vector2(0, -15)
 scale = Vector2(1, 1.025)
 shape = SubResource("CircleShape2D_upr5p")
+
+[node name="LightOccluder2D" type="LightOccluder2D" parent="."]
+occluder = SubResource("OccluderPolygon2D_upr5p")

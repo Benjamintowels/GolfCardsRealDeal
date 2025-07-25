@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3 uid="uid://ctk0vytepupxa"]
+[gd_scene load_steps=9 format=3 uid="uid://ctk0vytepupxa"]
 
 [ext_resource type="Script" uid="uid://c2qjplt8bs3n" path="res://Obstacles/flower.gd" id="1_toxeb"]
 [ext_resource type="Texture2D" uid="uid://da3ctidpeh6we" path="res://Obstacles/Flowers/Sunflower.png" id="2_toxeb"]
@@ -67,6 +67,9 @@ _data = {
 [sub_resource type="CircleShape2D" id="CircleShape2D_toxeb"]
 radius = 24.0792
 
+[sub_resource type="OccluderPolygon2D" id="OccluderPolygon2D_toxeb"]
+polygon = PackedVector2Array(-2, 8, -2, -16, -6, -15, -8, -11, -16, -11, -19, -15, -14, -21, -8, -21, -5, -19, -2, -19, -2, -25, -4, -26, -5, -29, -10, -26, -11, -31, -14, -31, -13, -36, -15, -39, -13, -42, -14, -46, -11, -48, -2, -55, 9, -53, 14, -47, 11, -43, 15, -41, 13, -38, 14, -35, 11, -32, 11, -28, 7, -29, 5, -26, 1, -29, 1, -20, 4, -20, 8, -23, 13, -23, 17, -19, 19, -15, 12, -11, 6, -13, 4, -17, 1, -17, 1, 8)
+
 [node name="Flower" type="Node2D"]
 script = ExtResource("1_toxeb")
 
@@ -95,3 +98,6 @@ volume_db = -4.224
 [node name="CollisionShape2D" type="CollisionShape2D" parent="FlowerArea2D"]
 scale = Vector2(1, 1.025)
 shape = SubResource("CircleShape2D_toxeb")
+
+[node name="LightOccluder2D" type="LightOccluder2D" parent="."]
+occluder = SubResource("OccluderPolygon2D_toxeb")

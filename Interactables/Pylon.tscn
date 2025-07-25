@@ -1,4 +1,4 @@
-[gd_scene load_steps=6 format=3 uid="uid://bxk7r4unqjxc2"]
+[gd_scene load_steps=7 format=3 uid="uid://bxk7r4unqjxc2"]
 
 [ext_resource type="Script" uid="uid://cnirun1v8h1sv" path="res://Interactables/pylon.gd" id="1_w2g12"]
 [ext_resource type="Texture2D" uid="uid://d2frcyvtaehrv" path="res://Interactables/Pylon.png" id="2_w2g12"]
@@ -7,6 +7,9 @@
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_7tjvc"]
 radius = 7.25238
+
+[sub_resource type="OccluderPolygon2D" id="OccluderPolygon2D_w2g12"]
+polygon = PackedVector2Array(-35, 26, 7, 33, 34, 21, 34, -9, 16, -18, 14, -74, 32, -84, 32, -99, 16, -111, -16, -111, -31, -100, -31, -83, -12, -73, -14, -19, -20, -19, -35, -7)
 
 [node name="Pylon" type="Node2D"]
 script = ExtResource("1_w2g12")
@@ -38,3 +41,6 @@ pitch_scale = 0.86
 stream = ExtResource("4_tf4ls")
 volume_db = -1.465
 pitch_scale = 0.86
+
+[node name="LightOccluder2D" type="LightOccluder2D" parent="."]
+occluder = SubResource("OccluderPolygon2D_w2g12")
