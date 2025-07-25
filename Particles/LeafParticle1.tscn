@@ -1,0 +1,12 @@
+[gd_scene load_steps=3 format=3 uid="uid://b2yak8vqm6pl5"]
+
+[ext_resource type="Script" uid="uid://lwqm6k3eqp3w" path="res://Particles/LeafParticle.gd" id="1_leaf1"]
+[ext_resource type="Texture2D" uid="uid://grquhwpt073y" path="res://Particles/Leaf1.png" id="2_leaf1"]
+
+[node name="LeafParticle1" type="Node2D"]
+script = ExtResource("1_leaf1")
+
+[node name="LeafSprite" type="Sprite2D" parent="."]
+texture_filter = 1
+scale = Vector2(0.36, 0.36)
+texture = ExtResource("2_leaf1")

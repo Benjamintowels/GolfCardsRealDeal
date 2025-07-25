@@ -3,6 +3,8 @@ extends CharacterBody2D
 # Import TreeData for sprite variations
 const TreeData = preload("res://Obstacles/TreeData.gd")
 
+
+
 var blocks_movement := true  # Trees block by default; water might not
 
 # TreeData support for sprite variations

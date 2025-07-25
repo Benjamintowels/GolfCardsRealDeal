@@ -81,6 +81,10 @@ func process_single_tree_collision(tree: Node2D, nearby_balls: Array):
 	var tree_center = tree.global_position
 	var trunk_radius = 120.0
 	
+	# NOTE: The ball-based collision system (GolfBall.gd) handles leaf particles now
+	# This optimized system is kept for compatibility but should not trigger particles
+	# to avoid duplicate effects when both systems are active
+	
 	for ball in nearby_balls:
 		if not ball or not is_instance_valid(ball):
 			continue
@@ -108,20 +112,23 @@ func process_single_tree_collision(tree: Node2D, nearby_balls: Array):
 		
 		# Check if ball should trigger leaves rustle
 		if ball_height > min_leaves_height and ball_height < tree_height:
-			check_and_play_leaves_sound(tree, ball)
+			# Only play sound, don't create particles (ball handles particles now)
+			check_and_play_leaves_sound_only(tree, ball)
 
-func check_and_play_leaves_sound(tree: Node2D, ball: Node2D):
-	"""Check if leaves sound should be played and play it"""
+func check_and_play_leaves_sound_only(tree: Node2D, ball: Node2D):
+	"""Check if leaves sound should be played (sound only, no particles)"""
 	var current_time = Time.get_ticks_msec() / 1000.0
 	var ball_id = ball.get_instance_id()
 	
 	# Check if we haven't played the sound recently for this ball
-	if not ball.has_meta("last_leaves_rustle_time") or ball.get_meta("last_leaves_rustle_time") + 0.5 < current_time:
+	if not ball.has_meta("last_leaves_rustle_time_optimized") or ball.get_meta("last_leaves_rustle_time_optimized") + 0.5 < current_time:
+		# Play the leaves rustle sound through the tree
 		var rustle = tree.get_node_or_null("LeavesRustle")
 		if rustle:
 			rustle.play()
-			# Mark when we last played the sound for this ball
-			ball.set_meta("last_leaves_rustle_time", current_time)
+		
+		# Mark when we last played the sound for this ball (use different key to avoid conflicts)
+		ball.set_meta("last_leaves_rustle_time_optimized", current_time)
 
 func clear_spatial_grid():
 	"""Clear the spatial grid to free memory"""

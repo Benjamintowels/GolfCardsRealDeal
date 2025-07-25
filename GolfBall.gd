@@ -3,6 +3,10 @@ extends Node2D
 # Import ElementData for element system
 const ElementData = preload("res://Elements/ElementData.gd")
 
+# Leaf particle scenes for collision effects
+const LeafParticle1Scene = preload("res://Particles/LeafParticle1.tscn")
+const LeafParticle2Scene = preload("res://Particles/LeafParticle2.tscn")
+
 signal landed(final_tile: Vector2i)
 signal out_of_bounds()  # New signal for out of bounds
 signal sand_landing()  # New signal for sand landing
@@ -1429,17 +1433,20 @@ func check_nearby_tree_collisions() -> void:
 			if distance_to_tree <= 150.0:  # Only check trees within 150 pixels
 				nearby_trees.append(tree)
 	
-	# Process leaves rustling for nearby trees
+	# Find the closest tree within trunk radius that the ball can trigger
+	var closest_tree = null
+	var closest_distance = 999999.0
+	var trunk_radius = 120.0
+	
 	for tree in nearby_trees:
 		var tree_center = tree.global_position
 		var distance_to_trunk = ball_ground_pos.distance_to(tree_center)
-		var trunk_radius = 120.0
 		
-		# Only check if ball is within the trunk radius
+		# Only consider trees within trunk radius
 		if distance_to_trunk <= trunk_radius:
 			# Check if ball is at the right height to pass through leaves
 			var ball_height = z
-			var tree_height = Global.get_object_height_from_marker(tree)  # Use actual tree height from marker
+			var tree_height = Global.get_object_height_from_marker(tree)
 			var min_leaves_height = 60.0
 			
 			if ball_height > min_leaves_height and ball_height < tree_height:
@@ -1449,12 +1456,27 @@ func check_nearby_tree_collisions() -> void:
 				var sound_key = "last_leaves_rustle_time_%d" % tree_id
 				
 				if not has_meta(sound_key) or get_meta(sound_key) + 0.5 < current_time:
-					var rustle = tree.get_node_or_null("LeavesRustle")
-					if rustle:
-						rustle.play()
-						# LeavesRustle sound played - ball passing through leaves near trunk
-						# Mark when we last played the sound for this ball-tree combination
-						set_meta(sound_key, current_time)
+					# This tree is a valid candidate - check if it's the closest
+					if distance_to_trunk < closest_distance:
+						closest_tree = tree
+						closest_distance = distance_to_trunk
+	
+	# Only trigger effect for the closest valid tree
+	if closest_tree:
+		var current_time = Time.get_ticks_msec() / 1000.0
+		var tree_id = closest_tree.get_instance_id()
+		var sound_key = "last_leaves_rustle_time_%d" % tree_id
+		
+		# Play the leaves rustle sound through the closest tree
+		var rustle = closest_tree.get_node_or_null("LeavesRustle")
+		if rustle:
+			rustle.play()
+		
+		# Create leaf particles directly from the ball at its current position
+		create_leaves_explosion_at_ball()
+		
+		# Mark when we last played the sound for this ball-tree combination
+		set_meta(sound_key, current_time)
 
 func check_nearby_bush_collisions() -> void:
 	"""Ball checks for nearby bush collisions during flight (distance-based, like tree leaves)"""
@@ -2139,3 +2161,48 @@ func _notify_bounce_room_bounce() -> void:
 	var course_script = get_parent().get_parent()  # camera_container -> course_1
 	if course_script and course_script.has_method("_on_ball_bounced_bounce_room"):
 		course_script._on_ball_bounced_bounce_room()
+
+func create_leaves_explosion_at_ball() -> void:
+	"""Create a leaf particle explosion at the ball's current position"""
+	print("=== CREATING LEAVES EXPLOSION AT BALL ===")
+	print("Ball position:", global_position)
+	
+	# Spawn 4-8 leaf particles
+	var particle_count = randi_range(4, 8)
+	var explosion_radius = 40.0
+	var leaf_speed = 120.0
+	
+	for i in range(particle_count):
+		# Randomly choose between Leaf1 and Leaf2
+		var leaf_scene = LeafParticle1Scene if randf() > 0.5 else LeafParticle2Scene
+		var leaf_particle = leaf_scene.instantiate()
+		
+		# Add to the current scene
+		var current_scene = get_tree().current_scene
+		if current_scene:
+			current_scene.add_child(leaf_particle)
+		else:
+			print("ERROR: No current scene found for leaf particles!")
+			leaf_particle.queue_free()
+			continue
+		
+		# Set initial position at the ball's current 3D position with some random offset
+		var random_offset = Vector2(
+			randf_range(-explosion_radius * 0.4, explosion_radius * 0.4),
+			randf_range(-explosion_radius * 0.4, explosion_radius * 0.4)
+		)
+		leaf_particle.global_position = global_position + random_offset
+		
+		# Add explosion velocity - leaves should scatter outward and upward
+		var random_direction = Vector2(
+			randf_range(-1.0, 1.0),
+			randf_range(-1.5, -0.3)  # Bias toward upward motion initially
+		).normalized()
+		var random_speed = randf_range(leaf_speed * 0.6, leaf_speed * 1.4)
+		
+		if leaf_particle.has_method("add_explosion_velocity"):
+			leaf_particle.add_explosion_velocity(random_direction * random_speed)
+		
+		print("✓ Spawned leaf particle at:", leaf_particle.global_position)
+	
+	print("=== LEAVES EXPLOSION COMPLETE ===")
