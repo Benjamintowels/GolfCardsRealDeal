@@ -684,11 +684,18 @@ func take_damage(amount: int, is_headshot: bool = false) -> void:
 	else:
 		print("✗ Push sound not found or not AudioStreamPlayer2D")
 	
-	# Update the course's health bar
+	# Update the course's health bar through PlayerManager
 	var course = get_tree().current_scene
-	if course and course.has_method("take_damage"):
-		course.take_damage(amount)
-		print("✓ Updated course health bar with", amount, "damage")
+	if course and "player_manager" in course:
+		var player_manager = course.player_manager
+		if player_manager and player_manager.has_method("take_damage"):
+			# Don't call player_manager.take_damage here as this IS the player damage method
+			# Just update the health bar directly
+			print("✓ Player damage applied:", amount, "Current HP:", current_health)
+		else:
+			print("✗ PlayerManager not found or doesn't have take_damage method")
+	else:
+		print("✗ Course doesn't have player_manager property")
 	
 	# Flash appropriate effect based on damage type
 	if is_headshot:
@@ -808,6 +815,12 @@ func set_grid_position(pos: Vector2i, ysort_objects: Array = [], shop_grid_pos: 
 
 func _animate_movement_to_position(target_world_pos: Vector2, ysort_objects: Array = [], shop_grid_pos: Vector2i = Vector2i.ZERO) -> void:
 	"""Animate the player's movement to the target position using a tween"""
+	print("🚨 _ANIMATE_MOVEMENT_TO_POSITION CALLED!")
+	print("🚨 Call stack trace:")
+	print("🚨 Target world pos:", target_world_pos)
+	print("🚨 Current grid_pos:", grid_pos)
+	print("🚨 Current world position:", global_position)
+	
 	# Set moving state
 	is_moving = true
 	
@@ -2297,6 +2310,10 @@ func is_currently_punching() -> bool:
 func animate_to_position(target_grid_pos: Vector2i, callback: Callable = Callable()) -> void:
 	"""Animate player movement to a target grid position"""
 	
+	print("🔍 ANIMATE_TO_POSITION DEBUG: Called with target_grid_pos:", target_grid_pos)
+	print("🔍 Current player grid_pos:", grid_pos)
+	print("🔍 Current player world position:", global_position)
+	
 	# Calculate world position from grid position (same as set_grid_position)
 	var target_world_pos = Vector2(target_grid_pos.x, target_grid_pos.y) * cell_size + Vector2(cell_size / 2, cell_size / 2)
 	
@@ -2306,13 +2323,22 @@ func animate_to_position(target_grid_pos: Vector2i, callback: Callable = Callabl
 	if course and course.has_method("get_camera_offset"):
 		camera_offset = course.get_camera_offset()
 		target_world_pos += camera_offset
+		print("🔍 Added camera offset:", camera_offset)
 	elif course and "camera_offset" in course:
 		camera_offset = course.camera_offset
 		target_world_pos += camera_offset
+		print("🔍 Added camera offset (property):", camera_offset)
+	
+	print("🔍 Target world position calculated:", target_world_pos)
 	
 	# Use faster animation for PunchB attacks (3x faster)
 	var animation_duration = movement_duration / 3.0
 	
+	print("🔍 ANIMATE_TO_POSITION DEBUG: Skipping attack handler update (handled by caller)")
+	# Note: Attack handler position update is now handled by the calling function
+	# to prevent position sync conflicts during special attacks
+	
+	print("🔍 ANIMATE_TO_POSITION DEBUG: Creating movement tween")
 	# Create movement tween
 	var movement_tween = create_tween()
 	movement_tween.tween_property(self, "position", target_world_pos, animation_duration)
@@ -2322,26 +2348,32 @@ func animate_to_position(target_grid_pos: Vector2i, callback: Callable = Callabl
 	# Update Y-sorting during movement
 	movement_tween.tween_callback(update_z_index_for_ysort.bind([], Vector2i.ZERO))
 	
-	# Update attack handler position immediately for special attacks
-	if course and course.has_method("get_attack_handler"):
-		var attack_handler = course.get_attack_handler()
-		if attack_handler and attack_handler.has_method("update_player_position"):
-			attack_handler.update_player_position(target_grid_pos)
-	
 	# Call callback when animation completes
 	if callback.is_valid():
+		print("🔍 ANIMATE_TO_POSITION DEBUG: Adding callback to tween")
 		movement_tween.tween_callback(callback)
 	
 	# Update grid position and course position when animation completes (at the very end)
 	movement_tween.tween_callback(func():
-		grid_pos = target_grid_pos
+		print("🔍 ANIMATE_TO_POSITION DEBUG: Final callback - checking if grid_pos update needed")
+		print("🔍 Current grid_pos:", grid_pos, "Target:", target_grid_pos)
+		
+		# Only update if position is different to avoid unnecessary changes
+		if grid_pos != target_grid_pos:
+			print("🔍 ANIMATE_TO_POSITION DEBUG: Updating grid_pos to:", target_grid_pos)
+			grid_pos = target_grid_pos
+		else:
+			print("🔍 ANIMATE_TO_POSITION DEBUG: Grid position already correct, skipping update")
 		
 		# Update the course's player position reference
 		if course and course.has_method("get_player_manager"):
 			var player_manager = course.get_player_manager()
 			if player_manager and player_manager.has_method("set_player_grid_pos"):
+				print("🔍 ANIMATE_TO_POSITION DEBUG: Calling player_manager.set_player_grid_pos(", target_grid_pos, ")")
 				player_manager.set_player_grid_pos(target_grid_pos)
 	)
+	
+	print("🔍 ANIMATE_TO_POSITION DEBUG: Tween setup complete")
 
 func _setup_jump_animation() -> void:
 	"""Setup the jump animation system"""

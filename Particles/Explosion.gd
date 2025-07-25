@@ -345,9 +345,21 @@ func _affect_player_with_explosion(player: Node, distance: float):
 	if player.has_method("take_damage") and "current_health" in player:
 		will_kill = damage >= player.current_health
 	
-	# Apply damage to the player
-	if player.has_method("take_damage"):
-		player.take_damage(damage)
+	# Apply damage to the player via PlayerManager
+	var course = get_tree().current_scene
+	if course and "player_manager" in course:
+		var player_manager = course.player_manager
+		if player_manager and player_manager.has_method("take_damage"):
+			player_manager.take_damage(damage)
+			print("Player took ", damage, " damage from explosion")
+			
+			# Flash the player red to indicate damage
+			if player and player.has_method("flash_damage"):
+				player.flash_damage()
+		else:
+			print("✗ ERROR: PlayerManager not found or doesn't have take_damage method")
+	else:
+		print("✗ ERROR: Course doesn't have player_manager property")
 
 func _start_player_ragdoll(player: Node, distance: float):
 	"""Start the ragdoll animation for the player"""

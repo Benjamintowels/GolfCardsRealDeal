@@ -888,9 +888,29 @@ func _attack_player() -> void:
 		_update_sprite_facing()
 		
 		# Deal damage to the player (but don't push them)
-		if player.has_method("take_damage"):
-			var attack_damage = 25  # Zombie attack damage
-			player.take_damage(attack_damage)
+		var course = get_tree().current_scene
+		if course and "player_manager" in course:
+			var player_manager = course.player_manager
+			if player_manager and player_manager.has_method("take_damage"):
+				var attack_damage = 25  # Zombie attack damage
+				player_manager.take_damage(attack_damage)
+				print("Player took ", attack_damage, " damage from ZombieGolfer attack")
+				
+				# Flash the player red to indicate damage
+				if player and player.has_method("flash_damage"):
+					player.flash_damage()
+				
+				# Also play push sound for attack feedback
+				var push_sound = player.get_node_or_null("Push") if player else null
+				if push_sound and push_sound is AudioStreamPlayer2D:
+					push_sound.play()
+					print("✓ Played push sound for ZombieGolfer attack")
+				else:
+					print("✗ Push sound not found in player node")
+			else:
+				print("✗ ERROR: PlayerManager not found or doesn't have take_damage method")
+		else:
+			print("✗ ERROR: Course doesn't have player_manager property")
 	
 	# Play zombie attack sound when attacking
 	_play_zombie_attack_sound()

@@ -1867,6 +1867,15 @@ func _on_golf_ball_out_of_bounds():
 	ui_manager.show_out_of_bounds_dialog()
 	game_state_manager.set_ball_landing_position(game_state_manager.get_shot_start_position(), Vector2(game_state_manager.get_shot_start_position().x * cell_size + cell_size/2, game_state_manager.get_shot_start_position().y * cell_size + cell_size/2))
 	game_state_manager.set_waiting_for_player_to_reach_ball(true)
+	
+	# CRITICAL FIX: Temporarily disable animations to prevent position sync glitches during out-of-bounds reset
+	var original_animations_enabled = false
+	var player_node = player_manager.get_player_node()
+	if player_node and "animations_enabled" in player_node:
+		original_animations_enabled = player_node.animations_enabled
+		print("🔍 OUT_OF_BOUNDS DEBUG: Temporarily disabling animations (was:", original_animations_enabled, ")")
+		player_node.animations_enabled = false
+	
 	player_manager.set_player_grid_pos(game_state_manager.get_shot_start_position())
 	
 	# Immediately position camera on player's current position before updating player position
@@ -1881,6 +1890,11 @@ func _on_golf_ball_out_of_bounds():
 		print("Camera immediately positioned on player at:", player_center)
 	
 	player_manager.update_player_position_with_ball_creation(self)
+	
+	# Re-enable animations after position updates are complete
+	if player_node and "animations_enabled" in player_node:
+		print("🔍 OUT_OF_BOUNDS DEBUG: Re-enabling animations")
+		player_node.animations_enabled = original_animations_enabled
 	
 	# Force create a new ball at the player's tile center position for the penalty shot
 	var tile_center: Vector2 = Vector2(player_manager.get_player_grid_pos().x * cell_size + cell_size/2, player_manager.get_player_grid_pos().y * cell_size + cell_size/2) + grid_manager.get_camera_container().global_position

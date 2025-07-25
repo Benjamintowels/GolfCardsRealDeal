@@ -26,6 +26,7 @@ var entities_manager: Node
 var gang_member_type: String = "default"
 var movement_range: int = 3
 var vision_range: int = 12
+var attack_range: int = 2  # Range within which GangMember will attack
 var current_action: String = "idle"
 
 # Movement animation properties
@@ -1040,6 +1041,7 @@ func _check_turn_completion() -> void:
 	print("Is moving: ", is_moving)
 	print("Is ragdolling: ", is_ragdolling)
 	print("Is frozen: ", is_frozen)
+	print("Is attacking: ", is_attacking)
 	print("Current state: ", current_state)
 	
 	if is_moving:
@@ -1049,6 +1051,11 @@ func _check_turn_completion() -> void:
 	
 	if is_ragdolling:
 		print("GangMember is still ragdolling, waiting for animation to complete...")
+		print("=== END TURN COMPLETION CHECK ===")
+		return
+	
+	if is_attacking:
+		print("GangMember is still attacking, waiting for attack sequence to complete...")
 		print("=== END TURN COMPLETION CHECK ===")
 		return
 	
@@ -1064,14 +1071,28 @@ func _handle_player_collision(approach_direction: Vector2i = Vector2i.ZERO) -> v
 	# Play collision sound effect
 	_play_collision_sound()
 	
-	# Deal 15 damage to the player
-	if course and course.has_method("take_damage"):
-		course.take_damage(15)
-		print("Player took 15 damage from GangMember collision")
+	# Deal attack damage to the player
+	if course and "player_manager" in course:
+		var player_manager = course.player_manager
+		if player_manager and player_manager.has_method("take_damage"):
+			player_manager.take_damage(attack_damage)
+			print("Player took ", attack_damage, " damage from GangMember collision")
+		else:
+			print("✗ ERROR: PlayerManager not found or doesn't have take_damage method")
+	else:
+		print("✗ ERROR: Course doesn't have player_manager property")
 		
 		# Flash the player red to indicate damage
 		if player and player.has_method("flash_damage"):
 			player.flash_damage()
+		
+		# Also play push sound for collision feedback
+		var push_sound = player.get_node_or_null("Push") if player else null
+		if push_sound and push_sound is AudioStreamPlayer2D:
+			push_sound.play()
+			print("✓ Played push sound for GangMember collision")
+		else:
+			print("✗ Push sound not found in player node")
 	
 	# Push player back to nearest available adjacent tile
 	var pushback_pos = _find_nearest_available_adjacent_tile(player.grid_pos, approach_direction)
@@ -1079,32 +1100,23 @@ func _handle_player_collision(approach_direction: Vector2i = Vector2i.ZERO) -> v
 	if pushback_pos != player.grid_pos:
 		print("Pushing player from ", player.grid_pos, " to ", pushback_pos)
 		
+		# CRITICAL FIX: Apply position sync fix pattern to prevent duplicate animations
+		var original_animations_enabled = false
+		if player and "animations_enabled" in player:
+			original_animations_enabled = player.animations_enabled
+			print("🔍 DEBUG: Temporarily disabling animations (was:", original_animations_enabled, ")")
+			player.animations_enabled = false
+		
 		# Temporarily disconnect the moved_to_tile signal to prevent conflicts
 		var signal_was_connected = false
 		if player and player.has_signal("moved_to_tile") and course:
 			signal_was_connected = true
 			player.moved_to_tile.disconnect(course._on_player_moved_to_tile)
 		
-		# Use animated pushback if the player supports it
-		if player.has_method("push_back"):
-			player.push_back(pushback_pos)
-			print("Applied animated pushback to player")
-		else:
-			# Fallback to instant position change
-			player.set_grid_position(pushback_pos)
-			print("Applied instant pushback to player (no animation support)")
-		
-		print("Player grid position updated to: ", player.grid_pos)
-		print("Player world position: ", player.position)
-		
-		# Reconnect the signal if it was connected
-		if signal_was_connected:
-			player.moved_to_tile.connect(course._on_player_moved_to_tile)
-		
-		# Update the course's player_grid_pos variable first
+		# Update positions without triggering unwanted animations
+		player.grid_pos = pushback_pos
 		if course and "player_grid_pos" in course:
 			course.player_grid_pos = pushback_pos
-			print("Course player_grid_pos updated to: ", course.player_grid_pos)
 		
 		# Update the attack handler's player position if it exists
 		if course and course.has_method("get_attack_handler"):
@@ -1113,9 +1125,29 @@ func _handle_player_collision(approach_direction: Vector2i = Vector2i.ZERO) -> v
 				attack_handler.update_player_position(pushback_pos)
 				print("Attack handler player position updated to: ", pushback_pos)
 		
-		# Update the course's player position reference
-		if course and course.has_method("update_player_position"):
-			course.update_player_position()
+		# Re-enable animations for intended movement
+		if player and "animations_enabled" in player:
+			print("🔍 DEBUG: Re-enabling animations")
+			player.animations_enabled = original_animations_enabled
+		
+		# Now call intended animation
+		if player and player.has_method("animate_to_position"):
+			player.animate_to_position(pushback_pos)
+			print("Applied animated pushback to player")
+		else:
+			# Fallback to push_back method
+			if player.has_method("push_back"):
+				player.push_back(pushback_pos)
+				print("Applied push_back to player")
+			else:
+				print("No animation methods available, using instant position")
+		
+		# Reconnect the signal if it was connected
+		if signal_was_connected:
+			player.moved_to_tile.connect(course._on_player_moved_to_tile)
+		
+		print("Player grid position updated to: ", player.grid_pos)
+		print("Course player_grid_pos updated to: ", course.player_grid_pos if course else "N/A")
 		
 		# Verify the position was actually updated
 		print("Final verification - Player grid_pos: ", player.grid_pos, ", Course player_grid_pos: ", course.player_grid_pos if course else "N/A")
@@ -1625,20 +1657,110 @@ class ChaseState extends BaseState:
 		
 		var player_pos = gang_member.player.grid_pos
 		print("Player position: ", player_pos)
-		var path = _get_path_to_player(player_pos)
-		print("Chase path: ", path)
-		
-		if path.size() > 1:
-			var next_pos = path[1]  # First step towards player
-			print("Moving towards player to: ", next_pos)
-			gang_member._move_to_position(next_pos)
-		else:
-			print("No path found to player")
-			# Complete turn immediately since no movement is needed
-			gang_member._check_turn_completion()
+		var distance_to_player = gang_member.grid_position.distance_to(player_pos)
+		print("Distance to player: ", distance_to_player)
 		
 		# Always face the player when in chase mode
 		gang_member._face_player()
+		
+		# Check if within attack range
+		if distance_to_player <= gang_member.attack_range:
+			print("Player within attack range! Distance: ", distance_to_player, " Starting attack sequence")
+			_start_attack_sequence(player_pos)
+		else:
+			# Normal chase behavior - move towards player
+			var path = _get_path_to_player(player_pos)
+			print("Chase path: ", path)
+			
+			if path.size() > 1:
+				var next_pos = path[1]  # First step towards player
+				print("Moving towards player to: ", next_pos)
+				gang_member._move_to_position(next_pos)
+			else:
+				print("No path found to player")
+				# Complete turn immediately since no movement is needed
+				gang_member._check_turn_completion()
+	
+	func _start_attack_sequence(player_pos: Vector2i) -> void:
+		"""Start the double-attack sequence towards the player"""
+		print("=== STARTING ATTACK SEQUENCE ===")
+		gang_member.is_attacking = true
+		gang_member.attack_moves_remaining = 2  # Attack moves twice
+		
+		# Start double-flash punch animation for the attack sequence
+		gang_member.double_flash_punch_sprite()
+		
+		# Perform the first attack move
+		_perform_attack_move(player_pos)
+	
+	func _perform_attack_move(player_pos: Vector2i) -> void:
+		"""Perform one attack move towards the player"""
+		print("Performing attack move, moves remaining: ", gang_member.attack_moves_remaining)
+		
+		# Calculate direction towards player
+		var direction = (player_pos - gang_member.grid_position)
+		if direction.x != 0:
+			direction.x = 1 if direction.x > 0 else -1
+		if direction.y != 0:
+			direction.y = 1 if direction.y > 0 else -1
+		
+		var attack_target = gang_member.grid_position + direction
+		
+		# For attacks, we want to move TO the player's position to trigger collision
+		# Check if target position is valid OR if it's the player's position (attack collision)
+		var is_player_position = (attack_target == player_pos)
+		var is_valid_non_player_position = gang_member._is_position_valid(attack_target) and not is_player_position
+		
+		if is_valid_non_player_position or is_player_position:
+			print("Attack moving to: ", attack_target, " (Player position: ", is_player_position, ")")
+			gang_member._move_to_position(attack_target)
+			
+			# The attack move will continue when movement animation completes
+			# We'll use a timer instead of signals for more reliable sequencing
+			gang_member.call_deferred("_schedule_next_attack_move")
+		else:
+			print("Attack target position invalid and not player position, ending attack")
+			_end_attack_sequence()
+	
+	func _on_attack_move_completed() -> void:
+		"""Called when one attack move completes"""
+		print("Attack move completed")
+		
+		# Hide punch sprite after the move
+		gang_member.hide_punch_sprite()
+		
+		# Decrease remaining attack moves
+		gang_member.attack_moves_remaining -= 1
+		
+		# Check if we should continue attacking or if we hit the player
+		if gang_member.attack_moves_remaining > 0:
+			# Check if we're now adjacent to the player (collision detection will handle damage)
+			var player_pos = gang_member.player.grid_pos
+			var distance_to_player = gang_member.grid_position.distance_to(player_pos)
+			
+			if distance_to_player <= 1:
+				# We're adjacent or on the player - attack hits
+				print("Attack hit player! Completing attack sequence")
+				_end_attack_sequence()
+			else:
+				# Continue attacking - perform next move
+				print("Continuing attack sequence")
+				_perform_attack_move(player_pos)
+		else:
+			# Attack sequence complete
+			print("Attack sequence complete")
+			_end_attack_sequence()
+	
+	func _end_attack_sequence() -> void:
+		"""End the attack sequence"""
+		print("=== ENDING ATTACK SEQUENCE ===")
+		gang_member.is_attacking = false
+		gang_member.attack_moves_remaining = 0
+		gang_member.hide_punch_sprite()
+		
+		# Complete the turn if movement is finished
+		if not gang_member.is_moving:
+			gang_member._check_turn_completion()
 
 	func _get_path_to_player(player_pos: Vector2i) -> Array[Vector2i]:
 		# Simple pathfinding - move towards player
@@ -1804,6 +1926,13 @@ func die() -> void:
 	is_dead = true
 	print("GangMember has died!")
 	
+	# Cancel any ongoing attack
+	if is_attacking:
+		print("Cancelling attack due to death")
+		is_attacking = false
+		attack_moves_remaining = 0
+		hide_punch_sprite()
+	
 	# Give death reward
 	Global.give_npc_death_reward("GangMember")
 	
@@ -1841,6 +1970,11 @@ func _change_to_dead_sprite() -> void:
 	# Hide the ice sprite if it's visible
 	if is_frozen and ice_sprite:
 		ice_sprite.visible = false
+	
+	# Hide the punch sprite if it's visible
+	if punch_sprite:
+		punch_sprite.visible = false
+		is_showing_punch = false
 	
 	# Show the dead sprite
 	var dead_sprite = get_node_or_null("Dead")
@@ -2157,6 +2291,13 @@ func freeze() -> void:
 	freeze_turns_remaining = 3  # Freeze for 3 turns
 	print("GangMember frozen for", freeze_turns_remaining, "turns!")
 	
+	# Cancel any ongoing attack
+	if is_attacking:
+		print("Cancelling attack due to freeze")
+		is_attacking = false
+		attack_moves_remaining = 0
+		hide_punch_sprite()
+	
 	# Play freeze sound
 	if freeze_sound:
 		freeze_sound.play()
@@ -2172,6 +2313,12 @@ func _switch_to_ice_state() -> void:
 	if sprite:
 		sprite.visible = false
 		print("✓ Hidden normal sprite")
+	
+	# Hide the punch sprite if it's visible
+	if punch_sprite:
+		punch_sprite.visible = false
+		is_showing_punch = false
+		print("✓ Hidden punch sprite")
 	
 	# Show the ice sprite
 	if ice_sprite:
@@ -2216,14 +2363,18 @@ func _switch_to_normal_state() -> void:
 		ice_sprite.visible = false
 		print("✓ Hidden ice sprite")
 	
-	# Show the normal sprite
-	if sprite:
+	# Show the normal sprite (unless punch sprite should be shown)
+	if sprite and not is_showing_punch:
 		sprite.visible = true
 		# Restore original modulate
 		sprite.modulate = original_modulate
 		# Update facing direction
 		_update_sprite_facing()
 		print("✓ Showed normal sprite")
+	elif sprite and is_showing_punch:
+		# Keep normal sprite hidden if punch is being shown
+		sprite.visible = false
+		print("✓ Keeping normal sprite hidden (punch active)")
 	else:
 		print("✗ ERROR: Normal sprite not found!")
 	
@@ -2422,3 +2573,122 @@ func set_footstep_interval(interval: float) -> void:
 	"""Set the interval between footstep sounds during movement"""
 	footstep_interval = max(0.1, interval)  # Minimum 0.1 seconds
 	print("✓ GangMember footstep interval set to:", footstep_interval, "seconds")
+
+# Attack properties
+var is_attacking: bool = false
+var attack_moves_remaining: int = 0
+var attack_damage: int = 25
+
+# Punch animation properties
+@onready var punch_sprite: Sprite2D = $Punch
+var is_showing_punch: bool = false
+
+# Punch animation methods
+func show_punch_sprite() -> void:
+	"""Show the punch sprite and hide the normal sprite"""
+	if sprite:
+		sprite.visible = false
+	
+	if punch_sprite:
+		punch_sprite.visible = true
+		# Apply the same facing direction to the punch sprite
+		if facing_direction.x < 0:
+			punch_sprite.flip_h = true
+		elif facing_direction.x > 0:
+			punch_sprite.flip_h = false
+		
+		# Update Y-sorting for punch sprite
+		update_z_index_for_ysort()
+	
+	is_showing_punch = true
+	print("✓ GangMember showing punch sprite")
+
+func hide_punch_sprite() -> void:
+	"""Hide the punch sprite and show the normal sprite"""
+	if punch_sprite:
+		punch_sprite.visible = false
+	
+	if sprite and not is_dead and not is_frozen:
+		sprite.visible = true
+		# Update Y-sorting for normal sprite
+		update_z_index_for_ysort()
+	
+	is_showing_punch = false
+	print("✓ GangMember hiding punch sprite")
+
+func flash_punch_sprite() -> void:
+	"""Flash the punch sprite briefly during attack"""
+	show_punch_sprite()
+	
+	# Flash for a brief moment
+	var flash_duration = 0.2
+	var tween = create_tween()
+	tween.tween_callback(hide_punch_sprite).set_delay(flash_duration)
+
+func double_flash_punch_sprite() -> void:
+	"""Flash the punch sprite twice for double-attack effect"""
+	print("✓ Starting double-flash punch animation")
+	
+	# First flash
+	show_punch_sprite()
+	
+	var double_flash_tween = create_tween()
+	double_flash_tween.set_parallel(false)  # Sequential animations
+	
+	# First flash duration
+	double_flash_tween.tween_callback(hide_punch_sprite).set_delay(0.15)
+	
+	# Brief pause between flashes
+	double_flash_tween.tween_callback(func(): pass).set_delay(0.1)
+	
+	# Second flash
+	double_flash_tween.tween_callback(show_punch_sprite).set_delay(0.0)
+	double_flash_tween.tween_callback(hide_punch_sprite).set_delay(0.15)
+	
+	print("✓ Double-flash punch animation started")
+
+# Attack sequencing methods
+func _schedule_next_attack_move() -> void:
+	"""Schedule the next attack move after current movement completes"""
+	if not is_attacking:
+		return
+	
+	# Wait for movement animation to complete
+	var wait_time = movement_duration + 0.1  # Movement duration + small buffer
+	var timer = get_tree().create_timer(wait_time)
+	timer.timeout.connect(_on_attack_move_timer_completed)
+
+func _on_attack_move_timer_completed() -> void:
+	"""Called when the attack move timer completes"""
+	if not is_attacking:
+		return
+	
+	# Decrease remaining attack moves
+	attack_moves_remaining -= 1
+	
+	# Check if we should continue attacking 
+	if attack_moves_remaining > 0:
+		# Continue attacking - perform next move regardless of whether we hit the player
+		print("Continuing attack sequence, moves remaining: ", attack_moves_remaining)
+		if player and "grid_pos" in player:
+			var player_pos = player.grid_pos
+			if current_state == State.CHASE:
+				var chase_state = state_machine.states["chase"]
+				chase_state._perform_attack_move(player_pos)
+		else:
+			print("Player reference lost, ending attack")
+			_end_attack_sequence_from_main()
+	else:
+		# Attack sequence complete
+		print("Attack sequence complete")
+		_end_attack_sequence_from_main()
+
+func _end_attack_sequence_from_main() -> void:
+	"""End the attack sequence from the main GangMember context"""
+	print("=== ENDING ATTACK SEQUENCE (MAIN) ===")
+	is_attacking = false
+	attack_moves_remaining = 0
+	hide_punch_sprite()
+	
+	# Complete the turn
+	_check_turn_completion()

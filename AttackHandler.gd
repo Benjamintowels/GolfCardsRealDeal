@@ -477,24 +477,12 @@ func exit_attack_mode() -> void:
 	
 	# Handle card discard
 	if card_to_discard:
-		print("AttackHandler: Exiting attack mode with card:", card_to_discard.name)
-		print("AttackHandler: Card in hand:", deck_manager.hand.has(card_to_discard))
-		print("AttackHandler: Is club card:", deck_manager.is_club_card(card_to_discard))
-		
 		# Don't discard club cards here - they're handled by the club card selection system
 		if deck_manager.hand.has(card_to_discard) and not deck_manager.is_club_card(card_to_discard):
-			print("AttackHandler: Discarding attack card:", card_to_discard.name)
 			deck_manager.discard(card_to_discard)
 			card_discarded = true
-		elif deck_manager.is_club_card(card_to_discard):
-			print("AttackHandler: Skipping discard for club card:", card_to_discard.name)
-			pass
-		else:
-			print("AttackHandler: Card not in hand or already discarded:", card_to_discard.name)
-			pass
 
 		if card_discarded:
-			print("AttackHandler: Animating card discard for:", card_to_discard.name)
 			card_stack_display.animate_card_discard(card_to_discard.name)
 			emit_signal("card_discarded", card_to_discard)
 			
@@ -503,12 +491,10 @@ func exit_attack_mode() -> void:
 				var ui_manager = card_effect_handler.course.ui_manager
 				if ui_manager and ui_manager.has_method("update_deck_display"):
 					ui_manager.update_deck_display()
-					print("AttackHandler: Updated deck display after discarding", card_to_discard.name)
 			
 			# Update the movement buttons to show the remaining cards in hand
 			if card_effect_handler and card_effect_handler.course and card_effect_handler.course.has_method("create_movement_buttons"):
 				card_effect_handler.course.create_movement_buttons()
-				print("AttackHandler: Recreated movement buttons after discarding", card_to_discard.name)
 	
 	# Clear the button reference (buttons are recreated by create_movement_buttons)
 	active_button = null
@@ -796,12 +782,19 @@ func _on_player_moved_to_tile(new_grid_pos: Vector2i) -> void:
 
 func update_player_position(new_grid_pos: Vector2i) -> void:
 	"""Update the stored player grid position"""
+	print("🔍 ATTACK_HANDLER DEBUG: update_player_position called with:", new_grid_pos)
+	print("🔍 Previous player_grid_pos:", player_grid_pos)
+	print("🔍 Is attack mode:", is_attack_mode)
+	print("🔍 Selected card:", selected_card.name if selected_card else "None")
+	
 	player_grid_pos = new_grid_pos
 	
 	# If we're in attack mode, recalculate valid attack tiles with the new position
 	if is_attack_mode:
+		print("🔍 ATTACK_HANDLER DEBUG: Recalculating attack tiles for new position")
 		calculate_valid_attack_tiles()
 		show_attack_highlights()
+		print("🔍 ATTACK_HANDLER DEBUG: Attack tiles recalculated")
 
 func is_in_attack_mode() -> bool:
 	return is_attack_mode
@@ -949,7 +942,6 @@ func create_and_animate_ash_dog(npc: Node, target_pos: Vector2i) -> void:
 		var camera_container = card_effect_handler.course.get_node_or_null("CameraContainer")
 		if camera_container:
 			target_world_pos += camera_container.global_position
-			print("✓ Added camera container offset for AttackDog:", camera_container.global_position)
 	
 	# Calculate direction for sprite orientation
 	var direction = target_world_pos - ash.global_position
@@ -1270,16 +1262,36 @@ func perform_punchb_attack_with_movement(npc: Node, target_pos: Vector2i, origin
 	
 	# Animate player movement to target
 	if player_node and player_node.has_method("animate_to_position"):
+		# Update position tracking immediately for intermediate position
+		if player_node.has_method("set_grid_position"):
+			player_node.set_grid_position(intermediate_pos)
+		player_grid_pos = intermediate_pos
+		if card_effect_handler and card_effect_handler.course:
+			card_effect_handler.course.player_grid_pos = intermediate_pos
+		
 		# First move to intermediate position
 		player_node.animate_to_position(intermediate_pos, func():
+			# Update position tracking for target position
+			if player_node.has_method("set_grid_position"):
+				player_node.set_grid_position(target_pos)
+			player_grid_pos = target_pos
+			if card_effect_handler and card_effect_handler.course:
+				card_effect_handler.course.player_grid_pos = target_pos
+			
 			# Then move to target position
 			player_node.animate_to_position(target_pos, func():
 				# Perform the attack (without animation since it's already playing)
 				perform_punchb_attack_immediate_no_animation(npc, target_pos)
+				
+				# Update position tracking for return to original position
+				if player_node.has_method("set_grid_position"):
+					player_node.set_grid_position(original_player_pos)
+				player_grid_pos = original_player_pos
+				if card_effect_handler and card_effect_handler.course:
+					card_effect_handler.course.player_grid_pos = original_player_pos
+				
 				# Move back to original position
 				player_node.animate_to_position(original_player_pos, func():
-					# Update player grid position
-					player_grid_pos = original_player_pos
 					# Exit attack mode after returning to original position
 					exit_attack_mode()
 				)
@@ -1303,16 +1315,36 @@ func perform_punchb_attack_with_movement_oil_drum(oil_drum: Node, target_pos: Ve
 	
 	# Animate player movement to target
 	if player_node and player_node.has_method("animate_to_position"):
+		# Update position tracking immediately for intermediate position
+		if player_node.has_method("set_grid_position"):
+			player_node.set_grid_position(intermediate_pos)
+		player_grid_pos = intermediate_pos
+		if card_effect_handler and card_effect_handler.course:
+			card_effect_handler.course.player_grid_pos = intermediate_pos
+		
 		# First move to intermediate position
 		player_node.animate_to_position(intermediate_pos, func():
+			# Update position tracking for target position
+			if player_node.has_method("set_grid_position"):
+				player_node.set_grid_position(target_pos)
+			player_grid_pos = target_pos
+			if card_effect_handler and card_effect_handler.course:
+				card_effect_handler.course.player_grid_pos = target_pos
+			
 			# Then move to target position
 			player_node.animate_to_position(target_pos, func():
 				# Perform the attack (without animation since it's already playing)
 				perform_punchb_attack_immediate_oil_drum_no_animation(oil_drum, target_pos)
+				
+				# Update position tracking for return to original position
+				if player_node.has_method("set_grid_position"):
+					player_node.set_grid_position(original_player_pos)
+				player_grid_pos = original_player_pos
+				if card_effect_handler and card_effect_handler.course:
+					card_effect_handler.course.player_grid_pos = original_player_pos
+				
 				# Move back to original position
 				player_node.animate_to_position(original_player_pos, func():
-					# Update player grid position
-					player_grid_pos = original_player_pos
 					# Exit attack mode after returning to original position
 					exit_attack_mode()
 				)
@@ -1339,9 +1371,50 @@ func perform_assassin_dash_attack_on_npc(npc: Node, target_pos: Vector2i) -> voi
 	# Play camera whoosh sound when card is played
 	if assassin_dash_sound:
 		assassin_dash_sound.play()
-	# Animate player movement to behind-enemy position
+	
+	print("🔍 ASSASSIN DEBUG: About to update player position")
+	print("🔍 Current player_node.grid_pos:", player_node.grid_pos if player_node and "grid_pos" in player_node else "N/A")
+	print("🔍 Current player_grid_pos:", player_grid_pos)
+	print("🔍 Current course.player_grid_pos:", card_effect_handler.course.player_grid_pos if card_effect_handler and card_effect_handler.course and "player_grid_pos" in card_effect_handler.course else "N/A")
+	
+	# CRITICAL FIX: Temporarily disable animations to prevent unwanted movement during position setup
+	var original_animations_enabled = false
+	if player_node and "animations_enabled" in player_node:
+		original_animations_enabled = player_node.animations_enabled
+		print("🔍 ASSASSIN DEBUG: Temporarily disabling animations (was:", original_animations_enabled, ")")
+		player_node.animations_enabled = false
+	
+	# Update player grid_pos directly 
+	if player_node and "grid_pos" in player_node:
+		print("🔍 ASSASSIN DEBUG: Directly updating player_node.grid_pos to:", behind_enemy_pos)
+		player_node.grid_pos = behind_enemy_pos
+		print("✓ Updated player grid_pos directly to:", behind_enemy_pos)
+		print("🔍 After direct update - player_node.grid_pos:", player_node.grid_pos)
+	
+	# Update local tracking variables
+	print("🔍 ASSASSIN DEBUG: Updating local tracking variables")
+	player_grid_pos = behind_enemy_pos
+	print("🔍 Updated attack handler player_grid_pos to:", behind_enemy_pos)
+	
+	# Update the course's player position reference
+	if card_effect_handler and card_effect_handler.course:
+		print("🔍 ASSASSIN DEBUG: About to update course.player_grid_pos")
+		card_effect_handler.course.player_grid_pos = behind_enemy_pos
+		print("🔍 Updated course.player_grid_pos to:", behind_enemy_pos)
+		print("🔍 ASSASSIN DEBUG: Course player_grid_pos update completed")
+	
+	# Re-enable animations for the animate_to_position call
+	if player_node and "animations_enabled" in player_node:
+		print("🔍 ASSASSIN DEBUG: Re-enabling animations for animate_to_position")
+		player_node.animations_enabled = original_animations_enabled
+	
+	print("🔍 ASSASSIN DEBUG: About to call animate_to_position")
+	print("🔍 Player world position before animation:", player_node.global_position if player_node else "N/A")
+	
+	# Animate player movement to behind-enemy position (visual only now that position is set)
 	if player_node and player_node.has_method("animate_to_position"):
 		player_node.animate_to_position(behind_enemy_pos, func():
+			print("🔍 ASSASSIN DEBUG: Animation callback started")
 			# Play cut sound when reaching the NPC
 			if assassin_cut_sound:
 				assassin_cut_sound.play()
@@ -1369,20 +1442,16 @@ func perform_assassin_dash_attack_on_npc(npc: Node, target_pos: Vector2i) -> voi
 			# Emit signal
 			emit_signal("npc_attacked", npc, assassin_damage)
 			
-			# Update player grid position to behind-enemy position (stay there)
-			player_grid_pos = behind_enemy_pos
-			# Update the course's player position reference
-			if card_effect_handler and card_effect_handler.course:
-				card_effect_handler.course.player_grid_pos = behind_enemy_pos
-			
 			# CRITICAL: Update player Y-sorting immediately after AssassinDash movement
 			if player_node and player_node.has_method("update_z_index_for_ysort"):
 				player_node.update_z_index_for_ysort([], Vector2i.ZERO)
 				print("✓ Updated player Y-sorting after AssassinDash movement to position:", behind_enemy_pos)
 			
+			print("🔍 ASSASSIN DEBUG: Animation callback completed, exiting attack mode")
 			# Exit attack mode
 			exit_attack_mode()
 		)
+		print("🔍 ASSASSIN DEBUG: animate_to_position call completed")
 	else:
 		# Fallback if animation is not available
 		print("Player animation not available - performing immediate attack")

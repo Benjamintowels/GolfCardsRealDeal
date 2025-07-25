@@ -1089,9 +1089,26 @@ func _handle_player_collision(approach_direction: Vector2i):
 	
 	# Deal damage to player (Wraith deals more damage than GangMember)
 	var damage = 25  # Wraith deals 25 damage
-	if player.has_method("take_damage"):
-		player.take_damage(damage)
-		print("✓ Dealt ", damage, " damage to player")
+	var course = get_tree().current_scene
+	if course and "player_manager" in course:
+		var player_manager = course.player_manager
+		if player_manager and player_manager.has_method("take_damage"):
+			player_manager.take_damage(damage)
+			print("✓ Dealt ", damage, " damage to player via PlayerManager")
+			
+			# Flash the player red to indicate damage
+			if player and player.has_method("flash_damage"):
+				player.flash_damage()
+			
+			# Also play push sound for attack feedback
+			var push_sound = player.get_node_or_null("Push") if player else null
+			if push_sound and push_sound is AudioStreamPlayer2D:
+				push_sound.play()
+				print("✓ Played push sound for Wraith attack")
+		else:
+			print("✗ ERROR: PlayerManager not found or doesn't have take_damage method")
+	else:
+		print("✗ ERROR: Course doesn't have player_manager property")
 	
 	# Push player back
 	var pushback_pos = _find_nearest_available_adjacent_tile(player.grid_pos, approach_direction)
