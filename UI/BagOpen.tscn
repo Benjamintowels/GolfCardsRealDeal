@@ -1,0 +1,51 @@
+[gd_scene load_steps=5 format=3 uid="uid://7auy8yyb8lue"]
+
+[ext_resource type="Texture2D" uid="uid://d104qyn5gb4n4" path="res://UI/BagOpen.png" id="1_rbk2v"]
+
+[sub_resource type="Animation" id="Animation_rbk2v"]
+resource_name = "show_inventory"
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Sprite2D:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.366667, 0.966667),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [Vector2(-104, 2477), Vector2(0, 0), Vector2(0, -21)]
+}
+
+[sub_resource type="Animation" id="Animation_nrny3"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Sprite2D:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(0, 0)]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_dsleg"]
+_data = {
+&"RESET": SubResource("Animation_nrny3"),
+&"show_inventory": SubResource("Animation_rbk2v")
+}
+
+[node name="BagOpen" type="Node2D"]
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture_filter = 1
+scale = Vector2(4.575, 4.575)
+texture = ExtResource("1_rbk2v")
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+libraries = {
+&"": SubResource("AnimationLibrary_dsleg")
+}

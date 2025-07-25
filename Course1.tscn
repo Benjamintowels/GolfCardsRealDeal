@@ -1,4 +1,4 @@
-[gd_scene load_steps=53 format=3 uid="uid://dlq5ygh2wv33m"]
+[gd_scene load_steps=54 format=3 uid="uid://dlq5ygh2wv33m"]
 
 [ext_resource type="Script" uid="uid://d4hrfk75nrm45" path="res://course_1.gd" id="1_pe8tc"]
 [ext_resource type="Texture2D" uid="uid://cpe67sk2vh8me" path="res://EDGE.png" id="2_eymfu"]
@@ -34,6 +34,7 @@
 [ext_resource type="PackedScene" uid="uid://cobc2ineqfb8e" path="res://UI/DrawClubCardsButton.tscn" id="27_draw_club_cards"]
 [ext_resource type="PackedScene" uid="uid://be7et5h4g4wmw" path="res://UI/DrawCardsButton.tscn" id="28_draw_cards"]
 [ext_resource type="PackedScene" uid="uid://c73sma1rss70c" path="res://UI/EndTurnButton.tscn" id="29_end_turn"]
+[ext_resource type="PackedScene" uid="uid://7auy8yyb8lue" path="res://UI/BagOpen.tscn" id="29_lbbxa"]
 [ext_resource type="PackedScene" uid="uid://epbwjl2sq5cq" path="res://UI/PowerMeter.tscn" id="30_power_meter"]
 [ext_resource type="PackedScene" uid="uid://6cx3nqfqkjvx" path="res://UI/InfoBoxBasic.tscn" id="31_infobox"]
 [ext_resource type="PackedScene" uid="uid://djn0dry2myach" path="res://UI/ReachButtonBall.tscn" id="32_reach_ball"]
@@ -532,6 +533,9 @@ position = Vector2(789, 593)
 
 [node name="HoleCompletionDialog" parent="UILayer" instance=ExtResource("26_e4yba")]
 visible = false
+
+[node name="BagOpen" parent="UILayer" instance=ExtResource("29_lbbxa")]
+position = Vector2(901, 525)
 
 [node name="SwingSoft" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("6_6eaol")

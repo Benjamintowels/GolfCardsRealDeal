@@ -15,6 +15,8 @@ var is_replacement_mode: bool = false
 var pending_reward: Resource = null
 var pending_reward_type: String = ""
 var replacement_confirmation_dialog: Control = null
+var bag_open_scene: Node2D = null  # Reference to the BagOpen scene
+var bag_open_animation_player: AnimationPlayer = null
 
 # Character-specific bag textures (make it accessible)
 var character_bag_textures = {
@@ -55,9 +57,34 @@ func _ready():
 	if texture_rect:
 		texture_rect.gui_input.connect(_on_texture_rect_input_event)
 	
+	# Find and set up the BagOpen scene
+	_setup_bag_open_scene()
 
+func _setup_bag_open_scene():
+	"""Find and initialize the BagOpen scene"""
+	# Wait a frame to ensure the scene tree is fully built
+	await get_tree().process_frame
 	
-
+	# Find the BagOpen scene in the UILayer
+	var ui_layer = get_tree().current_scene.get_node_or_null("UILayer")
+	if ui_layer:
+		bag_open_scene = ui_layer.get_node_or_null("BagOpen")
+		if bag_open_scene:
+			bag_open_animation_player = bag_open_scene.get_node_or_null("AnimationPlayer")
+			if bag_open_animation_player:
+				# Set the animation to frame 1 (start position) and stop
+				bag_open_animation_player.play("show_inventory")
+				bag_open_animation_player.seek(0.0)  # Go to frame 1
+				bag_open_animation_player.pause()
+				# Hide the BagOpen scene initially
+				bag_open_scene.visible = false
+				print("Bag: BagOpen scene initialized and set to frame 1")
+			else:
+				print("Bag: BagOpen AnimationPlayer not found")
+		else:
+			print("Bag: BagOpen scene not found in UILayer")
+	else:
+		print("Bag: UILayer not found")
 
 func _connect_to_managers():
 	"""Connect to equipment and deck managers when needed"""
@@ -110,6 +137,13 @@ func toggle_inventory():
 
 func close_inventory():
 	"""Close the inventory dialog"""
+	# Play reverse BagOpen animation
+	if bag_open_animation_player:
+		bag_open_animation_player.play_backwards("show_inventory")
+		print("Bag: Playing BagOpen reverse animation")
+		# Wait for animation to complete, then pause at frame 1
+		_on_bag_close_animation_complete()
+	
 	if inventory_dialog and is_instance_valid(inventory_dialog):
 		# If in shop, restore DeckDialog mouse_filter
 		var shop_interior = get_tree().current_scene.get_node_or_null("UILayer/ShopInterior")
@@ -133,8 +167,26 @@ func close_inventory():
 	# Play sound when closing inventory
 	if bag_sound and bag_sound.stream:
 		bag_sound.play()
-	
 
+func _on_bag_close_animation_complete():
+	"""Handle completion of the bag close animation"""
+	# Connect to animation_finished signal if not already connected
+	if bag_open_animation_player and not bag_open_animation_player.animation_finished.is_connected(_reset_bag_to_frame_one):
+		bag_open_animation_player.animation_finished.connect(_reset_bag_to_frame_one)
+
+func _reset_bag_to_frame_one(anim_name: String):
+	"""Reset the bag to frame 1 after reverse animation completes"""
+	if anim_name == "show_inventory" and bag_open_animation_player and bag_open_scene:
+		# Set back to frame 1 and pause
+		bag_open_animation_player.play("show_inventory")
+		bag_open_animation_player.seek(0.0)
+		bag_open_animation_player.pause()
+		# Hide the BagOpen scene
+		bag_open_scene.visible = false
+		print("Bag: Reset to frame 1 after reverse animation")
+		# Disconnect the signal to avoid multiple connections
+		if bag_open_animation_player.animation_finished.is_connected(_reset_bag_to_frame_one):
+			bag_open_animation_player.animation_finished.disconnect(_reset_bag_to_frame_one)
 
 func show_inventory():
 	"""Show the inventory dialog"""
@@ -176,11 +228,17 @@ func show_deck_dialog():
 	dialog.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	dialog.z_index = 999
 	
-	# Background
+	# Play BagOpen animation instead of using grey background
+	if bag_open_animation_player and bag_open_scene:
+		bag_open_scene.visible = true
+		bag_open_animation_player.play("show_inventory")
+		print("Bag: Playing BagOpen animation")
+	
+	# Create a transparent background for click detection
 	var background = ColorRect.new()
-	background.color = Color(0, 0, 0, 0.7)
+	background.color = Color(0, 0, 0, 0.0)  # Transparent
 	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	background.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Allow clicks to pass through
+	background.mouse_filter = Control.MOUSE_FILTER_STOP  # Capture clicks
 	background.z_index = 999
 	background.gui_input.connect(func(event):
 		if event is InputEventMouseButton and event.pressed:
@@ -196,20 +254,7 @@ func show_deck_dialog():
 	main_container.z_index = 999
 	dialog.add_child(main_container)
 	
-	# Panel background
-	var panel = ColorRect.new()
-	panel.color = Color(0.2, 0.2, 0.2, 0.95)
-	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	main_container.add_child(panel)
-	
-	# Border
-	var border = ColorRect.new()
-	border.color = Color(0.8, 0.8, 0.8, 0.6)
-	border.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	border.position = Vector2(-2, -2)
-	border.size += Vector2(4, 4)
-	border.z_index = -1
-	main_container.add_child(border)
+	# No longer need panel background or border - BagOpen scene provides the visual background
 	
 	# Title
 	var title = Label.new()
