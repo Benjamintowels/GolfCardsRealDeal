@@ -189,19 +189,22 @@ func _setup_ball_collision() -> void:
 		# Set collision mask to 1 so it can detect golf balls on layer 1
 		base_collision_area.collision_mask = 1
 		print("✓ Player base collision area setup complete")
-		print("✓ Player collision layer: ", base_collision_area.collision_layer, " (layers 1 & 2)")
-		print("✓ Player collision mask: ", base_collision_area.collision_mask)
-		print("✓ Player monitoring: ", base_collision_area.monitoring)
-		print("✓ Player monitorable: ", base_collision_area.monitorable)
 	else:
 		print("✗ ERROR: BaseCollisionArea not found!")
 
 func _on_character_area_entered(area: Area2D) -> void:
 	"""Handle collisions with the character's collision area"""
-	var projectile = area.get_parent()
-	if projectile and (projectile.name == "GolfBall" or projectile.name == "GhostBall" or projectile.has_method("is_throwing_knife")):
+	var colliding_object = area.get_parent()
+	if not colliding_object:
+		return
+	
+	# Handle projectile collisions (golf balls, ghost balls, throwing knives)
+	if colliding_object.name == "GolfBall" or colliding_object.name == "GhostBall" or colliding_object.has_method("is_throwing_knife"):
 		# Handle the collision using proper Area2D collision detection
-		_handle_area_collision(projectile)
+		_handle_area_collision(colliding_object)
+	
+	# Note: Obstacle collisions (bushes, flowers, pins) are now handled directly 
+	# by the obstacles themselves via their Area2D signals during movement animation
 
 func _on_area_exited(area: Area2D) -> void:
 	"""Handle when projectile exits the Player area - reset ground level"""
@@ -275,6 +278,8 @@ func _allow_projectile_entry(projectile: Node2D, player_height: float):
 	
 	# The projectile will now land on the Player's head instead of passing through
 	# When it exits the area, _on_area_exited will reset the ground level
+
+
 
 func _reflect_projectile(projectile: Node2D):
 	"""Reflect projectile off the Player"""

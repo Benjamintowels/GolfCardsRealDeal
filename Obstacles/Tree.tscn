@@ -63,7 +63,7 @@ _data = {
 radius = 2.27121
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_iu17o"]
-radius = 38.8297
+radius = 27.7443
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_8f3lk"]
 radius = 19.4332
@@ -74,7 +74,8 @@ script = ExtResource("1_tree")
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 texture_filter = 1
-position = Vector2(0, -146)
+position = Vector2(4.73358, -120.275)
+scale = Vector2(0.689136, 0.760678)
 texture = ExtResource("2_8f3lk")
 
 [node name="AnimationPlayer" type="AnimationPlayer" parent="Sprite2D"]
@@ -83,16 +84,20 @@ libraries = {
 }
 
 [node name="TrunkBaseArea" type="Area2D" parent="."]
+position = Vector2(4.73358, -14.1396)
+scale = Vector2(1.14856, 1.2678)
 
 [node name="TrunkBase" type="CollisionShape2D" parent="TrunkBaseArea"]
-position = Vector2(-3, -6)
+position = Vector2(-3, -23)
 scale = Vector2(15.455, 15.455)
 shape = SubResource("CircleShape2D_8f3lk")
 
 [node name="MouseDetectionArea" type="Area2D" parent="."]
+position = Vector2(4.73358, -14.1396)
+scale = Vector2(1.14856, 1.2678)
 
 [node name="MouseDetectionShape" type="CollisionShape2D" parent="MouseDetectionArea"]
-position = Vector2(0, -175.71)
+position = Vector2(0, -127)
 scale = Vector2(4.299, 3.355)
 shape = SubResource("CircleShape2D_iu17o")
 
@@ -131,4 +136,4 @@ scale = Vector2(1.525, 0.605)
 shape = SubResource("CapsuleShape2D_8f3lk")
 
 [node name="TopHeight" type="Marker2D" parent="."]
-position = Vector2(0, -331)
+position = Vector2(0, -217)

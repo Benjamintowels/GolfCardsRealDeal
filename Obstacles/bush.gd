@@ -19,8 +19,8 @@ func _ready():
 	if area2d:
 		# Set collision layer to 1 so golf balls can detect it
 		area2d.collision_layer = 1
-		# Set collision mask to 1 so it can detect golf balls on layer 1
-		area2d.collision_mask = 1
+		# Set collision mask to 3 so it can detect golf balls (layer 1) and player (layers 1 & 2)
+		area2d.collision_mask = 3
 		
 		# Connect to area entered and exited signals for collision detection
 		area2d.connect("area_entered", _on_area_entered)
@@ -81,12 +81,20 @@ func get_height() -> float:
 
 func _on_area_entered(area: Area2D):
 	"""Handle collisions with the bush area using proper height-based detection"""
-	var projectile = area.get_parent()
+	var colliding_object = area.get_parent()
+	if not colliding_object:
+		return
+	
+	# Check if this is a player collision
+	if colliding_object.name == "Player" or colliding_object.name == "BennyChar" or colliding_object.get_parent().name == "Player":
+		# Player collided with bush - trigger shake animation
+		_play_leaves_rustle()
+		return
 	
 	# Only handle Area2D collisions for projectiles that don't have their own collision detection
 	# Balls (GolfBall, GhostBall) will handle their own collisions through the ball's collision system
-	if projectile and projectile.has_method("is_throwing_knife") and projectile.is_throwing_knife():
-		_handle_area_collision(projectile)
+	if colliding_object.has_method("is_throwing_knife") and colliding_object.is_throwing_knife():
+		_handle_area_collision(colliding_object)
 	else:
 		# For balls, let them handle their own collision through their collision system
 		# The ball will call _handle_bush_collision on the bush
@@ -230,15 +238,11 @@ func _play_leaves_rustle() -> void:
 		# Add random pitch variation between 0.8 and 1.2 for variety
 		leaves_sound.pitch_scale = randf_range(0.8, 1.2)
 		leaves_sound.play()
-		print("Leaves rustle sound played")
-		if bush_data:
-			print("Sound from bush:", bush_data.name)
 	
 	# Play the bush shake animation
 	var animation_player = get_node_or_null("BushSprite/AnimationPlayer")
 	if animation_player:
 		animation_player.play("bush_shake")
-		print("Bush shake animation played")
 
 func get_bush_data() -> BushData:
 	"""Get the BushData for this bush instance"""

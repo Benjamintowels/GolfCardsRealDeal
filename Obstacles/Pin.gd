@@ -19,8 +19,8 @@ func _ready():
 	if flag_area:
 		# Set collision layer to 1 so golf balls can detect it
 		flag_area.collision_layer = 1
-		# Set collision mask to 1 so it can detect golf balls on layer 1
-		flag_area.collision_mask = 1
+		# Set collision mask to 3 so it can detect golf balls (layer 1) and player (layers 1 & 2)
+		flag_area.collision_mask = 3
 		
 		flag_area.connect("area_entered", _on_flag_area_entered)
 	
@@ -77,10 +77,30 @@ func _process(delta):
 	pass
 
 func _on_flag_area_entered(area: Area2D):
-	"""Handle collisions with the flag area (for flag hits)"""
+	"""Handle collisions with the flag area (for flag hits and player collisions)"""
+	var colliding_object = area.get_parent()
+	if not colliding_object:
+		return
+	
+	# Check if this is a player collision
+	if colliding_object.name == "Player" or colliding_object.name == "BennyChar" or colliding_object.get_parent().name == "Player":
+		# Player collided with pin - trigger shake animation
+		
+		# Play the pin flag hit sound
+		var hit_flag_audio = get_node_or_null("HitFlag")
+		if hit_flag_audio:
+			hit_flag_audio.play()
+		
+		# Play the pin shake animation
+		var animation_player = get_node_or_null("Sprite2D/AnimationPlayer")
+		if animation_player:
+			animation_player.play("pin_shake")
+		
+		return
+	
 	# Check if the area belongs to a golf ball
-	if area.get_parent() and area.get_parent().has_method("get_height"):
-		var golf_ball = area.get_parent()
+	if colliding_object.has_method("get_height"):
+		var golf_ball = colliding_object
 		var ball_height = golf_ball.get_height()
 		
 		# Check if this is a ghost ball (ghost balls have is_ghost property set to true)
