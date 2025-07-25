@@ -921,6 +921,10 @@ func _complete_turn() -> void:
 		if freeze_turns_remaining <= 0:
 			thaw()
 	
+	# Switch to next attack type after completing turn (for alternating attacks)
+	if not is_dead and not is_frozen:
+		switch_to_next_attack_type()
+	
 	print("Emitting turn_completed signal")
 	turn_completed.emit()
 	print("Turn completed signal emitted successfully")
@@ -1071,12 +1075,13 @@ func _handle_player_collision(approach_direction: Vector2i = Vector2i.ZERO) -> v
 	# Play collision sound effect
 	_play_collision_sound()
 	
-	# Deal attack damage to the player
+	# Deal attack damage to the player (use current attack type damage)
+	var current_damage = get_current_attack_damage()
 	if course and "player_manager" in course:
 		var player_manager = course.player_manager
 		if player_manager and player_manager.has_method("take_damage"):
-			player_manager.take_damage(attack_damage)
-			print("Player took ", attack_damage, " damage from GangMember collision")
+			player_manager.take_damage(current_damage)
+			print("Player took ", current_damage, " damage from GangMember ", current_attack_type, " attack")
 		else:
 			print("✗ ERROR: PlayerManager not found or doesn't have take_damage method")
 	else:
@@ -1435,6 +1440,13 @@ func _update_sprite_facing() -> void:
 	# Update attached knives to flip with the GangMember
 	_update_attached_knives_facing()
 	
+	# Update kick sprite facing if it's visible
+	if is_showing_kick and kick_sprite:
+		if facing_direction.x < 0:
+			kick_sprite.flip_h = true
+		elif facing_direction.x > 0:
+			kick_sprite.flip_h = false
+	
 	print("Updated sprite facing - Direction: ", facing_direction, ", Flip H: ", sprite.flip_h)
 
 func _update_attached_knives_facing() -> void:
@@ -1522,6 +1534,13 @@ func _update_dead_sprite_facing() -> void:
 	
 	# Update attached knives to flip with the dead GangMember
 	_update_attached_knives_facing()
+	
+	# Update kick sprite facing if it's visible
+	if is_showing_kick and kick_sprite:
+		if facing_direction.x < 0:
+			kick_sprite.flip_h = true
+		elif facing_direction.x > 0:
+			kick_sprite.flip_h = false
 	
 	print("Updated dead sprite facing - Direction: ", facing_direction, ", Flip H: ", dead_sprite.flip_h)
 
@@ -1663,9 +1682,10 @@ class ChaseState extends BaseState:
 		# Always face the player when in chase mode
 		gang_member._face_player()
 		
-		# Check if within attack range
-		if distance_to_player <= gang_member.attack_range:
-			print("Player within attack range! Distance: ", distance_to_player, " Starting attack sequence")
+		# Check if within attack range (use current attack type range)
+		var current_attack_range = gang_member.get_current_attack_range()
+		if distance_to_player <= current_attack_range:
+			print("Player within attack range! Distance: ", distance_to_player, " Attack range: ", current_attack_range, " Starting attack sequence")
 			_start_attack_sequence(player_pos)
 		else:
 			# Normal chase behavior - move towards player
@@ -1687,8 +1707,11 @@ class ChaseState extends BaseState:
 		gang_member.is_attacking = true
 		gang_member.attack_moves_remaining = 2  # Attack moves twice
 		
-		# Start double-flash punch animation for the attack sequence
-		gang_member.double_flash_punch_sprite()
+		# Start double-flash animation based on current attack type
+		if gang_member.current_attack_type == "kick":
+			gang_member.double_flash_kick_sprite()
+		else:
+			gang_member.double_flash_punch_sprite()
 		
 		# Perform the first attack move
 		_perform_attack_move(player_pos)
@@ -1726,8 +1749,11 @@ class ChaseState extends BaseState:
 		"""Called when one attack move completes"""
 		print("Attack move completed")
 		
-		# Hide punch sprite after the move
-		gang_member.hide_punch_sprite()
+		# Hide appropriate sprite after the move based on attack type
+		if gang_member.current_attack_type == "kick":
+			gang_member.hide_kick_sprite()
+		else:
+			gang_member.hide_punch_sprite()
 		
 		# Decrease remaining attack moves
 		gang_member.attack_moves_remaining -= 1
@@ -1756,7 +1782,12 @@ class ChaseState extends BaseState:
 		print("=== ENDING ATTACK SEQUENCE ===")
 		gang_member.is_attacking = false
 		gang_member.attack_moves_remaining = 0
-		gang_member.hide_punch_sprite()
+		
+		# Hide appropriate sprite based on attack type
+		if gang_member.current_attack_type == "kick":
+			gang_member.hide_kick_sprite()
+		else:
+			gang_member.hide_punch_sprite()
 		
 		# Complete the turn if movement is finished
 		if not gang_member.is_moving:
@@ -1975,6 +2006,11 @@ func _change_to_dead_sprite() -> void:
 	if punch_sprite:
 		punch_sprite.visible = false
 		is_showing_punch = false
+	
+	# Hide the kick sprite if it's visible
+	if kick_sprite:
+		kick_sprite.visible = false
+		is_showing_kick = false
 	
 	# Show the dead sprite
 	var dead_sprite = get_node_or_null("Dead")
@@ -2296,7 +2332,11 @@ func freeze() -> void:
 		print("Cancelling attack due to freeze")
 		is_attacking = false
 		attack_moves_remaining = 0
-		hide_punch_sprite()
+		# Hide appropriate sprite based on attack type
+		if current_attack_type == "kick":
+			hide_kick_sprite()
+		else:
+			hide_punch_sprite()
 	
 	# Play freeze sound
 	if freeze_sound:
@@ -2319,6 +2359,12 @@ func _switch_to_ice_state() -> void:
 		punch_sprite.visible = false
 		is_showing_punch = false
 		print("✓ Hidden punch sprite")
+	
+	# Hide the kick sprite if it's visible
+	if kick_sprite:
+		kick_sprite.visible = false
+		is_showing_kick = false
+		print("✓ Hidden kick sprite")
 	
 	# Show the ice sprite
 	if ice_sprite:
@@ -2363,18 +2409,18 @@ func _switch_to_normal_state() -> void:
 		ice_sprite.visible = false
 		print("✓ Hidden ice sprite")
 	
-	# Show the normal sprite (unless punch sprite should be shown)
-	if sprite and not is_showing_punch:
+	# Show the normal sprite (unless punch or kick sprite should be shown)
+	if sprite and not is_showing_punch and not is_showing_kick:
 		sprite.visible = true
 		# Restore original modulate
 		sprite.modulate = original_modulate
 		# Update facing direction
 		_update_sprite_facing()
 		print("✓ Showed normal sprite")
-	elif sprite and is_showing_punch:
-		# Keep normal sprite hidden if punch is being shown
+	elif sprite and (is_showing_punch or is_showing_kick):
+		# Keep normal sprite hidden if punch or kick is being shown
 		sprite.visible = false
-		print("✓ Keeping normal sprite hidden (punch active)")
+		print("✓ Keeping normal sprite hidden (attack active)")
 	else:
 		print("✗ ERROR: Normal sprite not found!")
 	
@@ -2579,9 +2625,35 @@ var is_attacking: bool = false
 var attack_moves_remaining: int = 0
 var attack_damage: int = 25
 
+# Attack type tracking for alternating attacks
+var current_attack_type: String = "punch"  # "punch" or "kick"
+var punch_damage: int = 25
+var kick_damage: int = 35
+var punch_range: int = 2
+var kick_range: int = 3
+
 # Punch animation properties
 @onready var punch_sprite: Sprite2D = $Punch
 var is_showing_punch: bool = false
+
+# Kick animation properties
+@onready var kick_sprite: Sprite2D = $Kick
+var is_showing_kick: bool = false
+
+# Attack type helper methods
+func get_current_attack_damage() -> int:
+	"""Get the damage for the current attack type"""
+	return kick_damage if current_attack_type == "kick" else punch_damage
+
+func get_current_attack_range() -> int:
+	"""Get the range for the current attack type"""
+	return kick_range if current_attack_type == "kick" else punch_range
+
+func switch_to_next_attack_type() -> void:
+	"""Switch to the next attack type (punch <-> kick)"""
+	current_attack_type = "kick" if current_attack_type == "punch" else "punch"
+	print("GangMember switched to", current_attack_type, "attack type")
+	print("Attack damage:", get_current_attack_damage(), "Attack range:", get_current_attack_range())
 
 # Punch animation methods
 func show_punch_sprite() -> void:
@@ -2647,6 +2719,70 @@ func double_flash_punch_sprite() -> void:
 	
 	print("✓ Double-flash punch animation started")
 
+# Kick animation methods
+func show_kick_sprite() -> void:
+	"""Show the kick sprite and hide the normal sprite"""
+	if sprite:
+		sprite.visible = false
+	
+	if kick_sprite:
+		kick_sprite.visible = true
+		# Apply the same facing direction to the kick sprite
+		if facing_direction.x < 0:
+			kick_sprite.flip_h = true
+		elif facing_direction.x > 0:
+			kick_sprite.flip_h = false
+		
+		# Update Y-sorting for kick sprite
+		update_z_index_for_ysort()
+	
+	is_showing_kick = true
+	print("✓ GangMember showing kick sprite")
+
+func hide_kick_sprite() -> void:
+	"""Hide the kick sprite and show the normal sprite"""
+	if kick_sprite:
+		kick_sprite.visible = false
+	
+	if sprite and not is_dead and not is_frozen:
+		sprite.visible = true
+		# Update Y-sorting for normal sprite
+		update_z_index_for_ysort()
+	
+	is_showing_kick = false
+	print("✓ GangMember hiding kick sprite")
+
+func flash_kick_sprite() -> void:
+	"""Flash the kick sprite briefly during attack"""
+	show_kick_sprite()
+	
+	# Flash for a brief moment
+	var flash_duration = 0.2
+	var tween = create_tween()
+	tween.tween_callback(hide_kick_sprite).set_delay(flash_duration)
+
+func double_flash_kick_sprite() -> void:
+	"""Flash the kick sprite twice for double-attack effect"""
+	print("✓ Starting double-flash kick animation")
+	
+	# First flash
+	show_kick_sprite()
+	
+	var double_flash_tween = create_tween()
+	double_flash_tween.set_parallel(false)  # Sequential animations
+	
+	# First flash duration
+	double_flash_tween.tween_callback(hide_kick_sprite).set_delay(0.15)
+	
+	# Brief pause between flashes
+	double_flash_tween.tween_callback(func(): pass).set_delay(0.1)
+	
+	# Second flash
+	double_flash_tween.tween_callback(show_kick_sprite).set_delay(0.0)
+	double_flash_tween.tween_callback(hide_kick_sprite).set_delay(0.15)
+	
+	print("✓ Double-flash kick animation started")
+
 # Attack sequencing methods
 func _schedule_next_attack_move() -> void:
 	"""Schedule the next attack move after current movement completes"""
@@ -2688,7 +2824,12 @@ func _end_attack_sequence_from_main() -> void:
 	print("=== ENDING ATTACK SEQUENCE (MAIN) ===")
 	is_attacking = false
 	attack_moves_remaining = 0
-	hide_punch_sprite()
+	
+	# Hide appropriate sprite based on attack type
+	if current_attack_type == "kick":
+		hide_kick_sprite()
+	else:
+		hide_punch_sprite()
 	
 	# Complete the turn
 	_check_turn_completion()
