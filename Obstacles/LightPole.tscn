@@ -1,7 +1,8 @@
-[gd_scene load_steps=4 format=3 uid="uid://de5tj63xsix3u"]
+[gd_scene load_steps=5 format=3 uid="uid://de5tj63xsix3u"]
 
 [ext_resource type="Script" uid="uid://bpeyd12xabola" path="res://Obstacles/light_pole.gd" id="1_45hul"]
 [ext_resource type="Texture2D" uid="uid://dd0anso3rssp7" path="res://Obstacles/Lightpole.png" id="2_45hul"]
+[ext_resource type="Texture2D" uid="uid://b42pbfs67jrlv" path="res://Lighting/LightCircle.png" id="3_mx1vn"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_7tjvc"]
 radius = 4.34833
@@ -27,3 +28,8 @@ position = Vector2(1.5, -214)
 
 [node name="YsortPoint" type="Marker2D" parent="."]
 position = Vector2(-0.5, 2)
+
+[node name="PointLight2D" type="PointLight2D" parent="."]
+position = Vector2(1, -190)
+texture = ExtResource("3_mx1vn")
+texture_scale = 3.94

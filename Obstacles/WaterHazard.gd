@@ -5,6 +5,10 @@ extends BaseObstacle
 var flicker_timer: Timer
 
 func _ready():
+	# Water hazards block movement like tree trunks
+	blocks_movement = true
+	
+	#super()
 	#super()
 	# Add splash, sound, etc.
 	
@@ -38,6 +42,10 @@ func play_water_splash():
 	"""Play the water splash animation when a ball lands on water"""
 	if animation_player and animation_player.has_animation("water_splash"):
 		animation_player.play("water_splash")
+
+func blocks() -> bool:
+	"""Return true to block movement on this tile"""
+	return blocks_movement
 	
 func on_player_interact():
 	pass
