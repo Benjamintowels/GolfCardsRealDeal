@@ -45,7 +45,7 @@ var is_rolling := false
 var bounce_reduction_applied := false  # Track if bounce reduction has been applied
 var bounce_reduction_values = {
 	"Base": 1,  # Base grass - lose 1 bounce
-	"R": 2,     # Rough - lose 2 bounces
+	"R": 0,     # Rough - no bounce reduction (height reduction instead)
 	"F": 0,     # Fairway - no bounce reduction
 	"G": 0,     # Green - no bounce reduction
 	"S": 0,     # Sand - no bounce reduction (handled separately)
@@ -55,6 +55,22 @@ var bounce_reduction_values = {
 	"P": 0,     # Pin - no bounce reduction
 	"O": 0,     # Obstacle - no bounce reduction
 	"Scorched": 1  # Scorched earth - lose 1 bounce (same as base grass)
+}
+
+# Tile-based bounce height reduction system
+var tile_bounce_factors = {
+	"Base": 0.7,    # Base grass - normal bounce factor
+	"R": 0.3,       # Rough - greatly reduced bounce height (30% of normal)
+	"F": 0.7,       # Fairway - normal bounce factor
+	"G": 0.7,       # Green - normal bounce factor
+	"S": 0.7,       # Sand - normal bounce factor (handled separately anyway)
+	"W": 0.7,       # Water - normal bounce factor (handled separately anyway)
+	"T": 0.7,       # Tee - normal bounce factor
+	"Tee": 0.7,     # Tee - normal bounce factor
+	"P": 0.7,       # Pin - normal bounce factor
+	"O": 0.7,       # Obstacle - normal bounce factor
+	"Scorched": 0.7,  # Scorched earth - normal bounce factor
+	"Ice": 0.9      # Ice - higher bounce factor (icy surface)
 }
 
 # Height-based rolling mechanics
@@ -612,8 +628,9 @@ func _process(delta):
 					
 					# Simple physics: reflect the vertical velocity with energy loss
 					# The ball was falling with negative vz, so bounce it back up with positive vz
-					# Apply bounce factor to reduce energy each bounce
-					vz = abs(vz) * bounce_factor
+					# Apply tile-specific bounce factor to reduce energy each bounce
+					var current_bounce_factor = get_tile_bounce_factor()
+					vz = abs(vz) * current_bounce_factor
 					
 					# Reduce horizontal velocity slightly on bounce
 					velocity *= 0.98
@@ -696,8 +713,9 @@ func _process(delta):
 					
 					# Simple physics: reflect the vertical velocity with energy loss
 					# The ball was falling with negative vz, so bounce it back up with positive vz
-					# Apply bounce factor to reduce energy each bounce
-					vz = abs(vz) * bounce_factor
+					# Apply tile-specific bounce factor to reduce energy each bounce
+					var current_bounce_factor = get_tile_bounce_factor()
+					vz = abs(vz) * current_bounce_factor
 					
 					# Reduce horizontal velocity slightly on bounce
 					velocity *= 0.98
@@ -779,8 +797,9 @@ func _process(delta):
 					
 					# Simple physics: reflect the vertical velocity with energy loss
 					# The ball was falling with negative vz, so bounce it back up with positive vz
-					# Apply bounce factor to reduce energy each bounce
-					vz = abs(vz) * bounce_factor
+					# Apply tile-specific bounce factor to reduce energy each bounce
+					var current_bounce_factor = get_tile_bounce_factor()
+					vz = abs(vz) * current_bounce_factor
 					
 					# Reduce horizontal velocity slightly on bounce
 					velocity *= 0.98
@@ -1060,6 +1079,27 @@ func update_tile_friction() -> void:
 	if fire_club_active and (tile_type == "R" or tile_type == "F"):
 		# Fire Club effect: Reduced friction on grass/rough tiles
 		current_tile_friction = min(current_tile_friction + 0.2, 0.95)  # Reduce friction by 0.2, cap at 0.95
+
+func get_tile_bounce_factor() -> float:
+	"""Get the bounce factor based on the current tile type"""
+	if map_manager == null:
+		return bounce_factor  # Default bounce factor
+	
+	# Calculate which tile the ball is currently on
+	var tile_pos = Vector2i(floor(position.x / cell_size), floor(position.y / cell_size))
+	
+	# Check if ball is out of bounds
+	if tile_pos.x < 0 or tile_pos.y < 0 or tile_pos.x >= map_manager.grid_width or tile_pos.y >= map_manager.grid_height:
+		return bounce_factor  # Default bounce factor
+	
+	# Get the tile type at this position
+	var tile_type = map_manager.get_tile_type(tile_pos.x, tile_pos.y)
+	
+	# Return tile-specific bounce factor
+	if tile_bounce_factors.has(tile_type):
+		return tile_bounce_factors[tile_type]
+	else:
+		return bounce_factor  # Default bounce factor
 
 func check_bounce_reduction() -> void:
 	"""Check if the ball should have its bounces reduced based on the tile it landed on"""

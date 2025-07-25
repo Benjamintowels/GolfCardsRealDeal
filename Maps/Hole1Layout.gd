@@ -2,7 +2,7 @@ extends Node
 class_name Hole1Layout
 
 const LAYOUT := [
-	["Base", "Base", "Base", "Base", "Base", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "W", "W", "W", "W", "W", "W", "W"],
+	["Base", "Base", "Base", "Base", "C", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "C", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "C", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "Base", "C", "W", "W", "W", "W", "W", "W", "W"],
 	["Base", "Base", "Base", "Base", "Base", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "Base", "Base", "Base", "S", "S", "S", "S", "Base", "Base", "Base", "R", "W", "W", "W", "W", "W", "W", "W"],
 	["Base", "Base", "Base", "Base", "Base", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "R", "C", "Base", "Base", "S", "S", "S", "S", "S", "Base", "Base", "Base", "W", "W", "W", "W", "W", "W", "W"],
 	["Base", "Base", "Base", "Base", "Base", "R", "R", "R", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "G", "G", "G", "G", "G", "R", "R", "R", "Base", "Base", "S", "S", "S", "S", "S", "S", "S", "Base", "W", "W", "W", "W", "W", "W", "W"],
