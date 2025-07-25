@@ -215,6 +215,25 @@ func is_valid_position_for_squirrel(pos: Vector2i, layout: Array) -> bool:
 			return false
 	return true
 
+func is_valid_position_for_fight_room_npc(pos: Vector2i, layout: Array) -> bool:
+	"""Check if a position is valid for Fight Room NPC placement (allows sidewalks)"""
+	if pos.y < 0 or pos.y >= layout.size() or pos.x < 0 or pos.x >= layout[0].size():
+		return false
+	var tile_type = layout[pos.y][pos.x]
+	# Allow placement on base tiles, fairway (F), rough (R), and SIDEWALKS (SW)
+	if tile_type in ["Tee", "G", "W", "S", "P", "C", "B"]:
+		return false
+	# Allow placement on SW (sidewalk) tiles for fight rooms
+	if not (tile_type in ["Base", "F", "R", "SW"]):
+		return false
+	# Don't check for green tiles nearby (Fight room NPCs can be closer)
+	# Only check minimal spacing from other placed objects
+	for placed_pos in placed_objects:
+		var distance = max(abs(pos.x - placed_pos.x), abs(pos.y - placed_pos.y))
+		if distance < 2:  # Minimal spacing for fight room NPCs
+			return false
+	return true
+
 func is_valid_position_for_generator_strict(pos: Vector2i, layout: Array, placed_objects: Array) -> bool:
 	"""Check if a position is valid for generator switch placement (strict rules)"""
 	if pos.y < 0 or pos.y >= layout.size() or pos.x < 0 or pos.x >= layout[0].size():
@@ -393,14 +412,16 @@ func get_valid_fairway_positions(layout: Array) -> Array:
 	return fairway_positions
 
 func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include_shop: bool = true, num_gang_members: int = -1, num_oil_drums: int = -1, num_police: int = -1, num_zombies: int = -1, puzzle_type: String = "score") -> Dictionary:
-	# Detect boss room layout (has BOSSEYE)
+	# Detect boss room layout (has BOSSEYE) and fight room layout (has FW)
 	var is_boss_room_layout = false
+	var is_fight_room_layout = false
 	for y in layout.size():
 		for x in layout[y].size():
 			if layout[y][x] == "BOSSEYE":
 				is_boss_room_layout = true
-				break
-		if is_boss_room_layout:
+			elif layout[y][x] == "FW":
+				is_fight_room_layout = true
+		if is_boss_room_layout and is_fight_room_layout:
 			break
 	
 	var positions = {
@@ -453,8 +474,27 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 			num_zombies = 10
 			print("🎯 PUZZLE TYPE: Damage Round puzzle - spawning 30 NPCs near green")
 			
+		"fight_room":
+			# Fight Room puzzle: Double the normal NPCs (minimum: 2 gang members, 1 police, 3 zombies)
+			num_gang_members = max(npc_counts.gang_members * 2, 2)
+			num_police = max(npc_counts.police * 2, 1)
+			num_zombies = max(npc_counts.zombies * 2, 3)
+			print("🎯 PUZZLE TYPE: Fight Room puzzle - doubling NPC counts (min: 2 gang, 1 police, 3 zombies)")
+			
 		_:
 			print("🎯 PUZZLE TYPE: Unknown puzzle type '", puzzle_type, "', using default")
+	
+	# Override NPC counts if fight room layout is detected (based on FW tiles)
+	if is_fight_room_layout:
+		num_gang_members = max(npc_counts.gang_members * 2, 2)
+		num_police = max(npc_counts.police * 2, 1)
+		num_zombies = max(npc_counts.zombies * 2, 3)
+		print("🎯 FIGHT ROOM LAYOUT: Detected FW tiles - setting fight room NPC counts")
+		print("🔍 FIGHT ROOM DEBUG: Gang:", num_gang_members, "Police:", num_police, "Zombies:", num_zombies)
+		
+		# Track total NPCs for key holder assignment
+		if not positions.has("total_npcs_to_place"):
+			positions["total_npcs_to_place"] = num_gang_members + num_police + num_zombies
 	
 	if num_gang_members == -1:
 		num_gang_members = npc_counts.gang_members
@@ -510,9 +550,11 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 	# Place Squirrels around trees (5 tiles radius, based on difficulty tier)
 	var squirrels_placed = 0
 	var max_squirrels = npc_counts.squirrels
-	# Prevent squirrels in boss room
-	if is_boss_room_layout:
+	# Prevent squirrels in boss room and fight room
+	if is_boss_room_layout or is_fight_room_layout:
 		max_squirrels = 0
+		if is_fight_room_layout:
+			print("🎯 FIGHT ROOM: Skipping squirrel placement for combat focus")
 	
 	# Get all valid positions within 5 tiles of any tree
 	var squirrel_candidate_positions: Array = []
@@ -811,8 +853,41 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 			if layout[y][x] == "G":
 				green_positions.append(Vector2i(x, y))
 	
+	# For fight_room puzzle type, allow placement on sidewalks as well
+	if puzzle_type == "fight_room":
+		print("🎯 FIGHT ROOM: Puzzle type detected, setting up fight room NPC placement")
+		print("🔍 FIGHT ROOM DEBUG: is_fight_room_layout:", is_fight_room_layout)
+		# Get all valid fight room positions (includes sidewalks)
+		var fight_room_positions: Array = []
+		for y in layout.size():
+			for x in layout[y].size():
+				var pos = Vector2i(x, y)
+				if is_valid_position_for_fight_room_npc(pos, layout):
+					fight_room_positions.append(pos)
+		
+		print("🎯 FIGHT ROOM: Found", fight_room_positions.size(), "valid fight room positions")
+		
+		# Place gang members using fight room positions
+		var gang_members_placed = 0
+		while gang_members_placed < num_gang_members and fight_room_positions.size() > 0:
+			var gang_index = randi() % fight_room_positions.size()
+			var gang_pos = fight_room_positions[gang_index]
+			positions.gang_members.append(gang_pos)
+			placed_objects.append(gang_pos)
+			gang_members_placed += 1
+			fight_room_positions.remove_at(gang_index)
+		
+		print("🎯 FIGHT ROOM: Placed", gang_members_placed, "gang members in fight room")
+		
+		# Track the last gang member as potential key holder
+		if gang_members_placed > 0:
+			var last_gang_member = positions.gang_members[positions.gang_members.size() - 1]
+			if not positions.has("key_holder_pos"):
+				positions["key_holder_pos"] = last_gang_member
+				positions["key_holder_type"] = "gang"
+				print("🗝️ FIGHT ROOM: Gang member at", last_gang_member, "marked as key holder")
 	# For driving_range puzzle type, place NPCs near the green instead of on it
-	if puzzle_type == "driving_range":
+	elif puzzle_type == "driving_range":
 		print("🎯 DRIVING RANGE: Puzzle type detected, setting up near-green NPC placement")
 		# Create positions near the green (within 3 tiles)
 		var near_green_positions: Array = []
@@ -859,7 +934,34 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 			if layout[y][x] == "R":
 				rough_positions.append(Vector2i(x, y))
 	
-	if puzzle_type == "driving_range":
+	if puzzle_type == "fight_room":
+		# Use fight room positions for police (includes sidewalks)
+		var fight_room_positions: Array = []
+		for y in layout.size():
+			for x in layout[y].size():
+				var pos = Vector2i(x, y)
+				if is_valid_position_for_fight_room_npc(pos, layout):
+					fight_room_positions.append(pos)
+		
+		# Place police using fight room positions
+		var police_placed = 0
+		while police_placed < num_police and fight_room_positions.size() > 0:
+			var police_index = randi() % fight_room_positions.size()
+			var police_pos = fight_room_positions[police_index]
+			positions.police.append(police_pos)
+			placed_objects.append(police_pos)
+			police_placed += 1
+			fight_room_positions.remove_at(police_index)
+		
+		print("🎯 FIGHT ROOM: Placed", police_placed, "police in fight room")
+		
+		# Update key holder to last police if any were placed
+		if police_placed > 0:
+			var last_police = positions.police[positions.police.size() - 1]
+			positions["key_holder_pos"] = last_police
+			positions["key_holder_type"] = "police"
+			print("🗝️ FIGHT ROOM: Police at", last_police, "marked as key holder")
+	elif puzzle_type == "driving_range":
 		# Use the same near_green_positions logic for police
 		var near_green_positions: Array = []
 		for green_pos in green_positions:
@@ -902,7 +1004,34 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 			if layout[y][x] == "S":
 				sand_positions.append(Vector2i(x, y))
 	
-	if puzzle_type == "driving_range":
+	if puzzle_type == "fight_room":
+		# Use fight room positions for zombies (includes sidewalks)
+		var fight_room_positions: Array = []
+		for y in layout.size():
+			for x in layout[y].size():
+				var pos = Vector2i(x, y)
+				if is_valid_position_for_fight_room_npc(pos, layout):
+					fight_room_positions.append(pos)
+		
+		# Place zombies using fight room positions
+		var zombies_placed = 0
+		while zombies_placed < num_zombies and fight_room_positions.size() > 0:
+			var zombie_index = randi() % fight_room_positions.size()
+			var zombie_pos = fight_room_positions[zombie_index]
+			positions.zombies.append(zombie_pos)
+			placed_objects.append(zombie_pos)
+			zombies_placed += 1
+			fight_room_positions.remove_at(zombie_index)
+		
+		print("🎯 FIGHT ROOM: Placed", zombies_placed, "zombies in fight room")
+		
+		# Update key holder to last zombie (final NPC type placed)
+		if zombies_placed > 0:
+			var last_zombie = positions.zombies[positions.zombies.size() - 1]
+			positions["key_holder_pos"] = last_zombie
+			positions["key_holder_type"] = "zombie"
+			print("🗝️ FIGHT ROOM: Zombie at", last_zombie, "marked as FINAL key holder")
+	elif puzzle_type == "driving_range":
 		# Use the same near_green_positions logic for zombies
 		var near_green_positions: Array = []
 		for green_pos in green_positions:
@@ -1136,23 +1265,29 @@ func build_map_from_layout_with_randomization(layout: Array, hole_index: int = -
 	# Apply puzzle type-specific logic
 	apply_puzzle_type_configuration(puzzle_type)
 	
-	# Check if this is a boss room layout (has BossEye)
+	# Check if this is a boss room layout (has BossEye) or fight room layout (has FW)
 	var is_boss_room_layout = false
+	var is_fight_room_layout = false
 	for y in layout.size():
 		for x in layout[y].size():
 			if layout[y][x] == "BOSSEYE":
 				is_boss_room_layout = true
-				break
-		if is_boss_room_layout:
+			elif layout[y][x] == "FW":
+				is_fight_room_layout = true
+		if is_boss_room_layout and is_fight_room_layout:
 			break
 	
 	# Use difficulty tier spawning (-1 means use difficulty tier calculation)
-	# Don't include shop in boss room layouts
-	var include_shop = not is_boss_room_layout
+	# Don't include shop in boss room layouts or fight room layouts
+	var include_shop = not is_boss_room_layout and not is_fight_room_layout
+	print("🔍 BUILD MAP DEBUG: puzzle_type:", puzzle_type, "is_fight_room_layout:", is_fight_room_layout, "include_shop:", include_shop)
 	var object_positions = get_random_positions_for_objects(layout, 8, include_shop, -1, -1, -1, -1, puzzle_type)
 	
 	# Extract BossEye positions from layout
 	extract_boss_eye_positions_from_layout(layout, object_positions)
+	
+	# Extract SlidingDoor positions from layout  
+	extract_sliding_door_positions_from_layout(layout, object_positions)
 	
 	place_objects_at_positions(object_positions, layout)
 	# Place TreeLineVert borders
@@ -1167,6 +1302,18 @@ func extract_boss_eye_positions_from_layout(layout: Array, object_positions: Dic
 				var boss_eye_pos = Vector2i(x, y)
 				object_positions.boss_eyes.append(boss_eye_pos)
 				print("🎯 BOSS EYE: Found BossEye at position (", x, ",", y, ")")
+
+func extract_sliding_door_positions_from_layout(layout: Array, object_positions: Dictionary) -> void:
+	"""Extract SlidingDoor positions from the layout and add them to object_positions"""
+	if not object_positions.has("sliding_doors"):
+		object_positions["sliding_doors"] = []
+	
+	for y in layout.size():
+		for x in layout[y].size():
+			if layout[y][x] == "FW":
+				var sliding_door_pos = Vector2i(x, y)
+				object_positions.sliding_doors.append(sliding_door_pos)
+				print("🎯 SLIDING DOOR: Found FightWin tile at position (", x, ",", y, ")")
 
 func apply_puzzle_type_configuration(puzzle_type: String) -> void:
 	"""Apply puzzle type-specific configuration to the current hole"""
@@ -1199,6 +1346,11 @@ func apply_puzzle_type_configuration(puzzle_type: String) -> void:
 			# Damage Round puzzle: Spawn 30 NPCs near the green for damage testing
 			print("🎯 PUZZLE TYPE: Damage Round puzzle - will spawn 30 NPCs near green")
 			# The damage round logic will be applied during object placement
+			
+		"fight_room":
+			# Fight Room puzzle: Double NPCs on sidewalks, last NPC gets key
+			print("🎯 PUZZLE TYPE: Fight Room puzzle - doubling NPCs, last NPC gets key")
+			# The fight room logic will be applied during object placement
 			
 		_:
 			print("🎯 PUZZLE TYPE: Unknown puzzle type '", puzzle_type, "', using default")
@@ -1540,8 +1692,8 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 	
 	print("💡 Found", cement_positions.size(), "Cement tiles for potential light pole placement")
 	
-	# Randomly place light poles on about 30% of cement tiles
-	var num_light_poles = max(1, cement_positions.size() / 3)  # At least 1, but about 1/3 of cement tiles
+	# Randomly place light poles on about 80% of cement tiles
+	var num_light_poles = max(1, cement_positions.size() * 4 / 5)  # At least 1, but about 4/5 (80%) of cement tiles
 	cement_positions.shuffle()  # Randomize the order
 	
 	for i in range(min(num_light_poles, cement_positions.size())):
@@ -1691,6 +1843,17 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		gang_member.add_to_group("collision_objects")
 		gang_member.add_to_group("NPC")  # Add to NPC group for attack system
 		
+		# Check if this gang member is the key holder
+		if object_positions.has("key_holder_pos") and object_positions.has("key_holder_type"):
+			print("🔍 GANG DEBUG: Checking key holder - Type:", object_positions.key_holder_type, "Pos:", object_positions.key_holder_pos, "Current pos:", gang_pos)
+			if object_positions.key_holder_type == "gang" and gang_pos == object_positions.key_holder_pos:
+				gang_member.set_meta("is_key_holder", true)
+				print("🗝️ GANG MEMBER: Marked as key holder at", gang_pos)
+		else:
+			print("🔍 GANG DEBUG: No key holder data found in object_positions")
+		
+
+		
 		ysort_objects.append({"node": gang_member, "grid_pos": gang_pos})
 		obstacle_layer.add_child(gang_member)
 	
@@ -1720,6 +1883,17 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		police.add_to_group("police")
 		police.add_to_group("collision_objects")
 		police.add_to_group("NPC")  # Add to NPC group for attack system
+		
+		# Check if this police is the key holder
+		if object_positions.has("key_holder_pos") and object_positions.has("key_holder_type"):
+			print("🔍 POLICE DEBUG: Checking key holder - Type:", object_positions.key_holder_type, "Pos:", object_positions.key_holder_pos, "Current pos:", police_pos)
+			if object_positions.key_holder_type == "police" and police_pos == object_positions.key_holder_pos:
+				police.set_meta("is_key_holder", true)
+				print("🗝️ POLICE: Marked as key holder at", police_pos)
+		else:
+			print("🔍 POLICE DEBUG: No key holder data found in object_positions")
+		
+
 		
 		ysort_objects.append({"node": police, "grid_pos": police_pos})
 		obstacle_layer.add_child(police)
@@ -1752,6 +1926,17 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		zombie.add_to_group("zombies")
 		zombie.add_to_group("collision_objects")
 		zombie.add_to_group("NPC")  # Add to NPC group for attack system
+		
+		# Check if this zombie is the key holder
+		if object_positions.has("key_holder_pos") and object_positions.has("key_holder_type"):
+			print("🔍 ZOMBIE DEBUG: Checking key holder - Type:", object_positions.key_holder_type, "Pos:", object_positions.key_holder_pos, "Current pos:", zombie_pos)
+			if object_positions.key_holder_type == "zombie" and zombie_pos == object_positions.key_holder_pos:
+				zombie.set_meta("is_key_holder", true)
+				print("🗝️ ZOMBIE: Marked as key holder at", zombie_pos)
+		else:
+			print("🔍 ZOMBIE DEBUG: No key holder data found in object_positions")
+		
+
 		
 		ysort_objects.append({"node": zombie, "grid_pos": zombie_pos})
 		obstacle_layer.add_child(zombie)
@@ -1815,6 +2000,36 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		
 		ysort_objects.append({"node": boss_eye, "grid_pos": boss_eye_pos})
 		obstacle_layer.add_child(boss_eye)
+
+	# Place SlidingDoor on FW tiles
+	for sliding_door_pos in object_positions.get("sliding_doors", []):
+		var scene: PackedScene = object_scene_map["SLIDING_DOOR"]
+		if scene == null:
+			push_error("🚫 SlidingDoor scene is null")
+			continue
+		var sliding_door: Node2D = scene.instantiate() as Node2D
+		if sliding_door == null:
+			push_error("❌ SlidingDoor instantiation failed at (%d,%d)" % [sliding_door_pos.x, sliding_door_pos.y])
+			continue
+		var world_pos: Vector2 = Vector2(sliding_door_pos.x, sliding_door_pos.y) * cell_size
+		sliding_door.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
+		# Set the sliding door's grid position metadata
+		if sliding_door.has_meta("grid_position") or "grid_position" in sliding_door:
+			sliding_door.set("grid_position", sliding_door_pos)
+		else:
+			push_warning("⚠️ SlidingDoor missing 'grid_position'. Type: %s" % sliding_door.get_class())
+		
+		# Setup the SlidingDoor
+		if sliding_door.has_method("setup"):
+			sliding_door.setup(sliding_door_pos, cell_size)
+		
+		# Add sliding door to groups
+		sliding_door.add_to_group("sliding_doors")
+		sliding_door.add_to_group("collision_objects")
+		sliding_door.add_to_group("interactables")
+		
+		ysort_objects.append({"node": sliding_door, "grid_pos": sliding_door_pos})
+		obstacle_layer.add_child(sliding_door)
 	
 	# Place Oil Drums
 	for oil_pos in object_positions.oil_drums:

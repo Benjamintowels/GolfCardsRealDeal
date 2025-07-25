@@ -43,6 +43,11 @@ var puzzle_types = {
 		"name": "Bounce Room",
 		"description": "Track how many times your ball bounces or reflects before finishing the hole.",
 		"symbol_scene": preload("res://UI/PuzzleSymbols/BounceRoomSymbol.tscn")
+	},
+	"fight_room": {
+		"name": "Fight Room",
+		"description": "Double the normal NPCs (minimum 3 each) placed on sidewalks and normal tiles",
+		"symbol_scene": preload("res://UI/PuzzleSymbols/FightRoom.tscn")
 	}
 }
 

@@ -521,6 +521,14 @@ func die() -> void:
 	# Trigger coin explosion
 	_trigger_coin_explosion()
 	
+	# Check if this zombie is the key holder and drop key
+	print("🔍 ZOMBIE DEATH DEBUG: Checking if key holder. Has meta:", has_meta("is_key_holder"), "Meta value:", get_meta("is_key_holder") if has_meta("is_key_holder") else "none")
+	if has_meta("is_key_holder") and get_meta("is_key_holder"):
+		print("🗝️ KEY HOLDER ZOMBIE DIED: Dropping key")
+		var course = get_tree().current_scene
+		if course and course.has_method("_on_npc_death"):
+			course._on_npc_death(self)
+	
 	# Switch to dead state
 	current_state = State.DEAD
 	state_machine.set_state("dead")

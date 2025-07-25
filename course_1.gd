@@ -255,6 +255,7 @@ var tile_scene_map := {
 	"SW": preload("res://Obstacles/SideWalk.tscn"),
 	"B": preload("res://Obstacles/Garden.tscn"),  # Garden tile for flowers
 	"C": preload("res://Obstacles/Cement.tscn"),  # Cement tile
+	"FW": preload("res://Obstacles/FightWinTile.tscn"),  # Fight room exit tile
 }
 
 var object_scene_map := {
@@ -282,6 +283,7 @@ var object_scene_map := {
 	"HORIZONTAL_FIELD": preload("res://Interactables/HorizontalField.tscn"),
 	"FORCE_FIELD_DOME": preload("res://Interactables/ForceFieldDome.tscn"),
 	"LIGHTPOLE": preload("res://Obstacles/LightPole.tscn"),
+	"SLIDING_DOOR": preload("res://Obstacles/SlidingDoor.tscn"),
 }
 
 var object_to_tile_mapping := {
@@ -307,6 +309,7 @@ var object_to_tile_mapping := {
 	"VERTICAL_FIELD": "Base",
 	"HORIZONTAL_FIELD": "Base",
 	"FORCE_FIELD_DOME": "Base",
+	"SLIDING_DOOR": "FW",
 }
 
 # Add these variables after the existing object_scene_map and object_to_tile_mapping
@@ -554,7 +557,9 @@ func _ready() -> void:
 	launch_manager.ball_launched.connect(_on_ball_launched)
 	launch_manager.launch_phase_entered.connect(_on_launch_phase_entered)
 	launch_manager.launch_phase_exited.connect(_on_launch_phase_exited)
-	launch_manager.charging_state_changed.connect(_on_charging_state_changed)	
+	launch_manager.charging_state_changed.connect(_on_charging_state_changed)
+	
+	
 	
 	if obstacle_layer.get_parent():
 		obstacle_layer.get_parent().remove_child(obstacle_layer)
@@ -564,6 +569,9 @@ func _ready() -> void:
 	if Global.boss_room_mode:
 		map_manager.load_map_data(BossFight.LAYOUT)
 		print("Loading Boss Fight layout")
+	elif Global.fight_room_mode:
+		map_manager.load_map_data(GolfCourseLayout.get_fight_room_layout())
+		print("Loading Fight Room layout")
 	elif Global.damage_round_mode:
 		map_manager.load_map_data(GolfCourseLayout.get_damage_round_layout())
 		print("Loading Damage Round layout")
@@ -833,6 +841,16 @@ func adjust_background_positioning() -> void:
 		game_state_manager.start_front_nine()  # Use front nine mode for boss room
 		Global.boss_room_mode = false  # Reset the flag
 		print("Boss room mode initialized")
+	
+	# Check if we should start in fight room mode (from Main.gd fight room button)
+	var is_fight_room_mode = Global.fight_room_mode
+	if Global.fight_room_mode:
+		print("=== STARTING FIGHT ROOM MODE ===")
+		game_state_manager.start_front_nine()  # Use front nine mode for fight room
+		game_state_manager.set_current_puzzle_type("fight_room")  # Set fight room puzzle type
+		game_state_manager.set_next_puzzle_type("fight_room")  # Set next puzzle type too
+		Global.fight_room_mode = false  # Reset the flag
+		print("Fight room mode initialized with fight_room puzzle type")
 	# Check if we should start in driving range mode (from Main.gd driving range button)
 	elif Global.damage_round_mode:
 		print("=== STARTING DRIVING RANGE MODE ===")
@@ -885,6 +903,13 @@ func adjust_background_positioning() -> void:
 	if is_boss_room_mode:
 		map_manager.load_map_data(BossFight.LAYOUT)
 		print("Loading Boss Fight layout")
+	elif is_fight_room_mode:
+		map_manager.load_map_data(GolfCourseLayout.get_fight_room_layout())
+		print("Loading Fight Room layout")
+		print("🔍 FIGHT ROOM DEBUG: Fight room mode active, puzzle type:", game_state_manager.get_current_puzzle_type())
+	elif game_state_manager.get_current_puzzle_type() == "fight_room":
+		map_manager.load_map_data(GolfCourseLayout.get_fight_room_layout())
+		print("Loading Fight Room layout for fight_room puzzle type")
 	elif game_state_manager.get_driving_range_mode():
 		map_manager.load_map_data(GolfCourseLayout.get_damage_round_layout())
 		print("Loading Driving Range layout")
@@ -893,7 +918,7 @@ func adjust_background_positioning() -> void:
 		print("Loading BounceRoom layout")
 	else:
 		map_manager.load_map_data(GolfCourseLayout.get_hole_layout(game_state_manager.get_current_hole_index()))
-	build_map.build_map_from_layout_with_randomization(map_manager.level_layout)
+	build_map.build_map_from_layout_with_randomization(map_manager.level_layout, game_state_manager.get_current_hole_index(), game_state_manager.get_current_puzzle_type())
 	
 	# Sync shop grid position with build_map
 	game_state_manager.set_shop_grid_position(build_map.shop_grid_pos)
@@ -2357,6 +2382,9 @@ func reset_for_next_hole():
 	elif game_state_manager.get_current_puzzle_type() == "bounce_room":
 		map_manager.load_map_data(GolfCourseLayout.get_bounce_room_layout())
 		print("BounceRoom Mode: Loading BounceRoomLayout for next hole")
+	elif game_state_manager.get_current_puzzle_type() == "fight_room":
+		map_manager.load_map_data(GolfCourseLayout.get_fight_room_layout())
+		print("FightRoom Mode: Loading FightRoomLayout for next hole")
 	else:
 		map_manager.load_map_data(GolfCourseLayout.get_hole_layout(game_state_manager.get_current_hole_index()))
 	
@@ -4300,3 +4328,140 @@ func _update_bounce_room_hud():
 			hud.get_node("BounceRoomLabel").visible = false
 # ... existing code ...
 # On hole/round reset, call _update_bounce_room_hud() to ensure the label is correct
+
+func _on_player_moved_to_tile(new_grid_pos: Vector2i) -> void:
+	"""Handle when player moves to a new tile - called by NPCs and other systems"""
+	print("🔍 COURSE DEBUG: _on_player_moved_to_tile called with pos:", new_grid_pos)
+	# Only handle the essential NPC-related position updates, not the full player position management
+	if attack_handler:
+		attack_handler.update_player_position(new_grid_pos)
+
+func show_fight_room_exit_dialog() -> void:
+	"""Show the fight room exit dialog via UIManager"""
+	print("🚪 FIGHT ROOM: Showing exit dialog")
+	if ui_manager and ui_manager.has_method("show_fight_room_exit_dialog"):
+		ui_manager.show_fight_room_exit_dialog()
+	else:
+		print("❌ FIGHT ROOM: UIManager or show_fight_room_exit_dialog method not found")
+
+func complete_fight_room() -> void:
+	"""Complete the fight room and transition to next hole"""
+	print("=== COMPLETING FIGHT ROOM ===")
+	
+	# Show hole completion dialog first
+	ui_manager.show_hole_completion_dialog()
+	
+	# Wait for the dialog to be closed, then proceed to next hole
+	var hole_completion_dialog = get_node_or_null("UILayer/HoleCompletionDialog")
+	if hole_completion_dialog:
+		await hole_completion_dialog.dialog_closed
+	
+	# Proceed to next hole
+	_on_advance_to_next_hole()
+
+# Global state variables
+var current_hole_start_time: float = 0.0
+var current_shot_start_time: float = 0.0
+
+# FightRoom key system
+var fight_room_key_collected: bool = false
+var fight_room_key_holder: Node = null
+
+# Golf Course Layout and Mapping
+
+func _on_npc_death(npc: Node) -> void:
+	"""Handle NPC death - drop key if this NPC was the key holder"""
+	if npc.has_meta("is_key_holder") and npc.get_meta("is_key_holder"):
+		print("🗝️ KEY HOLDER KILLED: Dropping key")
+		_drop_fight_room_key(npc)
+
+func _drop_fight_room_key(npc: Node) -> void:
+	"""Drop a key on an adjacent tile when key holder NPC dies"""
+	var npc_grid_pos = Vector2i.ZERO
+	if npc.has_method("get_grid_position"):
+		npc_grid_pos = npc.get_grid_position()
+	elif "grid_position" in npc:
+		npc_grid_pos = npc.grid_position
+	if npc_grid_pos == Vector2i.ZERO:
+		print("❌ KEY DROP: Could not get NPC grid position")
+		return
+	
+	# Find an adjacent walkable position
+	var adjacent_positions = [
+		npc_grid_pos + Vector2i(0, -1),  # Up
+		npc_grid_pos + Vector2i(1, 0),   # Right
+		npc_grid_pos + Vector2i(0, 1),   # Down
+		npc_grid_pos + Vector2i(-1, 0)   # Left
+	]
+	
+	var key_position = Vector2i.ZERO
+	for pos in adjacent_positions:
+		if is_position_walkable(pos):
+			key_position = pos
+			break
+	
+	if key_position == Vector2i.ZERO:
+		key_position = npc_grid_pos  # Fallback to NPC position
+	
+	# Spawn the key
+	var key_scene = preload("res://Interactables/Key.tscn")
+	var key = key_scene.instantiate()
+	key.position = Vector2(key_position.x, key_position.y) * cell_size + Vector2(cell_size / 2, cell_size / 2)
+	key.set_meta("grid_position", key_position)
+	
+	# Add key to a group for easier cleanup
+	key.add_to_group("fight_room_keys")
+	
+	obstacle_layer.add_child(key)
+	print("🗝️ KEY DROPPED: Spawned at", key_position)
+
+func _on_key_area_entered(player: Node) -> void:
+	"""Handle player collision with key"""
+	print("🗝️ KEY COLLECTED: Player picked up the key")
+	
+	# Find the key that triggered this collision
+	var key_nodes = get_tree().get_nodes_in_group("fight_room_keys")
+	for key_node in key_nodes:
+		if is_instance_valid(key_node):
+			key_node.queue_free()
+			break
+	
+	# Play collect sound from player
+	if player.has_node("Collect"):
+		var collect_sound = player.get_node("Collect")
+		if collect_sound.has_method("play"):
+			collect_sound.play()
+	
+	# Mark key as collected
+	fight_room_key_collected = true
+	print("🔓 FIGHT ROOM: Key collected, door should unlock")
+	
+	# Unlock the door
+	_unlock_fight_room_door()
+
+func _unlock_fight_room_door() -> void:
+	"""Unlock the fight room door by hiding lock and playing animations"""
+	print("🚪 UNLOCKING FIGHT ROOM DOOR")
+	
+	# Find all sliding doors in the scene
+	var sliding_doors = get_tree().get_nodes_in_group("sliding_doors")
+	for door in sliding_doors:
+		# Hide the lock
+		if door.has_node("Lock"):
+			var lock = door.get_node("Lock")
+			lock.visible = false
+			print("🔓 LOCK: Hidden on sliding door")
+		
+		# Play slide open animation
+		if door.has_node("AnimationPlayer"):
+			var anim_player = door.get_node("AnimationPlayer")
+			if anim_player.has_animation("slide_open"):
+				anim_player.play("slide_open")
+				print("🎬 ANIMATION: Playing slide_open")
+		
+		# Play sliding door sound
+		if door.has_node("SlidingDoorSound"):
+			var sound = door.get_node("SlidingDoorSound")
+			if sound.has_method("play"):
+				sound.play()
+				print("🔊 SOUND: Playing sliding door sound")

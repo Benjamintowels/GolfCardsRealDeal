@@ -127,6 +127,8 @@ func create_player() -> void:
 
 	player_node.player_clicked.connect(_on_player_input)
 	player_node.moved_to_tile.connect(_on_player_moved_to_tile)
+	
+
 
 	update_player_position()
 	if player_node:
@@ -739,31 +741,35 @@ func handle_player_moved_to_tile(new_grid_pos: Vector2i, game_state_manager: Nod
 		course._on_suitcase_reached()
 		return  # Don't exit movement mode yet
 	
-	# Shop interaction is now handled by overlay system - no need for entrance detection
+func _handle_tile_interactions(course: Node) -> void:
+	"""Handle tile-based interactions like FW tile detection"""
+	# Check for FightRoom exit (FW tile) interaction
+	var current_tile_type = _get_tile_type_at_position(get_player_grid_pos(), course)
+	print("🔍 TILE DEBUG: Player at", get_player_grid_pos(), "tile type:", current_tile_type)
 	
-	update_player_position()
+	# Also check if this is a fight room at all
+	var is_fight_room = course.has_method("get_game_state_manager") and course.get_game_state_manager().get_current_puzzle_type() == "fight_room"
+	print("🔍 PUZZLE DEBUG: Is fight room?", is_fight_room)
 	
-	# Check if player is on an active ball tile
-	if game_state_manager.get_waiting_for_player_to_reach_ball() and get_player_grid_pos() == game_state_manager.get_ball_landing_tile():
-		# Player is on the ball tile - remove landing highlight
-		if launch_manager.golf_ball and is_instance_valid(launch_manager.golf_ball) and launch_manager.golf_ball.has_method("remove_landing_highlight"):
-			launch_manager.golf_ball.remove_landing_highlight()
+	if current_tile_type == "FW":
+		print("=== FIGHT ROOM EXIT DETECTED ===")
+		print("Player stepped on FW tile at:", get_player_grid_pos())
+		print("Fight room key collected:", course.fight_room_key_collected if "fight_room_key_collected" in course else false)
+		if course.game_state_manager:
+			course.game_state_manager.set_fight_room_exit_detected(true)
 		
-		# Check if this ball is in gimme range
-		course.check_and_show_gimme_button()
-		
-		# Show the "Draw Club Cards" button instead of automatically entering launch phase
-		course.show_draw_club_cards_button()
-	else:
-		# Check if this is EtherDash movement - don't exit movement mode if more moves are available
-		if get_player_node().is_etherdash_mode and get_player_node().etherdash_moves_remaining > 0:
-			print("EtherDash movement completed - more moves available, staying in movement mode")
-			# Update movement highlights for next move
-			movement_controller.valid_movement_tiles = get_player_node().valid_movement_tiles.duplicate()
-			movement_controller.show_movement_highlights()
+		# Only show dialog if key has been collected (door is unlocked)
+		if "fight_room_key_collected" in course and course.fight_room_key_collected:
+			print("🔓 FW TILE: Key collected, showing exit dialog")
+			if course.has_method("show_fight_room_exit_dialog"):
+				course.show_fight_room_exit_dialog()
+			else:
+				print("❌ FW TILE: show_fight_room_exit_dialog method not found in course")
 		else:
-			# Normal movement - exit movement mode
-			course.exit_movement_mode()
+			print("🔒 FW TILE: Key not collected yet, tile should be blocked")
+	else:
+		if course.game_state_manager:
+			course.game_state_manager.set_fight_room_exit_detected(false)
 
 # ===== FIRE DAMAGE HANDLING =====
 
@@ -880,5 +886,20 @@ func reset_player_to_tee(map_manager: Node, course: Node) -> void:
 				return
 	set_player_grid_pos(Vector2i(25, 25))
 	update_player_position_with_ball_creation(course)
+
+func _get_tile_type_at_position(grid_pos: Vector2i, course: Node) -> String:
+	"""Get the tile type at a specific grid position"""
+	if not course or not course.has_node("MapManager"):
+		return ""
+	
+	var map_manager = course.get_node("MapManager")
+	if not map_manager or not map_manager.has_method("get_tile_type"):
+		return ""
+	
+	# Check if position is within bounds
+	if grid_pos.x < 0 or grid_pos.y < 0:
+		return ""
+	
+	return map_manager.get_tile_type(grid_pos.x, grid_pos.y)
 
  

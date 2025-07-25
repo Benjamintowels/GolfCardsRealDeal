@@ -1,0 +1,14 @@
+[gd_scene load_steps=3 format=3 uid="uid://1rtineisl80i"]
+
+[ext_resource type="Texture2D" uid="uid://cu4dxsqun5pyk" path="res://Obstacles/Grass.png" id="2_evpwx"]
+
+[sub_resource type="GDScript" id="GDScript_w4i1i"]
+script/source = "extends Node2D
+"
+
+[node name="FW" type="Node2D"]
+script = SubResource("GDScript_w4i1i")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture_filter = 1
+texture = ExtResource("2_evpwx")

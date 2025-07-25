@@ -1,0 +1,69 @@
+[gd_scene load_steps=9 format=3 uid="uid://cx3q06vbxclrs"]
+
+[ext_resource type="Script" uid="uid://cxn8bftcmsghg" path="res://Obstacles/sliding_door.gd" id="1_ptbna"]
+[ext_resource type="Texture2D" uid="uid://djbnbstvrgdse" path="res://Obstacles/SlidingDoorBase.png" id="2_f62fn"]
+[ext_resource type="Texture2D" uid="uid://57oqakf1l1iy" path="res://Obstacles/SlidingDoorDoor.png" id="3_w5pbg"]
+[ext_resource type="AudioStream" uid="uid://dhrfsktlysnxl" path="res://Sounds/SlidingDoor.mp3" id="4_y0bd5"]
+[ext_resource type="PackedScene" uid="uid://bu0sfwri4qf13" path="res://Interactables/Lock.tscn" id="5_72boa"]
+
+[sub_resource type="Animation" id="Animation_w5pbg"]
+resource_name = "slide_open"
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("SlidingDoorDoor:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.966667),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [Vector2(23, -51.53), Vector2(-18.62, -51.53)]
+}
+
+[sub_resource type="Animation" id="Animation_y0bd5"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("SlidingDoorDoor:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(23, -51.53)]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_y0bd5"]
+_data = {
+&"RESET": SubResource("Animation_y0bd5"),
+&"slide_open": SubResource("Animation_w5pbg")
+}
+
+[node name="SlidingDoor" type="Node2D"]
+script = ExtResource("1_ptbna")
+
+[node name="SlidingDoorBase" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(0, -54)
+texture = ExtResource("2_f62fn")
+
+[node name="SlidingDoorDoor" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(23, -51.53)
+texture = ExtResource("3_w5pbg")
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+libraries = {
+&"": SubResource("AnimationLibrary_y0bd5")
+}
+
+[node name="SlidingDoor" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("4_y0bd5")
+
+[node name="Lock" parent="." instance=ExtResource("5_72boa")]
+texture_filter = 1
+position = Vector2(3, -45)
+scale = Vector2(0.74, 0.74)

@@ -7,6 +7,7 @@ extends Control
 @onready var start_back_9_button = $UI/StartBack9
 @onready var driving_range_button = $UI/DrivingRange
 @onready var boss_room_button = $UI/BossRoom
+@onready var fight_room_button = $UI/FightRoom
 @onready var select_sound = $Select
 
 var selected_character = 1  # Default to character 1
@@ -29,6 +30,7 @@ func _ready():
 	start_back_9_button.pressed.connect(_on_start_back_9_pressed)
 	driving_range_button.pressed.connect(_on_driving_range_button_pressed)
 	boss_room_button.pressed.connect(_on_boss_room_button_pressed)
+	fight_room_button.pressed.connect(_on_fight_room_button_pressed)
 	
 	print("Buttons connected successfully")
 	print("Initial selected_character: ", selected_character)
@@ -120,6 +122,27 @@ func _change_to_driving_range():
 	$DoorClose.play()
 
 func _change_to_boss_room():
+	# Start fade to black first
+	FadeManager.fade_to_black(func(): get_tree().change_scene_to_file("res://Course1.tscn"), 0.5)
+	
+	# Play door sounds during the fade
+	$DoorOpen.play()
+	await $DoorOpen.finished
+	$DoorClose.play()
+
+func _on_fight_room_button_pressed():
+	_play_select_sound()
+	# Store the selected character in a global variable
+	Global.selected_character = selected_character
+	print("Selected character: ", selected_character, " - Starting Fight Room")
+	
+	# Set fight room mode flag
+	Global.fight_room_mode = true
+	
+	# Change to Course1 scene with fight room mode
+	call_deferred("_change_to_fight_room")
+
+func _change_to_fight_room():
 	# Start fade to black first
 	FadeManager.fade_to_black(func(): get_tree().change_scene_to_file("res://Course1.tscn"), 0.5)
 	

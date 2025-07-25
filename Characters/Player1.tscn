@@ -1,4 +1,4 @@
-[gd_scene load_steps=17 format=3 uid="uid://clxh2b81uxvtv"]
+[gd_scene load_steps=19 format=3 uid="uid://clxh2b81uxvtv"]
 
 [ext_resource type="Script" uid="uid://bkqfjhiqcwabx" path="res://Characters/Player.gd" id="1_yweqe"]
 [ext_resource type="AudioStream" uid="uid://w3sc1j80onsl" path="res://Sounds/PistolShot.mp3" id="2_5tbhv"]
@@ -16,6 +16,9 @@
 [ext_resource type="AudioStream" uid="uid://cqm2ebplq8wlo" path="res://Sounds/BallHop.mp3" id="14_xma0y"]
 [ext_resource type="AudioStream" uid="uid://va7u14in304o" path="res://Sounds/CameraWhoosh.mp3" id="15_camerawhoosh"]
 [ext_resource type="AudioStream" uid="uid://b2gsf1vb53pf8" path="res://Sounds/WhooshCut.mp3" id="16_whooshcut"]
+[ext_resource type="AudioStream" uid="uid://bxqh8tkqgbvm8" path="res://Sounds/Reward.mp3" id="17_38rx8"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_38rx8"]
 
 [node name="Player1" type="CharacterBody2D"]
 script = ExtResource("1_yweqe")
@@ -69,3 +72,12 @@ stream = ExtResource("16_whooshcut")
 
 [node name="Dodge" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("16_whooshcut")
+
+[node name="Collect" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("17_38rx8")
+pitch_scale = 1.35
+
+[node name="Area2D" type="Area2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D"]
+shape = SubResource("CircleShape2D_38rx8")

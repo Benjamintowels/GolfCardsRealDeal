@@ -63,6 +63,7 @@ var bounce_room_bounce_count: int = 0
 
 # Shop interaction variables
 var shop_entrance_detected := false
+var fight_room_exit_detected := false
 var shop_grid_pos := Vector2i(2, 4)  # Position of shop from map layout
 var suitcase_grid_pos := Vector2i.ZERO  # Track SuitCase position
 var suitcase_node: Node2D = null  # Reference to the SuitCase node
@@ -537,6 +538,14 @@ func set_shop_entrance_detected(detected: bool) -> void:
 func is_shop_entrance_detected() -> bool:
 	"""Check if shop entrance is detected"""
 	return shop_entrance_detected
+
+func set_fight_room_exit_detected(detected: bool) -> void:
+	"""Set fight room exit detection"""
+	fight_room_exit_detected = detected
+
+func is_fight_room_exit_detected() -> bool:
+	"""Check if fight room exit is detected"""
+	return fight_room_exit_detected
 
 func set_shop_grid_position(pos: Vector2i) -> void:
 	"""Set the shop grid position"""

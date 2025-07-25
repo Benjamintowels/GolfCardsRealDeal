@@ -488,6 +488,65 @@ func show_shop_entrance_dialog() -> void:
 	ui_layer.add_child(shop_dialog)
 	print("Shop entrance dialog created")
 
+func show_fight_room_exit_dialog() -> void:
+	"""Show fight room exit dialog"""
+	if shop_dialog:  # Reuse shop_dialog variable for the exit dialog
+		shop_dialog.queue_free()
+	
+	shop_dialog = Control.new()
+	shop_dialog.name = "FightRoomExitDialog"
+	shop_dialog.size = course.get_viewport_rect().size
+	shop_dialog.z_index = 500
+	shop_dialog.mouse_filter = Control.MOUSE_FILTER_STOP
+	
+	var background := ColorRect.new()
+	background.color = Color(0, 0, 0, 0.7)
+	background.size = shop_dialog.size
+	background.mouse_filter = Control.MOUSE_FILTER_STOP
+	shop_dialog.add_child(background)
+	
+	var dialog_box := ColorRect.new()
+	dialog_box.color = Color(0.2, 0.2, 0.2, 0.9)
+	dialog_box.size = Vector2(400, 200)
+	dialog_box.position = (shop_dialog.size - dialog_box.size) / 2  # Center the dialog
+	dialog_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	shop_dialog.add_child(dialog_box)
+	
+	var title_label := Label.new()
+	title_label.text = "Fight Room Exit"
+	title_label.add_theme_font_size_override("font_size", 28)
+	title_label.add_theme_color_override("font_color", Color.RED)
+	title_label.add_theme_constant_override("outline_size", 2)
+	title_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	title_label.position = Vector2(120, 20)
+	title_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dialog_box.add_child(title_label)
+	
+	var question_label := Label.new()
+	question_label.text = "Would you like to exit the fight room?"
+	question_label.add_theme_font_size_override("font_size", 18)
+	question_label.add_theme_color_override("font_color", Color.WHITE)
+	question_label.position = Vector2(80, 80)
+	question_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dialog_box.add_child(question_label)
+	
+	var yes_button := Button.new()
+	yes_button.text = "Yes"
+	yes_button.size = Vector2(80, 40)
+	yes_button.position = Vector2(120, 140)
+	yes_button.pressed.connect(_on_fight_room_exit_yes)
+	dialog_box.add_child(yes_button)
+	
+	var no_button := Button.new()
+	no_button.text = "No"
+	no_button.size = Vector2(80, 40)
+	no_button.position = Vector2(220, 140)
+	no_button.pressed.connect(_on_fight_room_exit_no)
+	dialog_box.add_child(no_button)
+	
+	ui_layer.add_child(shop_dialog)
+	print("Fight room exit dialog created")
+
 func show_shop_overlay() -> void:
 	"""Show shop overlay"""
 	print("=== SHOWING SHOP OVERLAY ===")
@@ -579,6 +638,32 @@ func _on_shop_enter_no() -> void:
 	
 	# Shop is now overlay system - no state restoration needed
 	# Just close the dialog and continue gameplay
+	
+	if shop_dialog:
+		shop_dialog.queue_free()
+		shop_dialog = null
+
+func _on_fight_room_exit_yes() -> void:
+	"""Handle fight room exit yes button"""
+	print("=== EXITING FIGHT ROOM ===")
+	
+	# Close the dialog
+	if shop_dialog:
+		shop_dialog.queue_free()
+		shop_dialog = null
+	
+	# Complete the fight room and proceed to next hole
+	if course.has_method("complete_fight_room"):
+		course.complete_fight_room()
+
+func _on_fight_room_exit_no() -> void:
+	"""Handle fight room exit no button"""
+	print("=== STAYING IN FIGHT ROOM ===")
+	
+	# Close the dialog and continue gameplay
+	if shop_dialog:
+		shop_dialog.queue_free()
+		shop_dialog = null
 
 func _on_shop_overlay_return() -> void:
 	"""Handle returning from shop overlay"""
