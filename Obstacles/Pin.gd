@@ -95,6 +95,11 @@ func _on_flag_area_entered(area: Area2D):
 			if hit_flag_audio:
 				hit_flag_audio.play()
 			
+			# Play the pin shake animation
+			var animation_player = get_node_or_null("Sprite2D/AnimationPlayer")
+			if animation_player:
+				animation_player.play("pin_shake")
+			
 			# Emit signal for pin flag hit
 			pin_flag_hit.emit(golf_ball)
 			
