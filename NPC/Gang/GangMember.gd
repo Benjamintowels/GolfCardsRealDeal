@@ -754,8 +754,8 @@ func _find_player_reference() -> void:
 			return
 	
 	# Method 3: Try to get player from course_1.gd script method
-	if course and course.has_method("get_player_node"):
-		player = course.get_player_node()
+	if course and course.has_method("get_player_reference"):
+		player = course.get_player_reference()
 		if player:
 			return
 	
@@ -846,8 +846,8 @@ func take_turn() -> void:
 			player = course.get_player_reference()
 		else:
 			# Try direct access as fallback
-			if "player_node" in course:
-				player = course.player_node
+			if course.player_manager and course.player_manager.get_player_node():
+				player = course.player_manager.get_player_node()
 		
 		# Final fallback: search scene tree for player
 		if not player:

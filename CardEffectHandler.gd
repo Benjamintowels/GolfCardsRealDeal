@@ -302,7 +302,7 @@ func handle_teleport_effect(card: CardData):
 		return
 	
 	# Create portal effect at player's current position
-	create_teleport_portal(course.player_node.global_position)
+	create_teleport_portal(course.player_manager.get_player_node().global_position)
 	
 	# Move player to ball position
 	teleport_player_to_ball(ball_position)
@@ -515,9 +515,9 @@ func launch_single_scramble_ball(direction: Vector2, power: float, height: float
 		ball_area.collision_mask = 1
 	
 	# Position the ball at the player's position (scramble balls are always tee shots)
-	var player_sprite = course.player_node.get_node_or_null("Sprite2D")
+	var player_sprite = course.player_manager.get_player_node().get_node_or_null("Sprite2D")
 	var player_size = player_sprite.texture.get_size() * player_sprite.scale if player_sprite and player_sprite.texture else Vector2(course.cell_size, course.cell_size)
-	var player_center = course.player_node.global_position + player_size / 2
+	var player_center = course.player_manager.get_player_node().global_position + player_size / 2
 	
 	var ball_local_position = player_center - course.grid_manager.get_camera_container().global_position
 	ball.position = ball_local_position
@@ -560,8 +560,8 @@ func launch_single_scramble_ball(direction: Vector2, power: float, height: float
 	ball.out_of_bounds.connect(_on_scramble_ball_out_of_bounds.bind(ball_index))
 	
 	# Set ball launch position for player collision delay system
-	if course.player_node and course.player_node.has_method("set_ball_launch_position"):
-		course.player_node.set_ball_launch_position(ball.global_position)
+	if course.player_manager.get_player_node() and course.player_manager.get_player_node().has_method("set_ball_launch_position"):
+		course.player_manager.get_player_node().set_ball_launch_position(ball.global_position)
 		print("Scramble ball launch position set for player collision delay:", ball.global_position)
 	
 	# Launch the ball with the deviated direction
@@ -626,7 +626,7 @@ func _on_scramble_ball_out_of_bounds(ball_index: int = -1):
 	print("Scramble ball", ball_index, "went out of bounds")
 	
 	# Mark as landed at starting position (penalty)
-	scramble_landing_positions[ball_index] = course.player_node.global_position
+	scramble_landing_positions[ball_index] = course.player_manager.get_player_node().global_position
 	scramble_landing_tiles[ball_index] = course.player_grid_pos
 	scramble_ball_landed_count += 1
 	

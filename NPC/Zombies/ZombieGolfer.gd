@@ -669,11 +669,11 @@ func take_turn() -> void:
 		else:
 			print("Course does not have get_player_reference method")
 			# Try direct access as fallback
-			if "player_node" in course:
-				player = course.player_node
+			if course.player_manager and course.player_manager.get_player_node():
+				player = course.player_manager.get_player_node()
 				print("Got player reference via direct access: ", player.name if player else "None")
 			else:
-				print("Course does not have player_node property")
+				print("Course does not have player_manager or player_node")
 		
 		# Final fallback: search scene tree for player
 		if not player:

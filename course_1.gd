@@ -4465,3 +4465,9 @@ func _unlock_fight_room_door() -> void:
 			if sound.has_method("play"):
 				sound.play()
 				print("🔊 SOUND: Playing sliding door sound")
+
+func get_player_reference() -> Node:
+	"""Get a reference to the player node for other systems to use"""
+	if player_manager and player_manager.get_player_node():
+		return player_manager.get_player_node()
+	return null

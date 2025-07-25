@@ -126,9 +126,10 @@ func create_attack_buttons() -> void:
 	# This function is kept for compatibility but doesn't create separate buttons
 	pass
 
-func _on_attack_card_pressed(card: CardData) -> void:
+func _on_attack_card_pressed(card: CardData, button: TextureButton = null) -> void:
 	"""Handle when an attack card is pressed"""
 	selected_card = card
+	active_button = button
 	attack_damage = card.damage
 	attack_range = card.damage_range
 	
@@ -144,9 +145,10 @@ func _on_attack_card_pressed(card: CardData) -> void:
 	# Animate CardRow up to get out of the way of range display
 	animate_card_row_up()
 
-func _on_aoe_attack_card_pressed(card: CardData) -> void:
+func _on_aoe_attack_card_pressed(card: CardData, button: TextureButton = null) -> void:
 	"""Handle when an AOE attack card is pressed"""
 	selected_card = card
+	active_button = button
 	attack_damage = card.damage
 	attack_range = card.aoe_range
 	
@@ -412,10 +414,10 @@ func zoom_out_camera_for_meteor_range() -> void:
 	# Center camera on player to show range around them
 	if course.has_method("create_camera_tween"):
 		var player_pos = Vector2.ZERO
-		if course.player_node:
-			var sprite = course.player_node.get_node_or_null("Sprite2D")
+		if course.player_manager and course.player_manager.get_player_node():
+			var sprite = course.player_manager.get_player_node().get_node_or_null("Sprite2D")
 			var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(48, 48)
-			player_pos = course.player_node.global_position + player_size / 2
+			player_pos = course.player_manager.get_player_node().global_position + player_size / 2
 		
 		course.create_camera_tween(player_pos, 0.8)
 		print("✓ Camera centered on player for meteor range display")
@@ -454,6 +456,11 @@ func restore_camera_zoom_after_meteor() -> void:
 func exit_attack_mode() -> void:
 	"""Exit attack mode and clean up"""
 	is_attack_mode = false
+	
+	# Store the selected card before clearing it
+	var card_to_discard = selected_card
+	var card_discarded := false
+	
 	selected_card = null
 	active_button = null
 	valid_attack_tiles.clear()
@@ -465,8 +472,46 @@ func exit_attack_mode() -> void:
 	animate_card_row_up()
 	
 	# Restore camera zoom if it was changed for Meteor
-	if selected_card and selected_card.name == "Meteor":
+	if card_to_discard and card_to_discard.name == "Meteor":
 		restore_camera_zoom_after_meteor()
+	
+	# Handle card discard
+	if card_to_discard:
+		print("AttackHandler: Exiting attack mode with card:", card_to_discard.name)
+		print("AttackHandler: Card in hand:", deck_manager.hand.has(card_to_discard))
+		print("AttackHandler: Is club card:", deck_manager.is_club_card(card_to_discard))
+		
+		# Don't discard club cards here - they're handled by the club card selection system
+		if deck_manager.hand.has(card_to_discard) and not deck_manager.is_club_card(card_to_discard):
+			print("AttackHandler: Discarding attack card:", card_to_discard.name)
+			deck_manager.discard(card_to_discard)
+			card_discarded = true
+		elif deck_manager.is_club_card(card_to_discard):
+			print("AttackHandler: Skipping discard for club card:", card_to_discard.name)
+			pass
+		else:
+			print("AttackHandler: Card not in hand or already discarded:", card_to_discard.name)
+			pass
+
+		if card_discarded:
+			print("AttackHandler: Animating card discard for:", card_to_discard.name)
+			card_stack_display.animate_card_discard(card_to_discard.name)
+			emit_signal("card_discarded", card_to_discard)
+			
+			# Update the deck display to reflect the new card counts
+			if card_effect_handler and card_effect_handler.course and "ui_manager" in card_effect_handler.course:
+				var ui_manager = card_effect_handler.course.ui_manager
+				if ui_manager and ui_manager.has_method("update_deck_display"):
+					ui_manager.update_deck_display()
+					print("AttackHandler: Updated deck display after discarding", card_to_discard.name)
+			
+			# Update the movement buttons to show the remaining cards in hand
+			if card_effect_handler and card_effect_handler.course and card_effect_handler.course.has_method("create_movement_buttons"):
+				card_effect_handler.course.create_movement_buttons()
+				print("AttackHandler: Recreated movement buttons after discarding", card_to_discard.name)
+	
+	# Clear the button reference (buttons are recreated by create_movement_buttons)
+	active_button = null
 	
 	# Emit signal
 	emit_signal("attack_mode_exited")
@@ -901,7 +946,10 @@ func create_and_animate_ash_dog(npc: Node, target_pos: Vector2i) -> void:
 	# Get target world position
 	var target_world_pos = Vector2(target_pos.x * cell_size + cell_size/2, target_pos.y * cell_size + cell_size/2)
 	if card_effect_handler and card_effect_handler.course:
-		target_world_pos += card_effect_handler.course.camera_container.global_position
+		var camera_container = card_effect_handler.course.get_node_or_null("CameraContainer")
+		if camera_container:
+			target_world_pos += camera_container.global_position
+			print("✓ Added camera container offset for AttackDog:", camera_container.global_position)
 	
 	# Calculate direction for sprite orientation
 	var direction = target_world_pos - ash.global_position
@@ -1619,10 +1667,10 @@ func focus_camera_on_meteor(meteor: Node, target_pos: Vector2) -> void:
 	
 	# Store player position for return
 	var player_pos = Vector2.ZERO
-	if course.player_node:
-		var sprite = course.player_node.get_node_or_null("Sprite2D")
+	if course.player_manager and course.player_manager.get_player_node():
+		var sprite = course.player_manager.get_player_node().get_node_or_null("Sprite2D")
 		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(48, 48)
-		player_pos = course.player_node.global_position + player_size / 2
+		player_pos = course.player_manager.get_player_node().global_position + player_size / 2
 	
 	# Store references for meteor tracking
 	meteor.set_meta("camera_return_to_player", true)
@@ -1911,10 +1959,10 @@ func _fallback_return_camera_to_player(course: Node) -> void:
 	
 	# Get player position from course
 	var player_pos = Vector2.ZERO
-	if course.player_node:
-		var sprite = course.player_node.get_node_or_null("Sprite2D")
+	if course.player_manager and course.player_manager.get_player_node():
+		var sprite = course.player_manager.get_player_node().get_node_or_null("Sprite2D")
 		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(48, 48)
-		player_pos = course.player_node.global_position + player_size / 2
+		player_pos = course.player_manager.get_player_node().global_position + player_size / 2
 	
 	# Smoothly tween camera back to player
 	if course.has_method("create_camera_tween"):

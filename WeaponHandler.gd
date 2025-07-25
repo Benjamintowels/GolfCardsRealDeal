@@ -1602,7 +1602,6 @@ func exit_weapon_mode() -> void:
 		if course.game_state_manager:
 			course.game_state_manager.set_is_aiming_phase(false)
 		course.hide_aiming_circle()
-		course.hide_aiming_instruction()
 		
 		# Restore original club if it was stored
 		if has_meta("original_club"):
@@ -1616,7 +1615,6 @@ func exit_weapon_mode() -> void:
 		if course.game_state_manager:
 			course.game_state_manager.set_is_aiming_phase(false)
 		course.hide_aiming_circle()
-		course.hide_aiming_instruction()
 		
 		# Restore original club if it was stored
 		if has_meta("original_club"):
@@ -1630,7 +1628,6 @@ func exit_weapon_mode() -> void:
 		if course.game_state_manager:
 			course.game_state_manager.set_is_aiming_phase(false)
 		course.hide_aiming_circle()
-		course.hide_aiming_instruction()
 		
 		# Restore original club if it was stored
 		if has_meta("original_club"):
@@ -1644,7 +1641,6 @@ func exit_weapon_mode() -> void:
 		if course.game_state_manager:
 			course.game_state_manager.set_is_aiming_phase(false)
 		course.hide_aiming_circle()
-		course.hide_aiming_instruction()
 		
 		# Restore original club if it was stored
 		if has_meta("original_club"):
@@ -1658,7 +1654,7 @@ func exit_weapon_mode() -> void:
 		if course.game_state_manager:
 			course.game_state_manager.set_is_aiming_phase(false)
 		course.hide_aiming_circle()
-		course.hide_aiming_instruction()
+
 		
 		# Restore original club if it was stored
 		if has_meta("original_club"):
@@ -1672,7 +1668,6 @@ func exit_weapon_mode() -> void:
 		if course.game_state_manager:
 			course.game_state_manager.set_is_aiming_phase(false)
 		course.hide_aiming_circle()
-		course.hide_aiming_instruction()
 		
 		# Animate CardRow back to original position
 		if movement_controller and movement_controller.has_method("animate_card_row_up"):
