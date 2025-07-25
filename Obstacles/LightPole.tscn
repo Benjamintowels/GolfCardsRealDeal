@@ -31,5 +31,7 @@ position = Vector2(-0.5, 2)
 
 [node name="PointLight2D" type="PointLight2D" parent="."]
 position = Vector2(1, -190)
+energy = 0.53
+shadow_enabled = true
 texture = ExtResource("3_mx1vn")
 texture_scale = 3.94

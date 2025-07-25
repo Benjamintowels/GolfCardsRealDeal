@@ -1,4 +1,4 @@
-[gd_scene load_steps=37 format=3 uid="uid://bc8s6t7wka23s"]
+[gd_scene load_steps=38 format=3 uid="uid://bc8s6t7wka23s"]
 
 [ext_resource type="Texture2D" uid="uid://bu6bwgk8aipl2" path="res://Characters/BennyChar.png" id="1_oukfo"]
 [ext_resource type="Script" uid="uid://d2iiaqe57mea" path="res://Characters/SwingAnimation.gd" id="2_swing"]
@@ -181,6 +181,9 @@ height = 88.0
 [sub_resource type="CompressedTexture2D" id="CompressedTexture2D_3tp8o"]
 load_path = "res://.godot/imported/GolfBall.png-0516230eae0ffabe6c6d009b86188c92.ctex"
 
+[sub_resource type="OccluderPolygon2D" id="OccluderPolygon2D_jc6xu"]
+polygon = PackedVector2Array(-12, -1, -12, -8, -10, -12, -10, -18, -14, -19, -16, -22, -16, -27, -17, -29, -16, -39, -13, -47, -15, -49, -15, -52, -12, -55, -10, -55, -9, -58, -15, -61, -16, -68, -19, -69, -19, -72, -14, -73, -14, -79, -7, -86, 8, -87, 14, -82, 14, -78, 17, -74, 17, -70, 15, -68, 15, -56, 11, -52, 11, -49, 14, -48, 17, -43, 19, -36, 19, -23, 13, -18, 13, -7, 17, -2, 16, 0)
+
 [node name="BennyChar" type="Node2D"]
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
@@ -303,3 +306,6 @@ texture_filter = 1
 position = Vector2(3, -44)
 scale = Vector2(0.95, 1)
 texture = ExtResource("11_jc6xu")
+
+[node name="LightOccluder2D" type="LightOccluder2D" parent="."]
+occluder = SubResource("OccluderPolygon2D_jc6xu")

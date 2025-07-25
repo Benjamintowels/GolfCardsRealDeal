@@ -1315,6 +1315,13 @@ func perform_punchb_attack_with_movement_oil_drum(oil_drum: Node, target_pos: Ve
 	
 	# Animate player movement to target
 	if player_node and player_node.has_method("animate_to_position"):
+		# CRITICAL FIX: Temporarily disable animations to prevent position sync glitches
+		var original_animations_enabled = false
+		if player_node and "animations_enabled" in player_node:
+			original_animations_enabled = player_node.animations_enabled
+			print("🔍 PUNCHB DEBUG: Temporarily disabling animations (was:", original_animations_enabled, ")")
+			player_node.animations_enabled = false
+		
 		# Update position tracking immediately for intermediate position
 		if player_node.has_method("set_grid_position"):
 			player_node.set_grid_position(intermediate_pos)
@@ -1322,8 +1329,20 @@ func perform_punchb_attack_with_movement_oil_drum(oil_drum: Node, target_pos: Ve
 		if card_effect_handler and card_effect_handler.course:
 			card_effect_handler.course.player_grid_pos = intermediate_pos
 		
+		# Re-enable animations for intended movement
+		if player_node and "animations_enabled" in player_node:
+			print("🔍 PUNCHB DEBUG: Re-enabling animations")
+			player_node.animations_enabled = original_animations_enabled
+		
 		# First move to intermediate position
 		player_node.animate_to_position(intermediate_pos, func():
+			# CRITICAL FIX: Temporarily disable animations to prevent position sync glitches
+			var original_animations_enabled_2 = false
+			if player_node and "animations_enabled" in player_node:
+				original_animations_enabled_2 = player_node.animations_enabled
+				print("🔍 PUNCHB DEBUG: Temporarily disabling animations (was:", original_animations_enabled_2, ")")
+				player_node.animations_enabled = false
+			
 			# Update position tracking for target position
 			if player_node.has_method("set_grid_position"):
 				player_node.set_grid_position(target_pos)
@@ -1331,10 +1350,22 @@ func perform_punchb_attack_with_movement_oil_drum(oil_drum: Node, target_pos: Ve
 			if card_effect_handler and card_effect_handler.course:
 				card_effect_handler.course.player_grid_pos = target_pos
 			
+			# Re-enable animations for intended movement
+			if player_node and "animations_enabled" in player_node:
+				print("🔍 PUNCHB DEBUG: Re-enabling animations")
+				player_node.animations_enabled = original_animations_enabled_2
+			
 			# Then move to target position
 			player_node.animate_to_position(target_pos, func():
 				# Perform the attack (without animation since it's already playing)
 				perform_punchb_attack_immediate_oil_drum_no_animation(oil_drum, target_pos)
+				
+				# CRITICAL FIX: Temporarily disable animations to prevent position sync glitches
+				var original_animations_enabled_3 = false
+				if player_node and "animations_enabled" in player_node:
+					original_animations_enabled_3 = player_node.animations_enabled
+					print("🔍 PUNCHB DEBUG: Temporarily disabling animations (was:", original_animations_enabled_3, ")")
+					player_node.animations_enabled = false
 				
 				# Update position tracking for return to original position
 				if player_node.has_method("set_grid_position"):
@@ -1342,6 +1373,11 @@ func perform_punchb_attack_with_movement_oil_drum(oil_drum: Node, target_pos: Ve
 				player_grid_pos = original_player_pos
 				if card_effect_handler and card_effect_handler.course:
 					card_effect_handler.course.player_grid_pos = original_player_pos
+				
+				# Re-enable animations for intended movement
+				if player_node and "animations_enabled" in player_node:
+					print("🔍 PUNCHB DEBUG: Re-enabling animations")
+					player_node.animations_enabled = original_animations_enabled_3
 				
 				# Move back to original position
 				player_node.animate_to_position(original_player_pos, func():
