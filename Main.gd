@@ -8,6 +8,7 @@ extends Control
 @onready var driving_range_button = $UI/DrivingRange
 @onready var boss_room_button = $UI/BossRoom
 @onready var fight_room_button = $UI/FightRoom
+@onready var kendama_button = $UI/Kendama
 @onready var select_sound = $Select
 
 var selected_character = 1  # Default to character 1
@@ -31,6 +32,7 @@ func _ready():
 	driving_range_button.pressed.connect(_on_driving_range_button_pressed)
 	boss_room_button.pressed.connect(_on_boss_room_button_pressed)
 	fight_room_button.pressed.connect(_on_fight_room_button_pressed)
+	kendama_button.pressed.connect(_on_kendama_button_pressed)
 	
 	print("Buttons connected successfully")
 	print("Initial selected_character: ", selected_character)
@@ -145,6 +147,24 @@ func _on_fight_room_button_pressed():
 func _change_to_fight_room():
 	# Start fade to black first
 	FadeManager.fade_to_black(func(): get_tree().change_scene_to_file("res://Course1.tscn"), 0.5)
+	
+	# Play door sounds during the fade
+	$DoorOpen.play()
+	await $DoorOpen.finished
+	$DoorClose.play()
+
+func _on_kendama_button_pressed():
+	_play_select_sound()
+	# Store the selected character in a global variable
+	Global.selected_character = selected_character
+	print("Selected character: ", selected_character, " - Starting Kendama Game")
+	
+	# Change to the Kendama game scene
+	call_deferred("_change_to_kendama_game")
+
+func _change_to_kendama_game():
+	# Start fade to black first
+	FadeManager.fade_to_black(func(): get_tree().change_scene_to_file("res://Stages/KendamaGame/KendamaGame.tscn"), 0.5)
 	
 	# Play door sounds during the fade
 	$DoorOpen.play()

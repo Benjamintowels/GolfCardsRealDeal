@@ -109,6 +109,13 @@ offset_right = 953.0
 offset_bottom = 490.0
 text = "Fight Room"
 
+[node name="Kendama" type="Button" parent="UI"]
+offset_left = 837.0
+offset_top = 511.0
+offset_right = 953.0
+offset_bottom = 542.0
+text = "Kendama"
+
 [node name="Character2" type="Sprite2D" parent="UI"]
 texture_filter = 1
 position = Vector2(611, 889)

@@ -1,0 +1,25 @@
+[gd_scene load_steps=4 format=3 uid="uid://bo07rn65t8a07"]
+
+[ext_resource type="Texture2D" uid="uid://cvngxqggqq66i" path="res://Stages/KendamaGame/Dama.png" id="1_pkxmq"]
+[ext_resource type="Script" uid="uid://qswlb1vulvau" path="res://Stages/KendamaGame/dama.gd" id="1_poit4"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_poit4"]
+
+[node name="Dama" type="CharacterBody2D"]
+script = ExtResource("1_poit4")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture_filter = 1
+texture = ExtResource("1_pkxmq")
+
+[node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="."]
+position = Vector2(0, 20)
+polygon = PackedVector2Array(-20, 24, -13, 24, -13, -22, 18, -22, 18, 22, 25, 22, 42, 0, 46, -15, 46, -27, 39, -43, 29, -56, 12, -64, -19, -64, -30, -56, -41, -39, -47, -27, -47, -12, -40, 3, -28, 17)
+
+[node name="SpikeArea" type="Area2D" parent="."]
+collision_layer = 2
+collision_mask = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="SpikeArea"]
+position = Vector2(2, 12)
+shape = SubResource("CircleShape2D_poit4")

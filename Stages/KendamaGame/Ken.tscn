@@ -1,0 +1,25 @@
+[gd_scene load_steps=4 format=3 uid="uid://b7qctyu8xxyaf"]
+
+[ext_resource type="Script" uid="uid://cuxtroq3st07" path="res://Stages/KendamaGame/ken.gd" id="1_dc822"]
+[ext_resource type="Texture2D" uid="uid://cmkgtomjxdv48" path="res://Stages/KendamaGame/Ken.png" id="1_yi2hq"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_dc822"]
+
+[node name="Ken" type="CharacterBody2D"]
+script = ExtResource("1_dc822")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(4, 0)
+texture = ExtResource("1_yi2hq")
+
+[node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="."]
+polygon = PackedVector2Array(-11, 11, -37, 26, -56, 26, -62, 17, -62, -32, -55, -43, -40, -43, -12, -24, -4, -82, 4, -82, 10, -23, 42, -44, 61, -44, 68, -35, 68, 10, 62, 22, 42, 22, 12, 10, 27, 135, 27, 155, -30, 155, -30, 136)
+
+[node name="TipArea" type="Area2D" parent="."]
+collision_layer = 2
+collision_mask = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="TipArea"]
+position = Vector2(0, -82)
+shape = SubResource("CircleShape2D_dc822")
