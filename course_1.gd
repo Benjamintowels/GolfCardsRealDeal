@@ -254,6 +254,7 @@ var tile_scene_map := {
 	"SHOP": preload("res://Obstacles/Base.tscn"),
 	"SW": preload("res://Obstacles/SideWalk.tscn"),
 	"B": preload("res://Obstacles/Garden.tscn"),  # Garden tile for flowers
+	"C": preload("res://Obstacles/Cement.tscn"),  # Cement tile
 }
 
 var object_scene_map := {
@@ -280,6 +281,7 @@ var object_scene_map := {
 	"VERTICAL_FIELD": preload("res://Interactables/VerticalField.tscn"),
 	"HORIZONTAL_FIELD": preload("res://Interactables/HorizontalField.tscn"),
 	"FORCE_FIELD_DOME": preload("res://Interactables/ForceFieldDome.tscn"),
+	"LIGHTPOLE": preload("res://Obstacles/LightPole.tscn"),
 }
 
 var object_to_tile_mapping := {
@@ -297,6 +299,7 @@ var object_to_tile_mapping := {
 	"ZOMBIE": "S",
 	"SQUIRREL": "Base",
 	"BONFIRE": "Base",
+	"LIGHTPOLE": "C",  # LightPoles spawn on Cement tiles
 	"WRAITH": "G",
 	"BOSSEYE": "G",
 	"GENERATOR": "Base",

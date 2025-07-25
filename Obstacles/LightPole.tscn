@@ -1,0 +1,28 @@
+[gd_scene load_steps=4 format=3 uid="uid://de5tj63xsix3u"]
+
+[ext_resource type="Script" uid="uid://bpeyd12xabola" path="res://Obstacles/light_pole.gd" id="1_45hul"]
+[ext_resource type="Texture2D" uid="uid://dd0anso3rssp7" path="res://Obstacles/Lightpole.png" id="2_45hul"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_7tjvc"]
+radius = 4.34833
+
+[node name="LightPole" type="Node2D"]
+script = ExtResource("1_45hul")
+
+[node name="LightPoleSprite" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(0, -88)
+texture = ExtResource("2_45hul")
+
+[node name="Area2D" type="Area2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D"]
+position = Vector2(0, 22)
+scale = Vector2(3.51, 2.49)
+shape = SubResource("CircleShape2D_7tjvc")
+
+[node name="TopHeight" type="Marker2D" parent="."]
+position = Vector2(1, -195)
+
+[node name="YsortPoint" type="Marker2D" parent="."]
+position = Vector2(-1, 21)

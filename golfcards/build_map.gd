@@ -419,7 +419,8 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 		"suitcase": Vector2i.ZERO,
 		"wraiths": [],
 		"boss_eyes": [],
-		"generator_switches": []
+		"generator_switches": [],
+		"light_poles": []
 	}
 	
 	# Use difficulty tier spawning if parameters are -1 (default)
@@ -1526,6 +1527,49 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 			print("🌺 Placed default flower at (", flower_pos.x, ",", flower_pos.y, ")")
 	
 	print("🌺 FLOWER PLACEMENT COMPLETE! Placed", garden_positions.size(), "flowers")
+	
+	# Place LightPoles on Cement tiles (C) - randomly on some cement tiles
+	print("💡 PLACING LIGHT POLES ON CEMENT TILES...")
+	
+	# Find all Cement tiles in the layout
+	var cement_positions: Array = []
+	for y in layout.size():
+		for x in layout[y].size():
+			if layout[y][x] == "C":  # Cement tile
+				cement_positions.append(Vector2i(x, y))
+	
+	print("💡 Found", cement_positions.size(), "Cement tiles for potential light pole placement")
+	
+	# Randomly place light poles on about 30% of cement tiles
+	var num_light_poles = max(1, cement_positions.size() / 3)  # At least 1, but about 1/3 of cement tiles
+	cement_positions.shuffle()  # Randomize the order
+	
+	for i in range(min(num_light_poles, cement_positions.size())):
+		var pole_pos = cement_positions[i]
+		var scene: PackedScene = object_scene_map["LIGHTPOLE"]
+		if scene == null:
+			push_error("🚫 LightPole scene is null")
+			continue
+		var light_pole: Node2D = scene.instantiate() as Node2D
+		if light_pole == null:
+			push_error("❌ LightPole instantiation failed at (%d,%d)" % [pole_pos.x, pole_pos.y])
+			continue
+		
+		var world_pos: Vector2 = Vector2(pole_pos.x, pole_pos.y) * cell_size
+		light_pole.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
+		
+		# Always set the grid_position property unconditionally
+		light_pole.set_meta("grid_position", pole_pos)
+		
+		# Add light pole to groups for smart optimization and collision
+		light_pole.add_to_group("light_poles")
+		light_pole.add_to_group("collision_objects")
+		
+		ysort_objects.append({"node": light_pole, "grid_pos": pole_pos})
+		obstacle_layer.add_child(light_pole)
+		print("💡 Placed LightPole at (", pole_pos.x, ",", pole_pos.y, ")")
+	
+	print("💡 LIGHT POLE PLACEMENT COMPLETE! Placed", min(num_light_poles, cement_positions.size()), "light poles")
 	
 	# Place Grass
 	

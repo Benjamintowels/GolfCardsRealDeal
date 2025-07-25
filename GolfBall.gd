@@ -1218,6 +1218,13 @@ func _on_area_entered(area):
 		_notify_bounce_room_bounce()
 		# Notify course to re-enable player collision since ball hit boulder
 		notify_course_of_collision()
+	# Check if this is a LightPole collision
+	elif area.get_parent() and area.get_parent().is_in_group("light_poles"):
+		# LightPole collision detected - use roof bounce system
+		_handle_roof_bounce_collision(area.get_parent())
+		_notify_bounce_room_bounce()
+		# Notify course to re-enable player collision since ball hit light pole
+		notify_course_of_collision()
 	# Check if this is a Generator Switch collision
 	elif area.get_parent() and area.get_parent().has_method("_handle_generator_switch_collision"):
 		# Generator Switch collision detected - use roof bounce system
@@ -1337,6 +1344,15 @@ func _play_bounce_sound() -> void:
 			sw_bounce_sound.play()
 		else:
 			# Fallback to normal bounce sound if SW sound not available
+			if ball_land_sound and ball_land_sound.stream:
+				ball_land_sound.play()
+	elif tile_type == "C":
+		# Cement tile - play TrunkThunk sound from ball
+		var trunk_thunk = get_node_or_null("TrunkThunk")
+		if trunk_thunk and trunk_thunk.stream:
+			trunk_thunk.play()
+		else:
+			# Fallback to normal bounce sound if TrunkThunk sound not available
 			if ball_land_sound and ball_land_sound.stream:
 				ball_land_sound.play()
 	else:
