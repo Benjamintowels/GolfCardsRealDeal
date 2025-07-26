@@ -1052,6 +1052,14 @@ func _handle_jump_wall_collision(wall: Node2D) -> void:
 	
 	# Update player position and continue jump to bounce target
 	grid_pos = bounce_grid_pos
+	
+	# Update the attack handler's player position if it exists
+	if course and course.has_method("get_attack_handler"):
+		var attack_handler = course.get_attack_handler()
+		if attack_handler and attack_handler.has_method("update_player_position"):
+			attack_handler.update_player_position(bounce_grid_pos)
+			print("Attack handler player position updated to:", bounce_grid_pos)
+	
 	var bounce_world_pos = Vector2(bounce_grid_pos.x, bounce_grid_pos.y) * cell_size + Vector2(cell_size / 2, cell_size / 2)
 	
 	# Continue jump to bounce target
@@ -1110,6 +1118,14 @@ func _handle_jump_npc_landing(npc: Node2D) -> void:
 	
 	# Update player position and continue jump to landing target
 	grid_pos = final_landing_pos
+	
+	# Update the attack handler's player position if it exists
+	if course and course.has_method("get_attack_handler"):
+		var attack_handler = course.get_attack_handler()
+		if attack_handler and attack_handler.has_method("update_player_position"):
+			attack_handler.update_player_position(final_landing_pos)
+			print("Attack handler player position updated to:", final_landing_pos)
+	
 	var landing_world_pos = Vector2(final_landing_pos.x, final_landing_pos.y) * cell_size + Vector2(cell_size / 2, cell_size / 2)
 	
 	# Create a special roof bounce animation that aligns Feet with NPC TopHeight
@@ -1347,8 +1363,15 @@ func _on_movement_completed() -> void:
 	# Update Y-sorting one final time (with empty arrays as defaults)
 	update_z_index_for_ysort([], Vector2i.ZERO)
 	
-	# Smoothly tween camera to final position
+	# Update the attack handler's player position if it exists
 	var course = get_tree().current_scene
+	if course and course.has_method("get_attack_handler"):
+		var attack_handler = course.get_attack_handler()
+		if attack_handler and attack_handler.has_method("update_player_position"):
+			attack_handler.update_player_position(grid_pos)
+			print("Attack handler player position updated to:", grid_pos)
+	
+	# Smoothly tween camera to final position
 	if course and course.has_method("smooth_camera_to_player"):
 		course.smooth_camera_to_player()
 	
@@ -2374,6 +2397,13 @@ func animate_to_position(target_grid_pos: Vector2i, callback: Callable = Callabl
 			if player_manager and player_manager.has_method("set_player_grid_pos"):
 				print("🔍 ANIMATE_TO_POSITION DEBUG: Calling player_manager.set_player_grid_pos(", target_grid_pos, ")")
 				player_manager.set_player_grid_pos(target_grid_pos)
+		
+		# Update the attack handler's player position if it exists
+		if course and course.has_method("get_attack_handler"):
+			var attack_handler = course.get_attack_handler()
+			if attack_handler and attack_handler.has_method("update_player_position"):
+				attack_handler.update_player_position(target_grid_pos)
+				print("🔍 ANIMATE_TO_POSITION DEBUG: Attack handler player position updated to:", target_grid_pos)
 	)
 	
 	print("🔍 ANIMATE_TO_POSITION DEBUG: Tween setup complete")

@@ -1187,8 +1187,13 @@ func _handle_player_collision(approach_direction: Vector2i = Vector2i.ZERO) -> v
 		if course and course.has_method("get_attack_handler"):
 			var attack_handler = course.get_attack_handler()
 			if attack_handler and attack_handler.has_method("update_player_position"):
+				print("🔍 GANGMEMBER DEBUG: About to update attack handler from", attack_handler.player_grid_pos, "to", pushback_pos)
 				attack_handler.update_player_position(pushback_pos)
-				print("Attack handler player position updated to: ", pushback_pos)
+				print("🔍 GANGMEMBER DEBUG: Attack handler player position updated to:", pushback_pos)
+			else:
+				print("🔍 GANGMEMBER DEBUG: Attack handler not found or missing update_player_position method")
+		else:
+			print("🔍 GANGMEMBER DEBUG: Course doesn't have get_attack_handler method")
 		
 		# Re-enable animations for intended movement
 		if player and "animations_enabled" in player:

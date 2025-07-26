@@ -4397,6 +4397,10 @@ func _update_bounce_room_hud():
 # ... existing code ...
 # On hole/round reset, call _update_bounce_room_hud() to ensure the label is correct
 
+func get_attack_handler() -> AttackHandler:
+	"""Get the attack handler instance"""
+	return attack_handler
+
 func _on_player_moved_to_tile(new_grid_pos: Vector2i) -> void:
 	"""Handle when player moves to a new tile - called by NPCs and other systems"""
 	print("🔍 COURSE DEBUG: _on_player_moved_to_tile called with pos:", new_grid_pos)

@@ -135,6 +135,9 @@ func create_attack_buttons() -> void:
 
 func _on_attack_card_pressed(card: CardData, button: TextureButton = null) -> void:
 	"""Handle when an attack card is pressed"""
+	print("🔍 ATTACK_HANDLER DEBUG: _on_attack_card_pressed called with card:", card.name)
+	print("🔍 ATTACK_HANDLER DEBUG: Current player_grid_pos:", player_grid_pos)
+	
 	selected_card = card
 	active_button = button
 	attack_damage = card.damage
@@ -198,6 +201,8 @@ func _on_slash_card_pressed(card: CardData, button: TextureButton = null) -> voi
 
 func calculate_valid_attack_tiles() -> void:
 	valid_attack_tiles.clear()
+	print("🔍 ATTACK_HANDLER DEBUG: calculate_valid_attack_tiles called with player_grid_pos:", player_grid_pos)
+	
 	# Get grid size from the course
 	var grid_size = Vector2i(100, 100)  # Default grid size
 	if card_effect_handler and card_effect_handler.course:
@@ -902,6 +907,7 @@ func update_player_position(new_grid_pos: Vector2i) -> void:
 	print("🔍 Selected card:", selected_card.name if selected_card else "None")
 	
 	player_grid_pos = new_grid_pos
+	print("🔍 ATTACK_HANDLER DEBUG: player_grid_pos updated to:", player_grid_pos)
 	
 	# If we're in attack mode, recalculate valid attack tiles with the new position
 	if is_attack_mode:
@@ -1376,6 +1382,13 @@ func perform_punchb_attack_with_movement(npc: Node, target_pos: Vector2i, origin
 	
 	# Animate player movement to target
 	if player_node and player_node.has_method("animate_to_position"):
+		# CRITICAL FIX: Temporarily disable animations to prevent position sync glitches
+		var original_animations_enabled = false
+		if player_node and "animations_enabled" in player_node:
+			original_animations_enabled = player_node.animations_enabled
+			print("🔍 PUNCHB DEBUG: Temporarily disabling animations (was:", original_animations_enabled, ")")
+			player_node.animations_enabled = false
+		
 		# Update position tracking immediately for intermediate position
 		if player_node.has_method("set_grid_position"):
 			player_node.set_grid_position(intermediate_pos)
@@ -1383,8 +1396,20 @@ func perform_punchb_attack_with_movement(npc: Node, target_pos: Vector2i, origin
 		if card_effect_handler and card_effect_handler.course:
 			card_effect_handler.course.player_grid_pos = intermediate_pos
 		
+		# Re-enable animations for intended movement
+		if player_node and "animations_enabled" in player_node:
+			print("🔍 PUNCHB DEBUG: Re-enabling animations")
+			player_node.animations_enabled = original_animations_enabled
+		
 		# First move to intermediate position
 		player_node.animate_to_position(intermediate_pos, func():
+			# CRITICAL FIX: Temporarily disable animations to prevent position sync glitches
+			var original_animations_enabled_2 = false
+			if player_node and "animations_enabled" in player_node:
+				original_animations_enabled_2 = player_node.animations_enabled
+				print("🔍 PUNCHB DEBUG: Temporarily disabling animations (was:", original_animations_enabled_2, ")")
+				player_node.animations_enabled = false
+			
 			# Update position tracking for target position
 			if player_node.has_method("set_grid_position"):
 				player_node.set_grid_position(target_pos)
@@ -1392,10 +1417,22 @@ func perform_punchb_attack_with_movement(npc: Node, target_pos: Vector2i, origin
 			if card_effect_handler and card_effect_handler.course:
 				card_effect_handler.course.player_grid_pos = target_pos
 			
+			# Re-enable animations for intended movement
+			if player_node and "animations_enabled" in player_node:
+				print("🔍 PUNCHB DEBUG: Re-enabling animations")
+				player_node.animations_enabled = original_animations_enabled_2
+			
 			# Then move to target position
 			player_node.animate_to_position(target_pos, func():
 				# Perform the attack (without animation since it's already playing)
 				perform_punchb_attack_immediate_no_animation(npc, target_pos)
+				
+				# CRITICAL FIX: Temporarily disable animations to prevent position sync glitches
+				var original_animations_enabled_3 = false
+				if player_node and "animations_enabled" in player_node:
+					original_animations_enabled_3 = player_node.animations_enabled
+					print("🔍 PUNCHB DEBUG: Temporarily disabling animations (was:", original_animations_enabled_3, ")")
+					player_node.animations_enabled = false
 				
 				# Update position tracking for return to original position
 				if player_node.has_method("set_grid_position"):
@@ -1403,6 +1440,11 @@ func perform_punchb_attack_with_movement(npc: Node, target_pos: Vector2i, origin
 				player_grid_pos = original_player_pos
 				if card_effect_handler and card_effect_handler.course:
 					card_effect_handler.course.player_grid_pos = original_player_pos
+				
+				# Re-enable animations for intended movement
+				if player_node and "animations_enabled" in player_node:
+					print("🔍 PUNCHB DEBUG: Re-enabling animations")
+					player_node.animations_enabled = original_animations_enabled_3
 				
 				# Move back to original position
 				player_node.animate_to_position(original_player_pos, func():
