@@ -74,10 +74,11 @@ animations = [{
 [node name="SlashFx" type="AnimatedSprite2D"]
 texture_filter = 1
 position = Vector2(5, 156)
+scale = Vector2(0.235, 0.235)
 sprite_frames = SubResource("SpriteFrames_3s5n4")
 animation = &"slash"
-frame = 3
-frame_progress = 0.439775
+frame = 4
+frame_progress = 0.38792
 flip_h = true
 flip_v = true
 

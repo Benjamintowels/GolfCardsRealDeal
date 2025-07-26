@@ -29,6 +29,10 @@ var vision_range: int = 12
 var attack_range: int = 2  # Range within which GangMember will attack
 var current_action: String = "idle"
 
+# Hurt sprite reference
+@onready var hurt_sprite: Sprite2D = $Hurt
+var is_showing_hurt: bool = false
+
 # Movement animation properties
 var is_moving: bool = false
 var movement_tween: Tween
@@ -1447,6 +1451,13 @@ func _update_sprite_facing() -> void:
 		elif facing_direction.x > 0:
 			kick_sprite.flip_h = false
 	
+	# Update hurt sprite facing if it's visible
+	if is_showing_hurt and hurt_sprite:
+		if facing_direction.x < 0:
+			hurt_sprite.flip_h = true
+		elif facing_direction.x > 0:
+			hurt_sprite.flip_h = false
+	
 	print("Updated sprite facing - Direction: ", facing_direction, ", Flip H: ", sprite.flip_h)
 
 func _update_attached_knives_facing() -> void:
@@ -2012,6 +2023,11 @@ func _change_to_dead_sprite() -> void:
 		kick_sprite.visible = false
 		is_showing_kick = false
 	
+	# Hide the hurt sprite if it's visible
+	if hurt_sprite:
+		hurt_sprite.visible = false
+		is_showing_hurt = false
+	
 	# Show the dead sprite
 	var dead_sprite = get_node_or_null("Dead")
 	if dead_sprite:
@@ -2058,14 +2074,8 @@ func _switch_to_dead_collision() -> void:
 		print("✗ ERROR: Dead/BaseCollisionArea not found")
 
 func flash_damage() -> void:
-	"""Flash the GangMember red to indicate damage taken"""
-	if not sprite:
-		return
-	
-	var original_modulate = sprite.modulate
-	var tween = create_tween()
-	tween.tween_property(sprite, "modulate", Color(1, 0, 0, 1), 0.1)
-	tween.tween_property(sprite, "modulate", original_modulate, 0.2)
+	"""Flash the GangMember hurt sprite to indicate damage taken"""
+	flash_hurt_sprite()
 
 func flash_headshot() -> void:
 	"""Flash the GangMember with a special headshot effect"""
@@ -2078,6 +2088,48 @@ func flash_headshot() -> void:
 	tween.tween_property(sprite, "modulate", Color(1, 0.84, 0, 1), 0.15)  # Bright gold
 	tween.tween_property(sprite, "modulate", Color(1, 0.65, 0, 1), 0.1)   # Deeper gold
 	tween.tween_property(sprite, "modulate", original_modulate, 0.2)
+
+# Hurt sprite methods
+func show_hurt_sprite() -> void:
+	"""Show the hurt sprite and hide the normal sprite"""
+	if sprite:
+		sprite.visible = false
+	
+	if hurt_sprite:
+		hurt_sprite.visible = true
+		# Apply the same facing direction to the hurt sprite
+		if facing_direction.x < 0:
+			hurt_sprite.flip_h = true
+		elif facing_direction.x > 0:
+			hurt_sprite.flip_h = false
+		
+		# Update Y-sorting for hurt sprite
+		update_z_index_for_ysort()
+	
+	is_showing_hurt = true
+	print("✓ GangMember showing hurt sprite")
+
+func hide_hurt_sprite() -> void:
+	"""Hide the hurt sprite and show the normal sprite"""
+	if hurt_sprite:
+		hurt_sprite.visible = false
+	
+	if sprite and not is_dead and not is_frozen and not is_showing_punch and not is_showing_kick:
+		sprite.visible = true
+		# Update Y-sorting for normal sprite
+		update_z_index_for_ysort()
+	
+	is_showing_hurt = false
+	print("✓ GangMember hiding hurt sprite")
+
+func flash_hurt_sprite() -> void:
+	"""Flash the hurt sprite briefly when taking damage"""
+	show_hurt_sprite()
+	
+	# Flash for a brief moment
+	var flash_duration = 0.3
+	var tween = create_tween()
+	tween.tween_callback(hide_hurt_sprite).set_delay(flash_duration)
 
 func play_death_effect() -> void:
 	"""Play death animation or effect"""
@@ -2366,6 +2418,12 @@ func _switch_to_ice_state() -> void:
 		is_showing_kick = false
 		print("✓ Hidden kick sprite")
 	
+	# Hide the hurt sprite if it's visible
+	if hurt_sprite:
+		hurt_sprite.visible = false
+		is_showing_hurt = false
+		print("✓ Hidden hurt sprite")
+	
 	# Show the ice sprite
 	if ice_sprite:
 		ice_sprite.visible = true
@@ -2409,18 +2467,18 @@ func _switch_to_normal_state() -> void:
 		ice_sprite.visible = false
 		print("✓ Hidden ice sprite")
 	
-	# Show the normal sprite (unless punch or kick sprite should be shown)
-	if sprite and not is_showing_punch and not is_showing_kick:
+	# Show the normal sprite (unless punch, kick, or hurt sprite should be shown)
+	if sprite and not is_showing_punch and not is_showing_kick and not is_showing_hurt:
 		sprite.visible = true
 		# Restore original modulate
 		sprite.modulate = original_modulate
 		# Update facing direction
 		_update_sprite_facing()
 		print("✓ Showed normal sprite")
-	elif sprite and (is_showing_punch or is_showing_kick):
-		# Keep normal sprite hidden if punch or kick is being shown
+	elif sprite and (is_showing_punch or is_showing_kick or is_showing_hurt):
+		# Keep normal sprite hidden if punch, kick, or hurt is being shown
 		sprite.visible = false
-		print("✓ Keeping normal sprite hidden (attack active)")
+		print("✓ Keeping normal sprite hidden (attack or hurt active)")
 	else:
 		print("✗ ERROR: Normal sprite not found!")
 	
@@ -2680,7 +2738,7 @@ func hide_punch_sprite() -> void:
 	if punch_sprite:
 		punch_sprite.visible = false
 	
-	if sprite and not is_dead and not is_frozen:
+	if sprite and not is_dead and not is_frozen and not is_showing_hurt:
 		sprite.visible = true
 		# Update Y-sorting for normal sprite
 		update_z_index_for_ysort()
@@ -2744,7 +2802,7 @@ func hide_kick_sprite() -> void:
 	if kick_sprite:
 		kick_sprite.visible = false
 	
-	if sprite and not is_dead and not is_frozen:
+	if sprite and not is_dead and not is_frozen and not is_showing_hurt:
 		sprite.visible = true
 		# Update Y-sorting for normal sprite
 		update_z_index_for_ysort()
