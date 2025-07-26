@@ -1,7 +1,8 @@
-[gd_scene load_steps=17 format=3 uid="uid://wyu3udwngros"]
+[gd_scene load_steps=18 format=3 uid="uid://wyu3udwngros"]
 
 [ext_resource type="Script" uid="uid://ct4bebh7dhisi" path="res://Main.gd" id="1_r0du0"]
-[ext_resource type="Texture2D" uid="uid://bdmpunqtl77ic" path="res://ClubHouse/ClubHouseStart.png" id="3_wkp8b"]
+[ext_resource type="Texture2D" uid="uid://dg84gx06tkrtv" path="res://ClubHouse/Outside.png" id="3_sc1dx"]
+[ext_resource type="Texture2D" uid="uid://ckagq3sx0xrnl" path="res://ClubHouse/CHFresh.png" id="4_kjvhd"]
 [ext_resource type="Texture2D" uid="uid://cej1ljnr2x51a" path="res://Characters/BennyIpodBig.png" id="5_5vvyt"]
 [ext_resource type="Texture2D" uid="uid://h7kyn51t7cq" path="res://Character3.png" id="5_lgr22"]
 [ext_resource type="Texture2D" uid="uid://cj2ru4qsekcbx" path="res://Characters/LaylaCoffeBig.png" id="7_5vvyt"]
@@ -32,7 +33,16 @@ offset_left = -3.27
 offset_right = 2632.73
 offset_bottom = 1488.0
 scale = Vector2(0.749709, 0.750651)
-texture = ExtResource("3_wkp8b")
+texture = ExtResource("3_sc1dx")
+
+[node name="TextureRect3" type="TextureRect" parent="."]
+texture_filter = 1
+layout_mode = 0
+offset_left = -3.27
+offset_right = 2632.73
+offset_bottom = 1488.0
+scale = Vector2(0.749709, 0.750651)
+texture = ExtResource("4_kjvhd")
 
 [node name="UI" type="CanvasLayer" parent="."]
 
@@ -159,12 +169,11 @@ offset_bottom = 8.0
 text = "ModShotRoom"
 
 [node name="TextureRect2" type="TextureRect" parent="."]
-visible = false
 layout_mode = 0
-offset_left = 458.77
-offset_top = 289.895
-offset_right = 1482.77
-offset_bottom = 1825.9
+offset_left = 220.0
+offset_top = 160.0
+offset_right = 1244.0
+offset_bottom = 1696.01
 scale = Vector2(0.23, 0.23)
 texture = ExtResource("7_lgr22")
 
@@ -185,10 +194,10 @@ pitch_scale = 1.35
 [node name="StartRoundDoor" type="TextureButton" parent="."]
 texture_filter = 1
 layout_mode = 0
-offset_left = 1532.0
-offset_top = 551.0
-offset_right = 1593.0
-offset_bottom = 652.0
+offset_left = 1474.0
+offset_top = 579.0
+offset_right = 1535.0
+offset_bottom = 680.0
 scale = Vector2(2.65, 2.65)
 tooltip_text = "Start Round"
 texture_normal = ExtResource("12_5vvyt")
@@ -201,12 +210,14 @@ texture_focused = ExtResource("12_5vvyt")
 position = Vector2(1342, 768)
 
 [node name="DrivingRangeSign" type="Sprite2D" parent="."]
+visible = false
 texture_filter = 1
 position = Vector2(339, 768)
 scale = Vector2(1.705, 1.705)
 texture = ExtResource("14_j4qnp")
 
 [node name="ClubHouseSign" type="Sprite2D" parent="."]
+visible = false
 texture_filter = 1
 position = Vector2(890, 228)
 scale = Vector2(1.93, 1.93)

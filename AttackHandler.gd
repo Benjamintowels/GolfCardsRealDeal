@@ -1792,12 +1792,12 @@ func create_and_animate_meteor(target_pos: Vector2i, aoe_positions: Array) -> vo
 	# Animate color transition from bright white to flashing red
 	if meteor_sprite:
 		# First transition to red over 0.5 seconds
-		tween.parallel().tween_property(meteor_sprite, "modulate", Color.RED, 0.5)
+		tween.parallel().tween_property(meteor_sprite, "modulate", Color.RED, 0.1)
 		
 		# Then create flashing red effect for the remaining time
 		tween.parallel().tween_method(func(progress: float):
 			if is_instance_valid(meteor_sprite):
-				var flash_intensity = 0.5 + 0.5 * sin(progress * 20.0)  # Fast flashing
+				var flash_intensity = 0.1 + 0.1 * sin(progress * 20.0)  # Fast flashing
 				meteor_sprite.modulate = Color.RED * flash_intensity
 		, 0.5, 1.0, 1.0)  # Flash for the last 1 second
 	
