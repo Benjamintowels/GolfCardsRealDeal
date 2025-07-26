@@ -138,7 +138,13 @@ func _on_attack_card_pressed(card: CardData, button: TextureButton = null) -> vo
 	selected_card = card
 	active_button = button
 	attack_damage = card.damage
-	attack_range = card.damage_range
+	
+	# Special handling for AssassinDash - use aoe_range for attack range
+	if card.name == "AssassinDash":
+		attack_range = card.aoe_range
+		print("AssassinDash detected - using aoe_range for attack range:", attack_range)
+	else:
+		attack_range = card.damage_range
 	
 	# Enter attack mode
 	is_attack_mode = true
@@ -200,7 +206,51 @@ func calculate_valid_attack_tiles() -> void:
 		elif "grid_size" in card_effect_handler.course:
 			grid_size = card_effect_handler.course.grid_size
 
-	# Always add all tiles within range (excluding the player's own tile)
+	# Special handling for AssassinDash - use cross pattern instead of Manhattan distance
+	if selected_card and selected_card.name == "AssassinDash":
+		print("AssassinDash detected - using cross pattern for attack range")
+		var cross_positions = []
+		
+		# Add positions in cross pattern: up, down, left, right (no diagonals)
+		for distance in range(1, attack_range + 1):
+			# Up
+			var up_pos = Vector2i(player_grid_pos.x, player_grid_pos.y - distance)
+			if up_pos.y >= 0:
+				cross_positions.append(up_pos)
+			
+			# Down
+			var down_pos = Vector2i(player_grid_pos.x, player_grid_pos.y + distance)
+			if down_pos.y < grid_size.y:
+				cross_positions.append(down_pos)
+			
+			# Left
+			var left_pos = Vector2i(player_grid_pos.x - distance, player_grid_pos.y)
+			if left_pos.x >= 0:
+				cross_positions.append(left_pos)
+			
+			# Right
+			var right_pos = Vector2i(player_grid_pos.x + distance, player_grid_pos.y)
+			if right_pos.x < grid_size.x:
+				cross_positions.append(right_pos)
+		
+		# Check if behind-enemy position is valid for each cross position
+		for pos in cross_positions:
+			if pos != player_grid_pos:
+				# Calculate the position behind the enemy (opposite direction from player)
+				var direction = pos - player_grid_pos
+				var behind_enemy_pos = pos + direction
+				
+				# Only add this position if the behind-enemy position is valid
+				if is_position_valid_for_assassin_dash(behind_enemy_pos):
+					valid_attack_tiles.append(pos)
+					print("Added valid AssassinDash target at:", pos, "with behind-enemy position:", behind_enemy_pos)
+				else:
+					print("Skipped AssassinDash target at:", pos, "- behind-enemy position blocked:", behind_enemy_pos)
+		
+		print("Total valid AssassinDash targets found:", valid_attack_tiles.size())
+		return
+
+	# Default behavior for other attack cards - use Manhattan distance
 	for y in grid_size.y:
 		for x in grid_size.x:
 			var pos := Vector2i(x, y)
@@ -706,34 +756,53 @@ func apply_knockback(npc: Node, current_pos: Vector2i) -> void:
 
 func is_position_valid_for_assassin_dash(pos: Vector2i) -> bool:
 	"""Check if a position is valid for AssassinDash behind-enemy movement"""
-	var is_valid = true
+	print("Checking if AssassinDash position is valid:", pos)
 	
 	# Basic bounds checking
 	if pos.x < 0 or pos.y < 0 or pos.x >= grid_size.x or pos.y >= grid_size.y:
-		is_valid = false
+		print("Position out of bounds:", pos)
+		return false
 	
 	# Check if the position is occupied by an obstacle
-	elif obstacle_map.has(pos):
+	if obstacle_map.has(pos):
 		var obstacle = obstacle_map[pos]
 		if obstacle.has_method("blocks") and obstacle.blocks():
-			is_valid = false
+			print("Position blocked by obstacle:", pos)
+			return false
 	
 	# Check if the position is occupied by another NPC
-	elif card_effect_handler and card_effect_handler.course:
+	if card_effect_handler and card_effect_handler.course:
 		var entities = card_effect_handler.course.get_node_or_null("Entities")
 		if entities and entities.has_method("get_npcs"):
 			var npcs = entities.get_npcs()
 			for npc in npcs:
-				if is_instance_valid(npc) and npc.has_method("get_grid_position"):
-					if npc.get_grid_position() == pos:
-						is_valid = false
-						break
+				if is_instance_valid(npc):
+					var npc_pos = Vector2i.ZERO
+					
+					# Try to get grid position using different methods
+					if npc.has_method("get_grid_position"):
+						npc_pos = npc.get_grid_position()
+					elif "grid_position" in npc:
+						npc_pos = npc.grid_position
+					elif "grid_pos" in npc:
+						npc_pos = npc.grid_pos
+					else:
+						# Fallback: calculate grid position from world position
+						var world_pos = npc.global_position
+						var cell_size_used = cell_size if "cell_size" in npc else 48
+						npc_pos = Vector2i(floor(world_pos.x / cell_size_used), floor(world_pos.y / cell_size_used))
+					
+					if npc_pos == pos:
+						print("Position occupied by NPC:", pos, "NPC:", npc.name)
+						return false
 	
 	# Check if the position is occupied by the player
-	elif pos == player_grid_pos:
-		is_valid = false
+	if pos == player_grid_pos:
+		print("Position is player's current position:", pos)
+		return false
 	
-	return is_valid
+	print("Position is valid for AssassinDash:", pos)
+	return true
 
 func is_position_valid_for_knockback(pos: Vector2i) -> bool:
 	"""Check if a position is valid for NPC knockback"""
@@ -1443,12 +1512,22 @@ func perform_assassin_dash_attack_on_npc(npc: Node, target_pos: Vector2i) -> voi
 	print("Target position:", target_pos)
 	print("Player position:", player_grid_pos)
 	print("[AssassinDash] selected_card:", selected_card.name if selected_card else "None", "hand:", deck_manager.hand.map(func(c): return c.name))
+	
 	# Calculate the position behind the enemy (opposite direction from player)
 	var direction = target_pos - player_grid_pos
 	var behind_enemy_pos = target_pos + direction
 	print("Moving player to behind-enemy position:", behind_enemy_pos)
+	
+	# Double-check that the behind-enemy position is still valid
+	if not is_position_valid_for_assassin_dash(behind_enemy_pos):
+		print("✗ ERROR: Behind-enemy position is no longer valid:", behind_enemy_pos)
+		print("✗ AssassinDash attack cancelled - cannot move behind enemy")
+		exit_attack_mode()
+		return
+	
 	# Store original player position
 	var original_player_pos = player_grid_pos
+	
 	# Play camera whoosh sound when card is played
 	if assassin_dash_sound:
 		assassin_dash_sound.play()

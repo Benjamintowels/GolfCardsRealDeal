@@ -1791,11 +1791,8 @@ class ChaseState extends BaseState:
 		"""Called when one attack move completes"""
 		print("Attack move completed")
 		
-		# Hide appropriate sprite after the move based on attack type
-		if gang_member.current_attack_type == "kick":
-			gang_member.hide_kick_sprite()
-		else:
-			gang_member.hide_punch_sprite()
+		# Return to idle animation after the move
+		gang_member._play_animation("idle")
 		
 		# Decrease remaining attack moves
 		gang_member.attack_moves_remaining -= 1
@@ -1825,11 +1822,8 @@ class ChaseState extends BaseState:
 		gang_member.is_attacking = false
 		gang_member.attack_moves_remaining = 0
 		
-		# Hide appropriate sprite based on attack type
-		if gang_member.current_attack_type == "kick":
-			gang_member.hide_kick_sprite()
-		else:
-			gang_member.hide_punch_sprite()
+		# Return to idle animation
+		gang_member._play_animation("idle")
 		
 		# Complete the turn if movement is finished
 		if not gang_member.is_moving:
@@ -2105,6 +2099,52 @@ func flash_headshot() -> void:
 func flash_hurt_sprite() -> void:
 	"""Flash the hurt sprite briefly when taking damage"""
 	_play_animation_timed("hurt", hurt_duration)
+
+func double_flash_punch_sprite() -> void:
+	"""Flash the punch sprite twice for double-attack effect using new animation system"""
+	print("✓ Starting double-flash punch animation")
+	
+	# Play punch animation for the first flash
+	_play_animation("punch", true)
+	
+	# Create a tween for the double flash sequence
+	var double_flash_tween = create_tween()
+	double_flash_tween.set_parallel(false)  # Sequential animations
+	
+	# First flash duration
+	double_flash_tween.tween_callback(func(): _play_animation("idle")).set_delay(0.15)
+	
+	# Brief pause between flashes
+	double_flash_tween.tween_callback(func(): pass).set_delay(0.1)
+	
+	# Second flash
+	double_flash_tween.tween_callback(func(): _play_animation("punch", true)).set_delay(0.0)
+	double_flash_tween.tween_callback(func(): _play_animation("idle")).set_delay(0.15)
+	
+	print("✓ Double-flash punch animation started")
+
+func double_flash_kick_sprite() -> void:
+	"""Flash the kick sprite twice for double-attack effect using new animation system"""
+	print("✓ Starting double-flash kick animation")
+	
+	# Play kick animation for the first flash
+	_play_animation("kick", true)
+	
+	# Create a tween for the double flash sequence
+	var double_flash_tween = create_tween()
+	double_flash_tween.set_parallel(false)  # Sequential animations
+	
+	# First flash duration
+	double_flash_tween.tween_callback(func(): _play_animation("idle")).set_delay(0.15)
+	
+	# Brief pause between flashes
+	double_flash_tween.tween_callback(func(): pass).set_delay(0.1)
+	
+	# Second flash
+	double_flash_tween.tween_callback(func(): _play_animation("kick", true)).set_delay(0.0)
+	double_flash_tween.tween_callback(func(): _play_animation("idle")).set_delay(0.15)
+	
+	print("✓ Double-flash kick animation started")
 
 func get_health_percentage() -> float:
 	"""Get current health as a percentage"""
