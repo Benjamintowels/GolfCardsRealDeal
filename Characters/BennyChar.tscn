@@ -116,7 +116,7 @@ animations = [{
 }],
 "loop": true,
 "name": &"Punch",
-"speed": 20.0
+"speed": 33.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -217,7 +217,8 @@ texture_filter = 1
 scale = Vector2(1.19, 1.19)
 sprite_frames = SubResource("SpriteFrames_swing")
 animation = &"Punch"
-frame_progress = 0.176735
+frame = 6
+frame_progress = 0.808946
 offset = Vector2(0, -36.01)
 
 [node name="AnimationPlayer" type="AnimationPlayer" parent="AnimatedSprite2D"]

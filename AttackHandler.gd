@@ -52,6 +52,9 @@ var ash_dog_damage := 50
 # Slash attack properties
 var slash_damage := 33
 
+# SlashFX scene reference
+var slashfx_scene = preload("res://Particles/SlashFX.tscn")
+
 # Signals
 signal attack_mode_entered
 signal attack_mode_exited
@@ -2262,6 +2265,9 @@ func perform_slash_attack(target_pos: Vector2i) -> void:
 	if slash_sound:
 		slash_sound.play()
 	
+	# Spawn SlashFX at the clicked tile location
+	spawn_slashfx_at_position(target_pos)
+	
 	# Emit slash attack signal for animation
 	print("🎯 EMITTING slash_attack_performed signal")
 	emit_signal("slash_attack_performed")
@@ -2317,3 +2323,81 @@ func perform_slash_attack(target_pos: Vector2i) -> void:
 	exit_attack_mode()
 	
 	print("=== END SLASH ATTACK ===")
+
+func spawn_slashfx_at_position(grid_pos: Vector2i) -> void:
+	"""Spawn a SlashFX at the specified grid position"""
+	print("🎯 SPAWNING SLASHFX at grid position:", grid_pos)
+	
+	if not slashfx_scene:
+		print("⚠ SlashFX scene not found")
+		return
+	
+	# Calculate world position from grid position
+	var world_pos = Vector2(grid_pos.x * cell_size + cell_size/2, grid_pos.y * cell_size + cell_size/2)
+	print("🎯 Calculated base world position:", world_pos)
+	
+	# Add camera offset if available
+	if card_effect_handler and card_effect_handler.course:
+		var camera_container = card_effect_handler.course.get_node_or_null("CameraContainer")
+		if camera_container:
+			world_pos += camera_container.global_position
+			print("🎯 Added camera container offset:", camera_container.global_position, "Final world position:", world_pos)
+		else:
+			print("⚠ No camera container found")
+	else:
+		print("⚠ No card_effect_handler or course reference")
+	
+	# Create the SlashFX instance
+	var slashfx = slashfx_scene.instantiate()
+	
+	# Set high z-index to ensure SlashFX appears above other elements
+	slashfx.z_index = 1000
+	
+	# Add to the course scene
+	if card_effect_handler and card_effect_handler.course:
+		card_effect_handler.course.add_child(slashfx)
+	else:
+		# Fallback to current scene
+		get_tree().current_scene.add_child(slashfx)
+	
+	# Position the SlashFX
+	slashfx.global_position = world_pos
+	
+	# Get player's facing direction for proper orientation
+	var player_facing_left = false
+	if player_node and player_node.has_method("is_facing_left"):
+		player_facing_left = player_node.is_facing_left()
+	elif player_node and player_node.has_method("get_current_facing_direction"):
+		var facing_dir = player_node.get_current_facing_direction()
+		player_facing_left = facing_dir.x < 0
+	elif player_node and player_node.has_method("get_character_sprite"):
+		var sprite = player_node.get_character_sprite()
+		if sprite:
+			player_facing_left = sprite.flip_h
+	
+	# Orient the SlashFX based on player's facing direction
+	if slashfx.has_method("update_animation_facing"):
+		slashfx.update_animation_facing_player_direction(player_facing_left)
+	elif slashfx is AnimatedSprite2D:
+		# Flip based on player's facing direction
+		slashfx.flip_h = player_facing_left
+		slashfx.flip_v = false  # Keep vertical flip off for player-facing orientation
+	
+	# Start the slash animation
+	if slashfx is AnimatedSprite2D:
+		slashfx.play("slash")
+		print("✓ Started SlashFX animation at position:", world_pos)
+		
+		# Set up timer to clean up the SlashFX after animation
+		var animation_duration = 0.4  # 8 frames at 20 FPS = 0.4 seconds
+		var timer = get_tree().create_timer(animation_duration)
+		timer.timeout.connect(func():
+			if is_instance_valid(slashfx):
+				slashfx.stop()
+				slashfx.frame = 0
+				slashfx.queue_free()  # Remove the SlashFX after animation completes
+				print("✓ SlashFX animation completed and cleaned up")
+		)
+	else:
+		print("⚠ SlashFX is not an AnimatedSprite2D")
+		slashfx.queue_free()

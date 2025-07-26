@@ -2848,8 +2848,8 @@ func start_slash_animation() -> void:
 	normal_sprite.visible = false
 	slash_animation.visible = true
 	
-	# Start the SlashFX animation
-	start_slashfx_animation()
+	# Note: SlashFX is now spawned at the click location, so we don't need to start it here
+	# start_slashfx_animation()
 	
 	print("✓ Started slash animation")
 	

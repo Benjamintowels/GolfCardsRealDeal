@@ -45,20 +45,24 @@ var fighter_deck: Array[CardData] = [
 	preload("res://Cards/Move3.tres"),
 	
 	# All Attack cards (x1 each for comprehensive testing)
-	preload("res://Cards/PunchB.tres"),           # Basic melee attack
+	preload("res://Cards/PunchB.tres"),
+	preload("res://Cards/SlashCard.tres"),
+	preload("res://Cards/SlashCard.tres"),
+	preload("res://Cards/SlashCard.tres"),
+	preload("res://Cards/SlashCard.tres"),           # Basic melee attack
 	preload("res://Cards/KickB.tres"),            # Basic melee attack
 	preload("res://Cards/AttackDog.tres"),        # Dog attack
 	preload("res://Cards/AssassinDash.tres"),     # Dash attack
 	preload("res://Cards/SlashCard.tres"),        # Slash attack
 	
 	# All Weapon cards (x1 each for ranged combat testing)
-	preload("res://Cards/PistolCard.tres"),       # Basic pistol
-	preload("res://Cards/BurstShot.tres"),        # Burst fire weapon
-	preload("res://Cards/ShotgunCard.tres"),      # Shotgun weapon
-	preload("res://Cards/SniperCard.tres"),       # Sniper weapon
-	preload("res://Cards/GrenadeCard.tres"),      # Grenade weapon
-	preload("res://Cards/ThrowingKnife.tres"),    # Throwing knife
-	preload("res://Cards/ShurikenCard.tres"),     # Shuriken weapon
+	#preload("res://Cards/PistolCard.tres"),       # Basic pistol
+	#preload("res://Cards/BurstShot.tres"),        # Burst fire weapon
+	#preload("res://Cards/ShotgunCard.tres"),      # Shotgun weapon
+	#preload("res://Cards/SniperCard.tres"),       # Sniper weapon
+	#preload("res://Cards/GrenadeCard.tres"),      # Grenade weapon
+	#preload("res://Cards/ThrowingKnife.tres"),    # Throwing knife
+	#preload("res://Cards/ShurikenCard.tres"),     # Shuriken weapon
 	
 	# All AOE/Explosive cards (x1 each for area damage testing)
 	preload("res://Cards/FireBallCard.tres"),     # Fire ball attack
