@@ -187,8 +187,13 @@ func _on_movement_card_pressed(card: CardData, button: TextureButton) -> void:
 				exit_movement_mode()
 			if attack_handler.is_in_attack_mode():
 				attack_handler.clear_all_attack_ui()
-			# Pass the card and button to the attack handler
-			attack_handler._on_attack_card_pressed(card, button)
+			
+			# Special handling for SlashCard
+			if card.name == "SlashCard":
+				attack_handler._on_slash_card_pressed(card, button)
+			else:
+				# Pass the card and button to the attack handler
+				attack_handler._on_attack_card_pressed(card, button)
 			return
 	
 	# Check if this is an AOE attack card

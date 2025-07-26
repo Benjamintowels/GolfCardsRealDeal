@@ -652,7 +652,8 @@ func _ready() -> void:
 		player_manager.get_player_node().get_node_or_null("PunchB"),  # Add PunchB sound reference
 		player_manager.get_player_node().get_node_or_null("AssassinDash"),  # Add AssassinDash sound reference
 		player_manager.get_player_node().get_node_or_null("AssassinCut"),  # Add AssassinCut sound reference
-		movement_buttons_container  # Pass CardRow reference for animation
+		movement_buttons_container,  # Pass CardRow reference for animation
+		player_manager.get_player_node().get_node_or_null("SlashSound")  # Add SlashSound reference
 	)
 	
 	# Setup weapon handler after attack handler
@@ -703,6 +704,7 @@ func _ready() -> void:
 	attack_handler.npc_attacked.connect(_on_npc_attacked)
 	attack_handler.kick_attack_performed.connect(_on_kick_attack_performed)
 	attack_handler.punchb_attack_performed.connect(_on_punchb_attack_performed)
+	attack_handler.slash_attack_performed.connect(_on_slash_attack_performed)
 	# Ash dog attack signal connection removed - handled by AttackHandler
 	
 	# Connect weapon handler signals
@@ -3584,6 +3586,23 @@ func _on_punchb_attack_performed() -> void:
 	"""Handle when a PunchB attack is performed - trigger punch animation"""
 	if player_manager.get_player_node() and player_manager.get_player_node().has_method("start_punchb_animation"):
 		player_manager.get_player_node().start_punchb_animation()
+
+func _on_slash_attack_performed() -> void:
+	"""Handle when a slash attack is performed - trigger slash animation"""
+	print("🎯 SLASH ATTACK SIGNAL RECEIVED in course_1.gd")
+	var player_node = player_manager.get_player_node()
+	print("🎯 Player node:", player_node)
+	if player_node:
+		print("🎯 Player node name:", player_node.name)
+		print("🎯 Player node class:", player_node.get_class())
+		print("🎯 Has start_slash_animation method:", player_node.has_method("start_slash_animation"))
+		if player_node.has_method("start_slash_animation"):
+			print("🎯 Calling start_slash_animation on player")
+			player_node.start_slash_animation()
+		else:
+			print("⚠ Player node does not have start_slash_animation method")
+	else:
+		print("⚠ Player node is null")
 
 func _on_npc_shot(npc: Node, damage: int) -> void:
 	"""Handle when an NPC is shot with a weapon"""

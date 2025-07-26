@@ -68,6 +68,12 @@ var is_punching: bool = false
 var punchb_duration: float = 0.5  # Duration of the punch animation
 var punchb_tween: Tween
 
+# Slash animation system
+var slash_animation: Sprite2D = null
+var is_slashing: bool = false
+var slash_duration: float = 0.5  # Duration of the slash animation
+var slash_tween: Tween
+
 # Meditation system
 var meditate_sprite: Sprite2D = null
 var is_meditating: bool = false
@@ -140,6 +146,9 @@ func _ready():
 	print("🚨 ABOUT TO CALL _setup_punchb_animation() 🚨")
 	_setup_punchb_animation()
 	print("🚨 FINISHED CALLING _setup_punchb_animation() 🚨")
+	
+	# Setup slash animation system
+	_setup_slash_animation()
 	
 	# Setup Benny arm height controller (will be done after character is added)
 	# _setup_benny_arm_height_controller()
@@ -740,15 +749,11 @@ func flash_damage():
 	highlight_tween.tween_property(sprite, "modulate", Color(1, 1, 1, 1), 0.2)
 
 func get_character_sprite() -> Sprite2D:
-	# First check direct children
-	for child in get_children():
-		if child is Sprite2D:
-			return child
-		elif child is Node2D:
-			# Also check Node2D children in case the structure changes
-			for grandchild in child.get_children():
-				if grandchild is Sprite2D:
-					return grandchild
+	var benny_char = get_node_or_null("BennyChar")
+	if benny_char:
+		var sprite = benny_char.get_node_or_null("Sprite2D")
+		if sprite:
+			return sprite
 	return null
 
 func show_highlight():
@@ -2285,15 +2290,13 @@ func _on_punchb_animation_complete() -> void:
 	is_punching = false
 
 func stop_punchb_animation() -> void:
-	"""Stop the PunchB animation if it's currently running"""
+	"""Stop the punch animation if it's currently running"""
 	if is_punching:
 		# Get the normal character sprite
 		var normal_sprite = get_character_sprite()
 		if normal_sprite and punchb_animation:
-			# Stop the animation and hide the animated sprite
-			punchb_animation.stop()
+			# Switch back to normal sprite
 			punchb_animation.visible = false
-			# Show the normal sprite
 			normal_sprite.visible = true
 		
 		# Stop the tween
@@ -2303,7 +2306,7 @@ func stop_punchb_animation() -> void:
 		is_punching = false
 
 func is_currently_punching() -> bool:
-	"""Check if currently performing a PunchB animation"""
+	"""Check if currently performing a punch animation"""
 	return is_punching
 
 # Player movement animation for PunchB attacks
@@ -2763,3 +2766,108 @@ func _create_heal_effect() -> void:
 
 func get_grid_position() -> Vector2i:
 	return grid_pos
+
+# Slash animation methods
+func _setup_slash_animation() -> void:
+	# Look for BennyChar first
+	var benny_char = get_node_or_null("BennyChar")
+	if benny_char:
+		print("✓ Found BennyChar in Player")
+		slash_animation = benny_char.get_node_or_null("BennySlash")
+		if slash_animation:
+			print("✓ Found BennySlash at Player/BennyChar/BennySlash")
+		else:
+			print("⚠ Could not find BennySlash under BennyChar. Children are: ", benny_char.get_children())
+	else:
+		print("⚠ Could not find BennyChar under Player. Children are: ", get_children())
+
+# Utility to print the node tree for debugging
+func _debug_print_tree(node: Node = self, indent: String = ""):
+	print(indent + node.name + " (" + node.get_class() + ")")
+	for child in node.get_children():
+		_debug_print_tree(child, indent + "  ")
+
+func start_slash_animation() -> void:
+	"""Start the slash animation"""
+	if is_slashing:
+		return
+	
+	is_slashing = true
+	
+	# Try to setup slash animation again in case BennyChar was added after _ready()
+	if not slash_animation:
+		print("🎯 Slash animation not found, trying to setup again...")
+		_setup_slash_animation()
+	
+	# Get the normal character sprite
+	var normal_sprite = get_character_sprite()
+	print("🎯 Normal sprite:", normal_sprite)
+	print("🎯 Slash animation sprite:", slash_animation)
+	
+	if not normal_sprite or not slash_animation:
+		print("⚠ Cannot start slash animation - missing sprites")
+		print("⚠ Normal sprite is null:", normal_sprite == null)
+		print("⚠ Slash animation is null:", slash_animation == null)
+		is_slashing = false
+		return
+	
+	# Update the slash animation facing before starting
+	update_animation_facing(slash_animation)
+	
+	# Hide normal sprite, show slash sprite
+	normal_sprite.visible = false
+	slash_animation.visible = true
+	
+	# Start the SlashFX animation
+	start_slashfx_animation()
+	
+	print("✓ Started slash animation")
+	
+	# Set up tween to stop animation after duration
+	slash_tween = create_tween()
+	slash_tween.tween_callback(_on_slash_animation_complete).set_delay(slash_duration)
+
+func _on_slash_animation_complete() -> void:
+	"""Called when slash animation completes"""
+	if not is_slashing:
+		return
+	
+	is_slashing = false
+	
+	# Get the normal character sprite
+	var normal_sprite = get_character_sprite()
+	if normal_sprite and slash_animation:
+		# Switch back to normal sprite
+		slash_animation.visible = false
+		normal_sprite.visible = true
+	
+	# Stop the tween
+	if slash_tween and slash_tween.is_valid():
+		slash_tween.kill()
+	
+	print("✓ Slash animation completed")
+
+func is_currently_slashing() -> bool:
+	"""Check if currently performing a slash animation"""
+	return is_slashing
+
+func start_slashfx_animation() -> void:
+	var slashfx = get_node_or_null("SlashFx")
+	if not slashfx:
+		print("⚠ SlashFx not found at Player/SlashFx")
+		return
+	if not slashfx is AnimatedSprite2D:
+		print("⚠ SlashFx is not an AnimatedSprite2D")
+		return
+	update_animation_facing(slashfx)
+	slashfx.play("slash")
+	print("✓ Started SlashFX animation")
+	var animation_duration = 0.4  # 8 frames at 20 FPS = 0.4 seconds
+	var timer = get_tree().create_timer(animation_duration)
+	timer.timeout.connect(func():
+		if is_instance_valid(slashfx):
+			slashfx.stop()
+			slashfx.frame = 0
+			slashfx.hide()  # Hide the SlashFX after animation completes
+			print("✓ SlashFX animation completed")
+	)

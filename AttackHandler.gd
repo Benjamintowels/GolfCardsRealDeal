@@ -26,6 +26,7 @@ var kick_sound: AudioStreamPlayer2D  # Reference to KickSound from player scene
 var punchb_sound: AudioStreamPlayer2D  # Reference to PunchB sound from player scene
 var assassin_dash_sound: AudioStreamPlayer2D  # Reference to AssassinDash sound
 var assassin_cut_sound: AudioStreamPlayer2D  # Reference to AssassinDash cut sound
+var slash_sound: AudioStreamPlayer2D  # Reference to SlashSound from player scene
 
 # UI references
 var card_stack_display: Control
@@ -48,6 +49,9 @@ var knockback_distance := 1
 # Ash dog attack properties
 var ash_dog_damage := 50
 
+# Slash attack properties
+var slash_damage := 33
+
 # Signals
 signal attack_mode_entered
 signal attack_mode_exited
@@ -57,6 +61,7 @@ signal npc_attacked(npc: Node, damage: int)
 signal kick_attack_performed
 signal punchb_attack_performed
 signal ash_dog_attack_performed
+signal slash_attack_performed
 
 func _init():
 	pass
@@ -79,7 +84,8 @@ func setup(
 	punchb_sound_ref: AudioStreamPlayer2D = null,
 	assassin_dash_sound_ref: AudioStreamPlayer2D = null,
 	assassin_cut_sound_ref: AudioStreamPlayer2D = null,
-	card_row_ref: Control = null
+	card_row_ref: Control = null,
+	slash_sound_ref: AudioStreamPlayer2D = null
 ):
 	player_node = player_node_ref
 	grid_tiles = grid_tiles_ref
@@ -99,6 +105,7 @@ func setup(
 	assassin_dash_sound = assassin_dash_sound_ref
 	assassin_cut_sound = assassin_cut_sound_ref
 	card_row = card_row_ref
+	slash_sound = slash_sound_ref
 	
 	# Store the original position of the CardRow for animation
 	if card_row:
@@ -164,6 +171,25 @@ func _on_aoe_attack_card_pressed(card: CardData, button: TextureButton = null) -
 	# Animate CardRow up to get out of the way of range display
 	animate_card_row_up()
 
+func _on_slash_card_pressed(card: CardData, button: TextureButton = null) -> void:
+	"""Handle when a SlashCard is pressed"""
+	selected_card = card
+	active_button = button
+	attack_damage = card.damage
+	attack_range = card.aoe_range
+	
+	# Enter attack mode
+	is_attack_mode = true
+	
+	# Calculate valid slash attack tiles
+	calculate_valid_slash_attack_tiles()
+	
+	# Show attack highlights
+	show_attack_highlights()
+	
+	# Animate CardRow up to get out of the way of range display
+	animate_card_row_up()
+
 func calculate_valid_attack_tiles() -> void:
 	valid_attack_tiles.clear()
 	# Get grid size from the course
@@ -200,6 +226,19 @@ func calculate_valid_aoe_attack_tiles() -> void:
 		return
 
 	print("Total valid AOE attack tiles found:", valid_attack_tiles.size())
+
+func calculate_valid_slash_attack_tiles() -> void:
+	valid_attack_tiles.clear()
+	print("Calculating valid slash attack tiles - Player at:", player_grid_pos, "Slash attack range:", attack_range)
+	
+	# For SlashCard, show all tiles within range (excluding the player's own tile)
+	for y in grid_size.y:
+		for x in grid_size.x:
+			var pos := Vector2i(x, y)
+			if calculate_grid_distance(player_grid_pos, pos) <= attack_range and pos != player_grid_pos:
+				valid_attack_tiles.append(pos)
+	
+	print("Total valid slash attack tiles found:", valid_attack_tiles.size())
 
 func can_place_3x2_area_at_position(top_left_pos: Vector2i) -> bool:
 	"""Check if a 3x2 area can be placed with the given position as top-left corner"""
@@ -566,6 +605,12 @@ func handle_tile_click(x: int, y: int) -> bool:
 				return true
 			else:
 				return false
+		
+		# Check if this is a SlashCard attack
+		if selected_card and selected_card.name == "SlashCard":
+			perform_slash_attack(clicked)
+			card_play_sound.play()
+			return true
 		
 		# Check for normal NPC attack
 		var npc = get_npc_at_position(clicked)
@@ -2085,3 +2130,69 @@ func _fallback_return_camera_to_player(course: Node) -> void:
 			course.camera.set_zoom_level(zoom_level)
 		, course.camera.get_current_zoom(), default_zoom, 1.5)
 		print("✓ Camera zoom smoothly restored to default (fallback)") 
+
+func perform_slash_attack(target_pos: Vector2i) -> void:
+	"""Perform SlashCard AOE attack at the specified position"""
+	print("=== PERFORMING SLASH AOE ATTACK ===")
+	print("Target position:", target_pos)
+	print("Player position:", player_grid_pos)
+	
+	# Play SlashSound
+	if slash_sound:
+		slash_sound.play()
+	
+	# Emit slash attack signal for animation
+	print("🎯 EMITTING slash_attack_performed signal")
+	emit_signal("slash_attack_performed")
+	
+	# Calculate the AOE area around the target position
+	var aoe_positions = []
+	var aoe_radius = 1  # 1 tile radius for the slash AOE
+	
+	# Get all positions within the AOE radius of the target
+	for y_offset in range(-aoe_radius, aoe_radius + 1):
+		for x_offset in range(-aoe_radius, aoe_radius + 1):
+			var pos = target_pos + Vector2i(x_offset, y_offset)
+			# Check if position is within grid bounds
+			if pos.x >= 0 and pos.x < grid_size.x and pos.y >= 0 and pos.y < grid_size.y:
+				aoe_positions.append(pos)
+	
+	print("AOE positions for slash attack:", aoe_positions)
+	
+	# Deal damage to all NPCs in the AOE area
+	var total_damage_dealt = 0
+	
+	for pos in aoe_positions:
+		var npc = get_npc_at_position(pos)
+		if npc:
+			print("Dealing slash damage to NPC at position:", pos)
+			
+			# Check if NPC is dead
+			var is_dead = false
+			if npc.has_method("get_is_dead"):
+				is_dead = npc.get_is_dead()
+			elif npc.has_method("is_dead"):
+				is_dead = npc.is_dead()
+			elif "is_dead" in npc:
+				is_dead = npc.is_dead
+			
+			if not is_dead:
+				# Deal damage to the NPC
+				if npc.has_method("take_damage"):
+					npc.take_damage(slash_damage)
+					total_damage_dealt += slash_damage
+					print("Dealt", slash_damage, "damage to NPC:", npc.name)
+				else:
+					print("NPC does not have take_damage method:", npc.name)
+			else:
+				print("NPC is already dead, skipping damage:", npc.name)
+	
+	print("Slash attack complete - total damage dealt:", total_damage_dealt)
+	
+	# Emit signal for attack completion
+	emit_signal("npc_attacked", null, total_damage_dealt)
+	
+	# Exit attack mode
+	exit_attack_mode()
+	
+	print("=== END SLASH ATTACK ===")

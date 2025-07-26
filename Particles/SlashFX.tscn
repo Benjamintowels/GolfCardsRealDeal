@@ -1,0 +1,84 @@
+[gd_scene load_steps=11 format=3 uid="uid://dqd7emi1iudcs"]
+
+[ext_resource type="Texture2D" uid="uid://b7kaohqvi1orx" path="res://Particles/slashes.png" id="1_t33ha"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_your5"]
+atlas = ExtResource("1_t33ha")
+region = Rect2(0, 0, 845, 1080)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_47l8n"]
+atlas = ExtResource("1_t33ha")
+region = Rect2(845, 0, 845, 1080)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_t6apj"]
+atlas = ExtResource("1_t33ha")
+region = Rect2(1690, 0, 845, 1080)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_tyjbr"]
+atlas = ExtResource("1_t33ha")
+region = Rect2(2535, 0, 845, 1080)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_3netl"]
+atlas = ExtResource("1_t33ha")
+region = Rect2(3380, 0, 845, 1080)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_7pt4i"]
+atlas = ExtResource("1_t33ha")
+region = Rect2(4225, 0, 845, 1080)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_i2hvd"]
+atlas = ExtResource("1_t33ha")
+region = Rect2(5070, 0, 845, 1080)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_bpctl"]
+atlas = ExtResource("1_t33ha")
+region = Rect2(5915, 0, 845, 1080)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_3s5n4"]
+animations = [{
+"frames": [],
+"loop": true,
+"name": &"default",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_your5")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_47l8n")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_t6apj")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_tyjbr")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_3netl")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_7pt4i")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_i2hvd")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_bpctl")
+}],
+"loop": true,
+"name": &"slash",
+"speed": 20.0
+}]
+
+[node name="SlashFx" type="AnimatedSprite2D"]
+texture_filter = 1
+position = Vector2(5, 156)
+sprite_frames = SubResource("SpriteFrames_3s5n4")
+animation = &"slash"
+frame = 3
+frame_progress = 0.439775
+flip_h = true
+flip_v = true
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]

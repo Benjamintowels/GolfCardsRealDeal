@@ -49,6 +49,7 @@ var fighter_deck: Array[CardData] = [
 	preload("res://Cards/KickB.tres"),            # Basic melee attack
 	preload("res://Cards/AttackDog.tres"),        # Dog attack
 	preload("res://Cards/AssassinDash.tres"),     # Dash attack
+	preload("res://Cards/SlashCard.tres"),        # Slash attack
 	
 	# All Weapon cards (x1 each for ranged combat testing)
 	preload("res://Cards/PistolCard.tres"),       # Basic pistol
