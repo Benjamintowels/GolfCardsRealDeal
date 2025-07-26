@@ -104,10 +104,10 @@ func check_bag_slots(item: Resource, item_type: String) -> bool:
 
 | Bag Level | Equipment Slots | Movement Slots | Club Slots |
 |-----------|----------------|----------------|------------|
-| 1         | 1              | 16 (4x4)       | 2          |
-| 2         | 2              | 20 (4x5)       | 3          |
-| 3         | 3              | 24 (4x6)       | 4          |
-| 4         | 4              | 28 (4x7)       | 5          |
+| 1         | 1              | 16 (4x4)       | 3          |
+| 2         | 2              | 20 (4x5)       | 5          |
+| 3         | 3              | 24 (4x6)       | 7          |
+| 4         | 4              | 28 (4x7)       | 9          |
 
 ## Usage Examples
 

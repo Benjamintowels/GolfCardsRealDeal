@@ -26,12 +26,8 @@ var starter_deck: Array[CardData] = [
 	preload("res://Cards/BlockB.tres"),
 	preload("res://Cards/BlockB.tres"),
 	
-	# Club cards - 5 basic clubs in order
-	preload("res://Cards/Putter.tres"),        # Putter
-	preload("res://Cards/PitchingWedge.tres"), # PitchingWedge
-	preload("res://Cards/Iron.tres"),          # Iron
-	preload("res://Cards/Wood.tres"),          # Wood
-	preload("res://Cards/Driver.tres")         # Driver
+	# Club cards - only Wooden club
+	preload("res://Cards/Wooden.tres")         # Wooden club only
 ]
 
 # Fighter deck for testing all attack mechanics and NPC combat

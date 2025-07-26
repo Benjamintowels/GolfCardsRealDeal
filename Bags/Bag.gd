@@ -1180,11 +1180,11 @@ func get_movement_slots() -> int:
 func get_club_slots() -> int:
 	"""Get the number of club card slots based on bag level"""
 	match bag_level:
-		1: return 2
-		2: return 3
-		3: return 4
-		4: return 5
-		_: return 2
+		1: return 3
+		2: return 5
+		3: return 7
+		4: return 9
+		_: return 3
 
 func create_slot_container() -> Control:
 	"""Create a container for a slot that can hold both placeholder and actual item"""

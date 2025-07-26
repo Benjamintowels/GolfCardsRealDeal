@@ -45,7 +45,14 @@ The bag and inventory system is integrated into the main course scene:
 
 ### Card Sources
 - **Movement Cards**: Retrieved from `deck_manager.hand` filtered by `effect_type == "movement"`
-- **Club Cards**: Retrieved from `bag_pile` (all available club cards)
+- **Club Cards**: Retrieved from the player's current deck (dynamic based on what's in the Bag)
+
+### Dynamic Club System
+The club cycling system now uses whatever club cards the player has in their Bag instead of hardcoded clubs:
+- **Club Selection**: When drawing clubs, the system gets all club cards from the Bag
+- **Dynamic Display**: Club buttons are created based on available clubs in the Bag
+- **Default Selection**: Uses the middle club as default, or first club if only one available
+- **Fallback**: If no clubs are in the Bag, creates a virtual Wooden club as fallback
 
 ## Usage
 

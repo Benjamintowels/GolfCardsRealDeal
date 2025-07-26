@@ -193,7 +193,7 @@ var club_data = {
 		"trailoff_forgiveness": 0.2,  # Same as old Putter settings
 		"min_height": 20.0,       # Highest min height for pitching wedge
 		"max_height": 400.0,      # Highest max height for pitching wedge
-		"is_putter": true  # Flag to identify this as a putter-like club
+		# Removed "is_putter": true - PitchingWedge should allow height selection
 	},
 	"Fire Club": {
 		"max_distance": 900.0,
@@ -2612,55 +2612,39 @@ func draw_club_cards() -> void:
 		deck_manager.discard(card)
 		print("Discarded modifier card:", card.name, "before drawing clubs")
 	
-	# Define basic clubs for fallback
-	var basic_clubs = [
-		preload("res://Cards/Putter.tres"),
-		preload("res://Cards/PitchingWedge.tres"),
-		preload("res://Cards/Iron.tres"),
-		preload("res://Cards/Wood.tres"),
-		preload("res://Cards/Driver.tres")
-	]
+	# Get club cards from the Bag system instead of hardcoded clubs
+	var bag = get_node_or_null("UILayer/Bag")
+	var available_clubs: Array[CardData] = []
 	
-	# DRIVING RANGE MODE: Draw from all available club cards
-	if game_state_manager.get_driving_range_mode():
-		# Draw 3 random club cards from the full deck
-		var available_clubs = deck_manager.draw_from_club_deck(3)
-		
-		# If we don't have enough club cards, add some basic ones
-		if available_clubs.size() < 3:
-			for i in range(3 - available_clubs.size()):
-				if i < basic_clubs.size():
-					available_clubs.append(basic_clubs[i])
-		
-		# Add the club cards to hand
-		for club in available_clubs:
-			deck_manager.hand.append(club)
-		
-		# Store the available clubs for cycling during aiming
-		game_state_manager.set_available_clubs(available_clubs)
-		
-		# Set default club to first available club
-		game_state_manager.set_current_club_index(0)
-		game_state_manager.set_selected_club(available_clubs[0].name)
-		
-		print("Damage Round Mode: Drew", available_clubs.size(), "random club cards")
+	if bag and bag.has_method("get_club_cards"):
+		available_clubs = bag.get_club_cards()
+		print("Got", available_clubs.size(), "club cards from Bag")
 	else:
-		# NORMAL MODE: Draw exactly 5 basic clubs in order (Putter, PitchingWedge, Iron, Wood, Driver)
-		
-		# Add the 5 basic clubs to hand
-		for club in basic_clubs:
-			deck_manager.hand.append(club)
-		
-		# Store the available clubs for cycling during aiming
-		game_state_manager.set_available_clubs(basic_clubs)
-		
-		# Set default club to Iron (index 2)
-		game_state_manager.set_current_club_index(2)
-		game_state_manager.set_selected_club("Iron")
+		print("Warning: Bag not found or missing get_club_cards method")
+		# Fallback to drawing from deck if Bag is not available
+		available_clubs = deck_manager.draw_from_club_deck(5)
+		print("Fell back to drawing", available_clubs.size(), "club cards from deck")
 	
-	# Create display buttons for all 5 clubs (non-clickable)
-	for i in range(basic_clubs.size()):
-		var club_card = basic_clubs[i]
+	# If no clubs available, create a virtual Wooden club as fallback
+	if available_clubs.size() == 0:
+		print("No club cards available, creating virtual Wooden club")
+		var virtual_wooden = preload("res://Cards/Wooden.tres").duplicate()
+		available_clubs.append(virtual_wooden)
+	
+	# Store the available clubs for cycling during aiming
+	game_state_manager.set_available_clubs(available_clubs)
+	
+	# Set default club to first available club (or middle if multiple clubs)
+	var default_index = 0
+	if available_clubs.size() > 2:
+		default_index = available_clubs.size() / 2  # Use middle club as default
+	
+	game_state_manager.set_current_club_index(default_index)
+	game_state_manager.set_selected_club(available_clubs[default_index].name)
+	
+	# Create display buttons for all available clubs (non-clickable)
+	for i in range(available_clubs.size()):
+		var club_card = available_clubs[i]
 		var club_name = club_card.name
 		var club_info = club_data.get(club_name, {})
 		
@@ -2678,7 +2662,7 @@ func draw_club_cards() -> void:
 		# Add selection indicator (highlight current club)
 		var selection_indicator := ColorRect.new()
 		selection_indicator.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		selection_indicator.color = Color(0, 1, 0, 0.3) if i == 2 else Color(0, 0, 0, 0.1)  # Green for Iron (default), gray for others
+		selection_indicator.color = Color(0, 1, 0, 0.3) if i == default_index else Color(0, 0, 0, 0.1)  # Green for default, gray for others
 		selection_indicator.set_anchors_preset(Control.PRESET_FULL_RECT)
 		btn.add_child(selection_indicator)
 		
@@ -2691,18 +2675,8 @@ func draw_club_cards() -> void:
 	
 	draw_club_cards_button.visible = false
 	draw_cards_button.visible = false  # Hide draw cards button when drawing clubs
-	print("Drew 5 basic clubs: Putter, PitchingWedge, Iron, Wood, Driver")
-	print("Default club set to Iron")
-	
-	# Discard all club cards from hand since they're now available for cycling
-	var club_cards_to_discard: Array[CardData] = []
-	for card in deck_manager.hand:
-		if deck_manager.is_club_card(card):
-			club_cards_to_discard.append(card)
-	
-	for card in club_cards_to_discard:
-		deck_manager.discard(card)
-		print("Discarded club card for cycling system:", card.name)
+	print("Drew", available_clubs.size(), "club cards from Bag:", available_clubs.map(func(card): return card.name))
+	print("Default club set to:", game_state_manager.get_selected_club())
 	
 	# Enter aiming phase after drawing clubs
 	print("About to enter aiming phase...")
