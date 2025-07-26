@@ -8,8 +8,19 @@ const CoinExplosionManager = preload("res://CoinExplosionManager.gd")
 
 signal turn_completed
 
-@onready var sprite: Sprite2D = $Sprite2D
+# Animation system - using Godot's built-in animation tools
+@onready var animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var animation_player: AnimationPlayer = $AnimationPlayer
+
+# Animation states
+enum AnimationState {IDLE, HURT, PUNCH, KICK, ICE}
+var current_animation_state: AnimationState = AnimationState.IDLE
+var animation_state_queue: Array[AnimationState] = []
+
+# Animation timing
+var hurt_duration: float = 0.3
+var punch_duration: float = 0.2
+var kick_duration: float = 0.2
 
 # Footstep sound system
 @onready var footsteps_grass_sound: AudioStreamPlayer2D = $FootstepsGrass
@@ -29,9 +40,7 @@ var vision_range: int = 12
 var attack_range: int = 2  # Range within which GangMember will attack
 var current_action: String = "idle"
 
-# Hurt sprite reference
-@onready var hurt_sprite: Sprite2D = $Hurt
-var is_showing_hurt: bool = false
+
 
 # Movement animation properties
 var is_moving: bool = false
@@ -115,6 +124,9 @@ func _ready():
 	add_to_group("collision_objects")
 	add_to_group("NPC")
 	
+	# Setup animation system
+	_setup_animation_system()
+	
 	# Get references to ice sprite and collision areas
 	_setup_ice_references()
 	
@@ -167,6 +179,78 @@ func _ready():
 	
 	# Setup footstep sound system
 	_setup_footstep_sounds()
+
+func _setup_animation_system() -> void:
+	"""Setup the animation system using AnimatedSprite2D"""
+	if not animated_sprite:
+		print("✗ ERROR: AnimatedSprite2D not found!")
+		return
+	
+	# Set initial animation
+	animated_sprite.play("idle")
+	current_animation_state = AnimationState.IDLE
+	
+	# Connect animation finished signal
+	animated_sprite.animation_finished.connect(_on_animation_finished)
+	
+	print("✓ Animation system setup complete")
+
+func _on_animation_finished() -> void:
+	"""Called when an animation finishes"""
+	# Handle animation completion based on current state
+	match current_animation_state:
+		AnimationState.HURT:
+			# Return to idle after hurt animation
+			_play_animation("idle")
+		AnimationState.PUNCH:
+			# Return to idle after punch animation
+			_play_animation("idle")
+		AnimationState.KICK:
+			# Return to idle after kick animation
+			_play_animation("idle")
+		AnimationState.ICE:
+			# Stay in ice animation
+			pass
+		_:
+			# Default: stay in current animation
+			pass
+
+func _play_animation(animation_name: String, force: bool = false) -> void:
+	"""Play an animation by name"""
+	if not animated_sprite:
+		return
+	
+	# Don't interrupt current animation unless forced
+	if not force and animated_sprite.animation == animation_name:
+		return
+	
+	# Map animation names to states
+	var new_state = AnimationState.IDLE
+	match animation_name:
+		"idle":
+			new_state = AnimationState.IDLE
+		"hurt":
+			new_state = AnimationState.HURT
+		"punch":
+			new_state = AnimationState.PUNCH
+		"kick":
+			new_state = AnimationState.KICK
+		"ice":
+			new_state = AnimationState.ICE
+	
+	# Update state and play animation
+	current_animation_state = new_state
+	animated_sprite.play(animation_name)
+	
+	print("✓ Playing animation:", animation_name)
+
+func _play_animation_timed(animation_name: String, duration: float) -> void:
+	"""Play an animation for a specific duration, then return to idle"""
+	_play_animation(animation_name, true)
+	
+	# Create timer to return to idle
+	var timer = get_tree().create_timer(duration)
+	timer.timeout.connect(func(): _play_animation("idle"))
 
 func _setup_ice_references() -> void:
 	"""Setup references to ice sprite and collision areas"""
@@ -485,9 +569,9 @@ func attach_knife_sprite(knife_sprite: Sprite2D, knife_position: Vector2, knife_
 	attached_knives.append(knife_holder)
 	
 	# Add visual feedback - slightly tint the GangMember when they have knives
-	if sprite and attached_knives.size() == 1:
+	if animated_sprite and attached_knives.size() == 1:
 		# First knife - add a subtle red tint
-		sprite.modulate = Color(1.1, 0.9, 0.9, 1.0)
+		animated_sprite.modulate = Color(1.1, 0.9, 0.9, 1.0)
 
 func remove_knife_sprite(knife_holder: Node2D) -> void:
 	"""Remove a specific knife sprite from the GangMember"""
@@ -496,8 +580,8 @@ func remove_knife_sprite(knife_holder: Node2D) -> void:
 		knife_holder.queue_free()
 		
 		# Reset visual feedback if no more knives
-		if sprite and attached_knives.is_empty():
-			sprite.modulate = Color.WHITE
+		if animated_sprite and attached_knives.is_empty():
+			animated_sprite.modulate = Color.WHITE
 
 func clear_all_attached_knives() -> void:
 	"""Remove all attached knife sprites from the GangMember"""
@@ -506,8 +590,8 @@ func clear_all_attached_knives() -> void:
 	attached_knives.clear()
 	
 	# Reset visual feedback
-	if sprite:
-		sprite.modulate = Color.WHITE
+	if animated_sprite:
+		animated_sprite.modulate = Color.WHITE
 
 func get_attached_knives_count() -> int:
 	"""Get the number of knives currently attached to this GangMember"""
@@ -795,39 +879,11 @@ func setup(member_type: String, pos: Vector2i, cell_size_param: int = 48) -> voi
 	# Set position based on grid position
 	position = Vector2(grid_position.x, grid_position.y) * cell_size + Vector2(cell_size / 2, cell_size / 2)
 	
-	# Load appropriate sprite based on type
-	_load_sprite_for_type(member_type)
-	
 	# Initialize sprite facing direction
 	_update_sprite_facing()
 	
 	# Update Y-sorting
 	update_z_index_for_ysort()
-
-func _load_sprite_for_type(type: String) -> void:
-	"""Load the appropriate sprite texture based on gang member type"""
-	var texture_path = "res://NPC/Gang/GangMember1.png"  # Default
-	
-	# You can expand this to load different sprites based on type
-	match type:
-		"default":
-			texture_path = "res://NPC/Gang/GangMember1.png"
-		"variant1":
-			texture_path = "res://NPC/Gang/GangMember1.png"  # Same for now
-		"variant2":
-			texture_path = "res://NPC/Gang/GangMember1.png"  # Same for now
-		_:
-			texture_path = "res://NPC/Gang/GangMember1.png"
-	
-	var texture = load(texture_path)
-	if texture and sprite:
-		sprite.texture = texture
-		
-		# Scale sprite to fit cell size
-		if texture.get_size().x > 0 and texture.get_size().y > 0:
-			var scale_x = cell_size / texture.get_size().x
-			var scale_y = cell_size / texture.get_size().y
-			sprite.scale = Vector2(scale_x, scale_y)
 
 func take_turn() -> void:
 	"""Called by Entities manager when it's this NPC's turn"""
@@ -1419,15 +1475,11 @@ func _is_position_valid_for_player(pos: Vector2i) -> bool:
 
 func _update_sprite_facing() -> void:
 	"""Update the sprite facing direction based on facing_direction"""
-	if not sprite:
+	if not animated_sprite:
 		return
 	
 	# Flip sprite horizontally based on facing direction
-	# If facing left (negative x), flip the sprite
-	if facing_direction.x < 0:
-		sprite.flip_h = true
-	elif facing_direction.x > 0:
-		sprite.flip_h = false
+	animated_sprite.flip_h = facing_direction.x < 0
 	
 	# Also update dead sprite if it's visible
 	var dead_sprite = get_node_or_null("Dead")
@@ -1444,21 +1496,7 @@ func _update_sprite_facing() -> void:
 	# Update attached knives to flip with the GangMember
 	_update_attached_knives_facing()
 	
-	# Update kick sprite facing if it's visible
-	if is_showing_kick and kick_sprite:
-		if facing_direction.x < 0:
-			kick_sprite.flip_h = true
-		elif facing_direction.x > 0:
-			kick_sprite.flip_h = false
-	
-	# Update hurt sprite facing if it's visible
-	if is_showing_hurt and hurt_sprite:
-		if facing_direction.x < 0:
-			hurt_sprite.flip_h = true
-		elif facing_direction.x > 0:
-			hurt_sprite.flip_h = false
-	
-	print("Updated sprite facing - Direction: ", facing_direction, ", Flip H: ", sprite.flip_h)
+	print("Updated sprite facing - Direction: ", facing_direction, ", Flip H: ", animated_sprite.flip_h)
 
 func _update_attached_knives_facing() -> void:
 	"""Update the facing direction of all attached knives when the GangMember flips"""
@@ -1545,13 +1583,6 @@ func _update_dead_sprite_facing() -> void:
 	
 	# Update attached knives to flip with the dead GangMember
 	_update_attached_knives_facing()
-	
-	# Update kick sprite facing if it's visible
-	if is_showing_kick and kick_sprite:
-		if facing_direction.x < 0:
-			kick_sprite.flip_h = true
-		elif facing_direction.x > 0:
-			kick_sprite.flip_h = false
 	
 	print("Updated dead sprite facing - Direction: ", facing_direction, ", Flip H: ", dead_sprite.flip_h)
 
@@ -1973,7 +2004,6 @@ func die() -> void:
 		print("Cancelling attack due to death")
 		is_attacking = false
 		attack_moves_remaining = 0
-		hide_punch_sprite()
 	
 	# Give death reward
 	Global.give_npc_death_reward("GangMember")
@@ -2005,28 +2035,9 @@ func die() -> void:
 
 func _change_to_dead_sprite() -> void:
 	"""Change the sprite to the dead version"""
-	# Hide the main sprite
-	if sprite:
-		sprite.visible = false
-	
-	# Hide the ice sprite if it's visible
-	if is_frozen and ice_sprite:
-		ice_sprite.visible = false
-	
-	# Hide the punch sprite if it's visible
-	if punch_sprite:
-		punch_sprite.visible = false
-		is_showing_punch = false
-	
-	# Hide the kick sprite if it's visible
-	if kick_sprite:
-		kick_sprite.visible = false
-		is_showing_kick = false
-	
-	# Hide the hurt sprite if it's visible
-	if hurt_sprite:
-		hurt_sprite.visible = false
-		is_showing_hurt = false
+	# Hide the animated sprite
+	if animated_sprite:
+		animated_sprite.visible = false
 	
 	# Show the dead sprite
 	var dead_sprite = get_node_or_null("Dead")
@@ -2079,64 +2090,21 @@ func flash_damage() -> void:
 
 func flash_headshot() -> void:
 	"""Flash the GangMember with a special headshot effect"""
-	if not sprite:
+	if not animated_sprite:
 		return
 	
-	var original_modulate = sprite.modulate
+	var original_modulate = animated_sprite.modulate
 	var tween = create_tween()
 	# Flash with a bright gold color for headshots
-	tween.tween_property(sprite, "modulate", Color(1, 0.84, 0, 1), 0.15)  # Bright gold
-	tween.tween_property(sprite, "modulate", Color(1, 0.65, 0, 1), 0.1)   # Deeper gold
-	tween.tween_property(sprite, "modulate", original_modulate, 0.2)
+	tween.tween_property(animated_sprite, "modulate", Color(1, 0.84, 0, 1), 0.15)  # Bright gold
+	tween.tween_property(animated_sprite, "modulate", Color(1, 0.65, 0, 1), 0.1)   # Deeper gold
+	tween.tween_property(animated_sprite, "modulate", original_modulate, 0.2)
 
 # Hurt sprite methods
-func show_hurt_sprite() -> void:
-	"""Show the hurt sprite and hide the normal sprite"""
-	if sprite:
-		sprite.visible = false
-	
-	if hurt_sprite:
-		hurt_sprite.visible = true
-		# Apply the same facing direction to the hurt sprite
-		if facing_direction.x < 0:
-			hurt_sprite.flip_h = true
-		elif facing_direction.x > 0:
-			hurt_sprite.flip_h = false
-		
-		# Update Y-sorting for hurt sprite
-		update_z_index_for_ysort()
-	
-	is_showing_hurt = true
-	print("✓ GangMember showing hurt sprite")
-
-func hide_hurt_sprite() -> void:
-	"""Hide the hurt sprite and show the normal sprite"""
-	if hurt_sprite:
-		hurt_sprite.visible = false
-	
-	if sprite and not is_dead and not is_frozen and not is_showing_punch and not is_showing_kick:
-		sprite.visible = true
-		# Update Y-sorting for normal sprite
-		update_z_index_for_ysort()
-	
-	is_showing_hurt = false
-	print("✓ GangMember hiding hurt sprite")
 
 func flash_hurt_sprite() -> void:
 	"""Flash the hurt sprite briefly when taking damage"""
-	show_hurt_sprite()
-	
-	# Flash for a brief moment
-	var flash_duration = 0.3
-	var tween = create_tween()
-	tween.tween_callback(hide_hurt_sprite).set_delay(flash_duration)
-
-func play_death_effect() -> void:
-	"""Play death animation or effect"""
-	if sprite:
-		var tween = create_tween()
-		tween.tween_property(sprite, "modulate:a", 0.0, 1.0)
-		tween.tween_callback(queue_free)
+	_play_animation_timed("hurt", hurt_duration)
 
 func get_health_percentage() -> float:
 	"""Get current health as a percentage"""
@@ -2367,8 +2335,6 @@ func _setup_freeze_system() -> void:
 	add_child(freeze_sound)
 	
 	# Store original modulate for restoration
-	if sprite:
-		original_modulate = sprite.modulate
 
 func freeze() -> void:
 	"""Apply freeze effect to the gang member"""
@@ -2385,11 +2351,7 @@ func freeze() -> void:
 		is_attacking = false
 		attack_moves_remaining = 0
 		# Hide appropriate sprite based on attack type
-		if current_attack_type == "kick":
-			hide_kick_sprite()
-		else:
-			hide_punch_sprite()
-	
+
 	# Play freeze sound
 	if freeze_sound:
 		freeze_sound.play()
@@ -2401,37 +2363,7 @@ func _switch_to_ice_state() -> void:
 	"""Switch to ice sprite and collision state"""
 	print("=== SWITCHING TO ICE STATE ===")
 	
-	# Hide the normal sprite
-	if sprite:
-		sprite.visible = false
-		print("✓ Hidden normal sprite")
-	
-	# Hide the punch sprite if it's visible
-	if punch_sprite:
-		punch_sprite.visible = false
-		is_showing_punch = false
-		print("✓ Hidden punch sprite")
-	
-	# Hide the kick sprite if it's visible
-	if kick_sprite:
-		kick_sprite.visible = false
-		is_showing_kick = false
-		print("✓ Hidden kick sprite")
-	
-	# Hide the hurt sprite if it's visible
-	if hurt_sprite:
-		hurt_sprite.visible = false
-		is_showing_hurt = false
-		print("✓ Hidden hurt sprite")
-	
-	# Show the ice sprite
-	if ice_sprite:
-		ice_sprite.visible = true
-		# Apply the same facing direction to the ice sprite
-		_update_ice_sprite_facing()
-		print("✓ Showed ice sprite")
-	else:
-		print("✗ ERROR: Ice sprite not found!")
+	_play_animation("ice", true)
 	
 	# Disable normal collision area
 	if base_collision_area:
@@ -2462,25 +2394,7 @@ func _switch_to_normal_state() -> void:
 	"""Switch back to normal sprite and collision state"""
 	print("=== SWITCHING TO NORMAL STATE ===")
 	
-	# Hide the ice sprite
-	if ice_sprite:
-		ice_sprite.visible = false
-		print("✓ Hidden ice sprite")
-	
-	# Show the normal sprite (unless punch, kick, or hurt sprite should be shown)
-	if sprite and not is_showing_punch and not is_showing_kick and not is_showing_hurt:
-		sprite.visible = true
-		# Restore original modulate
-		sprite.modulate = original_modulate
-		# Update facing direction
-		_update_sprite_facing()
-		print("✓ Showed normal sprite")
-	elif sprite and (is_showing_punch or is_showing_kick or is_showing_hurt):
-		# Keep normal sprite hidden if punch, kick, or hurt is being shown
-		sprite.visible = false
-		print("✓ Keeping normal sprite hidden (attack or hurt active)")
-	else:
-		print("✗ ERROR: Normal sprite not found!")
+	_play_animation("idle", true)
 	
 	# Disable ice collision area
 	if ice_collision_area:
@@ -2691,12 +2605,12 @@ var punch_range: int = 2
 var kick_range: int = 3
 
 # Punch animation properties
-@onready var punch_sprite: Sprite2D = $Punch
-var is_showing_punch: bool = false
-
-# Kick animation properties
-@onready var kick_sprite: Sprite2D = $Kick
-var is_showing_kick: bool = false
+#@onready var punch_sprite: Sprite2D = $Punch
+#var is_showing_punch: bool = false
+#
+## Kick animation properties
+#@onready var kick_sprite: Sprite2D = $Kick
+#var is_showing_kick: bool = false
 
 # Attack type helper methods
 func get_current_attack_damage() -> int:
@@ -2713,133 +2627,7 @@ func switch_to_next_attack_type() -> void:
 	print("GangMember switched to", current_attack_type, "attack type")
 	print("Attack damage:", get_current_attack_damage(), "Attack range:", get_current_attack_range())
 
-# Punch animation methods
-func show_punch_sprite() -> void:
-	"""Show the punch sprite and hide the normal sprite"""
-	if sprite:
-		sprite.visible = false
-	
-	if punch_sprite:
-		punch_sprite.visible = true
-		# Apply the same facing direction to the punch sprite
-		if facing_direction.x < 0:
-			punch_sprite.flip_h = true
-		elif facing_direction.x > 0:
-			punch_sprite.flip_h = false
-		
-		# Update Y-sorting for punch sprite
-		update_z_index_for_ysort()
-	
-	is_showing_punch = true
-	print("✓ GangMember showing punch sprite")
-
-func hide_punch_sprite() -> void:
-	"""Hide the punch sprite and show the normal sprite"""
-	if punch_sprite:
-		punch_sprite.visible = false
-	
-	if sprite and not is_dead and not is_frozen and not is_showing_hurt:
-		sprite.visible = true
-		# Update Y-sorting for normal sprite
-		update_z_index_for_ysort()
-	
-	is_showing_punch = false
-	print("✓ GangMember hiding punch sprite")
-
-func flash_punch_sprite() -> void:
-	"""Flash the punch sprite briefly during attack"""
-	show_punch_sprite()
-	
-	# Flash for a brief moment
-	var flash_duration = 0.2
-	var tween = create_tween()
-	tween.tween_callback(hide_punch_sprite).set_delay(flash_duration)
-
-func double_flash_punch_sprite() -> void:
-	"""Flash the punch sprite twice for double-attack effect"""
-	print("✓ Starting double-flash punch animation")
-	
-	# First flash
-	show_punch_sprite()
-	
-	var double_flash_tween = create_tween()
-	double_flash_tween.set_parallel(false)  # Sequential animations
-	
-	# First flash duration
-	double_flash_tween.tween_callback(hide_punch_sprite).set_delay(0.15)
-	
-	# Brief pause between flashes
-	double_flash_tween.tween_callback(func(): pass).set_delay(0.1)
-	
-	# Second flash
-	double_flash_tween.tween_callback(show_punch_sprite).set_delay(0.0)
-	double_flash_tween.tween_callback(hide_punch_sprite).set_delay(0.15)
-	
-	print("✓ Double-flash punch animation started")
-
-# Kick animation methods
-func show_kick_sprite() -> void:
-	"""Show the kick sprite and hide the normal sprite"""
-	if sprite:
-		sprite.visible = false
-	
-	if kick_sprite:
-		kick_sprite.visible = true
-		# Apply the same facing direction to the kick sprite
-		if facing_direction.x < 0:
-			kick_sprite.flip_h = true
-		elif facing_direction.x > 0:
-			kick_sprite.flip_h = false
-		
-		# Update Y-sorting for kick sprite
-		update_z_index_for_ysort()
-	
-	is_showing_kick = true
-	print("✓ GangMember showing kick sprite")
-
-func hide_kick_sprite() -> void:
-	"""Hide the kick sprite and show the normal sprite"""
-	if kick_sprite:
-		kick_sprite.visible = false
-	
-	if sprite and not is_dead and not is_frozen and not is_showing_hurt:
-		sprite.visible = true
-		# Update Y-sorting for normal sprite
-		update_z_index_for_ysort()
-	
-	is_showing_kick = false
-	print("✓ GangMember hiding kick sprite")
-
-func flash_kick_sprite() -> void:
-	"""Flash the kick sprite briefly during attack"""
-	show_kick_sprite()
-	
-	# Flash for a brief moment
-	var flash_duration = 0.2
-	var tween = create_tween()
-	tween.tween_callback(hide_kick_sprite).set_delay(flash_duration)
-
-func double_flash_kick_sprite() -> void:
-	"""Flash the kick sprite twice for double-attack effect"""
-	print("✓ Starting double-flash kick animation")
-	
-	# First flash
-	show_kick_sprite()
-	
-	var double_flash_tween = create_tween()
-	double_flash_tween.set_parallel(false)  # Sequential animations
-	
-	# First flash duration
-	double_flash_tween.tween_callback(hide_kick_sprite).set_delay(0.15)
-	
-	# Brief pause between flashes
-	double_flash_tween.tween_callback(func(): pass).set_delay(0.1)
-	
-	# Second flash
-	double_flash_tween.tween_callback(show_kick_sprite).set_delay(0.0)
-	double_flash_tween.tween_callback(hide_kick_sprite).set_delay(0.15)
-	
-	print("✓ Double-flash kick animation started")
+# Animation methods - using new AnimatedSprite2D system
 
 # Attack sequencing methods
 func _schedule_next_attack_move() -> void:
@@ -2882,12 +2670,6 @@ func _end_attack_sequence_from_main() -> void:
 	print("=== ENDING ATTACK SEQUENCE (MAIN) ===")
 	is_attacking = false
 	attack_moves_remaining = 0
-	
-	# Hide appropriate sprite based on attack type
-	if current_attack_type == "kick":
-		hide_kick_sprite()
-	else:
-		hide_punch_sprite()
 	
 	# Complete the turn
 	_check_turn_completion()

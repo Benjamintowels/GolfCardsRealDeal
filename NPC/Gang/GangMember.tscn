@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3 uid="uid://bmlicmv1hmd4j"]
+[gd_scene load_steps=14 format=3 uid="uid://bmlicmv1hmd4j"]
 
 [ext_resource type="Script" uid="uid://b3mk6wcdiwoxy" path="res://NPC/Gang/GangMember.gd" id="1_0x0x0"]
 [ext_resource type="Texture2D" uid="uid://bjwbqmbev7wya" path="res://NPC/Gang/GangMember1.png" id="2_qejoy"]
@@ -11,6 +11,57 @@
 [ext_resource type="AudioStream" uid="uid://c32w6bjkh8ww2" path="res://Sounds/FootstepsGrass.mp3" id="6_cmk3g"]
 [ext_resource type="AudioStream" uid="uid://dl2ynh3s1er12" path="res://Sounds/FootstepsSnow.mp3" id="7_ic6iu"]
 
+[sub_resource type="SpriteFrames" id="SpriteFrames_gangmember"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("3_sr211")
+}],
+"loop": true,
+"name": &"dead",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("3_suhnd")
+}],
+"loop": false,
+"name": &"hurt",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("5_hf27q")
+}],
+"loop": true,
+"name": &"ice",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("2_qejoy")
+}],
+"loop": true,
+"name": &"idle",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("4_adisv")
+}],
+"loop": false,
+"name": &"kick",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("3_ic6iu")
+}],
+"loop": false,
+"name": &"punch",
+"speed": 5.0
+}]
+
 [sub_resource type="CircleShape2D" id="CircleShape2D_qejoy"]
 radius = 1.30545
 
@@ -21,43 +72,14 @@ height = 88.0
 [node name="GangMember" type="CharacterBody2D"]
 script = ExtResource("1_0x0x0")
 
-[node name="Sprite2D" type="Sprite2D" parent="."]
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
 z_index = 10
 texture_filter = 1
 position = Vector2(0, -47.85)
-texture = ExtResource("2_qejoy")
+sprite_frames = SubResource("SpriteFrames_gangmember")
+animation = &"idle"
 
-[node name="YSortPoint" type="Node2D" parent="Sprite2D"]
-position = Vector2(0, 38.85)
-
-[node name="Hurt" type="Sprite2D" parent="."]
-visible = false
-z_index = 10
-texture_filter = 1
-position = Vector2(0, -47.85)
-texture = ExtResource("3_suhnd")
-
-[node name="YSortPoint" type="Node2D" parent="Hurt"]
-position = Vector2(0, 38.85)
-
-[node name="Punch" type="Sprite2D" parent="."]
-visible = false
-z_index = 10
-texture_filter = 1
-position = Vector2(8, -48)
-texture = ExtResource("3_ic6iu")
-
-[node name="YSortPoint" type="Node2D" parent="Punch"]
-position = Vector2(0, 38.85)
-
-[node name="Kick" type="Sprite2D" parent="."]
-visible = false
-z_index = 10
-texture_filter = 1
-position = Vector2(13, -48)
-texture = ExtResource("4_adisv")
-
-[node name="YSortPoint" type="Node2D" parent="Kick"]
+[node name="YSortPoint" type="Node2D" parent="AnimatedSprite2D"]
 position = Vector2(0, 38.85)
 
 [node name="AnimationPlayer" type="AnimationPlayer" parent="."]
