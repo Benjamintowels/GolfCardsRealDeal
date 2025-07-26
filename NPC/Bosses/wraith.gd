@@ -264,12 +264,22 @@ func _on_base_area_entered(area: Area2D):
 	
 	# Check if this is a ball or projectile
 	var ball = area.get_parent()
+	
+	# Check if this is a ghost ball - ignore ghost ball collisions
+	if ball and ball.name == "GhostBall":
+		return
+	
 	if ball and (ball.name == "GolfBall" or ball.has_method("get_height")):
 		_handle_area_collision(ball)
 
 func _on_area_exited(area: Area2D):
 	"""Handle when projectile exits the Wraith area - reset ground level"""
 	var projectile = area.get_parent()
+	
+	# Check if this is a ghost ball - ignore ghost ball area exit events
+	if projectile and projectile.name == "GhostBall":
+		return
+	
 	if projectile and projectile.has_method("get_height"):
 		# Reset the projectile's ground level to normal (0.0)
 		if projectile.has_method("_reset_ground_level"):
@@ -281,22 +291,15 @@ func _on_area_exited(area: Area2D):
 
 func _handle_area_collision(projectile: Node2D):
 	"""Handle Wraith area collisions using proper Area2D detection"""
-	print("=== HANDLING WRAITH AREA COLLISION ===")
-	print("Projectile name:", projectile.name)
-	print("Projectile type:", projectile.get_class())
 	
 	# Check if projectile has height information
 	if not projectile.has_method("get_height"):
-		print("✗ Projectile doesn't have height method - using fallback reflection")
 		_reflect_projectile(projectile)
 		return
 	
 	# Get projectile and Wraith heights
 	var projectile_height = projectile.get_height()
 	var wraith_height = get_height()
-	
-	print("Projectile height:", projectile_height)
-	print("Wraith height:", wraith_height)
 	
 	# Check if this is a throwing knife (special handling)
 	if projectile.has_method("is_throwing_knife") and projectile.is_throwing_knife():
@@ -307,16 +310,13 @@ func _handle_area_collision(projectile: Node2D):
 	# If projectile height > Wraith height: allow entry and set ground level
 	# If projectile height < Wraith height: deal damage and reflect
 	if projectile_height > wraith_height:
-		print("✓ Projectile is above Wraith - allowing entry and setting ground level")
 		_allow_projectile_entry(projectile, wraith_height)
 	else:
-		print("✗ Projectile is below Wraith height - dealing damage and reflecting")
 		# Deal damage first, then reflect
 		_handle_ball_collision(projectile)
 
 func _handle_knife_area_collision(knife: Node2D, knife_height: float, wraith_height: float):
 	"""Handle knife collision with Wraith area"""
-	print("Handling knife Wraith area collision")
 	
 	if knife_height > wraith_height:
 		_allow_projectile_entry(knife, wraith_height)
@@ -502,7 +502,6 @@ func _apply_ball_collision_effect(ball: Node2D) -> void:
 		is_ghost_ball = true
 	
 	if is_ghost_ball:
-		print("Ghost ball detected - no damage dealt, just reflection")
 		# Ghost balls only reflect, no damage
 		var ball_velocity = Vector2.ZERO
 		if ball.has_method("get_velocity"):
@@ -526,8 +525,6 @@ func _apply_ball_collision_effect(ball: Node2D) -> void:
 		var random_angle = randf_range(-0.1, 0.1)
 		reflected_velocity = reflected_velocity.rotated(random_angle)
 		
-		print("Ghost ball reflected velocity:", reflected_velocity)
-		
 		# Apply the reflected velocity to the ball
 		if ball.has_method("set_velocity"):
 			ball.set_velocity(reflected_velocity)
@@ -541,8 +538,6 @@ func _apply_ball_collision_effect(ball: Node2D) -> void:
 		ball_velocity = ball.get_velocity()
 	elif "velocity" in ball:
 		ball_velocity = ball.velocity
-	
-	print("Applying collision effect to ball with velocity:", ball_velocity)
 	
 	# Get ball height for headshot detection
 	var ball_height = 0.0
@@ -560,11 +555,6 @@ func _apply_ball_collision_effect(ball: Node2D) -> void:
 	
 	# Apply headshot multiplier if applicable
 	var damage = int(base_damage * damage_multiplier)
-	
-	if is_headshot:
-		print("HEADSHOT! Ball height:", ball_height, "Base damage:", base_damage, "Final damage:", damage)
-	else:
-		print("Body shot. Ball height:", ball_height, "Damage:", damage)
 	
 	# Check for ice element and apply freeze effect
 	if ball.has_method("get_element"):
@@ -1019,14 +1009,12 @@ func _is_position_valid(pos: Vector2i) -> bool:
 	
 	# Check if position is occupied by the player
 	if player and player.grid_pos == pos:
-		print("Position ", pos, " is occupied by player")
 		return false
 	
 	# Check if position is on a green tile (G)
 	if course and course.has_method("get_tile_type_at_position"):
 		var tile_type = course.get_tile_type_at_position(pos)
 		if tile_type != "G":
-			print("Position ", pos, " is not on green tile (type: ", tile_type, ")")
 			return false
 	
 	return true
@@ -1051,13 +1039,9 @@ func _move_to_position(target_pos: Vector2i) -> void:
 	# Animated movement using tween
 	_animate_movement_to_position(target_world_pos)
 	
-	print("Wraith moving from ", old_pos, " to ", target_pos, " with direction: ", movement_direction)
-	
 	# Check if we moved to the same tile as the player (only if we weren't already there)
 	if player and "grid_pos" in player and player.grid_pos == target_pos and old_pos != target_pos:
-		print("Wraith collided with player! Dealing damage and pushing back...")
-		var approach_direction = target_pos - old_pos
-		_handle_player_collision(approach_direction)
+		_handle_player_collision(target_pos - old_pos)
 
 func _animate_movement_to_position(target_pos: Vector2):
 	"""Animate movement to the target position"""
@@ -1081,10 +1065,8 @@ func _on_movement_complete():
 
 func _handle_player_collision(approach_direction: Vector2i):
 	"""Handle collision with the player"""
-	print("=== WRAITH PLAYER COLLISION ===")
 	
 	if not player or not "grid_pos" in player:
-		print("✗ No valid player reference for collision")
 		return
 	
 	# Deal damage to player (Wraith deals more damage than GangMember)
@@ -1094,7 +1076,6 @@ func _handle_player_collision(approach_direction: Vector2i):
 		var player_manager = course.player_manager
 		if player_manager and player_manager.has_method("take_damage"):
 			player_manager.take_damage(damage)
-			print("✓ Dealt ", damage, " damage to player via PlayerManager")
 			
 			# Flash the player red to indicate damage
 			if player and player.has_method("flash_damage"):
@@ -1104,7 +1085,6 @@ func _handle_player_collision(approach_direction: Vector2i):
 			var push_sound = player.get_node_or_null("Push") if player else null
 			if push_sound and push_sound is AudioStreamPlayer2D:
 				push_sound.play()
-				print("✓ Played push sound for Wraith attack")
 		else:
 			print("✗ ERROR: PlayerManager not found or doesn't have take_damage method")
 	else:
@@ -1113,18 +1093,14 @@ func _handle_player_collision(approach_direction: Vector2i):
 	# Push player back
 	var pushback_pos = _find_nearest_available_adjacent_tile(player.grid_pos, approach_direction)
 	if pushback_pos != player.grid_pos:
-		print("Pushing player from ", player.grid_pos, " to ", pushback_pos)
 		
 		# Use animated pushback if the player supports it
 		if player.has_method("push_back"):
 			player.push_back(pushback_pos)
-			print("Applied animated pushback to player")
 		else:
 			# Fallback to instant position change
 			player.set_grid_position(pushback_pos)
-			print("Applied instant pushback to player (no animation support)")
 		
-		print("Player grid position updated to: ", player.grid_pos)
 	else:
 		print("No available adjacent tile found for pushback")
 
@@ -1132,26 +1108,20 @@ func _find_nearest_available_adjacent_tile(player_pos: Vector2i, approach_direct
 	"""Find the nearest available adjacent tile to push the player to based on Wraith's approach direction"""
 	# Use the passed approach direction
 	var wraith_approach_direction = approach_direction
-	print("Wraith approach direction: ", wraith_approach_direction)
 	
 	# The pushback direction is the same as the approach direction (player gets pushed in the direction Wraith came from)
 	var pushback_direction = wraith_approach_direction
-	print("Pushback direction: ", pushback_direction)
 	
 	# Try the primary pushback direction first
 	var primary_pushback_pos = player_pos + pushback_direction
-	print("Checking primary pushback position: ", primary_pushback_pos)
 	if _is_position_valid_for_player(primary_pushback_pos):
-		print("Found valid primary pushback position: ", primary_pushback_pos)
 		return primary_pushback_pos
 	
 	# If primary direction is blocked, try perpendicular directions
 	var perpendicular_directions = _get_perpendicular_directions(pushback_direction)
 	for direction in perpendicular_directions:
 		var adjacent_pos = player_pos + direction
-		print("Checking perpendicular position: ", adjacent_pos, " (direction: ", direction, ")")
 		if _is_position_valid_for_player(adjacent_pos):
-			print("Found valid perpendicular pushback position: ", adjacent_pos)
 			return adjacent_pos
 	
 	# If perpendicular directions are blocked, try any available adjacent tile
@@ -1159,11 +1129,9 @@ func _find_nearest_available_adjacent_tile(player_pos: Vector2i, approach_direct
 	for direction in all_directions:
 		var adjacent_pos = player_pos + direction
 		if _is_position_valid_for_player(adjacent_pos):
-			print("Found valid adjacent pushback position: ", adjacent_pos)
 			return adjacent_pos
 	
 	# If no valid position found, return player's current position (no pushback)
-	print("No valid pushback position found, player stays in place")
 	return player_pos
 
 func _get_perpendicular_directions(direction: Vector2i) -> Array[Vector2i]:
@@ -1183,14 +1151,12 @@ func _is_position_valid_for_player(pos: Vector2i) -> bool:
 	"""Check if a position is valid for the player to move to"""
 	# Basic bounds checking
 	if pos.x < 0 or pos.y < 0 or pos.x > 100 or pos.y > 100:
-		print("Position ", pos, " is out of bounds")
 		return false
 	
 	# Check if the position is occupied by an obstacle
 	if course and "obstacle_map" in course:
 		var obstacle = course.obstacle_map.get(pos)
 		if obstacle and obstacle.has_method("blocks") and obstacle.blocks():
-			print("Position ", pos, " is blocked by obstacle: ", obstacle.name)
 			return false
 	
 	# Check if the position is occupied by another NPC
@@ -1201,10 +1167,8 @@ func _is_position_valid_for_player(pos: Vector2i) -> bool:
 			for npc in npcs:
 				if npc != self and npc.has_method("get_grid_position"):
 					if npc.get_grid_position() == pos:
-						print("Position ", pos, " is occupied by NPC: ", npc.name)
 						return false
 	
-	print("Position ", pos, " is valid for player pushback")
 	return true
 
 func _update_sprite_facing() -> void:

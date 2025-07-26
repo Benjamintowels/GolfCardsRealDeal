@@ -179,13 +179,23 @@ func _create_health_bar() -> void:
 func _on_base_area_entered(area: Area2D) -> void:
 	"""Handle collisions with the base collision area"""
 	var projectile = area.get_parent()
-	if projectile and (projectile.name == "GolfBall" or projectile.name == "GhostBall" or projectile.has_method("is_throwing_knife")):
+	
+	# Check if this is a ghost ball - ignore ghost ball collisions
+	if projectile and projectile.name == "GhostBall":
+		return
+	
+	if projectile and (projectile.name == "GolfBall" or projectile.has_method("is_throwing_knife")):
 		# Handle the collision using proper Area2D collision detection
 		_handle_area_collision(projectile)
 
 func _on_area_exited(area: Area2D) -> void:
 	"""Handle when projectile exits the ZombieGolfer area - reset ground level"""
 	var projectile = area.get_parent()
+	
+	# Check if this is a ghost ball - ignore ghost ball area exit events
+	if projectile and projectile.name == "GhostBall":
+		return
+	
 	if projectile and projectile.has_method("get_height"):
 		# Reset the projectile's ground level to normal (0.0)
 		if projectile.has_method("_reset_ground_level"):

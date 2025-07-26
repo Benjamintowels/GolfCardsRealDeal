@@ -72,7 +72,6 @@ func _ready():
 	if area2d:
 		area2d.connect("area_entered", _on_area_entered)
 		area2d.connect("area_exited", _on_area_exited)
-		print("✓ Ghost ball Area2D collision detection connected")
 	else:
 		print("✗ ERROR: Ghost ball Area2D not found!")
 	
@@ -90,9 +89,6 @@ func _ready():
 		launch_ghost_ball()
 	else:
 		launch_ghost_ball()  # Launch anyway with default direction
-	
-	print("Ghost ball ready at position:", position)
-	print("=== END GHOST BALL _READY ===")
 
 func _process(delta):
 	# Debug: Check if ball is near any trees
@@ -371,7 +367,6 @@ func launch_ghost_ball():
 	var direction: Vector2
 	if chosen_landing_spot != Vector2.ZERO:
 		direction = (chosen_landing_spot - global_position).normalized()
-	
 	else:
 		# Default direction (forward) if no landing spot set
 		direction = Vector2(1, 0)  # Launch to the right
@@ -414,7 +409,6 @@ func launch_ghost_ball():
 		if is_putting:
 			# For putters, set height to 0 (no arc, just rolling)
 			height = 0.0
-			print("Ghost ball: Putter mode - height set to 0")
 		else:
 			# Calculate height at 50% (sweet spot height) - use same constants as LaunchManager
 			var height_percentage = 0.5  # 50% height (sweet spot)
@@ -638,13 +632,8 @@ func _on_area_entered(area):
 		notify_course_of_collision()
 	# Check if this is a Force Field collision
 	elif area.get_parent() and area.get_parent().has_method("_handle_roof_bounce_collision") and area.get_parent().is_in_group("force_fields"):
-		print("=== GHOST BALL FORCE FIELD COLLISION DETECTED ===")
-		print("Force field:", area.get_parent().name)
-		print("Force field groups:", area.get_parent().get_groups())
-		print("About to call force field's _handle_roof_bounce_collision method")
 		# Force Field collision detected - call the force field's collision handler directly
 		area.get_parent()._handle_roof_bounce_collision(self)
-		print("Finished calling force field's _handle_roof_bounce_collision method")
 		# Notify course to re-enable player collision since ball hit force field
 		notify_course_of_collision()
 

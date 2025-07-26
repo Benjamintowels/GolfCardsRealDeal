@@ -823,11 +823,15 @@ func _on_base_area_entered(area: Area2D) -> void:
 	"""Handle collision with projectiles"""
 	var projectile = area.get_parent()
 	
+	# Check if this is a ghost ball - ignore ghost ball collisions
+	if projectile and projectile.name == "GhostBall":
+		return
+	
 	# Only handle collisions with the body area, not the vision area
 	if area != base_collision_area:
 		return
 	
-	if projectile and (projectile.name == "GolfBall" or projectile.name == "GhostBall" or projectile.has_method("is_throwing_knife")):
+	if projectile and (projectile.name == "GolfBall" or projectile.has_method("is_throwing_knife")):
 		
 		# Get projectile height
 		var projectile_height = 0.0

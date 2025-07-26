@@ -18,6 +18,33 @@ scale_over_velocity_max = 639.34
 [sub_resource type="CircleShape2D" id="CircleShape2D_o2idl"]
 radius = 44.0
 
+[sub_resource type="Animation" id="Animation_4ikdh"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("PointLight2D:texture_scale")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [1.25]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("PointLight2D:color")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Color(0.973787, 0.550975, 0.431286, 1)]
+}
+
 [sub_resource type="Animation" id="Animation_aadvm"]
 resource_name = "firelight_flicker"
 length = 1.9975
@@ -44,33 +71,6 @@ tracks/1/keys = {
 "transitions": PackedFloat32Array(1, 1, 1, 1),
 "update": 0,
 "values": [Color(0.973787, 0.550975, 0.431286, 1), Color(1, 1, 1, 1), Color(0.964706, 1, 0.423529, 1), Color(0.973787, 0.550975, 0.431286, 1)]
-}
-
-[sub_resource type="Animation" id="Animation_4ikdh"]
-length = 0.001
-tracks/0/type = "value"
-tracks/0/imported = false
-tracks/0/enabled = true
-tracks/0/path = NodePath("PointLight2D:texture_scale")
-tracks/0/interp = 1
-tracks/0/loop_wrap = true
-tracks/0/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 0,
-"values": [1.25]
-}
-tracks/1/type = "value"
-tracks/1/imported = false
-tracks/1/enabled = true
-tracks/1/path = NodePath("PointLight2D:color")
-tracks/1/interp = 1
-tracks/1/loop_wrap = true
-tracks/1/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 0,
-"values": [Color(0.973787, 0.550975, 0.431286, 1)]
 }
 
 [sub_resource type="AnimationLibrary" id="AnimationLibrary_sxelj"]

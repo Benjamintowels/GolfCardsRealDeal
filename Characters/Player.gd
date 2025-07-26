@@ -207,8 +207,12 @@ func _on_character_area_entered(area: Area2D) -> void:
 	if not colliding_object:
 		return
 	
-	# Handle projectile collisions (golf balls, ghost balls, throwing knives)
-	if colliding_object.name == "GolfBall" or colliding_object.name == "GhostBall" or colliding_object.has_method("is_throwing_knife"):
+	# Check if this is a ghost ball - ignore ghost ball collisions
+	if colliding_object.name == "GhostBall":
+		return
+	
+	# Handle projectile collisions (golf balls, throwing knives)
+	if colliding_object.name == "GolfBall" or colliding_object.has_method("is_throwing_knife"):
 		# Handle the collision using proper Area2D collision detection
 		_handle_area_collision(colliding_object)
 	
@@ -218,6 +222,11 @@ func _on_character_area_entered(area: Area2D) -> void:
 func _on_area_exited(area: Area2D) -> void:
 	"""Handle when projectile exits the Player area - reset ground level"""
 	var projectile = area.get_parent()
+	
+	# Check if this is a ghost ball - ignore ghost ball area exit events
+	if projectile and projectile.name == "GhostBall":
+		return
+	
 	if projectile and projectile.has_method("get_height"):
 		# Reset the projectile's ground level to normal (0.0)
 		if projectile.has_method("_reset_ground_level"):
@@ -229,22 +238,14 @@ func _on_area_exited(area: Area2D) -> void:
 
 func _handle_area_collision(projectile: Node2D):
 	"""Handle Player area collisions using proper Area2D detection"""
-	print("=== HANDLING PLAYER AREA COLLISION ===")
-	print("Projectile name:", projectile.name)
-	print("Projectile type:", projectile.get_class())
-	
 	# Check if projectile has height information
 	if not projectile.has_method("get_height"):
-		print("✗ Projectile doesn't have height method - using fallback reflection")
 		_reflect_projectile(projectile)
 		return
 	
 	# Get projectile and Player heights
 	var projectile_height = projectile.get_height()
 	var player_height = Global.get_object_height_from_marker(self)
-	
-	print("Projectile height:", projectile_height)
-	print("Player height:", player_height)
 	
 	# Check if this is a throwing knife (special handling)
 	if projectile.has_method("is_throwing_knife") and projectile.is_throwing_knife():
@@ -255,21 +256,15 @@ func _handle_area_collision(projectile: Node2D):
 	# If projectile height > Player height: allow entry and set ground level
 	# If projectile height < Player height: reflect
 	if projectile_height > player_height:
-		print("✓ Projectile is above Player - allowing entry and setting ground level")
 		_allow_projectile_entry(projectile, player_height)
 	else:
-		print("✗ Projectile is below Player height - reflecting")
 		_reflect_projectile(projectile)
 
 func _handle_knife_area_collision(knife: Node2D, knife_height: float, player_height: float):
 	"""Handle knife collision with Player area"""
-	print("Handling knife Player area collision")
-	
 	if knife_height > player_height:
-		print("✓ Knife is above Player - allowing entry and setting ground level")
 		_allow_projectile_entry(knife, player_height)
 	else:
-		print("✗ Knife is below Player height - reflecting")
 		_reflect_projectile(knife)
 
 func _allow_projectile_entry(projectile: Node2D, player_height: float):
