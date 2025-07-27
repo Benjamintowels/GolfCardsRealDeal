@@ -1,6 +1,11 @@
 extends Node
 class_name AttackHandler
 
+# Import strategy classes
+const MeleeAttackStrategy = preload("res://Strategies/MeleeAttackStrategy.gd")
+const RangedAttackStrategy = preload("res://Strategies/RangedAttackStrategy.gd")
+const MovementAttackStrategy = preload("res://Strategies/MovementAttackStrategy.gd")
+
 # Attack system variables
 var is_attack_mode := false
 var attack_range := 1
@@ -55,6 +60,11 @@ var slash_damage := 33
 # SlashFX scene reference
 var slashfx_scene = preload("res://Particles/SlashFX.tscn")
 
+# Strategy instances
+var melee_strategy: MeleeAttackStrategy
+var ranged_strategy: RangedAttackStrategy
+var movement_strategy: MovementAttackStrategy
+
 # Signals
 signal attack_mode_entered
 signal attack_mode_exited
@@ -65,6 +75,7 @@ signal kick_attack_performed
 signal punchb_attack_performed
 signal ash_dog_attack_performed
 signal slash_attack_performed
+signal assassin_dash_attack_performed
 
 func _init():
 	pass
@@ -109,6 +120,70 @@ func setup(
 	assassin_cut_sound = assassin_cut_sound_ref
 	card_row = card_row_ref
 	slash_sound = slash_sound_ref
+	
+	# Initialize strategy instances and add them to the scene tree
+	melee_strategy = MeleeAttackStrategy.new()
+	ranged_strategy = RangedAttackStrategy.new()
+	movement_strategy = MovementAttackStrategy.new()
+	
+	# Add strategies to the scene tree so they can use get_tree()
+	add_child(melee_strategy)
+	add_child(ranged_strategy)
+	add_child(movement_strategy)
+	
+	# Setup strategies with references
+	melee_strategy.setup(
+		card_effect_handler_ref,
+		grid_tiles_ref,
+		grid_size_ref,
+		cell_size_ref,
+		obstacle_map_ref,
+		player_grid_pos_ref,
+		player_stats_ref,
+		player_node_ref,
+		kick_sound_ref,
+		punchb_sound_ref,
+		slash_sound_ref
+	)
+	
+	ranged_strategy.setup(
+		card_effect_handler_ref,
+		grid_tiles_ref,
+		grid_size_ref,
+		cell_size_ref,
+		obstacle_map_ref,
+		player_grid_pos_ref,
+		player_stats_ref,
+		player_node_ref
+	)
+	
+	movement_strategy.setup(
+		card_effect_handler_ref,
+		grid_tiles_ref,
+		grid_size_ref,
+		cell_size_ref,
+		obstacle_map_ref,
+		player_grid_pos_ref,
+		player_stats_ref,
+		player_node_ref,
+		assassin_dash_sound_ref,
+		assassin_cut_sound_ref
+	)
+	
+	# Connect strategy signals to AttackHandler signals
+	melee_strategy.npc_attacked.connect(_on_strategy_npc_attacked)
+	melee_strategy.kick_attack_performed.connect(_on_strategy_kick_attack_performed)
+	melee_strategy.punchb_attack_performed.connect(_on_strategy_punchb_attack_performed)
+	melee_strategy.slash_attack_performed.connect(_on_strategy_slash_attack_performed)
+	melee_strategy.attack_completed.connect(_on_strategy_attack_completed)
+	
+	ranged_strategy.npc_attacked.connect(_on_strategy_npc_attacked)
+	ranged_strategy.ash_dog_attack_performed.connect(_on_strategy_ash_dog_attack_performed)
+	ranged_strategy.attack_completed.connect(_on_strategy_attack_completed)
+	
+	movement_strategy.npc_attacked.connect(_on_strategy_npc_attacked)
+	movement_strategy.assassin_dash_attack_performed.connect(_on_strategy_assassin_dash_attack_performed)
+	movement_strategy.attack_completed.connect(_on_strategy_attack_completed)
 	
 	# Store the original position of the CardRow for animation
 	if card_row:
@@ -610,7 +685,7 @@ func handle_tile_click(x: int, y: int) -> bool:
 		var target_pos = find_valid_3x2_target_position(clicked)
 		if target_pos != Vector2i(-1, -1):
 			print("✓ Valid 3x2 target found at:", target_pos, "for clicked position:", clicked)
-			perform_meteor_attack(target_pos)
+			ranged_strategy.perform_meteor_attack(target_pos)
 			card_play_sound.play()
 			return true
 		else:
@@ -618,59 +693,36 @@ func handle_tile_click(x: int, y: int) -> bool:
 			return false
 	
 	if is_attack_mode and clicked in valid_attack_tiles:
-		# Check if this is a KickB card attack on an oil drum
+		# Use MeleeAttackStrategy for Kick and PunchB attacks
 		if selected_card and selected_card.name == "Kick":
-			var oil_drum = get_oil_drum_at_position(clicked)
-			if oil_drum:
-				perform_kickb_attack_on_oil_drum(oil_drum, clicked)
-				card_play_sound.play()
-				return true
-		
-		# Check if this is a PunchB card attack
-		if selected_card and selected_card.name == "PunchB":
-			var npc = get_npc_at_position(clicked)
-			var oil_drum = get_oil_drum_at_position(clicked)
-			
-			if npc:
-				perform_punchb_attack_on_npc(npc, clicked)
-				card_play_sound.play()
-				return true
-			elif oil_drum:
-				perform_punchb_attack_on_oil_drum(oil_drum, clicked)
-				card_play_sound.play()
-				return true
-			else:
-				return false
-		
-		# Check if this is an AttackDog card attack
-		if selected_card and selected_card.name == "AttackDog":
-			var npc = get_npc_at_position(clicked)
-			
-			if npc:
-				perform_attackdog_attack_on_npc(npc, clicked)
-				card_play_sound.play()
-				return true
-			else:
-				return false
-
-		# Check if this is an AssassinDash card attack
-		if selected_card and selected_card.name == "AssassinDash":
-			var npc = get_npc_at_position(clicked)
-			
-			if npc:
-				perform_assassin_dash_attack_on_npc(npc, clicked)
-				card_play_sound.play()
-				return true
-			else:
-				return false
-		
-		# Check if this is a SlashCard attack
-		if selected_card and selected_card.name == "SlashCard":
-			perform_slash_attack(clicked)
+			melee_strategy.perform_kickb_attack(clicked)
 			card_play_sound.play()
 			return true
 		
-		# Check for normal NPC attack
+		if selected_card and selected_card.name == "PunchB":
+			melee_strategy.perform_punchb_attack(clicked)
+			card_play_sound.play()
+			return true
+		
+		# Use RangedAttackStrategy for AttackDog attacks
+		if selected_card and selected_card.name == "AttackDog":
+			ranged_strategy.perform_attackdog_attack(clicked)
+			card_play_sound.play()
+			return true
+
+		# Use MovementAttackStrategy for AssassinDash attacks
+		if selected_card and selected_card.name == "AssassinDash":
+			movement_strategy.perform_assassin_dash_attack(clicked)
+			card_play_sound.play()
+			return true
+		
+		# Use MeleeAttackStrategy for SlashCard attacks
+		if selected_card and selected_card.name == "SlashCard":
+			melee_strategy.perform_slash_attack(clicked)
+			card_play_sound.play()
+			return true
+		
+		# Check for normal NPC attack (fallback)
 		var npc = get_npc_at_position(clicked)
 		if npc:
 			perform_attack(npc, clicked)
@@ -897,10 +949,44 @@ func _on_player_moved_to_tile(new_grid_pos: Vector2i) -> void:
 	"""Handle player movement to update attack highlights"""
 	player_grid_pos = new_grid_pos
 	
+	# Update strategies with new player position
+	melee_strategy.update_player_position(new_grid_pos)
+	ranged_strategy.update_player_position(new_grid_pos)
+	movement_strategy.update_player_position(new_grid_pos)
+	
 	# If we're in attack mode, recalculate valid attack tiles with the new position
 	if is_attack_mode:
 		calculate_valid_attack_tiles()
 		show_attack_highlights()
+
+# Strategy signal handlers
+func _on_strategy_npc_attacked(npc: Node, damage: int) -> void:
+	"""Handle NPC attacked signal from strategies"""
+	emit_signal("npc_attacked", npc, damage)
+
+func _on_strategy_kick_attack_performed() -> void:
+	"""Handle kick attack performed signal from melee strategy"""
+	emit_signal("kick_attack_performed")
+
+func _on_strategy_punchb_attack_performed() -> void:
+	"""Handle punch attack performed signal from melee strategy"""
+	emit_signal("punchb_attack_performed")
+
+func _on_strategy_slash_attack_performed() -> void:
+	"""Handle slash attack performed signal from melee strategy"""
+	emit_signal("slash_attack_performed")
+
+func _on_strategy_assassin_dash_attack_performed() -> void:
+	"""Handle assassin dash attack performed signal from movement strategy"""
+	emit_signal("assassin_dash_attack_performed")
+
+func _on_strategy_ash_dog_attack_performed() -> void:
+	"""Handle ash dog attack performed signal from ranged strategy"""
+	emit_signal("ash_dog_attack_performed")
+
+func _on_strategy_attack_completed() -> void:
+	"""Handle attack completed signal from strategies"""
+	exit_attack_mode()
 
 func update_player_position(new_grid_pos: Vector2i) -> void:
 	"""Update the stored player grid position"""
@@ -911,6 +997,11 @@ func update_player_position(new_grid_pos: Vector2i) -> void:
 	
 	player_grid_pos = new_grid_pos
 	print("🔍 ATTACK_HANDLER DEBUG: player_grid_pos updated to:", player_grid_pos)
+	
+	# Update strategies with new player position
+	melee_strategy.update_player_position(new_grid_pos)
+	ranged_strategy.update_player_position(new_grid_pos)
+	movement_strategy.update_player_position(new_grid_pos)
 	
 	# If we're in attack mode, recalculate valid attack tiles with the new position
 	if is_attack_mode:
