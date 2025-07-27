@@ -642,8 +642,6 @@ func _ready() -> void:
 		obstacle_map,
 		player_manager.get_player_grid_pos(),
 		player_manager.get_player_stats(),
-		movement_buttons_container,  # Reuse the same container for now
-		card_click_sound,
 		card_play_sound,
 		card_stack_display,
 		deck_manager,
@@ -697,7 +695,6 @@ func _ready() -> void:
 
 	
 	# Set the movement controller reference for button cleanup
-	attack_handler.set_movement_controller(movement_controller)
 	weapon_handler.set_movement_controller(movement_controller)
 	
 	# Connect attack handler signals
@@ -1251,7 +1248,6 @@ func _on_reach_ball_pressed() -> void:
 
 func create_movement_buttons() -> void:
 	movement_controller.create_movement_buttons()
-	attack_handler.create_attack_buttons()
 	
 
 func _on_movement_card_pressed(card: CardData, button: TextureButton) -> void:
