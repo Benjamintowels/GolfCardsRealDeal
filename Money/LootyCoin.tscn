@@ -1,0 +1,11 @@
+[gd_scene load_steps=2 format=3 uid="uid://bh158qglpbq7y"]
+
+[ext_resource type="Texture2D" path="res://Money/LootyCoin.png" id="1_q2qw5"]
+
+[node name="LootyCoin" type="Node2D"]
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(93, 91)
+scale = Vector2(1.46, 1.46)
+texture = ExtResource("1_q2qw5")

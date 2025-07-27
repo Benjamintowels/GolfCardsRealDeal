@@ -677,14 +677,21 @@ func _on_shop_overlay_return() -> void:
 	# Unpause the game
 	course.get_tree().paused = false
 	
-	# Check if we're in mid-game shop mode
-	if course and course.has_method("is_mid_game_shop_mode") and course.is_mid_game_shop_mode():
-		# Restore the MidGameShop overlay
-		print("=== RESTORING MID-GAME SHOP OVERLAY ===")
-		show_mid_game_shop_overlay()
+	# Check if we're in shop puzzle type mode
+	if course.game_state_manager and course.game_state_manager.get_current_puzzle_type() == "shop":
+		# Shop puzzle type - player exits shop and can now place on tee
+		print("=== SHOP PUZZLE TYPE: Player exited shop, ready to place on tee ===")
+		# The course should already be in tee_select phase, so no additional action needed
+		# The player can now click on a tee to start the hole
 	else:
-		# Normal return to course - no additional action needed
-		print("=== RETURNED TO COURSE ===")
+		# Check if we're in mid-game shop mode
+		if course and course.has_method("is_mid_game_shop_mode") and course.is_mid_game_shop_mode():
+			# Restore the MidGameShop overlay
+			print("=== RESTORING MID-GAME SHOP OVERLAY ===")
+			show_mid_game_shop_overlay()
+		else:
+			# Normal return to course - no additional action needed
+			print("=== RETURNED TO COURSE ===")
 
 func _on_suitcase_opened() -> void:
 	"""Handle suitcase opened"""
@@ -774,6 +781,11 @@ func _on_puzzle_type_selected(puzzle_type: String) -> void:
 	"""Handle puzzle type selection"""
 	print("Puzzle type selected:", puzzle_type)
 	
+	# Special handling for shop puzzle type
+	if puzzle_type == "shop":
+		_handle_shop_puzzle_type()
+		return
+	
 	# Update game state with selected puzzle type
 	if course.game_state_manager:
 		course.game_state_manager.set_next_puzzle_type(puzzle_type)
@@ -785,6 +797,27 @@ func _on_puzzle_type_selected(puzzle_type: String) -> void:
 	
 	# Reset for next hole (this will advance to the next hole and set up the new hole)
 	course.reset_for_next_hole()
+
+func _handle_shop_puzzle_type() -> void:
+	"""Handle shop puzzle type selection - fade to black, transition to next hole with shop overlay"""
+	print("=== HANDLING SHOP PUZZLE TYPE ===")
+	
+	# Update game state with selected puzzle type
+	if course.game_state_manager:
+		course.game_state_manager.set_next_puzzle_type("shop")
+	
+	# Clean up the dialog
+	var puzzle_dialog = ui_layer.get_node_or_null("PuzzleTypeSelectionDialog")
+	if puzzle_dialog:
+		puzzle_dialog.queue_free()
+	
+	# Reset for next hole (this will advance to the next hole and set up the new hole)
+	course.reset_for_next_hole()
+	
+	# Show the shop overlay after the hole is loaded
+	show_shop_overlay()
+
+
 
 func show_suitcase_overlay() -> void:
 	"""Show the SuitCase overlay for reward selection"""
@@ -1268,6 +1301,15 @@ func update_deck_display() -> void:
 		hud.add_child(looty_label)
 	looty_label.text = "$Looty: %d" % Global.get_looty()
 	looty_label.add_theme_color_override("font_color", Color.GOLD)
+	
+	# Update the new deck image labels
+	var draw_pile_label = course.get_node_or_null("UILayer/DeckImageDraw/DrawPileLabel")
+	if draw_pile_label:
+		draw_pile_label.text = str(action_draw_remaining)
+	
+	var discard_pile_label = course.get_node_or_null("UILayer/DeckImageDiscard/DiscardPileLabel")
+	if discard_pile_label:
+		discard_pile_label.text = str(action_discard_count)
 	
 	# Update card stack display with total counts (for backward compatibility)
 	var total_draw_cards = action_draw_remaining + club_draw_count

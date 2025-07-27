@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3 uid="uid://b8x7y21aw4v6m"]
+
+[ext_resource type="Texture2D" uid="uid://cigw13nnrl7k7" path="res://UI/PuzzleSymbols/ShopSymbol.png" id="1_shop"]
+
+[node name="ShopSymbol" type="Node2D"]
+
+[node name="ShopSymbol" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(8, 2)
+texture = ExtResource("1_shop")
