@@ -1,6 +1,9 @@
 extends Node
 class_name RangedAttackStrategy
 
+# Constants
+const PI = 3.14159265359
+
 # use for attacks with a range of 4+ tiles that don't move the player. IE: meteor, attackdog
 
 # References needed for ranged attacks
@@ -18,6 +21,9 @@ var meteor_damage := 35
 
 # Attack dog properties  
 var ash_dog_damage := 50
+
+# FiragaCard attack properties
+var firaga_damage := 50
 
 # Signals
 signal npc_attacked(npc: Node, damage: int)
@@ -106,12 +112,12 @@ func create_and_animate_meteor(target_pos: Vector2i, aoe_positions: Array) -> vo
 		print("✓ Added camera container offset to meteor start position")
 	meteor.global_position = meteor_start_pos
 	
-	# Set initial bright white color and large scale for the meteor
+	# Set initial opacity to 0 and large scale for the meteor
 	var meteor_sprite = meteor.get_node_or_null("MeteorSprite")
 	if meteor_sprite:
-		meteor_sprite.modulate = Color.WHITE
+		meteor_sprite.modulate = Color(1, 1, 1, 0)  # Start with 0 opacity
 		meteor_sprite.scale = Vector2(3.0, 3.0)  # Start 3x larger
-		print("✓ Set meteor to bright white initial color and 3x scale")
+		print("✓ Set meteor to 0 opacity initial state and 3x scale")
 	
 	# Focus camera on meteor during animation
 	focus_camera_on_meteor(meteor, world_target_pos)
@@ -133,17 +139,10 @@ func create_and_animate_meteor(target_pos: Vector2i, aoe_positions: Array) -> vo
 	if meteor_sprite:
 		tween.parallel().tween_property(meteor_sprite, "scale", Vector2(1.0, 1.0), 1.5)
 	
-	# Animate color transition from bright white to flashing red
+	# Animate opacity fade in from 0 to 1
 	if meteor_sprite:
-		# First transition to red over 0.5 seconds
-		tween.parallel().tween_property(meteor_sprite, "modulate", Color.RED, 0.1)
-		
-		# Then create flashing red effect for the remaining time
-		tween.parallel().tween_method(func(progress: float):
-			if is_instance_valid(meteor_sprite):
-				var flash_intensity = 0.1 + 0.1 * sin(progress * 20.0)  # Fast flashing
-				meteor_sprite.modulate = Color.RED * flash_intensity
-		, 0.5, 1.0, 1.0)  # Flash for the last 1 second
+		# Fade in from 0 to full opacity over 1.5 seconds
+		tween.parallel().tween_property(meteor_sprite, "modulate:a", 1.0, 1.5)
 	
 	# Update YSort during meteor fall animation
 	tween.parallel().tween_method(func(progress: float):
@@ -194,8 +193,11 @@ func start_crater_animation(meteor: Node, aoe_positions: Array) -> void:
 	# Animate through the crater sequence
 	var tween = create_tween()
 	
-	# Show first explosion for 0.3 seconds
+	# Show first explosion for 0.3 seconds and apply damage immediately
 	tween.tween_callback(func():
+		# Apply damage when the explosion happens
+		apply_meteor_damage(aoe_positions)
+		
 		crater_explosion1.visible = false
 		crater_explosion2.visible = true
 		# Update YSort for explosion sprites
@@ -219,9 +221,9 @@ func start_crater_animation(meteor: Node, aoe_positions: Array) -> void:
 		complete_meteor_attack(meteor, aoe_positions)
 	).set_delay(0.5)
 
-func complete_meteor_attack(meteor: Node, aoe_positions: Array) -> void:
-	"""Complete the meteor attack by dealing damage to NPCs in the AOE area"""
-	print("Completing meteor attack for AOE positions:", aoe_positions)
+func apply_meteor_damage(aoe_positions: Array) -> int:
+	"""Apply meteor damage to NPCs in the AOE area and return total damage dealt"""
+	print("Applying meteor damage for AOE positions:", aoe_positions)
 	
 	var total_damage_dealt = 0
 	
@@ -251,14 +253,22 @@ func complete_meteor_attack(meteor: Node, aoe_positions: Array) -> void:
 			else:
 				print("NPC is already dead, skipping damage:", npc.name)
 	
-	print("Meteor attack complete - total damage dealt:", total_damage_dealt)
+	print("Meteor damage applied - total damage dealt:", total_damage_dealt)
+	
+	# Emit signal for damage dealt
+	emit_signal("npc_attacked", null, total_damage_dealt)
+	
+	return total_damage_dealt
+
+func complete_meteor_attack(meteor: Node, aoe_positions: Array) -> void:
+	"""Complete the meteor attack sequence (damage already applied during explosion)"""
+	print("Completing meteor attack sequence for AOE positions:", aoe_positions)
 	
 	# Camera return is now handled by the crash sequence
 	# Clean up meteor from scene after a short delay
 	call_deferred("_cleanup_meteor", meteor)
 	
 	# Emit signal for attack completion
-	emit_signal("npc_attacked", null, total_damage_dealt)
 	emit_signal("attack_completed")
 
 func _cleanup_meteor(meteor: Node):
@@ -952,3 +962,151 @@ func is_position_valid_for_knockback(pos: Vector2i) -> bool:
 func update_player_position(new_pos: Vector2i) -> void:
 	"""Update the stored player grid position"""
 	player_grid_pos = new_pos
+
+func perform_firaga_attack(target_pos: Vector2i) -> void:
+	"""Perform FiragaCard fireball attack at the specified position"""
+	print("=== PERFORMING FIRAGA FIREBALL ATTACK ===")
+	print("Target position:", target_pos)
+	
+	# Get NPC at target position
+	var npc = get_npc_at_position(target_pos)
+	if npc:
+		print("Found NPC at target position:", npc.name)
+		perform_firaga_attack_on_npc(npc, target_pos)
+	else:
+		print("No NPC found at target position:", target_pos)
+		# Still perform the fireball animation even if no NPC
+		create_and_animate_fireball(target_pos, null)
+		emit_signal("attack_completed")
+
+func perform_firaga_attack_on_npc(npc: Node, target_pos: Vector2i) -> void:
+	"""Perform FiragaCard attack on NPC with fireball animation"""
+	print("=== PERFORMING FIRAGA ATTACK ON NPC ===")
+	print("NPC:", npc.name)
+	print("Target position:", target_pos)
+	print("Player position:", player_grid_pos)
+	
+	# Create and animate fireball
+	create_and_animate_fireball(target_pos, npc)
+
+func create_and_animate_fireball(target_pos: Vector2i, npc: Node) -> void:
+	"""Create fireball and animate it to attack the target"""
+	print("=== CREATING AND ANIMATING FIREBALL ===")
+	print("Target position:", target_pos)
+	print("NPC:", npc.name if npc else "No NPC")
+	
+	# Load FireBallAttack scene
+	var fireball_scene = load("res://Particles/FireBallAttack.tscn")
+	if not fireball_scene:
+		print("Error: Failed to load FireBallAttack scene")
+		complete_firaga_attack(npc, target_pos)
+		return
+	
+	print("✓ FireBallAttack scene loaded successfully")
+	
+	var fireball = fireball_scene.instantiate()
+	if not fireball:
+		print("Error: Failed to instantiate fireball")
+		complete_firaga_attack(npc, target_pos)
+		return
+	
+	print("✓ FireBallAttack instantiated successfully")
+	
+	# Add fireball to the scene
+	if card_effect_handler and card_effect_handler.course:
+		card_effect_handler.course.add_child(fireball)
+		print("✓ FireBallAttack added to course")
+	else:
+		add_child(fireball)
+		print("✓ FireBallAttack added to self")
+	
+	# Calculate world positions
+	var player_world_pos = Vector2(player_grid_pos.x * cell_size + cell_size/2, player_grid_pos.y * cell_size + cell_size/2)
+	var target_world_pos = Vector2(target_pos.x * cell_size + cell_size/2, target_pos.y * cell_size + cell_size/2)
+	
+	# Add camera container offset if available
+	if card_effect_handler and card_effect_handler.course:
+		var camera_container = card_effect_handler.course.get_node_or_null("CameraContainer")
+		if camera_container:
+			player_world_pos += camera_container.global_position
+			target_world_pos += camera_container.global_position
+	
+	print("✓ Player world position:", player_world_pos)
+	print("✓ Target world position:", target_world_pos)
+	
+	# Setup and launch the fireball using its own script
+	fireball.setup_and_launch(
+		player_world_pos, 
+		target_world_pos, 
+		1.0, 
+		func(): create_fire_explosion(target_world_pos, npc)
+	)
+
+func create_fire_explosion(target_world_pos: Vector2, npc: Node) -> void:
+	"""Create and play the FireExplode animation at the target position"""
+	print("Creating FireExplode animation at position:", target_world_pos)
+	
+	# Load FireExplode scene
+	var fire_explode_scene = load("res://Particles/FireExplode.tscn")
+	if not fire_explode_scene:
+		print("Error: Failed to load FireExplode scene")
+		complete_firaga_attack(npc, Vector2i(target_world_pos.x / cell_size, target_world_pos.y / cell_size))
+		return
+	
+	var fire_explode = fire_explode_scene.instantiate()
+	if not fire_explode:
+		print("Error: Failed to instantiate FireExplode")
+		complete_firaga_attack(npc, Vector2i(target_world_pos.x / cell_size, target_world_pos.y / cell_size))
+		return
+	
+	# Add FireExplode to the scene
+	if card_effect_handler and card_effect_handler.course:
+		card_effect_handler.course.add_child(fire_explode)
+	else:
+		add_child(fire_explode)
+	
+	# Setup and play the explosion using its own script
+	fire_explode.setup_and_play(
+		target_world_pos,
+		1.0,
+		func(): complete_firaga_attack(npc, Vector2i(target_world_pos.x / cell_size, target_world_pos.y / cell_size))
+	)
+
+func complete_firaga_attack(npc: Node, target_pos: Vector2i) -> void:
+	"""Complete the FiragaCard attack by dealing damage"""
+	print("Completing FiragaCard attack on NPC:", npc.name if npc else "No NPC")
+	
+	if npc:
+		# Deal 50 damage to the NPC
+		var damage = firaga_damage
+		
+		# Check if NPC is dead
+		var is_dead = false
+		if npc.has_method("get_is_dead"):
+			is_dead = npc.get_is_dead()
+		elif npc.has_method("is_dead"):
+			is_dead = npc.is_dead()
+		elif "is_dead" in npc:
+			is_dead = npc.is_dead
+		
+		if is_dead:
+			print("Attacking dead NPC - no damage dealt")
+			damage = 0
+		else:
+			# Deal damage to the NPC
+			if npc.has_method("take_damage"):
+				npc.take_damage(damage)
+				print("Dealt", damage, "damage to NPC:", npc.name)
+			else:
+				print("NPC does not have take_damage method")
+		
+		# Emit signal
+		emit_signal("npc_attacked", npc, damage)
+	else:
+		print("No NPC at target position - no damage dealt")
+		emit_signal("npc_attacked", null, 0)
+	
+	# Exit attack mode
+	emit_signal("attack_completed")
+	
+	print("=== END FIRAGA ATTACK ===")

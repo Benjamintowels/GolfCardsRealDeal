@@ -313,6 +313,42 @@ func calculate_valid_attack_tiles() -> void:
 		print("Total valid AssassinDash targets found:", valid_attack_tiles.size())
 		return
 
+	# Special handling for FiragaCard - use cross pattern with range 5
+	if selected_card and selected_card.name == "FiragaCard":
+		print("FiragaCard detected - using cross pattern for attack range")
+		var cross_positions = []
+		
+		# Add positions in cross pattern: up, down, left, right (no diagonals)
+		for distance in range(1, attack_range + 1):
+			# Up
+			var up_pos = Vector2i(player_grid_pos.x, player_grid_pos.y - distance)
+			if up_pos.y >= 0:
+				cross_positions.append(up_pos)
+			
+			# Down
+			var down_pos = Vector2i(player_grid_pos.x, player_grid_pos.y + distance)
+			if down_pos.y < grid_size.y:
+				cross_positions.append(down_pos)
+			
+			# Left
+			var left_pos = Vector2i(player_grid_pos.x - distance, player_grid_pos.y)
+			if left_pos.x >= 0:
+				cross_positions.append(left_pos)
+			
+			# Right
+			var right_pos = Vector2i(player_grid_pos.x + distance, player_grid_pos.y)
+			if right_pos.x < grid_size.x:
+				cross_positions.append(right_pos)
+		
+		# Add all cross positions to valid attack tiles
+		for pos in cross_positions:
+			if pos != player_grid_pos:
+				valid_attack_tiles.append(pos)
+				print("Added valid FiragaCard target at:", pos)
+		
+		print("Total valid FiragaCard targets found:", valid_attack_tiles.size())
+		return
+
 	# Default behavior for other attack cards - use Manhattan distance
 	for y in grid_size.y:
 		for x in grid_size.x:
@@ -620,6 +656,12 @@ func handle_tile_click(x: int, y: int) -> bool:
 		# Use RangedAttackStrategy for AttackDog attacks
 		if selected_card and selected_card.name == "AttackDog":
 			ranged_strategy.perform_attackdog_attack(clicked)
+			card_play_sound.play()
+			return true
+
+		# Use RangedAttackStrategy for FiragaCard attacks
+		if selected_card and selected_card.name == "FiragaCard":
+			ranged_strategy.perform_firaga_attack(clicked)
 			card_play_sound.play()
 			return true
 

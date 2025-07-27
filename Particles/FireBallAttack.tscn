@@ -1,6 +1,10 @@
-[gd_scene load_steps=32 format=3 uid="uid://tjmjf2f3livg"]
+[gd_scene load_steps=36 format=3 uid="uid://tjmjf2f3livg"]
 
 [ext_resource type="Texture2D" uid="uid://7qvcdqedld03" path="res://Particles/FireBallShotgif.png" id="1_ff6kb"]
+[ext_resource type="AudioStream" uid="uid://dkvw07d8vrgvk" path="res://Sounds/FireStart.mp3" id="2_j42v2"]
+[ext_resource type="AudioStream" uid="uid://dc4p1v43vdh2w" path="res://Sounds/MeteorStart.mp3" id="3_ve0cf"]
+[ext_resource type="AudioStream" uid="uid://fucw8248wxul" path="res://Sounds/FireEnd.mp3" id="4_fxkcs"]
+[ext_resource type="Script" uid="uid://do757n0nju4a2" path="res://Particles/FireBallAttack.gd" id="5_script"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_8iyq1"]
 atlas = ExtResource("1_ff6kb")
@@ -214,6 +218,22 @@ animations = [{
 }]
 
 [node name="FireBallAttack" type="AnimatedSprite2D"]
+z_index = 500
+position = Vector2(0, -40.915)
+scale = Vector2(0.445, 0.445)
 sprite_frames = SubResource("SpriteFrames_albfe")
-frame = 26
-frame_progress = 0.322512
+frame = 14
+frame_progress = 0.861498
+script = ExtResource("5_script")
+
+[node name="FlameOn" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("2_j42v2")
+pitch_scale = 0.91
+
+[node name="InAir" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("3_ve0cf")
+pitch_scale = 1.86
+
+[node name="Explode" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("4_fxkcs")
+pitch_scale = 1.86

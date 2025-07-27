@@ -65,6 +65,7 @@ var fighter_deck: Array[CardData] = [
 	preload("res://Cards/IceBallCard.tres"),      # Ice ball attack
 	preload("res://Cards/MeteorCard.tres"),       # Meteor attack
 	preload("res://Cards/Explosive.tres"),        # Explosive attack
+	preload("res://Cards/FiragaCard.tres"),       # Firaga fireball attack
 	
 	# Defense cards (x2 each for survival)
 	preload("res://Cards/BlockB.tres"),

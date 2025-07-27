@@ -114,6 +114,8 @@ func create_movement_buttons() -> void:
 			overlay.color = Color(1, 0.5, 0, 0.25)  # Orange for attack cards
 		elif card.effect_type == "AOEAttack":
 			overlay.color = Color(1, 0.3, 0, 0.25)  # Dark orange for AOE attack cards
+		elif card.effect_type == "RangedAttack":
+			overlay.color = Color(1, 0.4, 0, 0.25)  # Medium orange for ranged attack cards
 		elif card.effect_type == "Weapon":
 			overlay.color = Color(1, 0, 0, 0.25)  # Red for weapon cards
 		else:
@@ -206,6 +208,18 @@ func _on_movement_card_pressed(card: CardData, button: TextureButton) -> void:
 				attack_handler.clear_all_attack_ui()
 			# Pass the card and button to the attack handler
 			attack_handler._on_aoe_attack_card_pressed(card, button)
+			return
+	
+	# Check if this is a RangedAttack card
+	if card.effect_type == "RangedAttack":
+		if attack_handler:
+			# Clear any existing modes first to prevent double discarding
+			if is_in_movement_mode():
+				exit_movement_mode()
+			if attack_handler.is_in_attack_mode():
+				attack_handler.clear_all_attack_ui()
+			# Pass the card and button to the attack handler
+			attack_handler._on_attack_card_pressed(card, button)
 			return
 	
 	# Check if this is a special effect card first
