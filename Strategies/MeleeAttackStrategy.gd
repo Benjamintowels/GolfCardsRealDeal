@@ -13,6 +13,10 @@ var player_grid_pos: Vector2i
 var player_stats: Dictionary
 var player_node: Node2D
 
+# Movement tracking for distant attacks
+var original_player_pos: Vector2i = Vector2i.ZERO
+var needs_return_movement: bool = false
+
 # Sound effects
 var kick_sound: AudioStreamPlayer2D
 var punchb_sound: AudioStreamPlayer2D
@@ -64,6 +68,22 @@ func perform_kickb_attack(target_pos: Vector2i) -> void:
 	print("Target position:", target_pos)
 	print("Player position:", player_grid_pos)
 	
+	# Calculate distance to target
+	var distance_to_target = abs(target_pos.x - player_grid_pos.x) + abs(target_pos.y - player_grid_pos.y)
+	print("Distance to target:", distance_to_target)
+	
+	# Check if target is adjacent (1 tile away) or distant (2 tiles away)
+	if distance_to_target == 1:
+		# Adjacent target - perform attack directly
+		perform_kickb_attack_direct(target_pos)
+	else:
+		# Distant target (2 tiles away) - move to target, attack, then return
+		perform_kickb_attack_with_movement(target_pos)
+
+func perform_kickb_attack_direct(target_pos: Vector2i) -> void:
+	"""Perform KickB attack directly on adjacent target"""
+	print("Performing direct KickB attack on adjacent target")
+	
 	# Play KickSound
 	if kick_sound:
 		kick_sound.play()
@@ -85,7 +105,45 @@ func perform_kickb_attack(target_pos: Vector2i) -> void:
 			perform_kickb_attack_on_oil_drum(oil_drum, target_pos)
 		else:
 			print("No target found at position:", target_pos)
-			emit_signal("attack_completed")
+			handle_attack_completion()
+
+func perform_kickb_attack_with_movement(target_pos: Vector2i) -> void:
+	"""Perform KickB attack with movement to distant target"""
+	print("Performing KickB attack with movement to distant target")
+	
+	# Store original player position
+	original_player_pos = player_grid_pos
+	needs_return_movement = true
+	
+	# Calculate the position adjacent to the target (1 tile away from target towards player)
+	var direction = player_grid_pos - target_pos
+	var adjacent_pos = target_pos
+	if direction.x > 0:
+		adjacent_pos.x -= 1  # Move towards player (target is to the left of player)
+	elif direction.x < 0:
+		adjacent_pos.x += 1  # Move towards player (target is to the right of player)
+	elif direction.y > 0:
+		adjacent_pos.y -= 1  # Move towards player (target is above player)
+	elif direction.y < 0:
+		adjacent_pos.y += 1  # Move towards player (target is below player)
+	
+	print("Moving to adjacent position:", adjacent_pos, "to attack target at:", target_pos)
+	
+	# Start kick animation immediately when movement begins
+	emit_signal("kick_attack_performed")
+	
+	# Chain the animations together for smooth movement
+	if player_node and player_node.has_method("animate_to_position"):
+		# First move to adjacent position
+		player_node.animate_to_position(adjacent_pos, func():
+			print("🔍 KICK DEBUG: Movement to adjacent position completed")
+			# Now perform the attack
+			perform_kickb_attack_direct(target_pos)
+			# The attack completion will handle the return movement
+		)
+	else:
+		print("Player node does not have animate_to_position method - performing direct attack")
+		perform_kickb_attack_direct(target_pos)
 
 func perform_kickb_attack_on_npc(npc: Node, target_pos: Vector2i) -> void:
 	"""Perform KickB attack on an NPC"""
@@ -102,7 +160,7 @@ func perform_kickb_attack_on_npc(npc: Node, target_pos: Vector2i) -> void:
 	
 	if is_dead:
 		print("NPC is already dead, skipping attack")
-		emit_signal("attack_completed")
+		handle_attack_completion()
 		return
 	
 	# Deal damage to the NPC
@@ -118,7 +176,7 @@ func perform_kickb_attack_on_npc(npc: Node, target_pos: Vector2i) -> void:
 	else:
 		print("NPC does not have take_damage method:", npc.name)
 	
-	emit_signal("attack_completed")
+	handle_attack_completion()
 
 func perform_kickb_attack_on_oil_drum(oil_drum: Node, target_pos: Vector2i) -> void:
 	"""Perform KickB attack on an oil drum"""
@@ -135,7 +193,7 @@ func perform_kickb_attack_on_oil_drum(oil_drum: Node, target_pos: Vector2i) -> v
 	
 	if is_destroyed:
 		print("Oil drum is already destroyed, skipping attack")
-		emit_signal("attack_completed")
+		handle_attack_completion()
 		return
 	
 	# Deal damage to the oil drum
@@ -148,13 +206,29 @@ func perform_kickb_attack_on_oil_drum(oil_drum: Node, target_pos: Vector2i) -> v
 	else:
 		print("Oil drum does not have take_damage method")
 	
-	emit_signal("attack_completed")
+	handle_attack_completion()
 
 func perform_punchb_attack(target_pos: Vector2i) -> void:
 	"""Perform PunchB attack at the specified position"""
 	print("=== PERFORMING PUNCHB ATTACK ===")
 	print("Target position:", target_pos)
 	print("Player position:", player_grid_pos)
+	
+	# Calculate distance to target
+	var distance_to_target = abs(target_pos.x - player_grid_pos.x) + abs(target_pos.y - player_grid_pos.y)
+	print("Distance to target:", distance_to_target)
+	
+	# Check if target is adjacent (1 tile away) or distant (2 tiles away)
+	if distance_to_target == 1:
+		# Adjacent target - perform attack directly
+		perform_punchb_attack_direct(target_pos)
+	else:
+		# Distant target (2 tiles away) - move to target, attack, then return
+		perform_punchb_attack_with_movement(target_pos)
+
+func perform_punchb_attack_direct(target_pos: Vector2i) -> void:
+	"""Perform PunchB attack directly on adjacent target"""
+	print("Performing direct PunchB attack on adjacent target")
 	
 	# Play PunchB sound
 	if punchb_sound:
@@ -177,7 +251,45 @@ func perform_punchb_attack(target_pos: Vector2i) -> void:
 			perform_punchb_attack_on_oil_drum(oil_drum, target_pos)
 		else:
 			print("No target found at position:", target_pos)
-			emit_signal("attack_completed")
+			handle_attack_completion()
+
+func perform_punchb_attack_with_movement(target_pos: Vector2i) -> void:
+	"""Perform PunchB attack with movement to distant target"""
+	print("Performing PunchB attack with movement to distant target")
+	
+	# Store original player position
+	original_player_pos = player_grid_pos
+	needs_return_movement = true
+	
+	# Calculate the position adjacent to the target (1 tile away from target towards player)
+	var direction = player_grid_pos - target_pos
+	var adjacent_pos = target_pos
+	if direction.x > 0:
+		adjacent_pos.x -= 1  # Move towards player (target is to the left of player)
+	elif direction.x < 0:
+		adjacent_pos.x += 1  # Move towards player (target is to the right of player)
+	elif direction.y > 0:
+		adjacent_pos.y -= 1  # Move towards player (target is above player)
+	elif direction.y < 0:
+		adjacent_pos.y += 1  # Move towards player (target is below player)
+	
+	print("Moving to adjacent position:", adjacent_pos, "to attack target at:", target_pos)
+	
+	# Start punch animation immediately when movement begins
+	emit_signal("punchb_attack_performed")
+	
+	# Chain the animations together for smooth movement
+	if player_node and player_node.has_method("animate_to_position"):
+		# First move to adjacent position
+		player_node.animate_to_position(adjacent_pos, func():
+			print("🔍 PUNCH DEBUG: Movement to adjacent position completed")
+			# Now perform the attack
+			perform_punchb_attack_direct(target_pos)
+			# The attack completion will handle the return movement
+		)
+	else:
+		print("Player node does not have animate_to_position method - performing direct attack")
+		perform_punchb_attack_direct(target_pos)
 
 func perform_punchb_attack_on_npc(npc: Node, target_pos: Vector2i) -> void:
 	"""Perform PunchB attack on an NPC"""
@@ -194,7 +306,7 @@ func perform_punchb_attack_on_npc(npc: Node, target_pos: Vector2i) -> void:
 	
 	if is_dead:
 		print("NPC is already dead, skipping attack")
-		emit_signal("attack_completed")
+		handle_attack_completion()
 		return
 	
 	# Deal damage to the NPC
@@ -210,7 +322,7 @@ func perform_punchb_attack_on_npc(npc: Node, target_pos: Vector2i) -> void:
 	else:
 		print("NPC does not have take_damage method:", npc.name)
 	
-	emit_signal("attack_completed")
+	handle_attack_completion()
 
 func perform_punchb_attack_on_oil_drum(oil_drum: Node, target_pos: Vector2i) -> void:
 	"""Perform PunchB attack on an oil drum"""
@@ -227,7 +339,7 @@ func perform_punchb_attack_on_oil_drum(oil_drum: Node, target_pos: Vector2i) -> 
 	
 	if is_destroyed:
 		print("Oil drum is already destroyed, skipping attack")
-		emit_signal("attack_completed")
+		handle_attack_completion()
 		return
 	
 	# Deal damage to the oil drum
@@ -240,7 +352,7 @@ func perform_punchb_attack_on_oil_drum(oil_drum: Node, target_pos: Vector2i) -> 
 	else:
 		print("Oil drum does not have take_damage method")
 	
-	emit_signal("attack_completed")
+	handle_attack_completion()
 
 func perform_slash_attack(target_pos: Vector2i) -> void:
 	"""Perform SlashCard AOE attack at the specified position"""
@@ -305,7 +417,7 @@ func perform_slash_attack(target_pos: Vector2i) -> void:
 	
 	# Emit signal for attack completion
 	emit_signal("npc_attacked", null, total_damage_dealt)
-	emit_signal("attack_completed")
+	handle_attack_completion()
 	
 	print("=== END SLASH ATTACK ===")
 
@@ -589,3 +701,29 @@ func get_oil_drum_at_position(pos: Vector2i) -> Node:
 func update_player_position(new_pos: Vector2i) -> void:
 	"""Update the stored player grid position"""
 	player_grid_pos = new_pos 
+
+func handle_attack_completion() -> void:
+	"""Handle attack completion, including return movement if needed"""
+	if needs_return_movement:
+		print("🔍 DEBUG: Attack completed, returning to original position:", original_player_pos)
+		
+		# Animate player movement back to original position
+		if player_node and player_node.has_method("animate_to_position"):
+			player_node.animate_to_position(original_player_pos, func():
+				print("🔍 RETURN DEBUG: Return movement completed")
+				# Reset movement tracking
+				needs_return_movement = false
+				original_player_pos = Vector2i.ZERO
+				# Emit attack completed signal
+				emit_signal("attack_completed")
+			)
+		else:
+			print("Player node does not have animate_to_position method - instant return")
+			# Reset movement tracking
+			needs_return_movement = false
+			original_player_pos = Vector2i.ZERO
+			# Emit attack completed signal
+			emit_signal("attack_completed")
+	else:
+		print("🔍 DEBUG: Attack completed, no return movement needed")
+		emit_signal("attack_completed") 
