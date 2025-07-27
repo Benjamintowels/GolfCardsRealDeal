@@ -4451,6 +4451,9 @@ func _drop_fight_room_key(npc: Node) -> void:
 	key.position = Vector2(key_position.x, key_position.y) * cell_size + Vector2(cell_size / 2, cell_size / 2)
 	key.set_meta("grid_position", key_position)
 	
+	# Set the grid_position property for the key
+	key.grid_position = key_position
+	
 	# Add key to a group for easier cleanup
 	key.add_to_group("fight_room_keys")
 	

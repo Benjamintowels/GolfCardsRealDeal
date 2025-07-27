@@ -682,7 +682,15 @@ func perform_attackdog_attack(target_pos: Vector2i) -> void:
 		perform_attackdog_attack_on_npc(npc, target_pos)
 	else:
 		print("No NPC found at target position:", target_pos)
-		emit_signal("attack_completed")
+		# Check if there's an item at the target position
+		var item = get_item_at_position(target_pos)
+		if item:
+			print("Found item at target position:", item.name)
+			perform_attackdog_attack_on_item(item, target_pos)
+		else:
+			print("No NPC or item found at target position:", target_pos)
+			# Still perform the attack animation even if no target
+			perform_attackdog_attack_on_empty_tile(target_pos)
 
 func perform_attackdog_attack_on_npc(npc: Node, target_pos: Vector2i) -> void:
 	"""Perform AttackDog attack on NPC with Ash dog animation"""
@@ -774,8 +782,8 @@ func create_and_animate_ash_dog(npc: Node, target_pos: Vector2i) -> void:
 		attack_sprite.texture = load("res://NPC/Animals/Ash/AshAttackLeftRight.png")
 		attack_sprite.flip_h = direction.x < 0  # Flip if moving left
 	else:
-		# Use AshAttackUp for vertical movement
-		attack_sprite.texture = load("res://NPC/Animals/Ash/AshAttackUp.png")
+		# Use AshAttackLeftRight for vertical movement too (no separate up/down sprite)
+		attack_sprite.texture = load("res://NPC/Animals/Ash/AshAttackLeftRight.png")
 		attack_sprite.flip_h = false  # No flip for vertical
 	
 	print("Ash dog attacking in direction:", "horizontal" if is_horizontal else "vertical", "flip_h:", attack_sprite.flip_h)
@@ -871,6 +879,280 @@ func complete_attackdog_attack(npc: Node, target_pos: Vector2i) -> void:
 	
 	print("=== END ATTACKDOG ATTACK ===")
 
+func create_and_animate_ash_dog_for_item(item: Node, target_pos: Vector2i) -> void:
+	"""Create Ash dog and animate it to pick up the item"""
+	# Load Ash scene
+	var ash_scene = preload("res://NPC/Animals/Ash/Ash.tscn")
+	if not ash_scene:
+		print("Error: Failed to load Ash scene")
+		complete_attackdog_attack_for_item(item, target_pos)
+		return
+	
+	var ash = ash_scene.instantiate()
+	if not ash:
+		print("Error: Failed to instantiate Ash")
+		complete_attackdog_attack_for_item(item, target_pos)
+		return
+	
+	# Add Ash as child of the player character (BennyChar, LaylaChar, etc.)
+	var character_node = null
+	if player_node:
+		# Find the character node (BennyChar, LaylaChar, etc.)
+		for child in player_node.get_children():
+			if child.name.ends_with("Char"):
+				character_node = child
+				break
+		
+		if character_node:
+			character_node.add_child(ash)
+			ash.global_position = player_node.global_position
+			print("Ash dog created as child of", character_node.name, "at position:", ash.global_position)
+		else:
+			# Fallback: add to player node directly
+			player_node.add_child(ash)
+			ash.global_position = player_node.global_position
+			print("Ash dog created as child of player node at position:", ash.global_position)
+	else:
+		print("Error: No player node found")
+		ash.queue_free()
+		complete_attackdog_attack_for_item(item, target_pos)
+		return
+	
+	# Connect to item pickup signal
+	if not ash.item_pickup_triggered.is_connected(_on_ash_item_pickup):
+		ash.item_pickup_triggered.connect(_on_ash_item_pickup)
+	
+	# Play Ash bark sound
+	var ash_bark = ash.get_node_or_null("AshBark")
+	if ash_bark:
+		ash_bark.play()
+		print("Playing Ash bark sound")
+	
+	# Get target world position
+	var target_world_pos = Vector2(target_pos.x * cell_size + cell_size/2, target_pos.y * cell_size + cell_size/2)
+	if card_effect_handler and card_effect_handler.course:
+		var camera_container = card_effect_handler.course.get_node_or_null("CameraContainer")
+		if camera_container:
+			target_world_pos += camera_container.global_position
+	
+	# Calculate direction for sprite orientation
+	var direction = target_world_pos - ash.global_position
+	var is_horizontal = abs(direction.x) > abs(direction.y)
+	var is_up = direction.y < 0
+	
+	# Set up Ash sprites
+	var default_sprite = ash.get_node_or_null("AshDefaultSprite")
+	var attack_sprite = ash.get_node_or_null("AshAttackSprite")
+	
+	if not default_sprite or not attack_sprite:
+		print("Error: Ash sprites not found")
+		ash.queue_free()
+		complete_attackdog_attack_for_item(item, target_pos)
+		return
+	
+	# Hide default sprite, show attack sprite
+	default_sprite.visible = false
+	attack_sprite.visible = true
+	
+	# Set appropriate attack sprite based on direction
+	if is_horizontal:
+		# Use AshAttackLeftRight for horizontal movement
+		attack_sprite.texture = load("res://NPC/Animals/Ash/AshAttackLeftRight.png")
+		attack_sprite.flip_h = direction.x < 0  # Flip if moving left
+	else:
+		# Use AshAttackLeftRight for vertical movement too (no separate up/down sprite)
+		attack_sprite.texture = load("res://NPC/Animals/Ash/AshAttackLeftRight.png")
+		attack_sprite.flip_h = false  # No flip for vertical
+	
+	print("Ash dog moving to item in direction:", "horizontal" if is_horizontal else "vertical", "flip_h:", attack_sprite.flip_h)
+	
+	# Animate Ash to target position
+	var tween = get_tree().create_tween()
+	tween.tween_property(ash, "global_position", target_world_pos, 0.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.tween_callback(func():
+		# Flash effect at target
+		create_flash_effect(target_world_pos)
+		
+		# Switch to default sprite
+		attack_sprite.visible = false
+		default_sprite.visible = true
+		
+		# Set appropriate default sprite based on direction
+		if is_horizontal:
+			default_sprite.texture = load("res://NPC/Animals/Ash/AshDefaultLeftRight.png")
+			default_sprite.flip_h = direction.x < 0  # Flip if moving left
+		else:
+			default_sprite.texture = load("res://NPC/Animals/Ash/AshDefaultLeftRight.png")
+			default_sprite.flip_h = false  # No flip for vertical
+		
+		# Flip the sprite to face the opposite direction for return journey
+		if is_horizontal:
+			default_sprite.flip_h = direction.x >= 0  # Flip to face opposite direction
+		# For vertical movement, we don't need to flip since it's the same sprite
+		
+		# Animate back to player
+		var return_tween = get_tree().create_tween()
+		return_tween.tween_property(ash, "global_position", player_node.global_position, 0.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		return_tween.tween_callback(func():
+			# Remove Ash and complete attack
+			ash.queue_free()
+			complete_attackdog_attack_for_item(item, target_pos)
+		)
+	)
+
+func create_and_animate_ash_dog_to_empty_tile(target_pos: Vector2i) -> void:
+	"""Create Ash dog and animate it to an empty tile"""
+	# Load Ash scene
+	var ash_scene = preload("res://NPC/Animals/Ash/Ash.tscn")
+	if not ash_scene:
+		print("Error: Failed to load Ash scene")
+		complete_attackdog_attack_on_empty_tile(target_pos)
+		return
+	
+	var ash = ash_scene.instantiate()
+	if not ash:
+		print("Error: Failed to instantiate Ash")
+		complete_attackdog_attack_on_empty_tile(target_pos)
+		return
+	
+	# Add Ash as child of the player character (BennyChar, LaylaChar, etc.)
+	var character_node = null
+	if player_node:
+		# Find the character node (BennyChar, LaylaChar, etc.)
+		for child in player_node.get_children():
+			if child.name.ends_with("Char"):
+				character_node = child
+				break
+		
+		if character_node:
+			character_node.add_child(ash)
+			ash.global_position = player_node.global_position
+			print("Ash dog created as child of", character_node.name, "at position:", ash.global_position)
+		else:
+			# Fallback: add to player node directly
+			player_node.add_child(ash)
+			ash.global_position = player_node.global_position
+			print("Ash dog created as child of player node at position:", ash.global_position)
+	else:
+		print("Error: No player node found")
+		ash.queue_free()
+		complete_attackdog_attack_on_empty_tile(target_pos)
+		return
+	
+	# Play Ash bark sound
+	var ash_bark = ash.get_node_or_null("AshBark")
+	if ash_bark:
+		ash_bark.play()
+		print("Playing Ash bark sound")
+	
+	# Get target world position
+	var target_world_pos = Vector2(target_pos.x * cell_size + cell_size/2, target_pos.y * cell_size + cell_size/2)
+	if card_effect_handler and card_effect_handler.course:
+		var camera_container = card_effect_handler.course.get_node_or_null("CameraContainer")
+		if camera_container:
+			target_world_pos += camera_container.global_position
+	
+	# Calculate direction for sprite orientation
+	var direction = target_world_pos - ash.global_position
+	var is_horizontal = abs(direction.x) > abs(direction.y)
+	var is_up = direction.y < 0
+	
+	# Set up Ash sprites
+	var default_sprite = ash.get_node_or_null("AshDefaultSprite")
+	var attack_sprite = ash.get_node_or_null("AshAttackSprite")
+	
+	if not default_sprite or not attack_sprite:
+		print("Error: Ash sprites not found")
+		ash.queue_free()
+		complete_attackdog_attack_on_empty_tile(target_pos)
+		return
+	
+	# Hide default sprite, show attack sprite
+	default_sprite.visible = false
+	attack_sprite.visible = true
+	
+	# Set appropriate attack sprite based on direction
+	if is_horizontal:
+		# Use AshAttackLeftRight for horizontal movement
+		attack_sprite.texture = load("res://NPC/Animals/Ash/AshAttackLeftRight.png")
+		attack_sprite.flip_h = direction.x < 0  # Flip if moving left
+	else:
+		# Use AshAttackLeftRight for vertical movement too (no separate up/down sprite)
+		attack_sprite.texture = load("res://NPC/Animals/Ash/AshAttackLeftRight.png")
+		attack_sprite.flip_h = false  # No flip for vertical
+	
+	print("Ash dog moving to empty tile in direction:", "horizontal" if is_horizontal else "vertical", "flip_h:", attack_sprite.flip_h)
+	
+	# Animate Ash to target position
+	var tween = get_tree().create_tween()
+	tween.tween_property(ash, "global_position", target_world_pos, 0.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.tween_callback(func():
+		# Flash effect at target
+		create_flash_effect(target_world_pos)
+		
+		# Switch to default sprite
+		attack_sprite.visible = false
+		default_sprite.visible = true
+		
+		# Set appropriate default sprite based on direction
+		if is_horizontal:
+			default_sprite.texture = load("res://NPC/Animals/Ash/AshDefaultLeftRight.png")
+			default_sprite.flip_h = direction.x < 0  # Flip if moving left
+		else:
+			default_sprite.texture = load("res://NPC/Animals/Ash/AshDefaultLeftRight.png")
+			default_sprite.flip_h = false  # No flip for vertical
+		
+		# Flip the sprite to face the opposite direction for return journey
+		if is_horizontal:
+			default_sprite.flip_h = direction.x >= 0  # Flip to face opposite direction
+		# For vertical movement, we don't need to flip since it's the same sprite
+		
+		# Animate back to player
+		var return_tween = get_tree().create_tween()
+		return_tween.tween_property(ash, "global_position", player_node.global_position, 0.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		return_tween.tween_callback(func():
+			# Remove Ash and complete attack
+			ash.queue_free()
+			complete_attackdog_attack_on_empty_tile(target_pos)
+		)
+	)
+
+func _on_ash_item_pickup(item: Node):
+	"""Handle when Ash picks up an item"""
+	print("🗝️ ASH ITEM PICKUP: Ash picked up item:", item.name)
+	# The actual pickup logic is handled by the Ash script and course
+	# This is just for logging and any additional effects
+
+func complete_attackdog_attack_for_item(item: Node, target_pos: Vector2i) -> void:
+	"""Complete the AttackDog attack for item pickup"""
+	print("Completing AttackDog attack for item:", item.name)
+	
+	# No damage dealt for item pickup
+	var damage = 0
+	
+	# Emit signal
+	emit_signal("npc_attacked", null, damage)
+	
+	# Exit attack mode
+	emit_signal("attack_completed")
+	
+	print("=== END ATTACKDOG ITEM PICKUP ===")
+
+func complete_attackdog_attack_on_empty_tile(target_pos: Vector2i) -> void:
+	"""Complete the AttackDog attack on empty tile"""
+	print("Completing AttackDog attack on empty tile at:", target_pos)
+	
+	# No damage dealt for empty tile
+	var damage = 0
+	
+	# Emit signal
+	emit_signal("npc_attacked", null, damage)
+	
+	# Exit attack mode
+	emit_signal("attack_completed")
+	
+	print("=== END ATTACKDOG EMPTY TILE ATTACK ===")
+
 func apply_knockback(npc: Node, target_pos: Vector2i) -> void:
 	"""Apply knockback to the NPC, pushing them 1 tile away from the player"""
 	
@@ -958,6 +1240,68 @@ func is_position_valid_for_knockback(pos: Vector2i) -> bool:
 		is_valid = false
 	
 	return is_valid
+
+func get_item_at_position(pos: Vector2i) -> Node:
+	"""Get the item at the given grid position, or null if none"""
+	print("=== GETTING ITEM AT POSITION (RangedStrategy) ===")
+	print("Position:", pos)
+	print("Card effect handler:", card_effect_handler != null)
+	
+	if not card_effect_handler or not card_effect_handler.course:
+		print("✗ No card_effect_handler or course found")
+		return null
+	
+	# Look for items in the scene (keys, etc.)
+	var items = get_tree().get_nodes_in_group("fight_room_keys")
+	for item in items:
+		if is_instance_valid(item):
+			print("=== CHECKING ITEM ===")
+			print("Item reference:", item)
+			print("Item name:", item.name)
+			print("Item class:", item.get_class())
+			print("Item global position:", item.global_position)
+			
+			# Calculate grid position from world position (more reliable)
+			var world_pos = item.global_position
+			var cell_size_used = cell_size if "cell_size" in item else 48
+			var item_pos = Vector2i(floor(world_pos.x / cell_size_used), floor(world_pos.y / cell_size_used))
+			print("Checking item:", item.name, "at position:", item_pos, "(calculated from world position)")
+			
+			if item_pos == pos:
+				print("✓ Found item at position:", pos, "Item:", item.name)
+				return item
+		else:
+			print("✗ Item is invalid - reference:", item)
+		
+		print("=== END CHECKING ITEM ===")
+	
+	print("✗ No item found at position:", pos)
+	return null
+
+func perform_attackdog_attack_on_item(item: Node, target_pos: Vector2i) -> void:
+	"""Perform AttackDog attack on item with Ash dog animation"""
+	print("=== PERFORMING ATTACKDOG ATTACK ON ITEM ===")
+	print("Item:", item.name)
+	print("Target position:", target_pos)
+	print("Player position:", player_grid_pos)
+	
+	# Emit ash dog attack signal for animation
+	emit_signal("ash_dog_attack_performed")
+	
+	# Create and animate Ash dog
+	create_and_animate_ash_dog_for_item(item, target_pos)
+
+func perform_attackdog_attack_on_empty_tile(target_pos: Vector2i) -> void:
+	"""Perform AttackDog attack on empty tile - just animation, no target"""
+	print("=== PERFORMING ATTACKDOG ATTACK ON EMPTY TILE ===")
+	print("Target position:", target_pos)
+	print("Player position:", player_grid_pos)
+	
+	# Emit ash dog attack signal for animation
+	emit_signal("ash_dog_attack_performed")
+	
+	# Create and animate Ash dog to empty tile
+	create_and_animate_ash_dog_to_empty_tile(target_pos)
 
 func update_player_position(new_pos: Vector2i) -> void:
 	"""Update the stored player grid position"""

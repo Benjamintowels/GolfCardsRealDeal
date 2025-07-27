@@ -9,9 +9,16 @@ func _ready():
 	# Connect to area entered signal for player collision
 	if area_2d:
 		area_2d.area_entered.connect(_on_area_2d_area_entered)
+		
+		# Set collision layer to 4 (item layer) for Ash dog detection
+		area_2d.collision_layer = 4
+		# Set collision mask to 3 (detect player on layers 1 & 2)
+		area_2d.collision_mask = 3
+		
+		print("✓ Key Area2D configured for player and Ash dog detection")
 
 func _on_area_2d_area_entered(area: Area2D):
-	"""Handle collision with player"""
+	"""Handle collision with player or Ash dog"""
 	print("🔍 KEY COLLISION: Area entered -", area.name if area else "null")
 	
 	# Get the parent of the area (the actual object)
