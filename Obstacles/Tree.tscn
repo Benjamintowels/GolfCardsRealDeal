@@ -1,7 +1,9 @@
-[gd_scene load_steps=13 format=3 uid="uid://bxv07b18i4gic"]
+[gd_scene load_steps=15 format=3 uid="uid://bxv07b18i4gic"]
 
 [ext_resource type="Script" uid="uid://dhqerng8o8ik5" path="res://Obstacles/Tree.gd" id="1_tree"]
 [ext_resource type="Texture2D" uid="uid://bqhffygxa0j5o" path="res://Obstacles/Tree.png" id="2_8f3lk"]
+[ext_resource type="Texture2D" uid="uid://bi1by7faqa4yv" path="res://Obstacles/TreeStump.png" id="2_8toid"]
+[ext_resource type="Texture2D" uid="uid://b6q6tdxw8cd0w" path="res://Obstacles/TreeTop.png" id="3_eps3q"]
 [ext_resource type="AudioStream" uid="uid://c72rjrdcq46a6" path="res://Sounds/LeavesRustle.mp3" id="3_l6huh"]
 [ext_resource type="AudioStream" uid="uid://01xbvo1dq6r0" path="res://Sounds/TrunkThunk.mp3" id="4_8f3lk"]
 
@@ -74,6 +76,20 @@ polygon = PackedVector2Array(-43, -8, -20, -22, -16, -39, -41, -60, -60, -64, -1
 
 [node name="Tree" type="CharacterBody2D"]
 script = ExtResource("1_tree")
+
+[node name="TreeStump" type="Sprite2D" parent="."]
+visible = false
+texture_filter = 1
+position = Vector2(4.73358, -120.275)
+scale = Vector2(0.689136, 0.760678)
+texture = ExtResource("2_8toid")
+
+[node name="TreeTop" type="Sprite2D" parent="."]
+visible = false
+texture_filter = 1
+position = Vector2(4.73358, -120.275)
+scale = Vector2(0.689136, 0.760678)
+texture = ExtResource("3_eps3q")
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 texture_filter = 1
