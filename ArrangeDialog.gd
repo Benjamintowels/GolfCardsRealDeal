@@ -43,7 +43,8 @@ var available_cards: Array[CardData] = [
 	preload("res://Cards/IceBallCard.tres"),
 	preload("res://Cards/ExtraBall.tres"),
 	preload("res://Cards/Explosive.tres"),
-	preload("res://Cards/FiragaCard.tres")
+	preload("res://Cards/FiragaCard.tres"),
+	preload("res://Cards/IceSpearCard.tres")
 ]
 
 func _ready():

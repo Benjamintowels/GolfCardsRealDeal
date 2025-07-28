@@ -127,6 +127,7 @@ func create_player() -> void:
 
 	player_node.player_clicked.connect(_on_player_input)
 	player_node.moved_to_tile.connect(_on_player_moved_to_tile)
+	player_node.pushed_to_tile.connect(_on_player_pushed_to_tile)
 	
 
 
@@ -501,6 +502,12 @@ func _on_player_moved_to_tile(grid_pos: Vector2i) -> void:
 	"""Handle player movement to a new tile"""
 	player_grid_pos = grid_pos
 	moved_to_tile.emit(grid_pos)
+
+func _on_player_pushed_to_tile(grid_pos: Vector2i) -> void:
+	"""Handle when player is pushed to a new tile - this is forced movement, not voluntary movement"""
+	player_grid_pos = grid_pos
+	# Don't emit moved_to_tile signal since this is forced movement
+	print("PlayerManager: Player was pushed to tile:", grid_pos)
 
 func update_player_position() -> void:
 	"""Update player's visual position based on grid position"""

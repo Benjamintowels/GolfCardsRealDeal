@@ -1,9 +1,14 @@
-[gd_scene load_steps=3 format=3 uid="uid://chxho0a02f66w"]
+[gd_scene load_steps=4 format=3 uid="uid://chxho0a02f66w"]
 
 [ext_resource type="Texture2D" uid="uid://bcno5klx6af3h" path="res://Particles/IceSpear.png" id="1_v7ulb"]
 [ext_resource type="Script" uid="uid://blxeivod3orni" path="res://Particles/ice_spear.gd" id="2_msv1v"]
+[ext_resource type="AudioStream" uid="uid://c1th3q8jepgaa" path="res://Sounds/Whoosh2.mp3" id="3_whoosh"]
 
 [node name="IceSpear" type="Sprite2D"]
 texture_filter = 1
+scale = Vector2(0.195, 0.195)
 texture = ExtResource("1_v7ulb")
 script = ExtResource("2_msv1v")
+
+[node name="IceWhoosh" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("3_whoosh")

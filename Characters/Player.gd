@@ -2,6 +2,7 @@ extends CharacterBody2D
 
 signal player_clicked
 signal moved_to_tile(new_grid_pos: Vector2i)
+signal pushed_to_tile(new_grid_pos: Vector2i)
 
 var grid_pos: Vector2i
 var movement_range: int = 1
@@ -1897,9 +1898,9 @@ func _on_pushback_completed() -> void:
 			attack_handler.update_player_position(grid_pos)
 			print("Attack handler player position updated to:", grid_pos)
 	
-	# Emit moved signal to notify the course
-	emit_signal("moved_to_tile", grid_pos)
-	print("Emitted moved_to_tile signal for pushback position:", grid_pos)
+	# Emit pushed signal to notify the course (different from voluntary movement)
+	emit_signal("pushed_to_tile", grid_pos)
+	print("Emitted pushed_to_tile signal for pushback position:", grid_pos)
 	
 	# Smoothly tween camera to final position
 	if course and course.has_method("smooth_camera_to_player"):

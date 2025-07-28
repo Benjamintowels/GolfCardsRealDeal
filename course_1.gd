@@ -543,6 +543,12 @@ func _ready() -> void:
 	
 	player_manager.create_player()
 	
+	# Connect to player's pushed_to_tile signal for forced movement handling
+	var player_node = player_manager.get_player_node()
+	if player_node and player_node.has_signal("pushed_to_tile"):
+		player_node.pushed_to_tile.connect(_on_player_pushed_to_tile)
+		print("✓ Connected to player pushed_to_tile signal")
+	
 	# Setup player sounds in SoundManager
 	sound_manager.setup_player_sounds(player_manager.get_player_node())
 	launch_manager.set("camera_container", grid_manager.get_camera_container())
@@ -4550,3 +4556,10 @@ func get_player_reference() -> Node:
 	if player_manager and player_manager.get_player_node():
 		return player_manager.get_player_node()
 	return null
+
+func _on_player_pushed_to_tile(new_grid_pos: Vector2i) -> void:
+	"""Handle when player is pushed to a new tile - this is forced movement, not voluntary movement"""
+	print("🔍 COURSE DEBUG: _on_player_pushed_to_tile called with pos:", new_grid_pos)
+	# Update position references but don't affect turn state since this is forced movement
+	if attack_handler:
+		attack_handler.update_player_position(new_grid_pos)

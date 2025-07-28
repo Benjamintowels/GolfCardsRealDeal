@@ -25,6 +25,9 @@ var ash_dog_damage := 50
 # FiragaCard attack properties
 var firaga_damage := 50
 
+# IceSpearCard attack properties
+var ice_spear_damage := 30
+
 # Signals
 signal npc_attacked(npc: Node, damage: int)
 signal ash_dog_attack_performed
@@ -1454,3 +1457,221 @@ func complete_firaga_attack(npc: Node, target_pos: Vector2i) -> void:
 	emit_signal("attack_completed")
 	
 	print("=== END FIRAGA ATTACK ===")
+
+func perform_icespear_attack(target_pos: Vector2i) -> void:
+	"""Perform IceSpearCard ice spear attack at the specified position"""
+	print("=== PERFORMING ICESPEAR ICE SPEAR ATTACK ===")
+	print("Target position:", target_pos)
+	
+	# Get NPC at target position
+	var npc = get_npc_at_position(target_pos)
+	if npc:
+		print("Found NPC at target position:", npc.name)
+		perform_icespear_attack_on_npc(npc, target_pos)
+	else:
+		print("No NPC found at target position:", target_pos)
+		# Still perform the ice spear animation even if no NPC
+		create_and_animate_ice_spear(target_pos, null)
+		emit_signal("attack_completed")
+
+func perform_icespear_attack_on_npc(npc: Node, target_pos: Vector2i) -> void:
+	"""Perform IceSpearCard attack on NPC with ice spear animation"""
+	print("=== PERFORMING ICESPEAR ATTACK ON NPC ===")
+	print("NPC:", npc.name)
+	print("Target position:", target_pos)
+	print("Player position:", player_grid_pos)
+	
+	# Create and animate ice spear
+	create_and_animate_ice_spear(target_pos, npc)
+
+func create_and_animate_ice_spear(target_pos: Vector2i, npc: Node) -> void:
+	"""Create ice spear and animate it to attack the target"""
+	print("=== CREATING AND ANIMATING ICE SPEAR ===")
+	print("Target position:", target_pos)
+	print("NPC:", npc.name if npc else "No NPC")
+	
+	# Load IceSpear scene
+	var ice_spear_scene = load("res://Particles/IceSpear.tscn")
+	if not ice_spear_scene:
+		print("Error: Failed to load IceSpear scene")
+		complete_icespear_attack(npc, target_pos)
+		return
+	
+	print("✓ IceSpear scene loaded successfully")
+	
+	var ice_spear = ice_spear_scene.instantiate()
+	if not ice_spear:
+		print("Error: Failed to instantiate ice spear")
+		complete_icespear_attack(npc, target_pos)
+		return
+	
+	print("✓ IceSpear instantiated successfully")
+	
+	# Add ice spear to the scene
+	if card_effect_handler and card_effect_handler.course:
+		card_effect_handler.course.add_child(ice_spear)
+		print("✓ IceSpear added to course")
+	else:
+		add_child(ice_spear)
+		print("✓ IceSpear added to self")
+	
+	# Calculate world positions
+	var player_world_pos = Vector2(player_grid_pos.x * cell_size + cell_size/2, player_grid_pos.y * cell_size + cell_size/2)
+	var target_world_pos = Vector2(target_pos.x * cell_size + cell_size/2, target_pos.y * cell_size + cell_size/2)
+	
+	# Add camera container offset if available
+	if card_effect_handler and card_effect_handler.course:
+		var camera_container = card_effect_handler.course.get_node_or_null("CameraContainer")
+		if camera_container:
+			player_world_pos += camera_container.global_position
+			target_world_pos += camera_container.global_position
+	
+	print("✓ Player world position:", player_world_pos)
+	print("✓ Target world position:", target_world_pos)
+	
+	# Play IceWhoosh sound
+	play_ice_whoosh_sound()
+	
+	# Setup and launch the ice spear using its own script
+	if ice_spear.has_method("setup_and_launch"):
+		ice_spear.setup_and_launch(
+			player_world_pos, 
+			target_world_pos, 
+			1.0, 
+			func(): create_ice_impact(target_world_pos, npc)
+		)
+	else:
+		# Fallback: manually animate the ice spear
+		manual_ice_spear_animation(ice_spear, player_world_pos, target_world_pos, npc)
+
+func play_ice_whoosh_sound() -> void:
+	"""Play the IceWhoosh sound effect when IceSpear is created"""
+	# Find the player node to get access to the course
+	var player = player_node if player_node else null
+	if player:
+		# Create a temporary node to play the sound
+		var temp_sound_node = Node2D.new()
+		if card_effect_handler and card_effect_handler.course:
+			card_effect_handler.course.add_child(temp_sound_node)
+		else:
+			add_child(temp_sound_node)
+		
+		# Create audio player for the sound
+		var ice_whoosh_sound = AudioStreamPlayer2D.new()
+		temp_sound_node.add_child(ice_whoosh_sound)
+		
+		# Load and play the Whoosh2 sound (closest to IceWhoosh)
+		var whoosh_sound = load("res://Sounds/Whoosh2.mp3")
+		if whoosh_sound:
+			ice_whoosh_sound.stream = whoosh_sound
+			ice_whoosh_sound.play()
+			print("✓ Playing IceWhoosh sound effect")
+		else:
+			print("Warning: Whoosh2 sound not found")
+		
+		# Remove the temporary sound node after a short delay
+		await get_tree().create_timer(0.1).timeout
+		temp_sound_node.queue_free()
+
+func manual_ice_spear_animation(ice_spear: Node, start_pos: Vector2, end_pos: Vector2, npc: Node) -> void:
+	"""Manually animate the ice spear if it doesn't have a setup_and_launch method"""
+	print("Using manual ice spear animation")
+	
+	# Position at start with chest offset
+	var chest_offset = Vector2(0, -40)  # Offset to appear from chest area
+	ice_spear.global_position = start_pos + chest_offset
+	
+	# Set proper z-index to appear above ground but below UI
+	ice_spear.z_index = 100
+	
+	# Calculate direction for sprite orientation
+	var direction = end_pos - ice_spear.global_position
+	var is_horizontal = abs(direction.x) > abs(direction.y)
+	
+	# Set appropriate sprite orientation based on direction
+	if is_horizontal:
+		# For horizontal movement, flip the sprite if moving left
+		ice_spear.flip_h = direction.x < 0
+	else:
+		# For vertical movement, rotate the sprite
+		if direction.y < 0:
+			# For upward movement, rotate 90 degrees counterclockwise
+			ice_spear.rotation = -PI/2
+		else:
+			# For downward movement, rotate 90 degrees clockwise
+			ice_spear.rotation = PI/2
+	
+	print("Ice spear attacking in direction:", "horizontal" if is_horizontal else "vertical", "flip_h:", ice_spear.flip_h, "rotation:", ice_spear.rotation)
+	
+	# Animate ice spear to target position
+	var tween = create_tween()
+	tween.set_trans(Tween.TRANS_QUAD)
+	tween.set_ease(Tween.EASE_OUT)
+	tween.tween_property(ice_spear, "global_position", end_pos, 1.0)
+	tween.tween_callback(func():
+		create_ice_impact(end_pos, npc)
+	)
+
+func create_ice_impact(target_world_pos: Vector2, npc: Node) -> void:
+	"""Create and play the ice impact effect at the target position"""
+	print("Creating ice impact effect at position:", target_world_pos)
+	
+	# Create a simple ice impact effect using a ColorRect
+	var ice_impact = ColorRect.new()
+	ice_impact.color = Color(0.8, 0.9, 1.0, 0.8)  # Light blue with transparency
+	ice_impact.size = Vector2(48, 48)  # Same size as a tile
+	ice_impact.global_position = target_world_pos - ice_impact.size / 2
+	ice_impact.z_index = 1000  # Very high z-index to appear on top
+	
+	# Add to the scene
+	if card_effect_handler and card_effect_handler.course:
+		card_effect_handler.course.add_child(ice_impact)
+	else:
+		add_child(ice_impact)
+	
+	# Animate ice impact
+	var impact_tween = create_tween()
+	impact_tween.tween_property(ice_impact, "modulate:a", 0.0, 0.3).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	impact_tween.tween_callback(func():
+		ice_impact.queue_free()
+		complete_icespear_attack(npc, Vector2i(target_world_pos.x / cell_size, target_world_pos.y / cell_size))
+	)
+
+func complete_icespear_attack(npc: Node, target_pos: Vector2i) -> void:
+	"""Complete the IceSpearCard attack by dealing damage"""
+	print("Completing IceSpearCard attack on NPC:", npc.name if npc else "No NPC")
+	
+	if npc:
+		# Deal 30 damage to the NPC
+		var damage = ice_spear_damage
+		
+		# Check if NPC is dead
+		var is_dead = false
+		if npc.has_method("get_is_dead"):
+			is_dead = npc.get_is_dead()
+		elif npc.has_method("is_dead"):
+			is_dead = npc.is_dead()
+		elif "is_dead" in npc:
+			is_dead = npc.is_dead
+		
+		if is_dead:
+			print("Attacking dead NPC - no damage dealt")
+			damage = 0
+		else:
+			# Deal damage to the NPC
+			if npc.has_method("take_damage"):
+				npc.take_damage(damage)
+				print("Dealt", damage, "damage to NPC:", npc.name)
+			else:
+				print("NPC does not have take_damage method")
+		
+		# Emit signal
+		emit_signal("npc_attacked", npc, damage)
+	else:
+		print("No NPC at target position - no damage dealt")
+		emit_signal("npc_attacked", null, 0)
+	
+	# Exit attack mode
+	emit_signal("attack_completed")
+	
+	print("=== END ICESPEAR ATTACK ===")

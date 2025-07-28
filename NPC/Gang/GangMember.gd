@@ -1174,6 +1174,12 @@ func _handle_player_collision(approach_direction: Vector2i = Vector2i.ZERO) -> v
 			signal_was_connected = true
 			player.moved_to_tile.disconnect(course._on_player_moved_to_tile)
 		
+		# Also disconnect pushed_to_tile signal if connected
+		var pushed_signal_was_connected = false
+		if player and player.has_signal("pushed_to_tile") and course:
+			pushed_signal_was_connected = true
+			player.pushed_to_tile.disconnect(course._on_player_pushed_to_tile)
+		
 		# Update positions without triggering unwanted animations
 		player.grid_pos = pushback_pos
 		if course and "player_grid_pos" in course:
@@ -1208,9 +1214,11 @@ func _handle_player_collision(approach_direction: Vector2i = Vector2i.ZERO) -> v
 			else:
 				print("No animation methods available, using instant position")
 		
-		# Reconnect the signal if it was connected
+		# Reconnect the signals if they were connected
 		if signal_was_connected:
 			player.moved_to_tile.connect(course._on_player_moved_to_tile)
+		if pushed_signal_was_connected:
+			player.pushed_to_tile.connect(course._on_player_pushed_to_tile)
 		
 		print("Player grid position updated to: ", player.grid_pos)
 		print("Course player_grid_pos updated to: ", course.player_grid_pos if course else "N/A")

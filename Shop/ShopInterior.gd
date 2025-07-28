@@ -158,6 +158,7 @@ func load_shop_items():
 		preload("res://Cards/MeteorCard.tres"),
 		preload("res://Cards/BagCheck.tres"),
 		preload("res://Cards/FiragaCard.tres"),
+		preload("res://Cards/IceSpearCard.tres"),
 		
 		# Movement cards
 		preload("res://Cards/Move1.tres"),
