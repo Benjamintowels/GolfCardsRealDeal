@@ -1178,6 +1178,40 @@ func activate_block(amount: int) -> void:
 	else:
 		print("Warning: PlayerManager not available for block activation")
 
+func activate_dodge_mode() -> void:
+	"""Activate dodge mode - delegate to PlayerManager"""
+	if player_manager:
+		player_manager.activate_dodge_mode()
+	else:
+		print("Warning: PlayerManager not available for dodge mode activation")
+
+func activate_vampire_mode() -> void:
+	"""Activate vampire mode - delegate to PlayerManager"""
+	if player_manager:
+		player_manager.activate_vampire_mode()
+	else:
+		print("Warning: PlayerManager not available for vampire mode activation")
+
+func activate_ghost_mode() -> void:
+	"""Activate ghost mode - delegate to PlayerManager"""
+	if player_manager:
+		player_manager.activate_ghost_mode()
+	else:
+		print("Warning: PlayerManager not available for ghost mode activation")
+
+func is_dodge_mode_active() -> bool:
+	"""Check if dodge mode is active - delegate to PlayerManager"""
+	if player_manager:
+		return player_manager.is_dodge_mode_active()
+	return false
+
+func trigger_dodge_animation() -> void:
+	"""Trigger dodge animation - delegate to PlayerManager"""
+	if player_manager:
+		player_manager.trigger_dodge_animation()
+	else:
+		print("Warning: PlayerManager not available for dodge animation")
+
 func _on_damage_button_pressed() -> void:
 	"""Handle damage button press"""
 	player_manager.take_damage(20)

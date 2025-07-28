@@ -1,0 +1,9 @@
+[gd_scene load_steps=3 format=3 uid="uid://chxho0a02f66w"]
+
+[ext_resource type="Texture2D" uid="uid://bcno5klx6af3h" path="res://Particles/IceSpear.png" id="1_v7ulb"]
+[ext_resource type="Script" uid="uid://blxeivod3orni" path="res://Particles/ice_spear.gd" id="2_msv1v"]
+
+[node name="IceSpear" type="Sprite2D"]
+texture_filter = 1
+texture = ExtResource("1_v7ulb")
+script = ExtResource("2_msv1v")
