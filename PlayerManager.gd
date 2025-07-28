@@ -145,6 +145,11 @@ func update_player_stats_from_equipment() -> void:
 
 func take_damage(amount: int) -> void:
 	"""Player takes damage and updates health bar"""
+	print("PlayerManager: take_damage called with amount:", amount)
+	print("PlayerManager: dodge_mode_active =", dodge_mode_active)
+	print("PlayerManager: vampire_mode_active =", vampire_mode_active)
+	print("PlayerManager: block_active =", block_active)
+	
 	var damage_to_health = amount
 	
 	# Check if vampire mode is active - heal instead of taking damage
@@ -263,9 +268,11 @@ func switch_to_normal_sprite() -> void:
 		print("✗ No player node found")
 		return
 	
-	# Find the normal character sprite and block sprite in the player node
+	# Find all sprites in the player node
 	var normal_sprite = null
 	var block_sprite = null
+	var dodge_sprite = null
+	var dodge_ready_sprite = null
 	
 	for child in player_node.get_children():
 		# The character scene (BennyChar) is a child of the player node
@@ -276,15 +283,24 @@ func switch_to_normal_sprite() -> void:
 					normal_sprite = grandchild
 				elif grandchild is Sprite2D and grandchild.name == "BennyBlock":
 					block_sprite = grandchild
+				elif grandchild is Sprite2D and grandchild.name == "BennyDodge":
+					dodge_sprite = grandchild
+				elif grandchild is Sprite2D and grandchild.name == "BennyDodgeReady":
+					dodge_ready_sprite = grandchild
 			break
 	
-	if normal_sprite and block_sprite:
-		# Show normal sprite, hide block sprite
+	if normal_sprite:
+		# Show normal sprite, hide all other sprites
 		normal_sprite.visible = true
-		block_sprite.visible = false
+		if block_sprite:
+			block_sprite.visible = false
+		if dodge_sprite:
+			dodge_sprite.visible = false
+		if dodge_ready_sprite:
+			dodge_ready_sprite.visible = false
 		print("✓ Switched to normal sprite")
 	else:
-		print("✗ Could not find required sprites for normal animation")
+		print("✗ Could not find normal sprite")
 
 func update_block_sprite_flip() -> void:
 	"""Update block sprite flip based on mouse position (for Benny character)"""
@@ -331,6 +347,114 @@ func update_dodge_sprite_flip() -> void:
 			sprite.flip_h = true
 		else:
 			sprite.flip_h = false
+
+func switch_to_dodge_ready_sprite() -> void:
+	"""Switch Benny character to dodge ready sprite"""
+	print("=== SWITCH TO DODGE READY SPRITE CALLED ===")
+	if not player_node:
+		print("✗ No player node found")
+		return
+	
+	# Find all sprites in the player node
+	var normal_sprite = null
+	var dodge_ready_sprite = null
+	var dodge_sprite = null
+	var block_sprite = null
+	
+	print("Searching for sprites in player node children...")
+	for child in player_node.get_children():
+		print("  Child:", child.name, "Type:", child.get_class())
+		# The character scene (BennyChar) is a child of the player node
+		if child.name == "BennyChar" or child.name == "LaylaChar" or child.name == "ClarkChar":
+			print("  Found character scene:", child.name)
+			# Look for sprites within the character scene
+			for grandchild in child.get_children():
+				print("    Grandchild:", grandchild.name, "Type:", grandchild.get_class())
+				if grandchild is Sprite2D and grandchild.name == "Sprite2D":
+					normal_sprite = grandchild
+					print("    ✓ Found normal sprite:", grandchild.name)
+				elif grandchild is Sprite2D and grandchild.name == "BennyDodgeReady":
+					dodge_ready_sprite = grandchild
+					print("    ✓ Found dodge ready sprite:", grandchild.name)
+				elif grandchild is Sprite2D and grandchild.name == "BennyDodge":
+					dodge_sprite = grandchild
+					print("    ✓ Found dodge sprite:", grandchild.name)
+				elif grandchild is Sprite2D and grandchild.name == "BennyBlock":
+					block_sprite = grandchild
+					print("    ✓ Found block sprite:", grandchild.name)
+	
+	if normal_sprite and dodge_ready_sprite:
+		# Hide all sprites, show only dodge ready sprite
+		normal_sprite.visible = false
+		if dodge_sprite:
+			dodge_sprite.visible = false
+		if block_sprite:
+			block_sprite.visible = false
+		dodge_ready_sprite.visible = true
+		print("✓ Switched to dodge ready sprite")
+		
+		# Auto-switch back to normal sprite after a brief moment
+		var timer = get_tree().create_timer(1.0)  # Show for 1 second
+		timer.timeout.connect(func():
+			if dodge_mode_active:  # Only if still in dodge mode
+				switch_to_normal_sprite()
+		)
+	else:
+		print("✗ Could not find required sprites for dodge ready animation")
+
+func switch_to_dodge_sprite() -> void:
+	"""Switch Benny character to dodge sprite"""
+	print("=== SWITCH TO DODGE SPRITE CALLED ===")
+	if not player_node:
+		print("✗ No player node found")
+		return
+	
+	# Find all sprites in the player node
+	var normal_sprite = null
+	var dodge_sprite = null
+	var dodge_ready_sprite = null
+	var block_sprite = null
+	
+	print("Searching for sprites in player node children...")
+	for child in player_node.get_children():
+		print("  Child:", child.name, "Type:", child.get_class())
+		# The character scene (BennyChar) is a child of the player node
+		if child.name == "BennyChar" or child.name == "LaylaChar" or child.name == "ClarkChar":
+			print("  Found character scene:", child.name)
+			# Look for sprites within the character scene
+			for grandchild in child.get_children():
+				print("    Grandchild:", grandchild.name, "Type:", grandchild.get_class())
+				if grandchild is Sprite2D and grandchild.name == "Sprite2D":
+					normal_sprite = grandchild
+					print("    ✓ Found normal sprite:", grandchild.name)
+				elif grandchild is Sprite2D and grandchild.name == "BennyDodge":
+					dodge_sprite = grandchild
+					print("    ✓ Found dodge sprite:", grandchild.name)
+				elif grandchild is Sprite2D and grandchild.name == "BennyDodgeReady":
+					dodge_ready_sprite = grandchild
+					print("    ✓ Found dodge ready sprite:", grandchild.name)
+				elif grandchild is Sprite2D and grandchild.name == "BennyBlock":
+					block_sprite = grandchild
+					print("    ✓ Found block sprite:", grandchild.name)
+	
+	if normal_sprite and dodge_sprite:
+		# Hide all sprites, show only dodge sprite
+		normal_sprite.visible = false
+		if dodge_ready_sprite:
+			dodge_ready_sprite.visible = false
+		if block_sprite:
+			block_sprite.visible = false
+		dodge_sprite.visible = true
+		print("✓ Switched to dodge sprite")
+		
+		# Auto-switch back to normal sprite after dodge animation
+		var timer = get_tree().create_timer(0.6)  # Show for 0.6 seconds (dodge animation duration)
+		timer.timeout.connect(func():
+			if dodge_mode_active:  # Only if still in dodge mode
+				switch_to_normal_sprite()
+		)
+	else:
+		print("✗ Could not find required sprites for dodge animation")
 
 func clear_block() -> void:
 	"""Clear the block system"""
@@ -543,13 +667,21 @@ func is_vampire_mode_active() -> bool:
 func activate_dodge_mode() -> void:
 	"""Activate dodge mode - make player dodge incoming damage"""
 	print("=== ACTIVATING DODGE MODE ===")
+	print("Global.selected_character =", Global.selected_character)
 	
 	if dodge_mode_active:
 		print("Dodge mode already active, ignoring activation")
 		return
 	
 	dodge_mode_active = true
-	print("Dodge mode activated")
+	print("Dodge mode activated - dodge_mode_active =", dodge_mode_active)
+	
+	# Show BennyDodgeReady sprite briefly to indicate dodge is active
+	if Global.selected_character == 2:  # Benny
+		print("Benny character detected - switching to dodge ready sprite")
+		switch_to_dodge_ready_sprite()
+	else:
+		print("Not Benny character (selected_character =", Global.selected_character, ") - no sprite switching")
 	
 	print("=== DODGE MODE ACTIVATED ===")
 
@@ -564,13 +696,9 @@ func deactivate_dodge_mode() -> void:
 	dodge_mode_active = false
 	print("Dodge mode deactivated")
 	
-	# Clear the hue effect from the character sprite
-	if player_node:
-		var character_sprite = player_node.get_character_sprite()
-		if character_sprite:
-			# Restore original modulate (white, no tint)
-			character_sprite.modulate = Color.WHITE
-			print("✓ Hue effect cleared from character sprite")
+	# Switch back to normal sprite for Benny character
+	if Global.selected_character == 2:  # Benny
+		switch_to_normal_sprite()
 	
 	print("=== DODGE MODE DEACTIVATED ===")
 
@@ -585,46 +713,37 @@ func trigger_dodge_animation() -> void:
 	# Play dodge sound
 	play_dodge_sound()
 	
-	# Animate dodge movement with hue effect
-	animate_dodge_with_hue_effect()
+	# Switch to dodge sprite for Benny character
+	if Global.selected_character == 2:  # Benny
+		switch_to_dodge_sprite()
 	
-	# Wait for animation to complete, then restore sprite but keep hue effect
-	await get_tree().create_timer(0.8).timeout  # Wait for animation to complete
-	restore_sprite_after_dodge()
+	# Animate dodge movement
+	animate_dodge_movement()
+	
+	# Wait for animation to complete
+	await get_tree().create_timer(0.6).timeout  # Wait for animation to complete
 
-func animate_dodge_with_hue_effect() -> void:
-	"""Animate the dodge with movement and hue effect"""
-	print("=== ANIMATING DODGE WITH HUE EFFECT ===")
+func animate_dodge_movement() -> void:
+	"""Animate the dodge movement"""
+	print("=== ANIMATING DODGE MOVEMENT ===")
 	
 	if not player_node:
 		print("✗ No player node found")
 		return
 	
-	# Get the character sprite
-	var character_sprite = player_node.get_character_sprite()
-	if not character_sprite:
-		print("✗ No character sprite found")
-		return
-	
-	# Store original position and modulate
+	# Store original position
 	var original_position = player_node.global_position
-	var original_modulate = character_sprite.modulate
 	
 	# Calculate dodge direction (slightly to the side)
 	var dodge_offset = Vector2(20, 0)  # Move 20 pixels to the right
 	
-	# Create tween for dodge movement and hue effect
+	# Create tween for dodge movement
 	var dodge_tween = create_tween()
-	dodge_tween.set_parallel(true)
 	
 	# Move to dodge position
 	dodge_tween.tween_property(player_node, "global_position", original_position + dodge_offset, 0.3)
 	dodge_tween.set_trans(Tween.TRANS_SINE)
 	dodge_tween.set_ease(Tween.EASE_OUT)
-	
-	# Apply light yellow hue effect
-	var yellow_hue = Color(1.0, 1.0, 0.8, 1.0)  # Light yellow
-	dodge_tween.tween_property(character_sprite, "modulate", yellow_hue, 0.3)
 	
 	# Wait a moment, then move back
 	await get_tree().create_timer(0.3).timeout
@@ -634,18 +753,9 @@ func animate_dodge_with_hue_effect() -> void:
 	return_tween.set_trans(Tween.TRANS_SINE)
 	return_tween.set_ease(Tween.EASE_IN)
 	
-	# Keep the hue effect active (don't restore original modulate)
-	# The hue effect will be cleared when dodge mode is deactivated
-	
-	print("✓ Dodge movement and hue effect animation completed")
+	print("✓ Dodge movement animation completed")
 
-func restore_sprite_after_dodge() -> void:
-	"""Restore sprite after dodge animation but keep hue effect"""
-	print("=== RESTORING SPRITE AFTER DODGE ===")
-	
-	# Don't deactivate dodge mode yet - keep the hue effect active
-	# The hue effect will be cleared when dodge mode is deactivated
-	print("✓ Sprite restored, hue effect maintained until next damage or turn end")
+
 
 func play_dodge_sound() -> void:
 	"""Play the dodge sound effect"""

@@ -668,14 +668,20 @@ func take_damage(amount: int, is_headshot: bool = false) -> void:
 		print("Player is already dead, ignoring damage")
 		return
 	
-	# Check if dodge mode is active - if so, trigger dodge instead of taking damage
+	# Delegate damage handling to PlayerManager for proper dodge/block/vampire handling
 	var current_course = get_tree().current_scene
-	if current_course and current_course.has_method("is_dodge_mode_active") and current_course.is_dodge_mode_active():
-		print("Dodge mode active - triggering dodge instead of taking damage!")
-		if current_course.has_method("trigger_dodge_animation"):
-			current_course.trigger_dodge_animation()
-		return
+	if current_course and "player_manager" in current_course:
+		var player_manager = current_course.player_manager
+		if player_manager and player_manager.has_method("take_damage"):
+			# Let PlayerManager handle all the damage logic (dodge, block, vampire, etc.)
+			player_manager.take_damage(amount)
+			return
+		else:
+			print("✗ PlayerManager not found or doesn't have take_damage method")
+	else:
+		print("✗ Course doesn't have player_manager property")
 	
+	# Fallback: handle damage directly if PlayerManager is not available
 	# Allow negative health for overkill calculations
 	current_health = current_health - amount
 	print("Player took", amount, "damage. Current health:", current_health, "/", max_health)
@@ -687,19 +693,6 @@ func take_damage(amount: int, is_headshot: bool = false) -> void:
 		print("✓ Played push sound for damage")
 	else:
 		print("✗ Push sound not found or not AudioStreamPlayer2D")
-	
-	# Update the course's health bar through PlayerManager
-	var course = get_tree().current_scene
-	if course and "player_manager" in course:
-		var player_manager = course.player_manager
-		if player_manager and player_manager.has_method("take_damage"):
-			# Don't call player_manager.take_damage here as this IS the player damage method
-			# Just update the health bar directly
-			print("✓ Player damage applied:", amount, "Current HP:", current_health)
-		else:
-			print("✗ PlayerManager not found or doesn't have take_damage method")
-	else:
-		print("✗ Course doesn't have player_manager property")
 	
 	# Flash appropriate effect based on damage type
 	if is_headshot:
