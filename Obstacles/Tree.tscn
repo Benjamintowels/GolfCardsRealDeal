@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=3 uid="uid://bxv07b18i4gic"]
+[gd_scene load_steps=21 format=3 uid="uid://bxv07b18i4gic"]
 
 [ext_resource type="Script" uid="uid://dhqerng8o8ik5" path="res://Obstacles/Tree.gd" id="1_tree"]
 [ext_resource type="Texture2D" uid="uid://bqhffygxa0j5o" path="res://Obstacles/Tree.png" id="2_8f3lk"]
@@ -6,6 +6,108 @@
 [ext_resource type="Texture2D" uid="uid://b6q6tdxw8cd0w" path="res://Obstacles/TreeTop.png" id="3_eps3q"]
 [ext_resource type="AudioStream" uid="uid://c72rjrdcq46a6" path="res://Sounds/LeavesRustle.mp3" id="3_l6huh"]
 [ext_resource type="AudioStream" uid="uid://01xbvo1dq6r0" path="res://Sounds/TrunkThunk.mp3" id="4_8f3lk"]
+[ext_resource type="AudioStream" uid="uid://cu1vrx47kkwc3" path="res://Sounds/TrunkCut.mp3" id="7_eps3q"]
+[ext_resource type="AudioStream" uid="uid://3igpboa5ny6" path="res://Sounds/Thud.mp3" id="8_dx125"]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_8toid"]
+radius = 5.89754
+
+[sub_resource type="Animation" id="Animation_eps3q"]
+resource_name = "pop_off"
+length = 1.3385
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".:scale")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0.0666667, 0.166667, 0.233333, 0.3, 0.466667, 0.5, 0.533333),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1),
+"update": 0,
+"values": [Vector2(0.689136, 0.760678), Vector2(0.854, 0.943), Vector2(0.899, 0.993), Vector2(0.854, 0.943), Vector2(0.487, 0.538), Vector2(0.517, 0.571), Vector2(0.487, 0.538)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("../Cut:playing")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [true]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("../Thud:playing")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0.233333, 0.433333),
+"transitions": PackedFloat32Array(1, 1),
+"update": 1,
+"values": [true, false]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("../Thud:playing")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0.466667),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [true]
+}
+
+[sub_resource type="Animation" id="Animation_dx125"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".:scale")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(0.689136, 0.760678)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("../Cut:playing")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [false]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("../Thud:playing")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [false]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_5sdfg"]
+_data = {
+&"RESET": SubResource("Animation_dx125"),
+&"pop_off": SubResource("Animation_eps3q")
+}
 
 [sub_resource type="Animation" id="Animation_8f3lk"]
 length = 0.001
@@ -62,7 +164,7 @@ _data = {
 }
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_8f3lk"]
-radius = 2.27121
+radius = 1.24042
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_iu17o"]
 radius = 27.7443
@@ -84,12 +186,30 @@ position = Vector2(4.73358, -120.275)
 scale = Vector2(0.689136, 0.760678)
 texture = ExtResource("2_8toid")
 
+[node name="TopHeight" type="Marker2D" parent="TreeStump"]
+position = Vector2(-5.41777, 101.587)
+
 [node name="TreeTop" type="Sprite2D" parent="."]
 visible = false
 texture_filter = 1
 position = Vector2(4.73358, -120.275)
 scale = Vector2(0.689136, 0.760678)
 texture = ExtResource("3_eps3q")
+
+[node name="Area2D" type="Area2D" parent="TreeTop"]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="TreeTop/Area2D"]
+position = Vector2(0.3866, -20.6723)
+scale = Vector2(6.95496, 9.73657)
+shape = SubResource("CapsuleShape2D_8toid")
+
+[node name="YsortPoint" type="Node2D" parent="TreeTop"]
+position = Vector2(0, -6)
+
+[node name="TreeTopAnimationPlayer" type="AnimationPlayer" parent="TreeTop"]
+libraries = {
+&"": SubResource("AnimationLibrary_5sdfg")
+}
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 texture_filter = 1
@@ -107,7 +227,7 @@ position = Vector2(4.73358, -14.1396)
 scale = Vector2(1.14856, 1.2678)
 
 [node name="TrunkBase" type="CollisionShape2D" parent="TrunkBaseArea"]
-position = Vector2(-3, -23)
+position = Vector2(-3.25066, 0.110111)
 scale = Vector2(15.455, 15.455)
 shape = SubResource("CircleShape2D_8f3lk")
 
@@ -142,6 +262,15 @@ volume_db = -4.224
 
 [node name="TrunkThunk" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("4_8f3lk")
+
+[node name="Cut" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("7_eps3q")
+volume_db = -6.117
+pitch_scale = 0.84
+
+[node name="Thud" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("8_dx125")
+volume_db = -4.078
 
 [node name="YsortPoint" type="Node2D" parent="."]
 position = Vector2(0, -6)
