@@ -183,6 +183,22 @@ func take_damage(amount: int) -> void:
 		Global.CHARACTER_STATS[Global.selected_character]["current_hp"] = health_bar.current_hp
 		print("Player took %d damage to health. Current HP: %d" % [damage_to_health, health_bar.current_hp])
 		
+		# Play push sound when taking damage
+		if player_node:
+			var push_sound = player_node.get_node_or_null("Push")
+			if push_sound and push_sound is AudioStreamPlayer2D:
+				push_sound.play()
+				print("✓ Played push sound for damage")
+			else:
+				print("✗ Push sound not found or not AudioStreamPlayer2D")
+		
+		# Flash red to indicate damage taken
+		if player_node and player_node.has_method("flash_damage"):
+			player_node.flash_damage()
+			print("✓ Triggered damage flash effect")
+		else:
+			print("✗ Player node does not have flash_damage method")
+		
 		# Check if player is defeated
 		if not health_bar.is_alive():
 			print("Player is defeated!")
