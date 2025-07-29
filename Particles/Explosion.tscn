@@ -1,9 +1,10 @@
-[gd_scene load_steps=19 format=3 uid="uid://cr3a5iy452bud"]
+[gd_scene load_steps=23 format=3 uid="uid://cr3a5iy452bud"]
 
 [ext_resource type="Script" uid="uid://bfy4k1ftk3k8w" path="res://Particles/Explosion.gd" id="1_y06dx"]
 [ext_resource type="Texture2D" uid="uid://bkr3h4hfckd6a" path="res://Particles/ExplosionAnimation.png" id="2_47hq3"]
 [ext_resource type="AudioStream" uid="uid://cn7vxchw3lvve" path="res://Sounds/Explosion.mp3" id="3_a2t3t"]
 [ext_resource type="Texture2D" uid="uid://do0yyouvbx1dk" path="res://Particles/FireParticle.png" id="4_gcy2m"]
+[ext_resource type="Texture2D" uid="uid://b42pbfs67jrlv" path="res://Lighting/LightCircle.png" id="5_a2t3t"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_a2t3t"]
 atlas = ExtResource("2_47hq3")
@@ -112,6 +113,43 @@ scale_min = 0.5
 scale_max = 1.5
 color_ramp = SubResource("GradientTexture1D_1")
 
+[sub_resource type="Animation" id="Animation_a2t3t"]
+resource_name = "flash"
+length = 0.195
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".:energy")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.0666667, 0.166667),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [0.0, 2.22, 0.0]
+}
+
+[sub_resource type="Animation" id="Animation_gcy2m"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".:energy")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [0.0]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_dwu8r"]
+_data = {
+&"RESET": SubResource("Animation_gcy2m"),
+&"flash": SubResource("Animation_a2t3t")
+}
+
 [node name="Explosion" type="Node2D"]
 script = ExtResource("1_y06dx")
 
@@ -136,3 +174,13 @@ explosiveness = 1.0
 process_material = SubResource("ParticleProcessMaterial_1")
 
 [node name="YSortPoint" type="Marker2D" parent="."]
+
+[node name="PointLight2D" type="PointLight2D" parent="."]
+energy = 0.0
+texture = ExtResource("5_a2t3t")
+texture_scale = 3.57
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="PointLight2D"]
+libraries = {
+&"": SubResource("AnimationLibrary_dwu8r")
+}

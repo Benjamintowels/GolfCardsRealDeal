@@ -259,6 +259,10 @@ func _handle_tree_top_collision(target: Node):
 	
 	# Check if target is an NPC (GangMember, Police, ZombieGolfer, etc.)
 	if target.has_method("take_damage") and _is_npc(target):
+		# Exclude boss objects from TreeTop damage
+		if target.get_script() and (target.get_script().resource_path.ends_with("boss_hand.gd") or target.get_script().resource_path.ends_with("boss_eye.gd")):
+			print("✓ Boss object", target.name, "ignored by TreeTop collision")
+			return
 		_handle_tree_top_npc_collision(target)
 		return
 	

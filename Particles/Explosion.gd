@@ -7,6 +7,8 @@ extends Node2D
 var explosion_sprite: AnimatedSprite2D
 var explosion_sound: AudioStreamPlayer2D
 var particle_system: GPUParticles2D
+var point_light: PointLight2D
+var light_animation_player: AnimationPlayer
 var animation_tween: Tween
 
 # Animation settings
@@ -34,6 +36,8 @@ func _ready():
 	explosion_sprite = get_node_or_null("ExplosionSprite")
 	explosion_sound = get_node_or_null("ExplosionSound")
 	particle_system = get_node_or_null("FireParticles")
+	point_light = get_node_or_null("PointLight2D")
+	light_animation_player = get_node_or_null("PointLight2D/AnimationPlayer")
 	
 	# Add to groups for Y-sorting and management
 	add_to_group("explosions")
@@ -73,6 +77,10 @@ func start_explosion_animation():
 	# Start particle system
 	if particle_system:
 		particle_system.emitting = true
+	
+	# Play point light flash animation
+	if light_animation_player and light_animation_player.has_animation("flash"):
+		light_animation_player.play("flash")
 	
 	# Create tween for animation
 	animation_tween = create_tween()
