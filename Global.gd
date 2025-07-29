@@ -235,6 +235,8 @@ func update_all_objects_y_sort(ysort_objects: Array):
 			object_type = "objects"
 		elif node.name == "ForceFieldDome" or (node.get_script() and "force_field_dome.gd" in str(node.get_script().get_path())):
 			object_type = "objects"
+		elif node.name == "ElementalCircle" or (node.get_script() and "elemental_circle.gd" in str(node.get_script().get_path())):
+			object_type = "objects"
 		elif "Player" in node.name or "GangMember" in node.name or "Police" in node.name or "Wraith" in node.name:
 			object_type = "characters"
 		elif node.is_in_group("grass_elements") or (node.get_script() and "summer_grass.gd" in str(node.get_script().get_path())):
@@ -264,6 +266,12 @@ func update_all_group_objects_y_sort():
 	for crater in craters:
 		if is_instance_valid(crater):
 			update_object_y_sort(crater, "objects")
+	
+	# Update elemental circles
+	var elemental_circles = get_tree().get_nodes_in_group("elemental_circles")
+	for circle in elemental_circles:
+		if is_instance_valid(circle):
+			update_object_y_sort(circle, "objects")
 	
 	# Update other group objects as needed
 	var bonfires = get_tree().get_nodes_in_group("ysort_objects")

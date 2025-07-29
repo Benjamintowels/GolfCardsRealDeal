@@ -49,6 +49,9 @@ region = Rect2(2304, 0, 256, 280)
 animations = [{
 "frames": [{
 "duration": 1.0,
+"texture": null
+}, {
+"duration": 1.0,
 "texture": SubResource("AtlasTexture_a2t3t")
 }, {
 "duration": 1.0,
@@ -114,9 +117,9 @@ script = ExtResource("1_y06dx")
 
 [node name="ExplosionSprite" type="AnimatedSprite2D" parent="."]
 texture_filter = 1
+position = Vector2(0, -100)
+scale = Vector2(1.605, 1.605)
 sprite_frames = SubResource("SpriteFrames_0or2e")
-frame = 10
-frame_progress = 1.0
 offset = Vector2(0, -50)
 
 [node name="ExplosionSound" type="AudioStreamPlayer2D" parent="."]

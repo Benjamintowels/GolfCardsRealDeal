@@ -243,6 +243,12 @@ func update_ysort_systems(course_instance, current_time: float):
 		if is_instance_valid(crater):
 			Global.update_object_y_sort(crater, "objects")
 	
+	# Update elemental circles Y-sort when they exist
+	var elemental_circles = get_tree().get_nodes_in_group("elemental_circles")
+	for circle in elemental_circles:
+		if is_instance_valid(circle):
+			Global.update_object_y_sort(circle, "objects")
+	
 	# Update camera position for spatial calculations
 	update_camera_state(course_instance.camera.global_position)
 

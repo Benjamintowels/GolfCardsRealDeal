@@ -68,6 +68,8 @@ func determine_object_type(node: Node2D) -> String:
 		return "objects"
 	elif node.name == "Shop":
 		return "objects"
+	elif node.name == "ElementalCircle" or (node.get_script() and "elemental_circle.gd" in str(node.get_script().get_path())):
+		return "objects"
 	elif "Player" in node.name or "GangMember" in node.name:
 		return "characters"
 	elif "GolfBall" in node.name or "GhostBall" in node.name:

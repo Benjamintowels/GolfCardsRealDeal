@@ -171,6 +171,7 @@ radius = 39.8799
 radius = 76.6631
 
 [node name="BossHand" type="Node2D"]
+z_index = 215
 script = ExtResource("1_cmr8r")
 
 [node name="Shadow" type="Sprite2D" parent="."]

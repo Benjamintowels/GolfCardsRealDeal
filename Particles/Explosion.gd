@@ -78,11 +78,16 @@ func start_explosion_animation():
 	animation_tween = create_tween()
 	animation_tween.set_parallel(true)
 	
-	# Let the explosion sprite play its normal animation without scaling
+	# Start the explosion sprite animation
 	if explosion_sprite:
 		# Ensure the sprite is visible and at normal scale
 		explosion_sprite.modulate.a = 1.0
 		explosion_sprite.scale = Vector2.ONE
+		
+		# Reset animation to first frame and start playing
+		explosion_sprite.frame = 0
+		explosion_sprite.frame_progress = 0.0
+		explosion_sprite.play("default")
 		
 		# Fade out over time
 		animation_tween.tween_property(explosion_sprite, "modulate:a", 0.0, FADE_OUT_TIME)
