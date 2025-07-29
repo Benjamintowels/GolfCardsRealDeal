@@ -11,9 +11,7 @@ var animation_tween: Tween
 
 # Animation settings
 const EXPLOSION_DURATION: float = 1.5  # Total duration of explosion effect
-const SCALE_UP_TIME: float = 0.3       # Time to scale up
 const FADE_OUT_TIME: float = 1.2       # Time to fade out
-const MAX_SCALE: float = 2.5           # Maximum scale of explosion sprite
 const PARTICLE_DURATION: float = 2.0   # Duration of particle effects
 
 # Particle settings
@@ -80,20 +78,14 @@ func start_explosion_animation():
 	animation_tween = create_tween()
 	animation_tween.set_parallel(true)
 	
-	# Scale up animation
+	# Let the explosion sprite play its normal animation without scaling
 	if explosion_sprite:
-		# Start at small scale (but not zero so it's visible)
-		explosion_sprite.scale = Vector2.ONE * 0.1
+		# Ensure the sprite is visible and at normal scale
 		explosion_sprite.modulate.a = 1.0
-		
-		# Scale up quickly
-		animation_tween.tween_property(explosion_sprite, "scale", Vector2.ONE * MAX_SCALE, SCALE_UP_TIME)
-		animation_tween.tween_callback(_on_scale_up_complete).set_delay(SCALE_UP_TIME)
+		explosion_sprite.scale = Vector2.ONE
 		
 		# Fade out over time
-		animation_tween.tween_property(explosion_sprite, "modulate:a", 0.0, FADE_OUT_TIME).set_delay(SCALE_UP_TIME)
-		# Add a callback to track fade out progress
-		animation_tween.tween_callback(func(): print("Explosion fade out started")).set_delay(SCALE_UP_TIME)
+		animation_tween.tween_property(explosion_sprite, "modulate:a", 0.0, FADE_OUT_TIME)
 		
 	# Clean up after animation completes
 	animation_tween.tween_callback(_on_explosion_complete).set_delay(EXPLOSION_DURATION)
@@ -319,9 +311,6 @@ func _start_police_ragdoll(police: Node, distance: float):
 		# Fallback: just kill the Police
 		if police.has_method("die"):
 			police.die()
-
-func _on_scale_up_complete():
-	"""Called when the explosion sprite has finished scaling up"""
 
 func _on_explosion_complete():
 	"""Called when the entire explosion animation is complete"""
