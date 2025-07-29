@@ -462,28 +462,41 @@ func spawn_slashfx_at_position(grid_pos: Vector2i) -> void:
 	
 	# Get player's facing direction for proper orientation
 	var player_facing_left = false
+	
+	# Try the most reliable method first - using the player's facing direction system
 	if player_node and player_node.has_method("is_facing_left"):
 		player_facing_left = player_node.is_facing_left()
+		print("🎯 Using player.is_facing_left():", player_facing_left)
 	elif player_node and player_node.has_method("get_current_facing_direction"):
 		var facing_dir = player_node.get_current_facing_direction()
 		player_facing_left = facing_dir.x < 0
+		print("🎯 Using player.get_current_facing_direction():", facing_dir, "Facing left:", player_facing_left)
 	elif player_node and player_node.has_method("get_character_sprite"):
 		var sprite = player_node.get_character_sprite()
 		if sprite:
 			player_facing_left = sprite.flip_h
+			print("🎯 Using character sprite flip_h:", player_facing_left)
+	else:
+		# Fallback: try to determine from player's current position vs target position
+		var direction_to_target = grid_pos - player_grid_pos
+		player_facing_left = direction_to_target.x < 0
+		print("🎯 Fallback: Using direction to target:", direction_to_target, "Facing left:", player_facing_left)
 	
 	# Orient the SlashFX based on player's facing direction
-	if slashfx.has_method("update_animation_facing"):
+	if slashfx.has_method("update_animation_facing_player_direction"):
 		slashfx.update_animation_facing_player_direction(player_facing_left)
+		print("🎯 Called update_animation_facing_player_direction with facing_left:", player_facing_left)
 	elif slashfx is AnimatedSprite2D:
-		# Flip based on player's facing direction
-		slashfx.flip_h = player_facing_left
+		# Fallback: manually set flip properties
+		# The SlashFX has default flip_h = true and flip_v = true, so we need to account for this
+		slashfx.flip_h = not player_facing_left  # Invert the player's facing direction
 		slashfx.flip_v = false  # Keep vertical flip off for player-facing orientation
+		print("🎯 Manually set flip_h:", slashfx.flip_h, "flip_v:", slashfx.flip_v, "(accounting for default flipped state)")
 	
 	# Start the slash animation
 	if slashfx is AnimatedSprite2D:
 		slashfx.play("slash")
-		print("✓ Started SlashFX animation at position:", world_pos)
+		print("✓ Started SlashFX animation at position:", world_pos, "with facing_left:", player_facing_left)
 		
 		# Set up timer to clean up the SlashFX after animation
 		var animation_duration = 0.4  # 8 frames at 20 FPS = 0.4 seconds
