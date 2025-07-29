@@ -101,6 +101,9 @@ func _ready():
 		charge_beam.visible = false
 	if power_beam:
 		power_beam.visible = false
+		# Connect to visibility changed signal to ensure hit objects are reset
+		if not power_beam.visibility_changed.is_connected(_on_power_beam_visibility_changed):
+			power_beam.visibility_changed.connect(_on_power_beam_visibility_changed)
 	
 	# Register with WorldTurnManager
 	var course = get_tree().get_root().get_node_or_null("Course1")
@@ -321,9 +324,13 @@ func perform_power_beam_attack():
 	if charge_slash_sound:
 		charge_slash_sound.play()
 	
-	# Make PowerBeam visible
+	# Make PowerBeam visible and reset hit objects
 	if power_beam:
 		power_beam.visible = true
+		# Explicitly reset hit objects to allow new collisions
+		if power_beam.has_method("reset_hit_objects"):
+			power_beam.reset_hit_objects()
+			print("[BossEye] PowerBeam hit objects reset")
 		
 		# Get the animation player from PowerBeam
 		var power_beam_animation_player = power_beam.get_node_or_null("Pivot/Sprite2D/AnimationPlayer")
@@ -331,6 +338,11 @@ func perform_power_beam_attack():
 			# Reset to initial state first
 			power_beam_animation_player.play("RESET")
 			await power_beam_animation_player.animation_finished
+			
+			# Reset hit objects again after animation reset to ensure clean state
+			if power_beam.has_method("reset_hit_objects"):
+				power_beam.reset_hit_objects()
+				print("[BossEye] PowerBeam hit objects reset after animation reset")
 			
 			# Connect to animation finished signal
 			if not power_beam_animation_player.animation_finished.is_connected(_on_power_beam_animation_finished):
@@ -359,6 +371,13 @@ func _on_power_beam_animation_finished(anim_name: String):
 		current_state = State.IDLE
 		is_power_beam_attack = false
 		turn_completed.emit()
+
+func _on_power_beam_visibility_changed():
+	"""Called when the PowerBeam visibility changes"""
+	if power_beam and power_beam.visible:
+		print("[BossEye] PowerBeam became visible - ensuring hit objects are reset")
+		if power_beam.has_method("reset_hit_objects"):
+			power_beam.reset_hit_objects()
 
 func hide_beams():
 	"""Hide both ChargeBeam and PowerBeam"""

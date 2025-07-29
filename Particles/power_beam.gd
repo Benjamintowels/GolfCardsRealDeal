@@ -42,16 +42,24 @@ func _on_visibility_changed():
 
 func _on_area_entered(area: Area2D):
 	"""Handle collisions with objects when PowerBeam enters their collision area"""
+	print("=== POWERBEAM AREA ENTERED ===")
+	print("Area name:", area.name)
+	print("Area parent:", area.get_parent().name if area.get_parent() else "None")
+	print("Hit objects count:", hit_objects.size())
+	
 	var object = area.get_parent()
 	if not object:
+		print("✗ No parent object found")
 		return
 	
 	# Prevent duplicate damage to the same object
 	if object in hit_objects:
+		print("✗ Object already hit, skipping:", object.name)
 		return
 	
 	# Track this object to prevent duplicate hits
 	hit_objects.append(object)
+	print("✓ Added object to hit list:", object.name)
 	
 	print("=== POWERBEAM COLLISION ===")
 	print("Object name:", object.name)
