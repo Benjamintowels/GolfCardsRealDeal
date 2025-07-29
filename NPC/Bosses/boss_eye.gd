@@ -259,6 +259,11 @@ func perform_elemental_summon_attack():
 					var elemental_circle = elemental_circle_scene.instantiate()
 					if "boss_eye_ref" in elemental_circle:
 						elemental_circle.boss_eye_ref = self
+					# Randomly select element for this circle
+					var elements = ["ice", "fire", "electric"]
+					var selected_element = elements[randi() % elements.size()]
+					elemental_circle.element = selected_element
+					print("[BossEye] Selected element for ElementalCircle:", selected_element)
 					# Set position
 					elemental_circle.position = chosen_world_pos
 					# Add to CameraContainer/ObstacleLayer
@@ -279,8 +284,13 @@ func perform_elemental_summon_attack():
 					var elemental_circle = elemental_circle_scene.instantiate()
 					if "boss_eye_ref" in elemental_circle:
 						elemental_circle.boss_eye_ref = self
+					# Randomly select element for this circle
+					var elements = ["ice", "fire", "electric"]
+					var selected_element = elements[randi() % elements.size()]
+					elemental_circle.element = selected_element
+					print("[BossEye] Selected element for ElementalCircle:", selected_element)
 					# Set position
-						elemental_circle.position = chosen_world_pos
+					elemental_circle.position = chosen_world_pos
 					# Add to CameraContainer/ObstacleLayer
 					var obstacle_layer = course.get_node_or_null("CameraContainer/ObstacleLayer")
 					if obstacle_layer:

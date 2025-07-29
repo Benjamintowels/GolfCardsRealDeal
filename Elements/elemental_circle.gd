@@ -1,9 +1,11 @@
 extends Node2D
 
-# ElementalCircle: Handles elemental summon circle logic (Ice for now)
+# ElementalCircle: Handles elemental summon circle logic (Ice, Fire, Electric)
 
 @onready var area2d: Area2D = $Area2D
 @onready var ice_pulse: AudioStreamPlayer2D = $IcePulse
+@onready var flame_pulse: AudioStreamPlayer2D = $FlamePulse
+@onready var electric_pulse: AudioStreamPlayer2D = $ElectricPulse
 @onready var entrance_spark: AnimatedSprite2D = $EntranceSpark
 @onready var entrance_element: Sprite2D = $EntranceElement
 @onready var circle_sprite: Sprite2D = $ElementalCircleSprite
@@ -11,12 +13,27 @@ extends Node2D
 
 # Properties
 var height: int = 300
-var element: String = "ice" # For now, always ice
+var element: String = "ice" # Can be "ice", "fire", or "electric"
 var turns_remaining: int = 4
 var just_created: bool = true
 var is_animating: bool = false  # Track animation state to prevent conflicts
 
+# Element resources
 const ICE_ELEMENT = preload("res://Elements/Ice.tres")
+const FIRE_ELEMENT = preload("res://Elements/Fire.tres")
+const ELECTRIC_ELEMENT = preload("res://Elements/Electric.tres")
+
+# Element particle textures
+const FIRE_PARTICLE = preload("res://Particles/FireParticle.png")
+const ELECTRIC_PARTICLE = preload("res://Elements/Electric.png")
+const ICE_PARTICLE = preload("res://Particles/IceParticle.png")
+
+# Element colors for the circle sprite
+const ELEMENT_COLORS = {
+	"ice": Color.WHITE,  # Default white
+	"fire": Color.RED,
+	"electric": Color.YELLOW
+}
 
 func _ready():
 	add_to_group("Objects")
@@ -24,11 +41,22 @@ func _ready():
 	add_to_group("ysort_objects")  # Add to YSort system
 	# Set height property (for ball collision logic)
 	self.height = 300
+	
+	# Randomly select element if not already set (only if not set by BossEye)
+	if element == "ice":  # Default case, randomize
+		var elements = ["ice", "fire", "electric"]
+		element = elements[randi() % elements.size()]
+		print("[ElementalCircle] Randomly selected element:", element)
+	
+	# Apply element-specific visual effects
+	_apply_element_visuals()
+	
 	# Connect Area2D signals
 	area2d.body_entered.connect(_on_body_entered)
-	# Play IcePulse sound if element is ice
-	if element == "ice":
-		ice_pulse.play()
+	
+	# Play appropriate sound based on element
+	_play_element_sound()
+	
 	# Animate entrance (stub for now)
 	_animate_entrance()
 	# Deal 25 damage to any character in area on creation
@@ -90,12 +118,29 @@ func _apply_damage_to_character(character, amount):
 		character.take_damage(amount)
 
 func _apply_ice_to_ball(ball):
-	if ball.has_method("set_element"):
-		ball.set_element(ICE_ELEMENT)
-		print("[ElementalCircle] Applied ICE element to ball.")
+	"""Apply the appropriate element to the ball based on the circle's element"""
+	var element_resource = null
+	var element_name = ""
+	
+	match element:
+		"fire":
+			element_resource = FIRE_ELEMENT
+			element_name = "FIRE"
+		"electric":
+			element_resource = ELECTRIC_ELEMENT
+			element_name = "ELECTRIC"
+		"ice":
+			element_resource = ICE_ELEMENT
+			element_name = "ICE"
+		_:
+			element_resource = ICE_ELEMENT  # Default fallback
+			element_name = "ICE"
+	
+	if ball.has_method("set_element") and element_resource:
+		ball.set_element(element_resource)
+		print("[ElementalCircle] Applied " + element_name + " element to ball.")
 		_trigger_ball_interaction_animation()
-		if ice_pulse:
-			ice_pulse.play()
+		_play_element_sound()
 
 func _trigger_ball_interaction_animation():
 	"""Trigger a quick animation when a ball interacts with the elemental circle"""
@@ -145,3 +190,36 @@ func _animate_entrance():
 	entrance_element.visible = false
 	is_animating = false
 	# Only ElementalCircleSprite remains
+
+func _apply_element_visuals():
+	"""Apply element-specific visual effects"""
+	# Set circle sprite color
+	if element in ELEMENT_COLORS:
+		circle_sprite.modulate = ELEMENT_COLORS[element]
+	
+	# Set particle texture based on element
+	match element:
+		"fire":
+			particles.texture = FIRE_PARTICLE
+		"electric":
+			particles.texture = ELECTRIC_PARTICLE
+		"ice":
+			particles.texture = ICE_PARTICLE
+		_:
+			particles.texture = ICE_PARTICLE  # Default fallback
+
+func _play_element_sound():
+	"""Play the appropriate sound based on the element"""
+	match element:
+		"fire":
+			if flame_pulse:
+				flame_pulse.play()
+		"electric":
+			if electric_pulse:
+				electric_pulse.play()
+		"ice":
+			if ice_pulse:
+				ice_pulse.play()
+		_:
+			if ice_pulse:  # Default fallback
+				ice_pulse.play()
