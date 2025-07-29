@@ -3,10 +3,18 @@ extends BaseObstacle
 # LightPole collision and Y-sort system
 # Uses the same roof bounce system as trees and other obstacles
 
+var animation_player: AnimationPlayer
+
 func _ready():
 	# Add to groups for collision detection and optimization
 	add_to_group("collision_objects")
 	add_to_group("light_poles")
+	
+	# Get the animation player for electric flash effects
+	animation_player = get_node_or_null("AnimationPlayer")
+	
+	# Connect to child_entered_tree signal to detect when ElectricShock is added
+	child_entered_tree.connect(_on_child_entered_tree)
 	
 	# Set up Area2D collision detection
 	var area2d = get_node_or_null("Area2D")
@@ -80,3 +88,35 @@ func _handle_area_collision(projectile: Node2D):
 		# Let the projectile handle its own reflection (and sound)
 		if projectile.has_method("_reflect_off_object"):
 			projectile._reflect_off_object(self)
+
+func _on_child_entered_tree(node: Node):
+	"""Called when a child is added to this light pole"""
+	print("🔍 LightPole: Child added -", node.name, "Type:", node.get_class())
+	
+	# Check if the added child is an ElectricShock effect
+	if node.name == "ElectricShock" or node.get_script() and "electric_shock.gd" in str(node.get_script().get_path()):
+		print("⚡ LightPole: ElectricShock detected!")
+		_play_electric_flash_animation()
+	else:
+		print("🔍 LightPole: Not an ElectricShock - checking script path...")
+		if node.get_script():
+			print("🔍 LightPole: Script path:", node.get_script().get_path())
+
+func _play_electric_flash_animation():
+	"""Play the electric flash animation when the light pole gets electrified"""
+	print("🔍 LightPole: Attempting to play electric_flash animation")
+	print("🔍 LightPole: AnimationPlayer found:", animation_player != null)
+	
+	if animation_player:
+		print("🔍 LightPole: AnimationPlayer has electric_flash animation:", animation_player.has_animation("electric_flash"))
+		print("🔍 LightPole: Available animations:", animation_player.get_animation_list())
+	
+	if animation_player and animation_player.has_animation("electric_flash"):
+		print("⚡ LightPole electrified - playing electric_flash animation")
+		animation_player.play("electric_flash")
+	else:
+		print("✗ LightPole: AnimationPlayer or electric_flash animation not found")
+		if not animation_player:
+			print("✗ LightPole: AnimationPlayer is null")
+		elif not animation_player.has_animation("electric_flash"):
+			print("✗ LightPole: electric_flash animation not found in AnimationPlayer")

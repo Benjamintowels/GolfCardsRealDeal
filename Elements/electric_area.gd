@@ -113,23 +113,36 @@ func _on_monitoring_timeout():
 
 func _is_valid_target(target) -> bool:
 	"""Check if a target can be electrified"""
+	print("🔍 ElectricArea: Checking target:", target.name, "Type:", target.get_class())
+	
 	# For Area2D nodes, check their parent for groups
 	var target_to_check = target
 	if target is Area2D and target.get_parent():
 		target_to_check = target.get_parent()
+		print("🔍 ElectricArea: Target is Area2D, checking parent:", target_to_check.name)
 	
 	# Exclude the player from being a target
 	if target_to_check.is_in_group("players"):
+		print("✗ ElectricArea: Target is player, excluding")
 		return false
 	
 	# Check if target is in valid groups
 	if target_to_check.is_in_group("NPC") or target_to_check.is_in_group("Character"):
+		print("✓ ElectricArea: Target is in NPC or Character group")
 		return true
 	
 	# Check by name for specific objects
 	if target_to_check.name.contains("OilDrum") or target_to_check.name.contains("LightPole"):
+		print("✓ ElectricArea: Target is OilDrum or LightPole by name")
 		return true
 	
+	# Check if target is in light_poles group
+	if target_to_check.is_in_group("light_poles"):
+		print("✓ ElectricArea: Target is in light_poles group")
+		return true
+	
+	print("✗ ElectricArea: Target not valid for electrification")
+	print("🔍 ElectricArea: Target groups:", target_to_check.get_groups())
 	return false
 
 func _create_electric_arc_to_target(target):
@@ -182,23 +195,29 @@ func _apply_electric_shock_to_target(target):
 		print("✗ Failed to instantiate ElectricShock")
 		return
 	
+	# For LightPoles, add the shock to the root LightPole node, not the Area2D child
+	var target_to_shock = target
+	if target.name == "Area2D" and target.get_parent() and target.get_parent().name.contains("LightPole"):
+		target_to_shock = target.get_parent()
+		print("🔧 ElectricArea: Redirecting shock to LightPole root node:", target_to_shock.name)
+	
 	# Add the shock to the target's scene tree
-	if target.has_method("add_child"):
-		target.add_child(electric_shock)
-		print("✓ Added ElectricShock as child of target")
+	if target_to_shock.has_method("add_child"):
+		target_to_shock.add_child(electric_shock)
+		print("✓ Added ElectricShock as child of target:", target_to_shock.name)
 	else:
 		# Fallback: add to target's parent
-		target.get_parent().add_child(electric_shock)
-		electric_shock.global_position = target.global_position
+		target_to_shock.get_parent().add_child(electric_shock)
+		electric_shock.global_position = target_to_shock.global_position
 		print("✓ Added ElectricShock to target's parent")
 	
-	print("✓ Applied ElectricShock to target: ", target.name)
+	print("✓ Applied ElectricShock to target: ", target_to_shock.name)
 	print("Shock position:", electric_shock.global_position)
 	
 	# Apply damage to target if it has a take_damage method
-	if target.has_method("take_damage"):
-		target.take_damage(20)
-		print("Applied 20 damage to target: ", target.name)
+	if target_to_shock.has_method("take_damage"):
+		target_to_shock.take_damage(20)
+		print("Applied 20 damage to target: ", target_to_shock.name)
 
 func deactivate_electric_area():
 	"""Deactivate the electric area - called when ball lands"""

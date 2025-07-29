@@ -1,4 +1,4 @@
-[gd_scene load_steps=5 format=3 uid="uid://de5tj63xsix3u"]
+[gd_scene load_steps=8 format=3 uid="uid://de5tj63xsix3u"]
 
 [ext_resource type="Script" uid="uid://bpeyd12xabola" path="res://Obstacles/light_pole.gd" id="1_45hul"]
 [ext_resource type="Texture2D" uid="uid://dd0anso3rssp7" path="res://Obstacles/Lightpole.png" id="2_45hul"]
@@ -6,6 +6,42 @@
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_7tjvc"]
 radius = 4.34833
+
+[sub_resource type="Animation" id="Animation_mx1vn"]
+resource_name = "electric_flash"
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("PointLight2D:energy")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.0666667, 0.166667, 0.233333, 0.333333, 0.4, 0.466667, 0.7, 1),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 0,
+"values": [0.53, 0.06, 1.48, 0.31, 0.06, 1.48, 0.31, 0.53, 0.53]
+}
+
+[sub_resource type="Animation" id="Animation_q13gr"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("PointLight2D:energy")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [0.53]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_10o4a"]
+_data = {
+&"RESET": SubResource("Animation_q13gr"),
+&"electric_flash": SubResource("Animation_mx1vn")
+}
 
 [node name="LightPole" type="Node2D"]
 script = ExtResource("1_45hul")
@@ -35,3 +71,8 @@ energy = 0.53
 shadow_enabled = true
 texture = ExtResource("3_mx1vn")
 texture_scale = 3.94
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+libraries = {
+&"": SubResource("AnimationLibrary_10o4a")
+}
