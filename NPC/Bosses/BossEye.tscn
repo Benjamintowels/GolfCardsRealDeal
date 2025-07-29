@@ -129,11 +129,10 @@ position = Vector2(0, 71.6657)
 visible = false
 position = Vector2(0, -31.3537)
 scale = Vector2(3.36119, 3.0877)
-frame_progress = 0.482989
+frame_progress = 0.874182
 
 [node name="PowerBeam" parent="BossEyeSprite" instance=ExtResource("5_rxn61")]
-visible = false
-position = Vector2(-238.125, 131.387)
+position = Vector2(-1.49763, 37.3259)
 scale = Vector2(1.07199, 1.0687)
 
 [node name="AnimationPlayer" type="AnimationPlayer" parent="."]

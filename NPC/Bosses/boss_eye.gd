@@ -326,8 +326,12 @@ func perform_power_beam_attack():
 		power_beam.visible = true
 		
 		# Get the animation player from PowerBeam
-		var power_beam_animation_player = power_beam.get_node_or_null("Sprite2D/AnimationPlayer")
+		var power_beam_animation_player = power_beam.get_node_or_null("Pivot/Sprite2D/AnimationPlayer")
 		if power_beam_animation_player:
+			# Reset to initial state first
+			power_beam_animation_player.play("RESET")
+			await power_beam_animation_player.animation_finished
+			
 			# Connect to animation finished signal
 			if not power_beam_animation_player.animation_finished.is_connected(_on_power_beam_animation_finished):
 				power_beam_animation_player.animation_finished.connect(_on_power_beam_animation_finished)
@@ -339,7 +343,7 @@ func perform_power_beam_attack():
 			if power_slash_sound:
 				power_slash_sound.play()
 		else:
-			print("[BossEye] ERROR: PowerBeam AnimationPlayer not found!")
+			print("[BossEye] ERROR: PowerBeam AnimationPlayer not found at Pivot/Sprite2D/AnimationPlayer!")
 			# Fallback - just end turn
 			hide_beams()
 			turn_completed.emit()
