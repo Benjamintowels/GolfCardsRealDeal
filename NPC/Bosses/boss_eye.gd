@@ -10,6 +10,11 @@ signal turn_completed
 @onready var base_collision_area: Area2D = $BaseCollisionArea
 @onready var push_sound: AudioStreamPlayer2D = $Push
 @onready var move_sound: AudioStreamPlayer2D = $BossEyeMove
+@onready var charge_ready_sound: AudioStreamPlayer2D = $ChargeReady
+@onready var charge_slash_sound: AudioStreamPlayer2D = $ChargeSlash
+@onready var power_slash_sound: AudioStreamPlayer2D = $PowerSlash
+@onready var charge_beam: AnimatedSprite2D = $BossEyeSprite/ChargeBeam
+@onready var power_beam: Node2D = $BossEyeSprite/PowerBeam
 # Blink textures
 @onready var boss_eye_closed: Texture2D = preload("res://NPC/Bosses/BossEyeClosed.png")
 @onready var boss_eye_opening1: Texture2D = preload("res://NPC/Bosses/BossEyeOpening1.png")
@@ -46,6 +51,11 @@ var flash_tween: Tween
 # Blink effect flag
 var is_blinking: bool = false
 
+# Attack phase properties
+var turn_count: int = 0
+var is_charging: bool = false
+var is_power_beam_attack: bool = false
+
 # Collision and height properties
 # base_collision_area is already declared above
 
@@ -53,7 +63,7 @@ var is_blinking: bool = false
 var boss_health_bar: Control = null
 
 # State Machine
-enum State {IDLE, ATTACKING, DEAD}
+enum State {IDLE, ATTACKING, DEAD, CHARGING, POWER_BEAM}
 var current_state: State = State.IDLE
 
 # Add BossHand references
@@ -85,6 +95,12 @@ func _ready():
 	
 	# Initialize flash tween
 	flash_tween = create_tween()
+	
+	# Initialize beam nodes
+	if charge_beam:
+		charge_beam.visible = false
+	if power_beam:
+		power_beam.visible = false
 	
 	# Register with WorldTurnManager
 	var course = get_tree().get_root().get_node_or_null("Course1")
@@ -179,7 +195,25 @@ func take_turn():
 	if is_dead or is_frozen:
 		turn_completed.emit()
 		return
-	print("BossEye taking turn")
+	
+	turn_count += 1
+	print("BossEye taking turn", turn_count)
+	
+	# Determine attack phase based on turn count
+	var phase = (turn_count - 1) % 4  # 0,1 = normal, 2 = charging, 3 = power beam
+	
+	if phase == 0 or phase == 1:
+		# Normal Elemental Summon Circle Attack (turns 1-2, 5-6, etc.)
+		perform_elemental_summon_attack()
+	elif phase == 2:
+		# Charging Phase (turn 3, 7, etc.)
+		perform_charging_phase()
+	elif phase == 3:
+		# Power Beam Attack (turn 4, 8, etc.)
+		perform_power_beam_attack()
+
+func perform_elemental_summon_attack():
+	"""Perform the normal elemental summon circle attack"""
 	if move_sound:
 		move_sound.play()
 
@@ -210,19 +244,8 @@ func take_turn():
 				print("[BossEye] Summoning ElementalCircle at grid:", player_grid_pos + chosen_offset, "world_pos:", chosen_world_pos)
 				# Animate BossHand attack sequence
 				if boss_hand_right and boss_hand_right.is_alive:
-					# Camera tracking logic (REMOVED - do not move camera during boss attack)
-					# var camera_manager = course.camera_manager if "camera_manager" in course else null
-					# if camera_manager:
-					# 	# Move camera to BossHand before attack
-					# 	camera_manager.create_camera_tween(boss_hand_right.global_position, 0.4)
-					# 	# Tween camera to follow BossHand to target
-					# 	await get_tree().create_timer(0.25).timeout
-					# 	camera_manager.create_camera_tween(chosen_world_pos, 0.4)
 					# Animate hand
 					boss_hand_right.animate_attack(chosen_world_pos, func():
-						# After attack, return camera to player (REMOVED)
-						# if camera_manager and player_node:
-						# 	camera_manager.create_camera_tween(player_node.global_position, 0.6)
 						# This callback is after hand returns, but we want to create the ElementalCircle after 1s of hand_smash
 						turn_completed.emit()
 					)
@@ -268,6 +291,79 @@ func take_turn():
 						elemental_circle._animate_entrance()
 					turn_completed.emit()
 			return # Prevent double emit
+
+func perform_charging_phase():
+	"""Perform the charging phase - just charge and end turn"""
+	print("[BossEye] Entering charging phase")
+	current_state = State.CHARGING
+	is_charging = true
+	
+	# Make ChargeBeam visible
+	if charge_beam:
+		charge_beam.visible = true
+		if charge_beam.has_method("play"):
+			charge_beam.play()
+	
+	# Play charge ready sound
+	if charge_ready_sound:
+		charge_ready_sound.play()
+	
+	# Just end turn - no movement or attack
+	turn_completed.emit()
+
+func perform_power_beam_attack():
+	"""Perform the power beam attack"""
+	print("[BossEye] Performing power beam attack")
+	current_state = State.POWER_BEAM
+	is_power_beam_attack = true
+	
+	# Play charge slash sound
+	if charge_slash_sound:
+		charge_slash_sound.play()
+	
+	# Make PowerBeam visible
+	if power_beam:
+		power_beam.visible = true
+		
+		# Get the animation player from PowerBeam
+		var power_beam_animation_player = power_beam.get_node_or_null("Sprite2D/AnimationPlayer")
+		if power_beam_animation_player:
+			# Connect to animation finished signal
+			if not power_beam_animation_player.animation_finished.is_connected(_on_power_beam_animation_finished):
+				power_beam_animation_player.animation_finished.connect(_on_power_beam_animation_finished)
+			
+			# Start the beam animation
+			power_beam_animation_player.play("beam")
+			
+			# Play power slash sound when animation starts
+			if power_slash_sound:
+				power_slash_sound.play()
+		else:
+			print("[BossEye] ERROR: PowerBeam AnimationPlayer not found!")
+			# Fallback - just end turn
+			hide_beams()
+			turn_completed.emit()
+	else:
+		print("[BossEye] ERROR: PowerBeam not found!")
+		turn_completed.emit()
+
+func _on_power_beam_animation_finished(anim_name: String):
+	"""Called when the power beam animation finishes"""
+	if anim_name == "beam":
+		print("[BossEye] Power beam animation finished")
+		hide_beams()
+		current_state = State.IDLE
+		is_power_beam_attack = false
+		turn_completed.emit()
+
+func hide_beams():
+	"""Hide both ChargeBeam and PowerBeam"""
+	if charge_beam:
+		charge_beam.visible = false
+		if charge_beam.has_method("stop"):
+			charge_beam.stop()
+	if power_beam:
+		power_beam.visible = false
 
 func get_grid_position() -> Vector2i:
 	"""Get the current grid position"""
