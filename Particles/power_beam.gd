@@ -28,6 +28,18 @@ func _ready():
 	else:
 		print("✗ ERROR: PowerBeam Area2D not found!")
 
+func reset_hit_objects():
+	"""Reset the hit objects list to allow new collisions"""
+	hit_objects.clear()
+	print("✓ PowerBeam hit_objects list reset")
+
+func _on_visibility_changed():
+	"""Called when the PowerBeam becomes visible or invisible"""
+	if visible:
+		# Reset hit objects when becoming visible to allow new collisions
+		reset_hit_objects()
+		print("✓ PowerBeam became visible - reset hit objects")
+
 func _on_area_entered(area: Area2D):
 	"""Handle collisions with objects when PowerBeam enters their collision area"""
 	var object = area.get_parent()
