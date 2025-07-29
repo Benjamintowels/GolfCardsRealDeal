@@ -1198,7 +1198,7 @@ func create_slot_container() -> Control:
 
 func is_club_card(card_data: CardData) -> bool:
 	"""Check if a card is a club card based on its name"""
-	var club_names = ["Putter", "Wood", "Wooden", "Iron", "Hybrid", "Driver", "PitchingWedge", "Fire Club", "Ice Club", "GrenadeLauncherClubCard"]
+	var club_names = ["Putter", "Wood", "Wooden", "Iron", "Hybrid", "Driver", "PitchingWedge", "Fire Club", "Ice Club", "ElectricClub", "GrenadeLauncherClubCard"]
 	return club_names.has(card_data.name)
 
 func show_card_info(card_data: CardData):

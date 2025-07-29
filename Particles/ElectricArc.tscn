@@ -1,0 +1,88 @@
+[gd_scene load_steps=14 format=3 uid="uid://b0atiyqhnutng"]
+
+[ext_resource type="Texture2D" uid="uid://pwsqskdb5l04" path="res://Particles/ElectricArc.png" id="1_eeavv"]
+[ext_resource type="Script" uid="uid://b2trxuknnk030" path="res://Particles/electric_arc.gd" id="2_0db5h"]
+[ext_resource type="AudioStream" uid="uid://d1qvgge17vwu5" path="res://Sounds/Shocker.mp3" id="3_jchgv"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_0db5h"]
+atlas = ExtResource("1_eeavv")
+region = Rect2(0, 0, 300, 214)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_jchgv"]
+atlas = ExtResource("1_eeavv")
+region = Rect2(300, 0, 300, 214)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_f1a3k"]
+atlas = ExtResource("1_eeavv")
+region = Rect2(600, 0, 300, 214)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_10mlb"]
+atlas = ExtResource("1_eeavv")
+region = Rect2(900, 0, 300, 214)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_o5n3h"]
+atlas = ExtResource("1_eeavv")
+region = Rect2(1200, 0, 300, 214)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_hsq85"]
+atlas = ExtResource("1_eeavv")
+region = Rect2(1500, 0, 300, 214)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_4cqhc"]
+atlas = ExtResource("1_eeavv")
+region = Rect2(1800, 0, 300, 214)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_0v6nb"]
+atlas = ExtResource("1_eeavv")
+region = Rect2(2100, 0, 300, 214)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_cb0ma"]
+atlas = ExtResource("1_eeavv")
+region = Rect2(2400, 0, 300, 214)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_idg8d"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_0db5h")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_jchgv")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_f1a3k")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_10mlb")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_o5n3h")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_hsq85")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_4cqhc")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_0v6nb")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_cb0ma")
+}],
+"loop": false,
+"name": &"default",
+"speed": 24.0
+}]
+
+[node name="ElectricArc" type="AnimatedSprite2D"]
+rotation = -0.705113
+sprite_frames = SubResource("SpriteFrames_idg8d")
+frame = 8
+frame_progress = 1.0
+script = ExtResource("2_0db5h")
+
+[node name="ElectricArc" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("3_jchgv")
+pitch_scale = 1.51
+autoplay = true

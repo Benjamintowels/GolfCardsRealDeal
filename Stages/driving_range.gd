@@ -147,6 +147,7 @@ var available_club_cards: Array[CardData] = [
 	preload("res://Cards/PitchingWedge.tres"),
 	preload("res://Cards/FireClub.tres"),
 	preload("res://Cards/IceClub.tres"),
+	preload("res://Cards/ElectricClub.tres"),
 	preload("res://Cards/GrenadeLauncherClubCard.tres")
 ]
 

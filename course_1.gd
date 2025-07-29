@@ -3534,6 +3534,40 @@ func _on_ball_launched(ball: Node2D):
 			# Ice Club special effect: Can pass through water tiles
 			ball.ice_club_active = true
 			print("Ice Club special effect: Can pass through water tiles")
+		
+		elif game_state_manager.get_selected_club() == "ElectricClub":
+			# Apply Electric element to the ball
+			var electric_element = preload("res://Elements/Electric.tres")
+			ball.set_element(electric_element)
+			print("ElectricClub selected - applying Electric element to ball")
+			
+			# Enable electric area and activate chain lightning
+			print("=== ELECTRIC AREA ACTIVATION DEBUG ===")
+			var electric_area = ball.get_node_or_null("Shadow/ElectricArea")
+			print("ElectricArea found:", electric_area != null)
+			if electric_area:
+				print("ElectricArea name:", electric_area.name)
+				print("ElectricArea has activate_electric_area method:", electric_area.has_method("activate_electric_area"))
+				if electric_area.has_method("activate_electric_area"):
+					print("Calling activate_electric_area()")
+					electric_area.activate_electric_area()
+					print("ElectricClub special effect: Chain lightning activated")
+				else:
+					print("✗ ElectricArea missing activate_electric_area method")
+			else:
+				print("✗ ElectricArea not found in ball")
+				print("Ball children:")
+				for child in ball.get_children():
+					print("  -", child.name, "Type:", child.get_class())
+				print("Shadow children:")
+				var shadow = ball.get_node_or_null("Shadow")
+				if shadow:
+					for child in shadow.get_children():
+						print("  -", child.name, "Type:", child.get_class())
+			
+			# Electric Club special effect: Chain lightning system
+			ball.electric_club_active = true
+			print("ElectricClub special effect: Chain lightning system active")
 
 func _on_launch_phase_entered():
 	game_state_manager.set_game_phase("launch")

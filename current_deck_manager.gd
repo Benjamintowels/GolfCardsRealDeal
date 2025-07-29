@@ -27,7 +27,8 @@ var starter_deck: Array[CardData] = [
 	preload("res://Cards/BlockB.tres"),
 	
 	# Club cards - only Wooden club
-	preload("res://Cards/Wooden.tres")         # Wooden club only
+	preload("res://Cards/Wooden.tres"),        # Wooden club only
+	preload("res://Cards/ElectricClub.tres")   # ElectricClub for testing
 ]
 
 # Fighter deck for testing all attack mechanics and NPC combat
@@ -79,7 +80,8 @@ var fighter_deck: Array[CardData] = [
 	preload("res://Cards/PitchingWedge.tres"), # PitchingWedge
 	preload("res://Cards/Iron.tres"),          # Iron
 	preload("res://Cards/Wood.tres"),          # Wood
-	preload("res://Cards/Driver.tres")         # Driver
+	preload("res://Cards/Driver.tres"),        # Driver
+	preload("res://Cards/ElectricClub.tres")   # ElectricClub for testing
 ]
 
 func _ready():

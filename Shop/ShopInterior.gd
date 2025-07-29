@@ -170,6 +170,7 @@ func load_shop_items():
 		# Club cards
 		preload("res://Cards/FireClub.tres"),
 		preload("res://Cards/IceClub.tres"),
+		preload("res://Cards/ElectricClub.tres"),
 		preload("res://Cards/Putter.tres"),
 		preload("res://Cards/Iron.tres"),
 		preload("res://Cards/Wood.tres"),
@@ -224,7 +225,7 @@ func generate_shop_items():
 func get_club_cards() -> Array[CardData]:
 	"""Get all available club cards"""
 	var club_cards: Array[CardData] = []
-	var club_names = ["Putter", "Wood", "Wooden", "Iron", "Hybrid", "Driver", "PitchingWedge", "Fire Club", "Ice Club"]
+	var club_names = ["Putter", "Wood", "Wooden", "Iron", "Hybrid", "Driver", "PitchingWedge", "Fire Club", "Ice Club", "ElectricClub"]
 	
 	for card in available_cards:
 		if club_names.has(card.name):
@@ -741,7 +742,7 @@ func is_club_card(card_data: CardData) -> bool:
 	if card_data.has_method("is_club_card"):
 		return card_data.is_club_card()
 	# Use the same club names list as RewardSelectionDialog
-	var club_names = ["Putter", "Wood", "Wooden", "Iron", "Hybrid", "Driver", "PitchingWedge", "Fire Club", "Ice Club", "GrenadeLauncherClubCard"]
+	var club_names = ["Putter", "Wood", "Wooden", "Iron", "Hybrid", "Driver", "PitchingWedge", "Fire Club", "Ice Club", "ElectricClub", "GrenadeLauncherClubCard"]
 	return club_names.has(card_data.name)
 
 
@@ -831,7 +832,7 @@ func check_bag_slots(item: Resource, item_type: String) -> bool:
 	if item_type == "card":
 		var card_data = item as CardData
 		# Check if it's a club card by name
-		var club_names = ["Putter", "Wood", "Wooden", "Iron", "Hybrid", "Driver", "PitchingWedge", "Fire Club", "Ice Club"]
+		var club_names = ["Putter", "Wood", "Wooden", "Iron", "Hybrid", "Driver", "PitchingWedge", "Fire Club", "Ice Club", "ElectricClub"]
 		if club_names.has(card_data.name):
 			# Check club card slots
 			var club_cards = bag.get_club_cards()

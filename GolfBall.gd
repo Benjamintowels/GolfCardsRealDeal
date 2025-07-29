@@ -142,6 +142,7 @@ var element_sprite: Sprite2D = null  # Reference to the Element sprite node
 # Elemental club effect variables
 var fire_club_active: bool = false  # Fire Club special effects
 var ice_club_active: bool = false  # Ice Club special effects
+var electric_club_active: bool = false  # Electric Club special effects
 
 # Fire spreading system variables
 var last_fire_tile: Vector2i = Vector2i.ZERO  # Track the last tile that caught fire
@@ -1008,6 +1009,14 @@ func update_visual_effects():
 			# Add a subtle blue tint that pulses
 			var blue_tint = sin(Time.get_ticks_msec() * 0.003) * 0.1 + 0.9
 			element_sprite.modulate.b = blue_tint
+		elif current_element and current_element.name == "Electric":
+			# Add electric sparking effect
+			var spark = sin(Time.get_ticks_msec() * 0.02) * 0.2 + 0.8
+			element_sprite.modulate.a = spark
+			# Add a yellow electric glow that pulses
+			var electric_glow = sin(Time.get_ticks_msec() * 0.015) * 0.3 + 0.7
+			element_sprite.modulate.r = electric_glow
+			element_sprite.modulate.g = electric_glow
 
 	# Add rolling-specific effects
 	if is_rolling:
@@ -1412,6 +1421,12 @@ func reset_shot_effects() -> void:
 	# Reset elemental club effects
 	fire_club_active = false
 	ice_club_active = false
+	electric_club_active = false
+	
+	# Deactivate ElectricArea when ball lands
+	var electric_area = get_node_or_null("Shadow/ElectricArea")
+	if electric_area and electric_area.has_method("deactivate_electric_area"):
+		electric_area.deactivate_electric_area()
 	
 	# Reset fire spreading system
 	last_fire_tile = Vector2i.ZERO
@@ -2176,6 +2191,7 @@ func reset_ball_state() -> void:
 	explosive_shot_active = false
 	fire_club_active = false
 	ice_club_active = false
+	electric_club_active = false
 	
 	# Reset element system
 	current_element = null

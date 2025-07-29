@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=3 uid="uid://ccplraisoursi"]
+[gd_scene load_steps=15 format=3 uid="uid://ccplraisoursi"]
 
 [ext_resource type="Texture2D" uid="uid://cvys8vcc4i6hi" path="res://GolfBall.png" id="1_c77dq"]
 [ext_resource type="Script" uid="uid://bn6hvthphgj16" path="res://GolfBall.gd" id="1_coy0q"]
@@ -11,6 +11,7 @@
 [ext_resource type="AudioStream" uid="uid://b2hhspkeba64h" path="res://Sounds/Icy.mp3" id="9_icpn2"]
 [ext_resource type="AudioStream" uid="uid://tu47pjuwugnn" path="res://Sounds/Snow.mp3" id="10_7npbr"]
 [ext_resource type="AudioStream" uid="uid://01xbvo1dq6r0" path="res://Sounds/TrunkThunk.mp3" id="11_wv1ht"]
+[ext_resource type="PackedScene" uid="uid://tdket6rruuc3" path="res://Elements/ElectricArea.tscn" id="12_kccih"]
 
 [sub_resource type="CompressedTexture2D" id="CompressedTexture2D_k5viu"]
 load_path = "res://.godot/imported/GolfBall.png-0516230eae0ffabe6c6d009b86188c92.ctex"
@@ -19,6 +20,7 @@ load_path = "res://.godot/imported/GolfBall.png-0516230eae0ffabe6c6d009b86188c92
 radius = 7.24983
 
 [node name="GolfBall" type="CharacterBody2D"]
+texture_filter = 1
 script = ExtResource("1_coy0q")
 
 [node name="Shadow" type="Sprite2D" parent="."]
@@ -30,6 +32,11 @@ scale = Vector2(0.84, 0.35)
 texture = SubResource("CompressedTexture2D_k5viu")
 
 [node name="YSortPoint" type="Node2D" parent="Shadow"]
+
+[node name="ElectricArea" parent="Shadow" instance=ExtResource("12_kccih")]
+visible = false
+position = Vector2(0, -11.4286)
+scale = Vector2(1.19048, 2.85714)
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 z_index = 1

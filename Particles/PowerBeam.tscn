@@ -385,6 +385,8 @@ scale = Vector2(9.6578, 1.04145)
 shape = SubResource("RectangleShape2D_7nonl")
 
 [node name="EnergyPort" type="AnimatedSprite2D" parent="."]
+texture_filter = 1
+position = Vector2(0, -46)
 sprite_frames = SubResource("SpriteFrames_22b3g")
 frame = 10
 frame_progress = 0.50951

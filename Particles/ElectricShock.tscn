@@ -1,0 +1,113 @@
+[gd_scene load_steps=17 format=3 uid="uid://dh3ye7l48qw5p"]
+
+[ext_resource type="Texture2D" uid="uid://cjf1vpaq7jq87" path="res://Particles/ElectricShock.png" id="1_2qxka"]
+[ext_resource type="AudioStream" uid="uid://2wqcyuw34boe" path="res://Sounds/Shock.mp3" id="2_fwu64"]
+[ext_resource type="Script" uid="uid://wi07muk0qguo" path="res://Particles/electric_shock.gd" id="2_gad6h"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_fwu64"]
+atlas = ExtResource("1_2qxka")
+region = Rect2(0, 0, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_gad6h"]
+atlas = ExtResource("1_2qxka")
+region = Rect2(100, 0, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_7mqds"]
+atlas = ExtResource("1_2qxka")
+region = Rect2(200, 0, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_d4vrb"]
+atlas = ExtResource("1_2qxka")
+region = Rect2(300, 0, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_5248o"]
+atlas = ExtResource("1_2qxka")
+region = Rect2(400, 0, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ieb5m"]
+atlas = ExtResource("1_2qxka")
+region = Rect2(500, 0, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_y3nm1"]
+atlas = ExtResource("1_2qxka")
+region = Rect2(600, 0, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_pwr7s"]
+atlas = ExtResource("1_2qxka")
+region = Rect2(700, 0, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_sv3pf"]
+atlas = ExtResource("1_2qxka")
+region = Rect2(800, 0, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_x0ycp"]
+atlas = ExtResource("1_2qxka")
+region = Rect2(900, 0, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_b36e3"]
+atlas = ExtResource("1_2qxka")
+region = Rect2(1000, 0, 100, 100)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_hrjbr"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_fwu64")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_gad6h")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_7mqds")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_d4vrb")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_5248o")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ieb5m")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_y3nm1")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_pwr7s")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_sv3pf")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_x0ycp")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_b36e3")
+}],
+"loop": true,
+"name": &"default",
+"speed": 24.0
+}]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_2qxka"]
+radius = 13.8279
+
+[node name="ElectricShock" type="AnimatedSprite2D"]
+texture_filter = 1
+scale = Vector2(1.3937, 1.3937)
+sprite_frames = SubResource("SpriteFrames_hrjbr")
+frame = 9
+frame_progress = 0.842683
+script = ExtResource("2_gad6h")
+
+[node name="Area2D" type="Area2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D"]
+scale = Vector2(6.175, 6.175)
+shape = SubResource("CircleShape2D_2qxka")
+
+[node name="Shock" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("2_fwu64")
+volume_db = -0.8
+pitch_scale = 1.96
+autoplay = true
