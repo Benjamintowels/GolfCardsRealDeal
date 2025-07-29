@@ -4,7 +4,7 @@ extends Node2D
 # Handles scaling animation, sound effects, particle systems, and radius damage
 
 # Animation variables
-var explosion_sprite: Sprite2D
+var explosion_sprite: AnimatedSprite2D
 var explosion_sound: AudioStreamPlayer2D
 var particle_system: GPUParticles2D
 var animation_tween: Tween

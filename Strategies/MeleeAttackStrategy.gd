@@ -98,11 +98,11 @@ func perform_kickb_attack_direct(target_pos: Vector2i) -> void:
 		print("Found NPC at target position:", npc.name)
 		perform_kickb_attack_on_npc(npc, target_pos)
 	else:
-		# Check for oil drum at target position
-		var oil_drum = get_oil_drum_at_position(target_pos)
-		if oil_drum:
-			print("Found oil drum at target position")
-			perform_kickb_attack_on_oil_drum(oil_drum, target_pos)
+		# Check for destructible object at target position
+		var destructible = get_destructible_at_position(target_pos)
+		if destructible:
+			print("Found destructible object at target position:", destructible.name)
+			perform_kickb_attack_on_destructible(destructible, target_pos)
 		else:
 			print("No target found at position:", target_pos)
 			handle_attack_completion()
@@ -178,33 +178,37 @@ func perform_kickb_attack_on_npc(npc: Node, target_pos: Vector2i) -> void:
 	
 	handle_attack_completion()
 
-func perform_kickb_attack_on_oil_drum(oil_drum: Node, target_pos: Vector2i) -> void:
-	"""Perform KickB attack on an oil drum"""
-	print("Performing KickB attack on oil drum")
+func perform_kickb_attack_on_destructible(destructible: Node, target_pos: Vector2i) -> void:
+	"""Perform KickB attack on a destructible object"""
+	print("Performing KickB attack on destructible object:", destructible.name)
 	
-	# Check if oil drum is destroyed
+	# Check if destructible is destroyed
 	var is_destroyed = false
-	if oil_drum.has_method("get_is_destroyed"):
-		is_destroyed = oil_drum.get_is_destroyed()
-	elif oil_drum.has_method("is_destroyed"):
-		is_destroyed = oil_drum.is_destroyed()
-	elif "is_destroyed" in oil_drum:
-		is_destroyed = oil_drum.is_destroyed
+	if destructible.has_method("get_is_destroyed"):
+		is_destroyed = destructible.get_is_destroyed()
+	elif destructible.has_method("is_destroyed"):
+		is_destroyed = destructible.is_destroyed()
+	elif "is_destroyed" in destructible:
+		is_destroyed = destructible.is_destroyed
 	
 	if is_destroyed:
-		print("Oil drum is already destroyed, skipping attack")
+		print("Destructible object is already destroyed, skipping attack")
 		handle_attack_completion()
 		return
 	
-	# Deal damage to the oil drum
-	if oil_drum.has_method("take_damage"):
-		oil_drum.take_damage(attack_damage)
-		print("Dealt", attack_damage, "damage to oil drum")
+	# Deal damage to the destructible object
+	if destructible.has_method("take_damage"):
+		destructible.take_damage(attack_damage)
+		print("Dealt", attack_damage, "damage to destructible object:", destructible.name)
 		
-		# Apply knockback
-		apply_knockback_to_oil_drum(oil_drum, target_pos)
+		# Apply knockback if supported
+		if destructible.has_method("push_back"):
+			apply_knockback_to_oil_drum(destructible, target_pos)
+		
+		# Emit signal for attack completion
+		emit_signal("npc_attacked", destructible, attack_damage)
 	else:
-		print("Oil drum does not have take_damage method")
+		print("Destructible object does not have take_damage method:", destructible.name)
 	
 	handle_attack_completion()
 
@@ -244,11 +248,11 @@ func perform_punchb_attack_direct(target_pos: Vector2i) -> void:
 		print("Found NPC at target position:", npc.name)
 		perform_punchb_attack_on_npc(npc, target_pos)
 	else:
-		# Check for oil drum at target position
-		var oil_drum = get_oil_drum_at_position(target_pos)
-		if oil_drum:
-			print("Found oil drum at target position")
-			perform_punchb_attack_on_oil_drum(oil_drum, target_pos)
+		# Check for destructible object at target position
+		var destructible = get_destructible_at_position(target_pos)
+		if destructible:
+			print("Found destructible object at target position:", destructible.name)
+			perform_punchb_attack_on_destructible(destructible, target_pos)
 		else:
 			print("No target found at position:", target_pos)
 			handle_attack_completion()
@@ -324,33 +328,37 @@ func perform_punchb_attack_on_npc(npc: Node, target_pos: Vector2i) -> void:
 	
 	handle_attack_completion()
 
-func perform_punchb_attack_on_oil_drum(oil_drum: Node, target_pos: Vector2i) -> void:
-	"""Perform PunchB attack on an oil drum"""
-	print("Performing PunchB attack on oil drum")
+func perform_punchb_attack_on_destructible(destructible: Node, target_pos: Vector2i) -> void:
+	"""Perform PunchB attack on a destructible object"""
+	print("Performing PunchB attack on destructible object:", destructible.name)
 	
-	# Check if oil drum is destroyed
+	# Check if destructible is destroyed
 	var is_destroyed = false
-	if oil_drum.has_method("get_is_destroyed"):
-		is_destroyed = oil_drum.get_is_destroyed()
-	elif oil_drum.has_method("is_destroyed"):
-		is_destroyed = oil_drum.is_destroyed()
-	elif "is_destroyed" in oil_drum:
-		is_destroyed = oil_drum.is_destroyed
+	if destructible.has_method("get_is_destroyed"):
+		is_destroyed = destructible.get_is_destroyed()
+	elif destructible.has_method("is_destroyed"):
+		is_destroyed = destructible.is_destroyed()
+	elif "is_destroyed" in destructible:
+		is_destroyed = destructible.is_destroyed
 	
 	if is_destroyed:
-		print("Oil drum is already destroyed, skipping attack")
+		print("Destructible object is already destroyed, skipping attack")
 		handle_attack_completion()
 		return
 	
-	# Deal damage to the oil drum
-	if oil_drum.has_method("take_damage"):
-		oil_drum.take_damage(attack_damage)
-		print("Dealt", attack_damage, "damage to oil drum")
+	# Deal damage to the destructible object
+	if destructible.has_method("take_damage"):
+		destructible.take_damage(attack_damage)
+		print("Dealt", attack_damage, "damage to destructible object:", destructible.name)
 		
-		# Apply knockback
-		apply_knockback_to_oil_drum(oil_drum, target_pos)
+		# Apply knockback if supported
+		if destructible.has_method("push_back"):
+			apply_knockback_to_oil_drum(destructible, target_pos)
+		
+		# Emit signal for attack completion
+		emit_signal("npc_attacked", destructible, attack_damage)
 	else:
-		print("Oil drum does not have take_damage method")
+		print("Destructible object does not have take_damage method:", destructible.name)
 	
 	handle_attack_completion()
 
@@ -385,10 +393,11 @@ func perform_slash_attack(target_pos: Vector2i) -> void:
 	
 	print("AOE positions for slash attack:", aoe_positions)
 	
-	# Deal damage to all NPCs in the AOE area
+	# Deal damage to all NPCs and destructible objects in the AOE area
 	var total_damage_dealt = 0
 	
 	for pos in aoe_positions:
+		# First check for NPCs
 		var npc = get_npc_at_position(pos)
 		if npc:
 			print("Dealing slash damage to NPC at position:", pos)
@@ -412,6 +421,29 @@ func perform_slash_attack(target_pos: Vector2i) -> void:
 					print("NPC does not have take_damage method:", npc.name)
 			else:
 				print("NPC is already dead, skipping damage:", npc.name)
+		
+		# Then check for destructible objects
+		var destructible = get_destructible_at_position(pos)
+		if destructible:
+			print("Dealing slash damage to destructible object at position:", pos)
+			
+			# Check if destructible is already destroyed
+			var is_destroyed = false
+			if destructible.has_method("get_is_destroyed"):
+				is_destroyed = destructible.get_is_destroyed()
+			elif "is_destroyed" in destructible:
+				is_destroyed = destructible.is_destroyed
+			
+			if not is_destroyed:
+				# Deal damage to the destructible object
+				if destructible.has_method("take_damage"):
+					destructible.take_damage(slash_damage)
+					total_damage_dealt += slash_damage
+					print("Dealt", slash_damage, "damage to destructible object:", destructible.name)
+				else:
+					print("Destructible object does not have take_damage method:", destructible.name)
+			else:
+				print("Destructible object is already destroyed, skipping damage:", destructible.name)
 	
 	print("Slash attack complete - total damage dealt:", total_damage_dealt)
 	
@@ -710,6 +742,58 @@ func get_oil_drum_at_position(pos: Vector2i) -> Node:
 		return null
 	
 	return course.get_oil_drum_at_position(pos)
+
+func get_destructible_at_position(pos: Vector2i) -> Node:
+	"""Get destructible object at the specified grid position"""
+	print("=== GETTING DESTRUCTIBLE AT POSITION (MeleeStrategy) ===")
+	print("Position:", pos)
+	
+	# Look for destructible objects in the destructible_objects group
+	var destructibles = get_tree().get_nodes_in_group("destructible_objects")
+	
+	for destructible in destructibles:
+		print("=== CHECKING DESTRUCTIBLE ===")
+		print("Destructible reference:", destructible)
+		print("Is instance valid:", is_instance_valid(destructible))
+		
+		if is_instance_valid(destructible):
+			print("Destructible name:", destructible.name)
+			print("Destructible class:", destructible.get_class())
+			print("Destructible script:", destructible.get_script().resource_path if destructible.get_script() else "No script")
+			print("Destructible global position:", destructible.global_position)
+			
+			var destructible_pos = Vector2i.ZERO
+			
+			# Try to get grid position using different methods
+			if destructible.has_method("get_grid_position"):
+				destructible_pos = destructible.get_grid_position()
+				print("Checking destructible:", destructible.name, "at position:", destructible_pos, "(using get_grid_position)")
+			elif "grid_position" in destructible:
+				destructible_pos = destructible.grid_position
+				print("Checking destructible:", destructible.name, "at position:", destructible_pos, "(using grid_position property)")
+			elif "grid_pos" in destructible:
+				destructible_pos = destructible.grid_pos
+				print("Checking destructible:", destructible.name, "at position:", destructible_pos, "(using grid_pos property)")
+			else:
+				# Fallback: calculate grid position from world position
+				var world_pos = destructible.global_position
+				var cell_size_used = cell_size if "cell_size" in destructible else 48
+				destructible_pos = Vector2i(floor(world_pos.x / cell_size_used), floor(world_pos.y / cell_size_used))
+				print("Checking destructible:", destructible.name, "at position:", destructible_pos, "(calculated from world position)")
+			
+			if destructible_pos == pos:
+				print("✓ Found destructible at position:", pos, "Destructible:", destructible.name)
+				return destructible
+		else:
+			print("✗ Destructible is invalid - reference:", destructible)
+			if destructible != null:
+				print("  - Destructible name (if available):", destructible.name if "name" in destructible else "No name property")
+				print("  - Destructible class (if available):", destructible.get_class() if "get_class" in destructible else "No get_class method")
+		
+		print("=== END CHECKING DESTRUCTIBLE ===")
+	
+	print("✗ No destructible found at position:", pos)
+	return null
 
 func update_player_position(new_pos: Vector2i) -> void:
 	"""Update the stored player grid position"""

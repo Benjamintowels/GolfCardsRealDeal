@@ -1,9 +1,90 @@
-[gd_scene load_steps=8 format=3 uid="uid://cr3a5iy452bud"]
+[gd_scene load_steps=19 format=3 uid="uid://cr3a5iy452bud"]
 
 [ext_resource type="Script" uid="uid://bfy4k1ftk3k8w" path="res://Particles/Explosion.gd" id="1_y06dx"]
-[ext_resource type="Texture2D" uid="uid://br1splu6umscl" path="res://Particles/Explosion.png" id="2_47hq3"]
+[ext_resource type="Texture2D" uid="uid://bkr3h4hfckd6a" path="res://Particles/ExplosionAnimation.png" id="2_47hq3"]
 [ext_resource type="AudioStream" uid="uid://cn7vxchw3lvve" path="res://Sounds/Explosion.mp3" id="3_a2t3t"]
 [ext_resource type="Texture2D" uid="uid://do0yyouvbx1dk" path="res://Particles/FireParticle.png" id="4_gcy2m"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_a2t3t"]
+atlas = ExtResource("2_47hq3")
+region = Rect2(0, 0, 256, 280)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_gcy2m"]
+atlas = ExtResource("2_47hq3")
+region = Rect2(256, 0, 256, 280)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_dwu8r"]
+atlas = ExtResource("2_47hq3")
+region = Rect2(512, 0, 256, 280)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_mvgk7"]
+atlas = ExtResource("2_47hq3")
+region = Rect2(768, 0, 256, 280)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_gquxr"]
+atlas = ExtResource("2_47hq3")
+region = Rect2(1024, 0, 256, 280)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_byb2j"]
+atlas = ExtResource("2_47hq3")
+region = Rect2(1280, 0, 256, 280)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_0f8cv"]
+atlas = ExtResource("2_47hq3")
+region = Rect2(1536, 0, 256, 280)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_mcqsc"]
+atlas = ExtResource("2_47hq3")
+region = Rect2(1792, 0, 256, 280)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_mb71p"]
+atlas = ExtResource("2_47hq3")
+region = Rect2(2048, 0, 256, 280)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_snbp4"]
+atlas = ExtResource("2_47hq3")
+region = Rect2(2304, 0, 256, 280)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_0or2e"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_a2t3t")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_gcy2m")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_dwu8r")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_mvgk7")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_gquxr")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_byb2j")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_0f8cv")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_mcqsc")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_mb71p")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_snbp4")
+}, {
+"duration": 1.0,
+"texture": null
+}],
+"loop": false,
+"name": &"default",
+"speed": 24.0
+}]
 
 [sub_resource type="Gradient" id="Gradient_1"]
 offsets = PackedFloat32Array(0, 0.3, 0.7, 1)
@@ -31,8 +112,12 @@ color_ramp = SubResource("GradientTexture1D_1")
 [node name="Explosion" type="Node2D"]
 script = ExtResource("1_y06dx")
 
-[node name="ExplosionSprite" type="Sprite2D" parent="."]
-texture = ExtResource("2_47hq3")
+[node name="ExplosionSprite" type="AnimatedSprite2D" parent="."]
+texture_filter = 1
+scale = Vector2(0.365, 0.365)
+sprite_frames = SubResource("SpriteFrames_0or2e")
+frame = 10
+frame_progress = 1.0
 offset = Vector2(0, -50)
 
 [node name="ExplosionSound" type="AudioStreamPlayer2D" parent="."]

@@ -726,7 +726,14 @@ func handle_tile_click(x: int, y: int) -> bool:
 			card_play_sound.play()
 			return true
 		else:
-			return false
+			# Check for destructible objects (like oil drums) if no NPC found
+			var destructible = get_destructible_at_position(clicked)
+			if destructible:
+				perform_attack_on_destructible(destructible, clicked)
+				card_play_sound.play()
+				return true
+			else:
+				return false
 	else:
 		return false
 
@@ -774,7 +781,50 @@ func perform_attack(npc: Node, target_pos: Vector2i) -> void:
 	# Exit attack mode
 	exit_attack_mode()
 
-
+func perform_attack_on_destructible(destructible: Node, target_pos: Vector2i) -> void:
+	"""Perform the attack on a destructible object (like oil drum)"""
+	
+	# Play KickSound if this is a Kick attack
+	if selected_card and selected_card.name == "Kick":
+		if kick_sound:
+			kick_sound.play()
+		
+		# Emit kick attack signal for animation
+		emit_signal("kick_attack_performed")
+	
+	# Check if destructible is already destroyed
+	var is_destroyed = false
+	if destructible.has_method("get_is_destroyed"):
+		is_destroyed = destructible.get_is_destroyed()
+	elif destructible.has_method("is_destroyed"):
+		is_destroyed = destructible.is_destroyed()
+	elif "is_destroyed" in destructible:
+		is_destroyed = destructible.is_destroyed
+	
+	if is_destroyed:
+		print("Attacking destroyed object - no damage")
+		attack_damage = 0
+	else:
+		# Deal damage to the destructible object
+		if destructible.has_method("take_damage"):
+			# Use selected_card.damage for attack cards
+			if selected_card and selected_card.effect_type in ["Attack", "AOEAttack"]:
+				destructible.take_damage(selected_card.damage)
+			else:
+				destructible.take_damage(attack_damage)
+			print("Dealt", attack_damage, "damage to", destructible.name)
+		else:
+			print("Destructible object does not have take_damage method")
+	
+	# Apply knockback if the destructible object supports it
+	if destructible.has_method("push_back"):
+		melee_strategy.apply_knockback_to_oil_drum(destructible, target_pos)
+	
+	# Emit signal
+	emit_signal("npc_attacked", destructible, attack_damage)
+	
+	# Exit attack mode
+	exit_attack_mode()
 
 func handle_tile_mouse_entered(x: int, y: int, is_panning: bool) -> void:
 	if not is_panning and is_attack_mode:
@@ -928,4 +978,56 @@ func get_oil_drum_at_position(pos: Vector2i) -> Node:
 			if interactable.get_grid_position() == pos and interactable.name.begins_with("OilDrum"):
 				return interactable
 	
+	return null
+
+func get_destructible_at_position(pos: Vector2i) -> Node:
+	"""Get the destructible object at the given grid position, or null if none"""
+	print("=== GETTING DESTRUCTIBLE AT POSITION ===")
+	print("Position:", pos)
+	
+	# Look for destructible objects in the destructible_objects group
+	var destructibles = get_tree().get_nodes_in_group("destructible_objects")
+	
+	for destructible in destructibles:
+		print("=== CHECKING DESTRUCTIBLE ===")
+		print("Destructible reference:", destructible)
+		print("Is instance valid:", is_instance_valid(destructible))
+		
+		if is_instance_valid(destructible):
+			print("Destructible name:", destructible.name)
+			print("Destructible class:", destructible.get_class())
+			print("Destructible script:", destructible.get_script().resource_path if destructible.get_script() else "No script")
+			print("Destructible global position:", destructible.global_position)
+			
+			var destructible_pos = Vector2i.ZERO
+			
+			# Try to get grid position using different methods
+			if destructible.has_method("get_grid_position"):
+				destructible_pos = destructible.get_grid_position()
+				print("Checking destructible:", destructible.name, "at position:", destructible_pos, "(using get_grid_position)")
+			elif "grid_position" in destructible:
+				destructible_pos = destructible.grid_position
+				print("Checking destructible:", destructible.name, "at position:", destructible_pos, "(using grid_position property)")
+			elif "grid_pos" in destructible:
+				destructible_pos = destructible.grid_pos
+				print("Checking destructible:", destructible.name, "at position:", destructible_pos, "(using grid_pos property)")
+			else:
+				# Fallback: calculate grid position from world position
+				var world_pos = destructible.global_position
+				var cell_size_used = cell_size if "cell_size" in destructible else 48
+				destructible_pos = Vector2i(floor(world_pos.x / cell_size_used), floor(world_pos.y / cell_size_used))
+				print("Checking destructible:", destructible.name, "at position:", destructible_pos, "(calculated from world position)")
+			
+			if destructible_pos == pos:
+				print("✓ Found destructible at position:", pos, "Destructible:", destructible.name)
+				return destructible
+		else:
+			print("✗ Destructible is invalid - reference:", destructible)
+			if destructible != null:
+				print("  - Destructible name (if available):", destructible.name if "name" in destructible else "No name property")
+				print("  - Destructible class (if available):", destructible.get_class() if "get_class" in destructible else "No get_class method")
+		
+		print("=== END CHECKING DESTRUCTIBLE ===")
+	
+	print("✗ No destructible found at position:", pos)
 	return null

@@ -225,13 +225,14 @@ func start_crater_animation(meteor: Node, aoe_positions: Array) -> void:
 	).set_delay(0.5)
 
 func apply_meteor_damage(aoe_positions: Array) -> int:
-	"""Apply meteor damage to NPCs in the AOE area and return total damage dealt"""
+	"""Apply meteor damage to NPCs and destructible objects in the AOE area and return total damage dealt"""
 	print("Applying meteor damage for AOE positions:", aoe_positions)
 	
 	var total_damage_dealt = 0
 	
-	# Deal damage to all NPCs in the AOE area
+	# Deal damage to all NPCs and destructible objects in the AOE area
 	for pos in aoe_positions:
+		# First check for NPCs
 		var npc = get_npc_at_position(pos)
 		if npc:
 			print("Dealing meteor damage to NPC at position:", pos)
@@ -255,6 +256,29 @@ func apply_meteor_damage(aoe_positions: Array) -> int:
 					print("NPC does not have take_damage method:", npc.name)
 			else:
 				print("NPC is already dead, skipping damage:", npc.name)
+		
+		# Then check for destructible objects
+		var destructible = get_destructible_at_position(pos)
+		if destructible:
+			print("Dealing meteor damage to destructible object at position:", pos)
+			
+			# Check if destructible is already destroyed
+			var is_destroyed = false
+			if destructible.has_method("get_is_destroyed"):
+				is_destroyed = destructible.get_is_destroyed()
+			elif "is_destroyed" in destructible:
+				is_destroyed = destructible.is_destroyed
+			
+			if not is_destroyed:
+				# Deal damage to the destructible object
+				if destructible.has_method("take_damage"):
+					destructible.take_damage(meteor_damage)
+					total_damage_dealt += meteor_damage
+					print("Dealt", meteor_damage, "damage to destructible object:", destructible.name)
+				else:
+					print("Destructible object does not have take_damage method:", destructible.name)
+			else:
+				print("Destructible object is already destroyed, skipping damage:", destructible.name)
 	
 	print("Meteor damage applied - total damage dealt:", total_damage_dealt)
 	
@@ -684,16 +708,102 @@ func perform_attackdog_attack(target_pos: Vector2i) -> void:
 		print("Found NPC at target position:", npc.name)
 		perform_attackdog_attack_on_npc(npc, target_pos)
 	else:
-		print("No NPC found at target position:", target_pos)
-		# Check if there's an item at the target position
-		var item = get_item_at_position(target_pos)
-		if item:
-			print("Found item at target position:", item.name)
-			perform_attackdog_attack_on_item(item, target_pos)
+		# Check for destructible object at target position
+		var destructible = get_destructible_at_position(target_pos)
+		if destructible:
+			print("Found destructible object at target position:", destructible.name)
+			perform_attackdog_attack_on_destructible(destructible, target_pos)
 		else:
-			print("No NPC or item found at target position:", target_pos)
-			# Still perform the attack animation even if no target
-			perform_attackdog_attack_on_empty_tile(target_pos)
+			print("No NPC or destructible found at target position:", target_pos)
+			# Check if there's an item at the target position
+			var item = get_item_at_position(target_pos)
+			if item:
+				print("Found item at target position:", item.name)
+				perform_attackdog_attack_on_item(item, target_pos)
+			else:
+				print("No NPC, destructible, or item found at target position:", target_pos)
+				# Still perform the attack animation even if no target
+				perform_attackdog_attack_on_empty_tile(target_pos)
+
+func perform_attackdog_attack_on_destructible(destructible: Node, target_pos: Vector2i) -> void:
+	"""Perform AttackDog attack on destructible object with Ash dog animation"""
+	print("=== PERFORMING ATTACKDOG ATTACK ON DESTRUCTIBLE ===")
+	print("Destructible:", destructible.name)
+	print("Target position:", target_pos)
+	print("Player position:", player_grid_pos)
+	
+	# Emit ash dog attack signal for animation
+	emit_signal("ash_dog_attack_performed")
+	
+	# Create and animate Ash dog
+	create_and_animate_ash_dog_for_destructible(destructible, target_pos)
+
+func create_and_animate_ash_dog_for_destructible(destructible: Node, target_pos: Vector2i) -> void:
+	"""Create Ash dog and animate it to attack the destructible object"""
+	# Load Ash scene
+	var ash_scene = preload("res://NPC/Animals/Ash/Ash.tscn")
+	if not ash_scene:
+		print("Error: Failed to load Ash scene")
+		complete_attackdog_attack_for_destructible(destructible, target_pos)
+		return
+	
+	var ash = ash_scene.instantiate()
+	if not ash:
+		print("Error: Failed to instantiate Ash")
+		complete_attackdog_attack_for_destructible(destructible, target_pos)
+		return
+	
+	# Add to the scene
+	if card_effect_handler and card_effect_handler.course:
+		card_effect_handler.course.add_child(ash)
+	else:
+		add_child(ash)
+	
+	# Position Ash at the player's position
+	ash.global_position = player_node.global_position
+	
+	# Animate Ash to the target position
+	var target_world_pos = Vector2(target_pos.x * cell_size + cell_size / 2, target_pos.y * cell_size + cell_size / 2)
+	
+	var tween = create_tween()
+	tween.tween_property(ash, "global_position", target_world_pos, 0.5)
+	tween.tween_callback(func(): complete_attackdog_attack_for_destructible(destructible, target_pos))
+	tween.tween_callback(ash.queue_free)
+
+func complete_attackdog_attack_for_destructible(destructible: Node, target_pos: Vector2i) -> void:
+	"""Complete the AttackDog attack by dealing damage to destructible object"""
+	print("Completing AttackDog attack on destructible object:", destructible.name)
+	
+	# Deal 50 damage to the destructible object
+	var damage = ash_dog_damage
+	
+	# Check if destructible is destroyed
+	var is_destroyed = false
+	if destructible.has_method("get_is_destroyed"):
+		is_destroyed = destructible.get_is_destroyed()
+	elif destructible.has_method("is_destroyed"):
+		is_destroyed = destructible.is_destroyed()
+	elif "is_destroyed" in destructible:
+		is_destroyed = destructible.is_destroyed
+	
+	if is_destroyed:
+		print("Attacking destroyed destructible object - no damage dealt")
+		damage = 0
+	else:
+		# Deal damage to the destructible object
+		if destructible.has_method("take_damage"):
+			destructible.take_damage(damage)
+			print("Dealt", damage, "damage to destructible object:", destructible.name)
+		else:
+			print("Destructible object does not have take_damage method")
+	
+	# Emit signal
+	emit_signal("npc_attacked", destructible, damage)
+	
+	# Exit attack mode
+	emit_signal("attack_completed")
+	
+	print("=== END ATTACKDOG ATTACK ON DESTRUCTIBLE ===")
 
 func perform_attackdog_attack_on_npc(npc: Node, target_pos: Vector2i) -> void:
 	"""Perform AttackDog attack on NPC with Ash dog animation"""
@@ -1281,6 +1391,58 @@ func get_item_at_position(pos: Vector2i) -> Node:
 	print("✗ No item found at position:", pos)
 	return null
 
+func get_destructible_at_position(pos: Vector2i) -> Node:
+	"""Get destructible object at the specified grid position"""
+	print("=== GETTING DESTRUCTIBLE AT POSITION (RangedStrategy) ===")
+	print("Position:", pos)
+	
+	# Look for destructible objects in the destructible_objects group
+	var destructibles = get_tree().get_nodes_in_group("destructible_objects")
+	
+	for destructible in destructibles:
+		print("=== CHECKING DESTRUCTIBLE ===")
+		print("Destructible reference:", destructible)
+		print("Is instance valid:", is_instance_valid(destructible))
+		
+		if is_instance_valid(destructible):
+			print("Destructible name:", destructible.name)
+			print("Destructible class:", destructible.get_class())
+			print("Destructible script:", destructible.get_script().resource_path if destructible.get_script() else "No script")
+			print("Destructible global position:", destructible.global_position)
+			
+			var destructible_pos = Vector2i.ZERO
+			
+			# Try to get grid position using different methods
+			if destructible.has_method("get_grid_position"):
+				destructible_pos = destructible.get_grid_position()
+				print("Checking destructible:", destructible.name, "at position:", destructible_pos, "(using get_grid_position)")
+			elif "grid_position" in destructible:
+				destructible_pos = destructible.grid_position
+				print("Checking destructible:", destructible.name, "at position:", destructible_pos, "(using grid_position property)")
+			elif "grid_pos" in destructible:
+				destructible_pos = destructible.grid_pos
+				print("Checking destructible:", destructible.name, "at position:", destructible_pos, "(using grid_pos property)")
+			else:
+				# Fallback: calculate grid position from world position
+				var world_pos = destructible.global_position
+				var cell_size_used = cell_size if "cell_size" in destructible else 48
+				destructible_pos = Vector2i(floor(world_pos.x / cell_size_used), floor(world_pos.y / cell_size_used))
+				print("Checking destructible:", destructible.name, "at position:", destructible_pos, "(calculated from world position)")
+			
+			if destructible_pos == pos:
+				print("✓ Found destructible at position:", pos, "Destructible:", destructible.name)
+				return destructible
+		else:
+			print("✗ Destructible is invalid - reference:", destructible)
+			if destructible != null:
+				print("  - Destructible name (if available):", destructible.name if "name" in destructible else "No name property")
+				print("  - Destructible class (if available):", destructible.get_class() if "get_class" in destructible else "No get_class method")
+		
+		print("=== END CHECKING DESTRUCTIBLE ===")
+	
+	print("✗ No destructible found at position:", pos)
+	return null
+
 func perform_attackdog_attack_on_item(item: Node, target_pos: Vector2i) -> void:
 	"""Perform AttackDog attack on item with Ash dog animation"""
 	print("=== PERFORMING ATTACKDOG ATTACK ON ITEM ===")
@@ -1321,10 +1483,16 @@ func perform_firaga_attack(target_pos: Vector2i) -> void:
 		print("Found NPC at target position:", npc.name)
 		perform_firaga_attack_on_npc(npc, target_pos)
 	else:
-		print("No NPC found at target position:", target_pos)
-		# Still perform the fireball animation even if no NPC
-		create_and_animate_fireball(target_pos, null)
-		emit_signal("attack_completed")
+		# Check for destructible object at target position
+		var destructible = get_destructible_at_position(target_pos)
+		if destructible:
+			print("Found destructible object at target position:", destructible.name)
+			perform_firaga_attack_on_destructible(destructible, target_pos)
+		else:
+			print("No NPC or destructible found at target position:", target_pos)
+			# Still perform the fireball animation even if no target
+			create_and_animate_fireball(target_pos, null)
+			emit_signal("attack_completed")
 
 func perform_firaga_attack_on_npc(npc: Node, target_pos: Vector2i) -> void:
 	"""Perform FiragaCard attack on NPC with fireball animation"""
@@ -1469,10 +1637,16 @@ func perform_icespear_attack(target_pos: Vector2i) -> void:
 		print("Found NPC at target position:", npc.name)
 		perform_icespear_attack_on_npc(npc, target_pos)
 	else:
-		print("No NPC found at target position:", target_pos)
-		# Still perform the ice spear animation even if no NPC
-		create_and_animate_ice_spear(target_pos, null)
-		emit_signal("attack_completed")
+		# Check for destructible object at target position
+		var destructible = get_destructible_at_position(target_pos)
+		if destructible:
+			print("Found destructible object at target position:", destructible.name)
+			perform_icespear_attack_on_destructible(destructible, target_pos)
+		else:
+			print("No NPC or destructible found at target position:", target_pos)
+			# Still perform the ice spear animation even if no target
+			create_and_animate_ice_spear(target_pos, null)
+			emit_signal("attack_completed")
 
 func perform_icespear_attack_on_npc(npc: Node, target_pos: Vector2i) -> void:
 	"""Perform IceSpearCard attack on NPC with ice spear animation"""
@@ -1675,3 +1849,101 @@ func complete_icespear_attack(npc: Node, target_pos: Vector2i) -> void:
 	emit_signal("attack_completed")
 	
 	print("=== END ICESPEAR ATTACK ===")
+
+func perform_firaga_attack_on_destructible(destructible: Node, target_pos: Vector2i) -> void:
+	"""Perform FiragaCard attack on destructible object with fireball animation"""
+	print("=== PERFORMING FIRAGA ATTACK ON DESTRUCTIBLE ===")
+	print("Destructible:", destructible.name)
+	print("Target position:", target_pos)
+	print("Player position:", player_grid_pos)
+	
+	# Create and animate fireball
+	create_and_animate_fireball(target_pos, destructible)
+
+func complete_firaga_attack_for_destructible(destructible: Node, target_pos: Vector2i) -> void:
+	"""Complete the FiragaCard attack by dealing damage to destructible object"""
+	print("Completing FiragaCard attack on destructible object:", destructible.name if destructible else "No destructible")
+	
+	if destructible:
+		# Deal 50 damage to the destructible object
+		var damage = firaga_damage
+		
+		# Check if destructible is destroyed
+		var is_destroyed = false
+		if destructible.has_method("get_is_destroyed"):
+			is_destroyed = destructible.get_is_destroyed()
+		elif destructible.has_method("is_destroyed"):
+			is_destroyed = destructible.is_destroyed()
+		elif "is_destroyed" in destructible:
+			is_destroyed = destructible.is_destroyed
+		
+		if is_destroyed:
+			print("Attacking destroyed destructible object - no damage dealt")
+			damage = 0
+		else:
+			# Deal damage to the destructible object
+			if destructible.has_method("take_damage"):
+				destructible.take_damage(damage)
+				print("Dealt", damage, "damage to destructible object:", destructible.name)
+			else:
+				print("Destructible object does not have take_damage method")
+		
+		# Emit signal
+		emit_signal("npc_attacked", destructible, damage)
+	else:
+		print("No destructible at target position - no damage dealt")
+		emit_signal("npc_attacked", null, 0)
+	
+	# Exit attack mode
+	emit_signal("attack_completed")
+	
+	print("=== END FIRAGA ATTACK ON DESTRUCTIBLE ===")
+
+func perform_icespear_attack_on_destructible(destructible: Node, target_pos: Vector2i) -> void:
+	"""Perform IceSpearCard attack on destructible object with ice spear animation"""
+	print("=== PERFORMING ICESPEAR ATTACK ON DESTRUCTIBLE ===")
+	print("Destructible:", destructible.name)
+	print("Target position:", target_pos)
+	print("Player position:", player_grid_pos)
+	
+	# Create and animate ice spear
+	create_and_animate_ice_spear(target_pos, destructible)
+
+func complete_icespear_attack_for_destructible(destructible: Node, target_pos: Vector2i) -> void:
+	"""Complete the IceSpearCard attack by dealing damage to destructible object"""
+	print("Completing IceSpearCard attack on destructible object:", destructible.name if destructible else "No destructible")
+	
+	if destructible:
+		# Deal 40 damage to the destructible object
+		var damage = ice_spear_damage
+		
+		# Check if destructible is destroyed
+		var is_destroyed = false
+		if destructible.has_method("get_is_destroyed"):
+			is_destroyed = destructible.get_is_destroyed()
+		elif destructible.has_method("is_destroyed"):
+			is_destroyed = destructible.is_destroyed()
+		elif "is_destroyed" in destructible:
+			is_destroyed = destructible.is_destroyed
+		
+		if is_destroyed:
+			print("Attacking destroyed destructible object - no damage dealt")
+			damage = 0
+		else:
+			# Deal damage to the destructible object
+			if destructible.has_method("take_damage"):
+				destructible.take_damage(damage)
+				print("Dealt", damage, "damage to destructible object:", destructible.name)
+			else:
+				print("Destructible object does not have take_damage method")
+		
+		# Emit signal
+		emit_signal("npc_attacked", destructible, damage)
+	else:
+		print("No destructible at target position - no damage dealt")
+		emit_signal("npc_attacked", null, 0)
+	
+	# Exit attack mode
+	emit_signal("attack_completed")
+	
+	print("=== END ICESPEAR ATTACK ON DESTRUCTIBLE ===")

@@ -68,10 +68,16 @@ func perform_assassin_dash_attack(target_pos: Vector2i) -> void:
 		print("Found NPC at target position:", npc.name)
 		perform_assassin_dash_attack_on_npc(npc, target_pos)
 	else:
-		print("No NPC found at target position:", target_pos)
-		# Still perform the dash movement even if no NPC
-		perform_assassin_dash_movement(target_pos)
-		emit_signal("attack_completed")
+		# Check for destructible object at target position
+		var destructible = get_destructible_at_position(target_pos)
+		if destructible:
+			print("Found destructible object at target position:", destructible.name)
+			perform_assassin_dash_attack_on_destructible(destructible, target_pos)
+		else:
+			print("No NPC or destructible found at target position:", target_pos)
+			# Still perform the dash movement even if no target
+			perform_assassin_dash_movement(target_pos)
+			emit_signal("attack_completed")
 
 func perform_assassin_dash_attack_on_npc(npc: Node, target_pos: Vector2i) -> void:
 	"""Perform AssassinDash attack on NPC with movement to behind-enemy position"""
@@ -134,6 +140,70 @@ func perform_assassin_dash_attack_on_npc(npc: Node, target_pos: Vector2i) -> voi
 	else:
 		print("NPC does not have take_damage method:", npc.name)
 	
+	emit_signal("attack_completed")
+
+func perform_assassin_dash_attack_on_destructible(destructible: Node, target_pos: Vector2i) -> void:
+	"""Perform AssassinDash attack on destructible object with movement to behind-enemy position"""
+	print("=== PERFORMING ASSASSIN DASH ATTACK ON DESTRUCTIBLE ===")
+	print("Destructible:", destructible.name)
+	print("Target position:", target_pos)
+	print("Player position:", player_grid_pos)
+	
+	# Check if destructible is destroyed
+	var is_destroyed = false
+	if destructible.has_method("get_is_destroyed"):
+		is_destroyed = destructible.get_is_destroyed()
+	elif destructible.has_method("is_destroyed"):
+		is_destroyed = destructible.is_destroyed()
+	elif "is_destroyed" in destructible:
+		is_destroyed = destructible.is_destroyed
+	
+	if is_destroyed:
+		print("Destructible object is already destroyed, skipping attack")
+		perform_assassin_dash_movement(target_pos)
+		emit_signal("attack_completed")
+		return
+	
+	# Calculate the position behind the enemy (opposite direction from player)
+	var direction = target_pos - player_grid_pos
+	# Normalize direction to get 1 tile movement
+	var normalized_direction = Vector2i.ZERO
+	if direction.x > 0:
+		normalized_direction.x = 1
+	elif direction.x < 0:
+		normalized_direction.x = -1
+	if direction.y > 0:
+		normalized_direction.y = 1
+	elif direction.y < 0:
+		normalized_direction.y = -1
+	
+	var behind_enemy_pos = target_pos + normalized_direction
+	print("Moving player to behind-enemy position:", behind_enemy_pos)
+	
+	# Double-check that the behind-enemy position is still valid
+	if not is_position_valid_for_assassin_dash(behind_enemy_pos):
+		print("✗ ERROR: Behind-enemy position is no longer valid:", behind_enemy_pos)
+		print("✗ AssassinDash attack cancelled - cannot move behind enemy")
+		emit_signal("attack_completed")
+		return
+	
+	# Store original player position
+	var original_player_pos = player_grid_pos
+	
+	# Perform the dash movement to behind-enemy position
+	perform_assassin_dash_movement(behind_enemy_pos)
+	
+	# Deal damage to the destructible object after movement
+	if destructible.has_method("take_damage"):
+		destructible.take_damage(assassin_dash_damage)
+		print("Dealt", assassin_dash_damage, "damage to destructible object:", destructible.name)
+		
+		# Emit signal for attack completion
+		emit_signal("npc_attacked", destructible, assassin_dash_damage)
+	else:
+		print("Destructible object does not have take_damage method:", destructible.name)
+	
+	# Complete the attack
 	emit_signal("attack_completed")
 
 func perform_assassin_dash_movement(target_pos: Vector2i) -> void:
@@ -301,6 +371,58 @@ func get_npc_at_position(pos: Vector2i) -> Node:
 		print("=== END CHECKING NPC ===")
 	
 	print("✗ No NPC found at position:", pos)
+	return null
+
+func get_destructible_at_position(pos: Vector2i) -> Node:
+	"""Get destructible object at the specified grid position"""
+	print("=== GETTING DESTRUCTIBLE AT POSITION (MovementStrategy) ===")
+	print("Position:", pos)
+	
+	# Look for destructible objects in the destructible_objects group
+	var destructibles = get_tree().get_nodes_in_group("destructible_objects")
+	
+	for destructible in destructibles:
+		print("=== CHECKING DESTRUCTIBLE ===")
+		print("Destructible reference:", destructible)
+		print("Is instance valid:", is_instance_valid(destructible))
+		
+		if is_instance_valid(destructible):
+			print("Destructible name:", destructible.name)
+			print("Destructible class:", destructible.get_class())
+			print("Destructible script:", destructible.get_script().resource_path if destructible.get_script() else "No script")
+			print("Destructible global position:", destructible.global_position)
+			
+			var destructible_pos = Vector2i.ZERO
+			
+			# Try to get grid position using different methods
+			if destructible.has_method("get_grid_position"):
+				destructible_pos = destructible.get_grid_position()
+				print("Checking destructible:", destructible.name, "at position:", destructible_pos, "(using get_grid_position)")
+			elif "grid_position" in destructible:
+				destructible_pos = destructible.grid_position
+				print("Checking destructible:", destructible.name, "at position:", destructible_pos, "(using grid_position property)")
+			elif "grid_pos" in destructible:
+				destructible_pos = destructible.grid_pos
+				print("Checking destructible:", destructible.name, "at position:", destructible_pos, "(using grid_pos property)")
+			else:
+				# Fallback: calculate grid position from world position
+				var world_pos = destructible.global_position
+				var cell_size_used = cell_size if "cell_size" in destructible else 48
+				destructible_pos = Vector2i(floor(world_pos.x / cell_size_used), floor(world_pos.y / cell_size_used))
+				print("Checking destructible:", destructible.name, "at position:", destructible_pos, "(calculated from world position)")
+			
+			if destructible_pos == pos:
+				print("✓ Found destructible at position:", pos, "Destructible:", destructible.name)
+				return destructible
+		else:
+			print("✗ Destructible is invalid - reference:", destructible)
+			if destructible != null:
+				print("  - Destructible name (if available):", destructible.name if "name" in destructible else "No name property")
+				print("  - Destructible class (if available):", destructible.get_class() if "get_class" in destructible else "No get_class method")
+		
+		print("=== END CHECKING DESTRUCTIBLE ===")
+	
+	print("✗ No destructible found at position:", pos)
 	return null
 
 func update_player_position(new_pos: Vector2i) -> void:

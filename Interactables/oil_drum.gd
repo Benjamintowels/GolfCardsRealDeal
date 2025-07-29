@@ -1,7 +1,7 @@
 extends Node2D
 
-# Oil drum interactable object
-# This will work with the roof system and Y-sort system
+# Generalized destructible object with health system
+# This can be extended to other objects like crates, barrels, etc.
 
 # Import Explosion class for fire element explosions
 const Explosion = preload("res://Particles/Explosion.gd")
@@ -9,11 +9,15 @@ const Explosion = preload("res://Particles/Explosion.gd")
 # Health system variables
 var max_health: int = 50
 var current_health: int = 50
+var is_destroyed: bool = false
 var is_tipped_over: bool = false
 
 # Damage calculation constants (same as other entities)
 const MIN_VELOCITY = 25.0  # Minimum velocity for 1 damage
 const MAX_VELOCITY = 1200.0  # Maximum velocity for 88 damage
+
+# Tip over threshold - damage needed to tip over instead of just taking damage
+const TIP_OVER_THRESHOLD: int = 15
 
 # Ball connection tracking
 var connected_balls: Array = []
@@ -23,16 +27,24 @@ var ball_check_timer: Timer
 var upright_collision_area: Area2D
 var tipped_collision_area: Area2D
 
+# Health bar system
+var health_bar: HealthBar
+var health_bar_container: Control
+
 func _ready():
-	# Add to groups for smart optimization
+	# Add to groups for smart optimization and attack detection
 	add_to_group("interactables")
 	add_to_group("collision_objects")
+	add_to_group("destructible_objects")  # New group for attack detection
 	
 	# Initialize sprites - upright visible, tipped over hidden
 	_initialize_sprites()
 	
 	# Set up collision areas for both states
 	_setup_collision_areas()
+	
+	# Create health bar
+	_create_health_bar()
 	
 	# Update Y-sort on ready
 	call_deferred("_update_ysort")
@@ -93,6 +105,26 @@ func _setup_collision_areas():
 		hitbox.add_to_group("hitboxes")
 	else:
 		print("✗ ERROR: Oil drum HitBox not found!")
+
+func _create_health_bar() -> void:
+	"""Create and setup the health bar"""
+	# Create container for health bar
+	health_bar_container = Control.new()
+	health_bar_container.name = "HealthBarContainer"
+	health_bar_container.custom_minimum_size = Vector2(60, 30)
+	health_bar_container.size = Vector2(60, 30)
+	health_bar_container.position = Vector2(-30, -50)  # Position above the oil drum
+	health_bar_container.scale = Vector2(0.35, 0.35)
+	health_bar_container.visible = false  # Hide the health bar
+	add_child(health_bar_container)
+	
+	# Create health bar
+	var health_bar_scene = preload("res://HealthBar.tscn")
+	health_bar = health_bar_scene.instantiate()
+	health_bar_container.add_child(health_bar)
+	
+	# Set initial health
+	health_bar.set_health(current_health, max_health)
 
 func _setup_ball_check_timer():
 	"""Set up a timer to periodically check for new balls and connect to them"""
@@ -181,12 +213,16 @@ func _calculate_velocity_damage(velocity_magnitude: float) -> int:
 	return final_damage
 
 func take_damage(amount: int) -> void:
-	"""Take damage and handle tipping over if health reaches 0, or explode if overkilled"""
+	"""Take damage and handle tipping over or destruction"""
+	
+	# Play thunk sound when taking damage
+	_play_oil_drum_sound()
 	
 	# Check if this damage is from fire (fire tile damage)
 	var is_fire_damage = _is_damage_from_fire()
 	
-	current_health = max(0, current_health - amount)
+	# Calculate new health
+	var new_health = current_health - amount
 	
 	# If this is fire damage, trigger explosion immediately
 	if is_fire_damage:
@@ -205,8 +241,7 @@ func take_damage(amount: int) -> void:
 		temp_ball.queue_free()
 		return
 	
-	# Check if this damage would overkill the oil drum
-	# Overkill = damage - current_health (how much damage exceeds current health)
+	# Check if this damage would destroy the oil drum
 	var overkill_damage = amount - current_health
 	
 	# Overkill threshold: need at least 50 overkill damage to trigger explosion
@@ -224,9 +259,45 @@ func take_damage(amount: int) -> void:
 		
 		# Remove the temporary ball
 		temp_ball.queue_free()
-	elif current_health <= 0 and not is_tipped_over:
+		return
+	
+	# Apply damage
+	current_health = max(0, new_health)
+	
+	# Update health bar
+	if health_bar:
+		health_bar.set_health(current_health, max_health)
+	
+	# Check if we should tip over or be destroyed
+	if current_health <= 0:
+		# Oil drum is destroyed
+		is_destroyed = true
+		_destroy_oil_drum()
+	elif amount >= TIP_OVER_THRESHOLD and not is_tipped_over:
+		# Tip over if damage is significant
 		is_tipped_over = true
 		_tip_over()
+	else:
+		# Just take damage normally
+		_flash_damage()
+
+func _destroy_oil_drum() -> void:
+	"""Destroy the oil drum completely"""
+	print("=== OIL DRUM DESTROYED ===")
+	
+	# Create a temporary ball node to pass to the explosion function
+	var temp_ball = Node2D.new()
+	temp_ball.name = "DestructionExplosionBall"
+	
+	# Add the ball to the scene temporarily
+	get_parent().add_child(temp_ball)
+	temp_ball.global_position = global_position
+	
+	# Trigger the explosion using the existing fire element logic
+	_explode_oil_drum(temp_ball)
+	
+	# Remove the temporary ball
+	temp_ball.queue_free()
 
 func _tip_over():
 	"""Tip the oil drum over - switch sprites and collision shapes"""
@@ -294,6 +365,18 @@ func _tip_upright():
 		
 	# Update Y-sort for the new position
 	call_deferred("_update_ysort")
+
+func _flash_damage() -> void:
+	"""Flash the oil drum to indicate damage taken"""
+	var upright_sprite = get_node_or_null("OilDrumUpright")
+	var tipped_sprite = get_node_or_null("OilDrumTippedOver")
+	
+	var sprite_to_flash = tipped_sprite if is_tipped_over else upright_sprite
+	if sprite_to_flash:
+		var original_modulate = sprite_to_flash.modulate
+		var tween = create_tween()
+		tween.tween_property(sprite_to_flash, "modulate", Color.RED, 0.1)
+		tween.tween_property(sprite_to_flash, "modulate", original_modulate, 0.2)
 
 func get_y_sort_point() -> float:
 	"""
@@ -495,6 +578,10 @@ func _on_tree_exited():
 func get_is_tipped_over() -> bool:
 	"""Get whether the oil drum is currently tipped over"""
 	return is_tipped_over
+
+func get_is_destroyed() -> bool:
+	"""Get whether the oil drum is destroyed"""
+	return is_destroyed
 
 func get_grid_position() -> Vector2i:
 	"""Get the grid position of the oil drum"""
