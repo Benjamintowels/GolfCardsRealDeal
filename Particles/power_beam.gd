@@ -3,6 +3,11 @@ extends Node2D
 # Damage amount for PowerBeam
 const POWER_BEAM_DAMAGE = 75
 
+# GolfBall launch parameters
+const GOLFBALL_LAUNCH_POWER = 1500.0  # High velocity
+const GOLFBALL_LAUNCH_HEIGHT = 400.0  # High arc
+const GOLFBALL_LAUNCH_SPIN = 200.0    # Add some spin for dramatic effect
+
 # Track objects we've already hit to prevent multiple damage
 var hit_objects = []
 
@@ -41,6 +46,12 @@ func _on_area_entered(area: Area2D):
 	print("Object type:", object.get_class())
 	print("Area name:", area.name)
 	
+	# Check if this is a GolfBall collision first
+	if object.has_method("launch") and (object.name == "GolfBall" or object.is_in_group("golf_balls")):
+		print("✓ GolfBall collision detected - launching ball!")
+		_launch_golfball(object)
+		return
+	
 	# Check if this object has a take_damage method (indicating it has health)
 	if not object.has_method("take_damage"):
 		print("✗ Object does not have take_damage method")
@@ -63,6 +74,38 @@ func _on_area_entered(area: Area2D):
 		_deal_damage_to_object(object)
 	else:
 		print("✗ Unknown collision area:", area.name, "- ignoring collision")
+
+func _launch_golfball(golfball: Node):
+	"""Launch the golf ball with high velocity and height"""
+	print("=== LAUNCHING GOLFBALL WITH POWERBEAM ===")
+	print("GolfBall position:", golfball.global_position)
+	print("PowerBeam position:", global_position)
+	
+	# Calculate launch direction from PowerBeam to GolfBall
+	var launch_direction = (golfball.global_position - global_position).normalized()
+	
+	# Add some randomness to make it more dramatic
+	var random_angle = randf_range(-0.2, 0.2)  # ±11.5 degrees
+	launch_direction = launch_direction.rotated(random_angle)
+	
+	# Add some upward bias to make the launch more dramatic
+	launch_direction.y = min(launch_direction.y - 0.3, -0.1)  # Bias upward but not too much
+	launch_direction = launch_direction.normalized()
+	
+	print("Launch direction:", launch_direction)
+	print("Launch power:", GOLFBALL_LAUNCH_POWER)
+	print("Launch height:", GOLFBALL_LAUNCH_HEIGHT)
+	print("Launch spin:", GOLFBALL_LAUNCH_SPIN)
+	
+	# Launch the golf ball with high velocity and height
+	golfball.launch(launch_direction, GOLFBALL_LAUNCH_POWER, GOLFBALL_LAUNCH_HEIGHT, GOLFBALL_LAUNCH_SPIN, 2)  # Category 2 = high spin
+	
+	print("✓ GolfBall launched successfully!")
+	
+	# Play a sound effect if available
+	var launch_sound = get_node_or_null("LaunchSound")
+	if launch_sound and launch_sound.stream:
+		launch_sound.play()
 
 func _deal_damage_to_object(object: Node):
 	"""Deal damage to the specified object"""
