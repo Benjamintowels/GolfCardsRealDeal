@@ -137,6 +137,9 @@ func _ready():
 	# Connect to character scene's Area2D for collision detection
 	_connect_character_collision()
 	
+	# Setup HitBox for weapon collision detection
+	_setup_hitbox()
+	
 	# Setup swing animation system
 	_setup_swing_animation()
 	
@@ -201,6 +204,35 @@ func _setup_ball_collision() -> void:
 		print("✓ Player base collision area setup complete")
 	else:
 		print("✗ ERROR: BaseCollisionArea not found!")
+
+func _setup_hitbox() -> void:
+	"""Setup HitBox for weapon collision detection"""
+	var hitbox = _find_character_hitbox()
+	if hitbox:
+		# Set collision layer to 2 so weapons can detect it (separate from golf balls on layer 1)
+		hitbox.collision_layer = 2
+		# Set collision mask to 0 (weapons don't need to detect this)
+		hitbox.collision_mask = 0
+		print("✓ Player HitBox setup complete for weapon collision (layer 2)")
+	else:
+		print("✗ ERROR: Player HitBox not found!")
+
+func _find_character_hitbox() -> Area2D:
+	"""Find the HitBox in the character scene"""
+	# Look for HitBox in direct children
+	var hitbox = get_node_or_null("HitBox")
+	if hitbox:
+		return hitbox
+	
+	# Look for HitBox in character scene children
+	for child in get_children():
+		if child is Node2D:
+			hitbox = child.get_node_or_null("HitBox")
+			if hitbox:
+				return hitbox
+	
+	print("⚠ No HitBox found in character scene")
+	return null
 
 func _on_character_area_entered(area: Area2D) -> void:
 	"""Handle collisions with the character's collision area"""

@@ -267,7 +267,6 @@ sprite_frames = SubResource("SpriteFrames_swing")
 animation = &"Punch"
 
 [node name="HitBox" type="Area2D" parent="."]
-visible = false
 
 [node name="HitBoxShape" type="CollisionShape2D" parent="HitBox"]
 position = Vector2(2, -42)

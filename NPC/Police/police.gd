@@ -25,6 +25,10 @@ var vision_range: int = 10
 var attack_range: int = 10  # Same as vision range for immediate attack
 var current_action: String = "idle"
 
+# Bullet system
+const BulletScene = preload("res://Particles/Bullet.tscn")
+var current_bullet: Node = null
+
 # Sprite state management
 enum SpriteState {NORMAL, AIMING, DEAD}
 var current_sprite_state: SpriteState = SpriteState.NORMAL
@@ -84,6 +88,9 @@ func _ready():
 	# Connect to WorldTurnManager
 	course = _find_course_script()
 	print("Police course reference: ", course.name if course else "None")
+	
+	# Connect to tree_exiting signal for cleanup
+	tree_exiting.connect(_on_tree_exiting)
 	
 	# Try different paths to find WorldTurnManager
 	var world_turn_manager = null
@@ -942,6 +949,9 @@ func die() -> void:
 	is_dead = true
 	is_alive = false
 	
+	# Clean up any active bullet
+	_cleanup_bullet()
+	
 	# Give death reward
 	Global.give_npc_death_reward("Police")
 	
@@ -1021,22 +1031,134 @@ func attack_player() -> void:
 	if pistol_shot_sound:
 		pistol_shot_sound.play()
 	
-	# Perform raycast to check if player is in line of sight
-	var hit_target = _perform_attack_raycast()
-	if hit_target:
-		# Deal damage to whatever was hit
-		if hit_target.has_method("take_damage"):
-			hit_target.take_damage(attack_damage)
-			print("Police dealt", attack_damage, "damage to", hit_target.name)
-		else:
-			print("Target doesn't have take_damage method")
-	else:
-		print("No target hit, attack missed")
+	# Fire visual bullet
+	_fire_bullet_at_player()
 	
 	# Switch back to normal sprite after a delay
 	# Use a timer that won't block the turn completion
 	var attack_timer = get_tree().create_timer(0.5)
 	attack_timer.timeout.connect(_on_attack_timer_completed)
+
+func _fire_bullet_at_player() -> void:
+	"""Fire a visual bullet at the player"""
+	if not player:
+		print("No player to fire at")
+		return
+	
+	# Get bullet origin position
+	var bullet_origin = get_node_or_null("BulletOrigin")
+	if not bullet_origin:
+		print("✗ ERROR: BulletOrigin marker not found!")
+		return
+	
+	var bullet_start_pos = bullet_origin.global_position
+	var bullet_end_pos = _get_player_hitbox_position()
+	
+	print("=== FIRING BULLET ===")
+	print("Bullet start:", bullet_start_pos)
+	print("Bullet end:", bullet_end_pos)
+	
+	# Create bullet instance
+	current_bullet = BulletScene.instantiate()
+	get_tree().current_scene.add_child(current_bullet)
+	
+	# Connect bullet signals
+	current_bullet.bullet_hit.connect(_on_bullet_hit)
+	current_bullet.bullet_missed.connect(_on_bullet_missed)
+	
+	# Fire the bullet
+	current_bullet.fire(bullet_start_pos, bullet_end_pos, self)
+
+func _get_player_hitbox_position() -> Vector2:
+	"""Get the player's HitBox position for accurate targeting"""
+	# Try to find the player's HitBox
+	var player_hitbox = _find_player_hitbox()
+	if player_hitbox:
+		return player_hitbox.global_position
+	else:
+		# Fallback to player's global position
+		print("⚠ Could not find player HitBox, using player position")
+		return player.global_position
+
+func _find_player_hitbox() -> Area2D:
+	"""Find the player's HitBox"""
+	# Look for HitBox in player's direct children
+	var hitbox = player.get_node_or_null("HitBox")
+	if hitbox:
+		return hitbox
+	
+	# Look for HitBox in player's character scene children
+	for child in player.get_children():
+		if child is Node2D:
+			hitbox = child.get_node_or_null("HitBox")
+			if hitbox:
+				return hitbox
+	
+	print("⚠ Could not find player HitBox")
+	return null
+
+func _on_bullet_hit(target: Node) -> void:
+	"""Called when bullet hits something"""
+	print("=== BULLET HIT ===")
+	print("Hit target:", target.name)
+	
+	# Check if the hit object is a HitBox
+	if target.name == "HitBox":
+		var parent = target.get_parent()
+		print("HitBox parent:", parent.name if parent else "None")
+		
+		# Check if this is our own HitBox - if so, ignore it
+		if parent == self:
+			print("✗ Hit our own HitBox - ignoring")
+			return
+		
+		# Check if this is the player and use PlayerManager
+		if parent and parent.has_method("take_damage"):
+			# Check if this is the player (should use PlayerManager)
+			if parent.has_method("get_class") and parent.get_class() == "CharacterBody2D":
+				# This is likely the player - use PlayerManager
+				var course = get_tree().current_scene
+				if course and "player_manager" in course:
+					var player_manager = course.player_manager
+					if player_manager and player_manager.has_method("take_damage"):
+						player_manager.take_damage(attack_damage)
+						print("✓ Police dealt", attack_damage, "damage to player via PlayerManager")
+					else:
+						print("✗ PlayerManager not found or doesn't have take_damage method")
+						# Fallback to direct damage
+						parent.take_damage(attack_damage)
+						print("✓ Police dealt", attack_damage, "damage to player directly")
+				else:
+					print("✗ Course doesn't have player_manager property")
+					# Fallback to direct damage
+					parent.take_damage(attack_damage)
+					print("✓ Police dealt", attack_damage, "damage to player directly")
+			else:
+				# This is an NPC - apply damage directly
+				parent.take_damage(attack_damage)
+				print("✓ Police dealt", attack_damage, "damage to NPC:", parent.name)
+		else:
+			print("✗ HitBox parent doesn't have take_damage method")
+	else:
+		print("✗ Bullet hit non-HitBox object:", target.name)
+
+func _on_bullet_missed() -> void:
+	"""Called when bullet misses its target"""
+	print("=== BULLET MISSED ===")
+	print("Bullet missed the target")
+
+func _cleanup_bullet() -> void:
+	"""Clean up any active bullet"""
+	if current_bullet and is_instance_valid(current_bullet):
+		print("Cleaning up active bullet")
+		current_bullet.stop_movement()
+		current_bullet.queue_free()
+		current_bullet = null
+
+func _on_tree_exiting() -> void:
+	"""Called when the police node is being removed from the scene tree"""
+	print("Police node exiting, cleaning up bullet")
+	_cleanup_bullet()
 
 func _on_attack_timer_completed() -> void:
 	"""Called when the attack timer completes"""
@@ -1144,82 +1266,6 @@ func _switch_to_dead_collision() -> void:
 		print("✗ ERROR: Dead Area2D not found!")
 	
 	print("=== DEAD COLLISION SYSTEM ACTIVATED ===")
-
-func _perform_attack_raycast() -> Node:
-	"""Perform a raycast to check what's in the line of fire"""
-	if not player:
-		return null
-	
-	print("=== POLICE RAYCAST DEBUG ===")
-	
-	# Get the bullet origin position
-	var bullet_origin = get_node_or_null("BulletOrigin")
-	if not bullet_origin:
-		print("✗ ERROR: BulletOrigin marker not found!")
-		return null
-	
-	var bullet_start_pos = bullet_origin.global_position
-	print("Bullet origin position:", bullet_start_pos)
-	print("Player position:", player.global_position)
-	
-	var space_state = get_world_2d().direct_space_state
-	var query = PhysicsRayQueryParameters2D.create(bullet_start_pos, player.global_position)
-	query.collision_mask = 2  # Layer 2 for HitBoxes (weapons layer)
-	query.collide_with_bodies = false
-	query.collide_with_areas = true
-	
-	print("Raycast from", bullet_start_pos, "to", player.global_position, "on layer 2")
-	
-	var result = space_state.intersect_ray(query)
-	
-	if result:
-		print("✓ Raycast hit something!")
-		# Check if the hit object is a HitBox
-		var hit_object = result.collider
-		print("Hit object:", hit_object.name, "Type:", hit_object.get_class())
-		
-		if hit_object.name == "HitBox":
-			var parent = hit_object.get_parent()
-			print("HitBox parent:", parent.name if parent else "None")
-			
-			# Check if this is our own HitBox - if so, ignore it
-			if parent == self:
-				print("✗ Hit our own HitBox - ignoring")
-				return null
-			
-			if parent and parent.has_method("take_damage"):
-				print("✓ HitBox parent has take_damage method - returning parent")
-				return parent  # Return the parent object (player, NPC, etc.)
-			else:
-				print("✗ HitBox parent doesn't have take_damage method")
-				return null
-		else:
-			print("✗ Raycast hit non-HitBox object:", hit_object.name)
-			return null
-	else:
-		print("✗ Raycast missed - no HitBoxes hit")
-		# No HitBoxes hit, check if player is directly in the path
-		var distance = bullet_start_pos.distance_to(player.global_position)
-		print("Distance to player:", distance, "pixels, attack range:", attack_range * 48, "pixels")
-		
-		if distance <= attack_range * 48:  # Convert tiles to pixels
-			# Check if player is in the direct line of fire
-			var direction = (player.global_position - bullet_start_pos).normalized()
-			var to_player = player.global_position - bullet_start_pos
-			var dot_product = to_player.normalized().dot(direction)
-			
-			print("Dot product for direct line check:", dot_product)
-			
-			if dot_product > 0.99:  # Very precise aim required
-				print("✓ Player in direct line of fire - returning player")
-				return player
-			else:
-				print("✗ Player not in direct line of fire")
-		else:
-			print("✗ Player too far away")
-		
-		print("=== END RAYCAST DEBUG ===")
-		return null
 
 # State Machine Class
 class StateMachine:
