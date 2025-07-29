@@ -765,6 +765,12 @@ func create_and_animate_ash_dog_for_destructible(destructible: Node, target_pos:
 	# Animate Ash to the target position
 	var target_world_pos = Vector2(target_pos.x * cell_size + cell_size / 2, target_pos.y * cell_size + cell_size / 2)
 	
+	# Add camera container offset to get correct world position
+	if card_effect_handler and card_effect_handler.course:
+		var camera_container = card_effect_handler.course.get_node_or_null("CameraContainer")
+		if camera_container:
+			target_world_pos += camera_container.global_position
+	
 	var tween = create_tween()
 	tween.tween_property(ash, "global_position", target_world_pos, 0.5)
 	tween.tween_callback(func(): complete_attackdog_attack_for_destructible(destructible, target_pos))
