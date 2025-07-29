@@ -53,7 +53,8 @@ Tree (CharacterBody2D)
 │   ├── TreeTopAnimationPlayer (AnimationPlayer)
 │   │   └── pop_off (Animation) - 0.6s duration
 │   ├── YSortPoint (Node2D) - For Y-sorting
-│   └── Area2D - For collision detection
+│   └── Area2D - For landing collision detection
+│       └── CollisionShape2D - Shape for detecting landing collisions
 ├── Sprite2D - Default tree sprite
 │   ├── TopHeight (Marker2D) - Full tree height
 │   └── AnimationPlayer - Hover transparency
@@ -61,6 +62,16 @@ Tree (CharacterBody2D)
 ├── LightOccluder2D - Lighting occlusion
 └── [Other existing nodes...]
 ```
+
+### Area2D Setup for Landing Collisions
+The TreeTop's Area2D should be configured for landing collision detection:
+- **Collision Layer**: 0 (not used for physics)
+- **Collision Mask**: 1 (detect objects on layer 1)
+- **Collision Shape**: Should cover the area where the tree top lands
+- **Monitoring**: Enabled
+- **Monitorable**: Enabled
+
+**Important**: The Area2D must be on collision mask 1 to detect golf balls, which are on collision layer 1. This ensures the tree top can detect golf balls when it lands.
 
 ## Key Methods
 
@@ -80,6 +91,12 @@ Tree (CharacterBody2D)
 ### `get_y_sort_point() -> float`
 - Returns the Y-sorting reference point
 - Uses `TreeTop`'s `YSortPoint` when cut, default `YsortPoint` when intact
+
+### `check_tree_top_landing_collision()`
+- **Call this method from the TreeTop animation player** when the tree top lands
+- Checks for collisions with NPCs, Players, GolfBalls, and Destructibles
+- Applies appropriate damage and knockback based on target type
+- Use this in the "pop_off" animation at the frame when the tree top hits the ground
 
 ## Testing
 
@@ -101,6 +118,54 @@ To customize the tree cutting animation:
    - Movement distance (currently 100 pixels)
    - Rotation range (currently ±45 degrees)
    - Animation duration (currently 0.6 seconds)
+
+## Landing Collision System
+
+### How to Use
+1. In the `TreeTopAnimationPlayer`, add a **Call Method** track to the "pop_off" animation
+2. Set the method call to `check_tree_top_landing_collision()` 
+3. Place the call at the frame when the tree top lands on the ground (around 0.6s)
+4. Make sure the TreeTop's Area2D is properly configured for collision detection
+
+### Animation Setup Steps
+1. Open the TreeTop's `TreeTopAnimationPlayer`
+2. Select the "pop_off" animation
+3. Add a new **Call Method** track
+4. Set the method to call: `check_tree_top_landing_collision()`
+5. Position the call at the landing frame (typically around 0.6 seconds)
+6. Test the animation to ensure collisions are detected
+
+### Collision Effects
+
+| Target Type | Damage | Knockback | Special Effects |
+|-------------|--------|-----------|-----------------|
+| **GolfBall/GhostBall** | None | None | **Rolling**: Reflection with 20% speed loss<br>**In Flight**: Roof bounce if above tree height, reflection if below |
+| **Player** | 25 damage | 150 pixels | Standard damage + knockback |
+| **NPCs** | 30 damage | 120 pixels | Damage + knockback + weapon position |
+| **Destructibles** | 40 damage | None | High damage to destroy objects |
+
+### Supported Targets
+- **NPCs**: GangMember, Police, ZombieGolfer, Wraith, BossEye, BossHand
+- **Destructibles**: OilDrum, Boulder
+- **Players**: Any character with Player.gd script
+- **Balls**: GolfBall, GhostBall
+
+### Golf Ball Collision Logic
+The tree top uses intelligent collision detection for golf balls:
+
+1. **Rolling Ball Detection**: 
+   - Ball height ≤ 5 pixels AND velocity > 10 pixels
+   - **Result**: Ball is reflected off the tree top with 20% speed loss
+
+2. **In-Flight Ball Detection**:
+   - Ball height > 5 pixels OR velocity ≤ 10 pixels
+   - **If ball height > tree height**: Ball can pass over (roof bounce)
+   - **If ball height ≤ tree height**: Ball is reflected off the tree top
+
+3. **Reflection Physics**:
+   - Uses the same reflection algorithm as other tree collisions
+   - Adds small random angle to prevent infinite loops
+   - Notifies the ball of the bounce for sound effects
 
 ## Performance Considerations
 

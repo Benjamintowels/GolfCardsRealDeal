@@ -209,6 +209,230 @@ func _on_tree_top_animation_finished(anim_name: String):
 		print("✓ Tree top pop-off animation finished")
 		# You can add additional cleanup here if needed
 
+func check_tree_top_landing_collision():
+	"""Check for collisions when TreeTop lands on the ground - call from animation"""
+	print("=== CHECKING TREE TOP LANDING COLLISION ===")
+	
+	var tree_top = get_node_or_null("TreeTop")
+	if not tree_top:
+		print("✗ ERROR: TreeTop not found!")
+		return
+	
+	# Get the collision area for the tree top
+	var tree_top_area = tree_top.get_node_or_null("Area2D")
+	if not tree_top_area:
+		print("✗ ERROR: TreeTop Area2D not found!")
+		return
+	
+	# Get all overlapping areas
+	var overlapping_areas = tree_top_area.get_overlapping_areas()
+	if overlapping_areas.is_empty():
+		print("✓ No collisions detected on landing")
+		return
+	
+	print("Found", overlapping_areas.size(), "overlapping areas on landing")
+	
+	# Check each overlapping area for valid targets
+	for area in overlapping_areas:
+		var target = area.get_parent()
+		if not target:
+			continue
+		
+		print("Checking collision with:", target.name, "(", target.get_class(), ")")
+		
+		# Handle different types of targets
+		_handle_tree_top_collision(target)
+
+func _handle_tree_top_collision(target: Node):
+	"""Handle collision between TreeTop and a target entity"""
+	print("Handling tree top collision with:", target.name)
+	
+	# Check if target is a golf ball (special handling)
+	if target.name == "GolfBall" or target.name == "GhostBall":
+		_handle_tree_top_ball_collision(target)
+		return
+	
+	# Check if target is a player
+	if target.has_method("take_damage") and target.get_script() and target.get_script().resource_path.ends_with("Player.gd"):
+		_handle_tree_top_player_collision(target)
+		return
+	
+	# Check if target is an NPC (GangMember, Police, ZombieGolfer, etc.)
+	if target.has_method("take_damage") and _is_npc(target):
+		_handle_tree_top_npc_collision(target)
+		return
+	
+	# Check if target is destructible (oil drum, etc.)
+	if target.has_method("take_damage") and _is_destructible(target):
+		_handle_tree_top_destructible_collision(target)
+		return
+	
+	print("✓ Target", target.name, "is not a valid collision target")
+
+func _handle_tree_top_ball_collision(ball: Node):
+	"""Handle TreeTop collision with golf ball"""
+	print("Tree top hit golf ball:", ball.name)
+	
+	var tree_top = get_node_or_null("TreeTop")
+	if not tree_top:
+		return
+	
+	# Check if ball is rolling or in flight
+	var ball_velocity = Vector2.ZERO
+	if "velocity" in ball:
+		ball_velocity = ball.velocity
+	
+	var ball_height = 0.0
+	if ball.has_method("get_height"):
+		ball_height = ball.get_height()
+	
+	print("Ball velocity:", ball_velocity, "Ball height:", ball_height)
+	
+	# If ball is rolling (low height, has velocity), reflect it
+	if ball_height <= 5.0 and ball_velocity.length() > 10.0:
+		print("Ball is rolling - applying reflection")
+		_apply_ball_reflection(ball, tree_top)
+	else:
+		# Ball is in flight or stopped - apply roof bounce or pass over
+		print("Ball is in flight or stopped - checking for roof bounce")
+		_apply_ball_roof_bounce(ball, tree_top)
+
+func _apply_ball_reflection(ball: Node, tree_top: Node):
+	"""Apply reflection to rolling ball"""
+	var ball_velocity = ball.velocity
+	var ball_pos = ball.global_position
+	var tree_center = tree_top.global_position
+	
+	# Calculate the direction from tree center to ball
+	var to_ball_direction = (ball_pos - tree_center).normalized()
+	
+	# Simple reflection: reflect the velocity across the tree center
+	var reflected_velocity = ball_velocity - 2 * ball_velocity.dot(to_ball_direction) * to_ball_direction
+	
+	# Reduce speed slightly to prevent infinite bouncing
+	reflected_velocity *= 0.8
+	
+	# Add a small amount of randomness to prevent infinite loops
+	var random_angle = randf_range(-0.1, 0.1)
+	reflected_velocity = reflected_velocity.rotated(random_angle)
+	
+	# Apply the reflected velocity to the ball
+	ball.velocity = reflected_velocity
+	
+	# Notify ball of bounce if it has the method
+	if ball.has_method("_notify_bounce_room_bounce"):
+		ball._notify_bounce_room_bounce()
+	
+	print("✓ Applied reflection to ball:", reflected_velocity)
+
+func _apply_ball_roof_bounce(ball: Node, tree_top: Node):
+	"""Apply roof bounce or pass over for ball in flight"""
+	var tree_height = Global.get_object_height_from_marker(tree_top)
+	var ball_height = 0.0
+	
+	if ball.has_method("get_height"):
+		ball_height = ball.get_height()
+	
+	print("Tree height:", tree_height, "Ball height:", ball_height)
+	
+	# If ball is above tree height, it can pass over (roof bounce)
+	if ball_height > tree_height:
+		print("Ball is above tree - allowing roof bounce")
+		if ball.has_method("_set_ground_level"):
+			ball._set_ground_level(tree_height)
+		elif "current_ground_level" in ball:
+			ball.current_ground_level = tree_height
+		print("✓ Set ball ground level to tree height:", tree_height)
+	else:
+		# Ball is below tree height - reflect it
+		print("Ball is below tree - applying reflection")
+		_apply_ball_reflection(ball, tree_top)
+
+func _handle_tree_top_player_collision(player: Node):
+	"""Handle TreeTop collision with player"""
+	print("Tree top hit player:", player.name)
+	
+	# Apply damage and knockback to player
+	var tree_top = get_node_or_null("TreeTop")
+	if tree_top:
+		# Apply damage (tree top damage)
+		player.take_damage(25, false)  # 25 damage, not headshot
+		
+		# Apply knockback
+		var knockback_direction = (player.global_position - tree_top.global_position).normalized()
+		var knockback_force = knockback_direction * 150  # 150 pixel knockback
+		
+		if player.has_method("apply_knockback"):
+			player.apply_knockback(knockback_force)
+		elif "velocity" in player:
+			player.velocity = knockback_force
+		
+		print("✓ Applied damage and knockback to player")
+
+func _handle_tree_top_npc_collision(npc: Node):
+	"""Handle TreeTop collision with NPC"""
+	print("Tree top hit NPC:", npc.name)
+	
+	# Apply damage and knockback to NPC
+	var tree_top = get_node_or_null("TreeTop")
+	if tree_top:
+		# Apply damage (tree top damage)
+		npc.take_damage(30, false, tree_top.global_position)  # 30 damage, not headshot, weapon position
+		
+		# Apply knockback
+		var knockback_direction = (npc.global_position - tree_top.global_position).normalized()
+		var knockback_force = knockback_direction * 120  # 120 pixel knockback
+		
+		if npc.has_method("apply_knockback"):
+			npc.apply_knockback(knockback_force)
+		elif "velocity" in npc:
+			npc.velocity = knockback_force
+		
+		print("✓ Applied damage and knockback to NPC")
+
+func _handle_tree_top_destructible_collision(destructible: Node):
+	"""Handle TreeTop collision with destructible object"""
+	print("Tree top hit destructible:", destructible.name)
+	
+	# Apply damage to destructible
+	destructible.take_damage(40)  # 40 damage to destructibles
+	
+	print("✓ Applied damage to destructible")
+
+func _is_npc(target: Node) -> bool:
+	"""Check if target is an NPC"""
+	var npc_scripts = [
+		"GangMember.gd",
+		"police.gd", 
+		"ZombieGolfer.gd",
+		"wraith.gd",
+		"boss_eye.gd",
+		"boss_hand.gd"
+	]
+	
+	if target.get_script():
+		var script_path = target.get_script().resource_path
+		for npc_script in npc_scripts:
+			if script_path.ends_with(npc_script):
+				return true
+	
+	return false
+
+func _is_destructible(target: Node) -> bool:
+	"""Check if target is a destructible object"""
+	var destructible_scripts = [
+		"oil_drum.gd",
+		"boulder.gd"
+	]
+	
+	if target.get_script():
+		var script_path = target.get_script().resource_path
+		for destructible_script in destructible_scripts:
+			if script_path.ends_with(destructible_script):
+				return true
+	
+	return false
+
 func _disable_hover_effect():
 	"""Disable the hover transparency effect"""
 	var mouse_area = get_node_or_null("MouseDetectionArea")
