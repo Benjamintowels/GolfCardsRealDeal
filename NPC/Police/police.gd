@@ -163,6 +163,8 @@ func _setup_base_collision() -> void:
 		hitbox.collision_layer = 2
 		# Set collision mask to 0 (gun doesn't need to detect this)
 		hitbox.collision_mask = 0
+		# Add to hitboxes group for weapon system detection
+		hitbox.add_to_group("hitboxes")
 		print("✓ Police HitBox setup complete for gun collision (layer 2)")
 	else:
 		print("✗ ERROR: HitBox not found!")
@@ -607,7 +609,13 @@ func _is_position_valid(pos: Vector2i) -> bool:
 		print("Position ", pos, " is occupied by player")
 		return false
 	
-	# For now, allow movement to any position within bounds
+	# Check if position is occupied by any other entity (NPCs)
+	var course = get_tree().current_scene
+	if course and course.has_method("is_position_occupied_by_entity"):
+		if course.is_position_occupied_by_entity(pos):
+			print("Position ", pos, " is occupied by another entity")
+			return false
+	
 	return true
 
 func _move_to_position(target_pos: Vector2i) -> void:
@@ -1058,27 +1066,39 @@ func _fire_bullet_at_player() -> void:
 	print("Bullet start:", bullet_start_pos)
 	print("Bullet end:", bullet_end_pos)
 	
-	# Perform raytrace to check if bullet will hit
+	# Perform raytrace to check what the bullet will hit first (could be player, NPC, or object)
 	var hit_target = _perform_bullet_raytrace(bullet_start_pos, bullet_end_pos)
 	
 	# Create bullet instance for visual effect
 	current_bullet = BulletScene.instantiate()
 	get_tree().current_scene.add_child(current_bullet)
 	
-	# Fire the bullet (damage is handled by raytrace, not bullet signals)
+	# Connect bullet signals for collision detection
+	current_bullet.bullet_hit.connect(_on_bullet_hit)
+	current_bullet.bullet_missed.connect(_on_bullet_missed)
+	
+	# Fire the bullet (always aimed at player, but may hit something else first)
 	current_bullet.fire(bullet_start_pos, bullet_end_pos, self)
 	
 	# If raytrace hit something, apply damage immediately
 	if hit_target:
 		print("✓ Raytrace hit target:", hit_target.name)
 		_apply_bullet_damage(hit_target)
+		# Mark that damage has been applied to prevent double damage from bullet collision
+		current_bullet.set_meta("damage_applied", true)
 	else:
-		print("✗ Raytrace missed target")
+		print("✗ Raytrace missed target - will rely on bullet collision detection")
 
 func _perform_bullet_raytrace(bullet_start: Vector2, bullet_end: Vector2) -> Node:
-	"""Perform raytrace to check if bullet will hit anything"""
+	"""Perform raytrace to check what the bullet will hit first in its path"""
 	var direction = (bullet_end - bullet_start).normalized()
 	var distance = bullet_start.distance_to(bullet_end)
+	
+	print("=== PERFORMING BULLET RAYTRACE ===")
+	print("Bullet start:", bullet_start)
+	print("Bullet end:", bullet_end)
+	print("Direction:", direction)
+	print("Distance:", distance)
 	
 	# Cast ray from bullet start to end position
 	var space_state = get_world_2d().direct_space_state
@@ -1092,34 +1112,144 @@ func _perform_bullet_raytrace(bullet_start: Vector2, bullet_end: Vector2) -> Nod
 	if result:
 		# Bullet hit something
 		var hit_object = result.collider
+		var hit_distance = bullet_start.distance_to(result.position)
+		print("✓ Raytrace hit object:", hit_object.name, "at distance:", hit_distance)
 		
 		# Check if it's a HitBox Area2D
 		if hit_object.name == "HitBox":
 			var parent = hit_object.get_parent()
+			print("HitBox parent:", parent.name if parent else "None")
 			
 			# Check if it's our own HitBox - if so, ignore it
 			if parent == self:
 				print("✗ Hit our own HitBox - ignoring")
 				return null
 			
-			# Check if parent has take_damage method
-			if parent and parent.has_method("take_damage"):
+			# For player HitBox, we need to find the actual Player node
+			if parent and parent.name == "BennyChar":
+				# This is the player's character scene - find the actual Player node
+				var player_node = _find_player_node_from_character(parent)
+				if player_node and player_node.has_method("take_damage"):
+					print("✓ Found Player node from character scene - will hit:", player_node.name)
+					return player_node
+			
+			# Check if parent has take_damage method (could be NPC or object)
+			elif parent and parent.has_method("take_damage"):
+				print("✓ HitBox parent has take_damage method - will hit:", parent.name)
 				return parent  # Return the parent, not the HitBox
 		
 		# Check if it's a direct hit on an object with take_damage
 		elif hit_object.has_method("take_damage"):
+			print("✓ Direct hit on object with take_damage - will hit:", hit_object.name)
 			return hit_object
+	else:
+		print("✗ Raytrace missed - no direct hit")
+	
+	# Fallback: Check for any valid targets in the bullet path using distance calculation
+	var fallback_target = _find_fallback_target_in_path(bullet_start, direction, distance)
+	if fallback_target:
+		print("✓ Fallback check found target:", fallback_target.name)
+		return fallback_target
+	
+	print("=== END BULLET RAYTRACE ===")
+	return null
+
+func _find_player_node_from_character(character_scene: Node) -> Node:
+	"""Find the actual Player node from the character scene"""
+	# The Player node should be the parent of the character scene
+	var player_node = character_scene.get_parent()
+	if player_node and player_node.has_method("take_damage"):
+		return player_node
+	
+	# If not found, try to find it in the scene tree
+	var player = get_tree().get_first_node_in_group("players")
+	if player and player.has_method("take_damage"):
+		return player
 	
 	return null
+
+func _find_fallback_target_in_path(bullet_start: Vector2, direction: Vector2, max_distance: float) -> Node:
+	"""Find any valid target in the bullet's path as a fallback"""
+	print("=== FALLBACK TARGET SEARCH ===")
+	
+	# Get all HitBoxes in the scene
+	var hitboxes = get_tree().get_nodes_in_group("hitboxes")
+	print("HitBoxes in 'hitboxes' group:", hitboxes.size())
+	
+	if not hitboxes:
+		# Try to find HitBox nodes by name if not in group
+		hitboxes = []
+		for node in get_tree().get_nodes_in_group("."):
+			if node.name == "HitBox":
+				hitboxes.append(node)
+		print("Found HitBoxes by name:", hitboxes.size())
+	
+	var closest_target = null
+	var closest_distance = max_distance
+	
+	# Check each HitBox
+	for hitbox in hitboxes:
+		if not is_instance_valid(hitbox):
+			continue
+			
+		var hitbox_pos = hitbox.global_position
+		var to_hitbox = hitbox_pos - bullet_start
+		var hitbox_distance = to_hitbox.length()
+		
+		print("Checking HitBox:", hitbox.name, "at position:", hitbox_pos, "distance:", hitbox_distance)
+		
+		# Check if HitBox is within the bullet's path
+		if hitbox_distance <= max_distance:
+			var dot_product = to_hitbox.normalized().dot(direction)
+			print("  Dot product:", dot_product)
+			
+			# Allow for some tolerance in aim (within ~30 degrees)
+			if dot_product > 0.85:
+				var parent = hitbox.get_parent()
+				print("  HitBox parent:", parent.name if parent else "None")
+				
+				# Check if it's our own HitBox - if so, ignore it
+				if parent == self:
+					print("  Ignoring own HitBox")
+					continue
+				
+				# For player HitBox, we need to find the actual Player node
+				if parent and parent.name == "BennyChar":
+					var player_node = _find_player_node_from_character(parent)
+					if player_node and player_node.has_method("take_damage"):
+						if hitbox_distance < closest_distance:
+							closest_distance = hitbox_distance
+							closest_target = player_node
+							print("Found closer player target:", player_node.name, "at distance:", hitbox_distance)
+				# Check if parent has take_damage method (could be NPC or object)
+				elif parent and parent.has_method("take_damage"):
+					if hitbox_distance < closest_distance:
+						closest_distance = hitbox_distance
+						closest_target = parent
+						print("Found closer target:", parent.name, "at distance:", hitbox_distance)
+			else:
+				print("  HitBox not in bullet path (dot product too low)")
+		else:
+			print("  HitBox too far away")
+	
+	if closest_target:
+		print("✓ Fallback found closest target:", closest_target.name, "at distance:", closest_distance)
+	else:
+		print("✗ Fallback found no valid targets in path")
+	
+	return closest_target
 
 func _apply_bullet_damage(target: Node) -> void:
 	"""Apply bullet damage to the target"""
 	print("=== APPLYING BULLET DAMAGE ===")
 	print("Target:", target.name)
+	print("Target class:", target.get_class())
+	print("Target in players group:", target.is_in_group("players"))
+	print("Target in NPC group:", target.is_in_group("NPC"))
 	
-	# Check if this is the player and use PlayerManager
-	if target.has_method("get_class") and target.get_class() == "CharacterBody2D":
-		# This is likely the player - use PlayerManager
+	# Check if this is the player (in players group) or an NPC (in NPC group)
+	if target.is_in_group("players"):
+		# This is the player - use PlayerManager
 		var course = get_tree().current_scene
 		if course and "player_manager" in course:
 			var player_manager = course.player_manager
@@ -1128,18 +1258,20 @@ func _apply_bullet_damage(target: Node) -> void:
 				print("✓ Police dealt", attack_damage, "damage to player via PlayerManager")
 			else:
 				print("✗ PlayerManager not found or doesn't have take_damage method")
-				# Fallback to direct damage
 				target.take_damage(attack_damage)
 				print("✓ Police dealt", attack_damage, "damage to player directly")
 		else:
 			print("✗ Course doesn't have player_manager property")
-			# Fallback to direct damage
 			target.take_damage(attack_damage)
 			print("✓ Police dealt", attack_damage, "damage to player directly")
-	else:
+	elif target.is_in_group("NPC"):
 		# This is an NPC - apply damage directly
 		target.take_damage(attack_damage)
 		print("✓ Police dealt", attack_damage, "damage to NPC:", target.name)
+	else:
+		# This is some other object (oil drum, tree, etc.) - apply damage directly
+		target.take_damage(attack_damage)
+		print("✓ Police dealt", attack_damage, "damage to object:", target.name)
 
 func _get_player_hitbox_position() -> Vector2:
 	"""Get the player's HitBox position for accurate targeting"""
@@ -1147,6 +1279,8 @@ func _get_player_hitbox_position() -> Vector2:
 	var player_hitbox = _find_player_hitbox()
 	if player_hitbox:
 		print("✓ Found player HitBox at:", player_hitbox.global_position)
+		print("Player global position:", player.global_position)
+		print("Player grid position:", player.grid_pos)
 		return player_hitbox.global_position
 	else:
 		# Fallback to player's global position

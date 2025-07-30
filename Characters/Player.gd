@@ -137,8 +137,8 @@ func _ready():
 	# Connect to character scene's Area2D for collision detection
 	_connect_character_collision()
 	
-	# Setup HitBox for weapon collision detection
-	_setup_hitbox()
+	# Setup HitBox for weapon collision detection (deferred to ensure character scene is loaded)
+	call_deferred("_setup_hitbox")
 	
 	# Setup swing animation system
 	_setup_swing_animation()
@@ -213,7 +213,11 @@ func _setup_hitbox() -> void:
 		hitbox.collision_layer = 2
 		# Set collision mask to 0 (weapons don't need to detect this)
 		hitbox.collision_mask = 0
+		# Add to hitboxes group for weapon system detection
+		hitbox.add_to_group("hitboxes")
 		print("✓ Player HitBox setup complete for weapon collision (layer 2)")
+		print("Player HitBox position:", hitbox.global_position)
+		print("Player HitBox in hitboxes group:", hitbox.is_in_group("hitboxes"))
 	else:
 		print("✗ ERROR: Player HitBox not found!")
 
@@ -1480,11 +1484,16 @@ func calculate_valid_movement_tiles():
 			if right_pos.x < grid_size.x:
 				cross_positions.append(right_pos)
 		
-		# Check obstacles for cross positions
+		# Check obstacles and entities for cross positions
 		for pos in cross_positions:
 			if obstacle_map.has(pos):
 				var obstacle = obstacle_map[pos]
 				if obstacle.has_method("blocks") and obstacle.blocks():
+					continue
+			# Check if position is occupied by any entity (player or NPC)
+			var course = get_tree().current_scene
+			if course and course.has_method("is_position_occupied_by_entity"):
+				if course.is_position_occupied_by_entity(pos):
 					continue
 			valid_movement_tiles.append(pos)
 		
@@ -1519,11 +1528,16 @@ func calculate_valid_movement_tiles():
 			if right_pos.x < grid_size.x:
 				cross_positions.append(right_pos)
 		
-		# Check obstacles for cross positions
+		# Check obstacles and entities for cross positions
 		for pos in cross_positions:
 			if obstacle_map.has(pos):
 				var obstacle = obstacle_map[pos]
 				if obstacle.has_method("blocks") and obstacle.blocks():
+					continue
+			# Check if position is occupied by any entity (player or NPC)
+			var course = get_tree().current_scene
+			if course and course.has_method("is_position_occupied_by_entity"):
+				if course.is_position_occupied_by_entity(pos):
 					continue
 			valid_movement_tiles.append(pos)
 		
@@ -1538,6 +1552,11 @@ func calculate_valid_movement_tiles():
 				if obstacle_map.has(pos):
 					var obstacle = obstacle_map[pos]
 					if obstacle.has_method("blocks") and obstacle.blocks():
+						continue
+				# Check if position is occupied by any entity (player or NPC)
+				var course = get_tree().current_scene
+				if course and course.has_method("is_position_occupied_by_entity"):
+					if course.is_position_occupied_by_entity(pos):
 						continue
 				valid_movement_tiles.append(pos)
 

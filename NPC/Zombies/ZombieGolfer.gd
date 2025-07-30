@@ -153,6 +153,8 @@ func _setup_base_collision() -> void:
 		hitbox.collision_layer = 2
 		# Set collision mask to 0 (gun doesn't need to detect this)
 		hitbox.collision_mask = 0
+		# Add to hitboxes group for weapon system detection
+		hitbox.add_to_group("hitboxes")
 		print("✓ ZombieGolfer HitBox setup complete for gun collision (layer 2)")
 	else:
 		print("✗ ERROR: HitBox not found!")
@@ -1138,6 +1140,12 @@ func _is_valid_position(pos: Vector2i) -> bool:
 	# Check if position is occupied by the player
 	if player and player.grid_pos == pos:
 		return false
+	
+	# Check if position is occupied by any other entity (NPCs)
+	var course = get_tree().current_scene
+	if course and course.has_method("is_position_occupied_by_entity"):
+		if course.is_position_occupied_by_entity(pos):
+			return false
 	
 	# Check if position is not occupied by obstacles
 	if course and course.has_method("get_obstacle_at_position"):

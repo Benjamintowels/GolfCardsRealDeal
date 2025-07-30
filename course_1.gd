@@ -4608,3 +4608,62 @@ func _on_player_pushed_to_tile(new_grid_pos: Vector2i) -> void:
 	# Update position references but don't affect turn state since this is forced movement
 	if attack_handler:
 		attack_handler.update_player_position(new_grid_pos)
+
+# ... existing code ...
+
+# Centralized blocking system
+func is_position_occupied_by_entity(pos: Vector2i) -> bool:
+	"""Check if a position is occupied by any entity (player or NPC)"""
+	# Check if position is occupied by the player
+	if player_manager and player_manager.get_player_node():
+		var player = player_manager.get_player_node()
+		if player.has_method("get_grid_position"):
+			if player.get_grid_position() == pos:
+				return true
+		elif "grid_pos" in player:
+			if player.grid_pos == pos:
+				return true
+	
+	# Check if position is occupied by any NPC
+	var entities = get_node_or_null("Entities")
+	if entities and entities.has_method("get_npcs"):
+		var npcs = entities.get_npcs()
+		for npc in npcs:
+			if is_instance_valid(npc):
+				var npc_pos = Vector2i.ZERO
+				
+				# Try to get grid position using different methods
+				if npc.has_method("get_grid_position"):
+					npc_pos = npc.get_grid_position()
+				elif "grid_position" in npc:
+					npc_pos = npc.grid_position
+				elif "grid_pos" in npc:
+					npc_pos = npc.grid_pos
+				else:
+					# Fallback: calculate grid position from world position
+					var world_pos = npc.global_position
+					var cell_size_used = cell_size if "cell_size" in npc else 48
+					npc_pos = Vector2i(floor(world_pos.x / cell_size_used), floor(world_pos.y / cell_size_used))
+				
+				if npc_pos == pos:
+					return true
+	
+	return false
+
+func is_position_valid_for_movement(pos: Vector2i) -> bool:
+	"""Check if a position is valid for movement (not blocked by obstacles or entities)"""
+	# Check bounds
+	if pos.x < 0 or pos.y < 0 or pos.x >= grid_manager.get_grid_size().x or pos.y >= grid_manager.get_grid_size().y:
+		return false
+	
+	# Check if position is blocked by obstacle
+	if obstacle_map.has(pos):
+		var obstacle = obstacle_map[pos]
+		if obstacle and obstacle.has_method("blocks") and obstacle.blocks():
+			return false
+	
+	# Check if position is occupied by any entity
+	if is_position_occupied_by_entity(pos):
+		return false
+	
+	return true

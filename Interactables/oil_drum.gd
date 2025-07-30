@@ -598,6 +598,10 @@ func get_grid_position() -> Vector2i:
 		var grid_y = floor((world_pos.y - cell_size / 2) / cell_size)
 		return Vector2i(grid_x, grid_y)
 
+func blocks() -> bool:
+	"""Return true to block movement on this tile"""
+	return true
+
 func _play_oil_drum_sound() -> void:
 	"""Play the oil drum thunk sound - called by reflection system only"""
 	# Check cooldown to prevent duplicate sounds

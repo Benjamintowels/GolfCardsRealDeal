@@ -313,6 +313,8 @@ func _setup_base_collision() -> void:
 		hitbox.collision_layer = 2
 		# Set collision mask to 0 (gun doesn't need to detect this)
 		hitbox.collision_mask = 0
+		# Add to hitboxes group for weapon system detection
+		hitbox.add_to_group("hitboxes")
 		print("✓ GangMember HitBox setup complete for gun collision (layer 2)")
 	else:
 		print("✗ ERROR: HitBox not found!")
@@ -1020,8 +1022,13 @@ func _is_position_valid(pos: Vector2i) -> bool:
 		print("Position ", pos, " is occupied by player")
 		return false
 	
-	# For now, allow movement to any position within bounds
-	# In the future, you can add obstacle checking here
+	# Check if position is occupied by any other entity (NPCs)
+	var course = get_tree().current_scene
+	if course and course.has_method("is_position_occupied_by_entity"):
+		if course.is_position_occupied_by_entity(pos):
+			print("Position ", pos, " is occupied by another entity")
+			return false
+	
 	return true
 
 func _move_to_position(target_pos: Vector2i) -> void:

@@ -1011,6 +1011,12 @@ func _is_position_valid(pos: Vector2i) -> bool:
 	if player and player.grid_pos == pos:
 		return false
 	
+	# Check if position is occupied by any other entity (NPCs)
+	var course = get_tree().current_scene
+	if course and course.has_method("is_position_occupied_by_entity"):
+		if course.is_position_occupied_by_entity(pos):
+			return false
+	
 	# Check if position is on a green tile (G)
 	if course and course.has_method("get_tile_type_at_position"):
 		var tile_type = course.get_tile_type_at_position(pos)

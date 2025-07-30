@@ -110,6 +110,12 @@ func _on_area_entered(area: Area2D) -> void:
 	if not is_moving:
 		return
 	
+	# Check if damage has already been applied by raytrace
+	if has_meta("damage_applied") and get_meta("damage_applied"):
+		print("=== BULLET AREA ENTERED (DAMAGE ALREADY APPLIED) ===")
+		print("Hit area:", area.name, "- ignoring collision (damage already applied)")
+		return
+	
 	print("=== BULLET AREA ENTERED ===")
 	print("Hit area:", area.name)
 	
@@ -131,6 +137,8 @@ func _on_area_entered(area: Area2D) -> void:
 			_handle_bullet_hit(parent)
 		else:
 			print("✗ HitBox parent doesn't have take_damage method")
+			print("Parent class:", parent.get_class() if parent else "No parent")
+			print("Parent methods:", parent.get_method_list() if parent else "No parent")
 	else:
 		# Check if this is a character's collision area (Area2D)
 		var parent = area.get_parent()
@@ -165,8 +173,8 @@ func _handle_bullet_hit(target: Node) -> void:
 	# Stop movement
 	is_moving = false
 	
-	# Note: Damage is now handled by raytrace in the police script
-	# So we don't emit the bullet_hit signal here
+	# Emit bullet_hit signal to notify the shooter
+	bullet_hit.emit(target)
 	
 	# Hide bullet
 	visible = false
@@ -183,6 +191,7 @@ func _on_bullet_movement_completed() -> void:
 		# Bullet reached target without hitting anything
 		is_moving = false
 		bullet_missed.emit()
+		print("✓ Bullet missed signal emitted")
 		
 		# Hide bullet
 		visible = false

@@ -279,6 +279,12 @@ func calculate_valid_movement_tiles() -> void:
 					if obstacle.has_method("blocks") and obstacle.blocks():
 						continue
 
+				# Check if position is occupied by any entity (player or NPC)
+				var course = get_tree().current_scene
+				if course and course.has_method("is_position_occupied_by_entity"):
+					if course.is_position_occupied_by_entity(pos):
+						continue
+
 				valid_movement_tiles.append(pos)
 
 func calculate_grid_distance(a: Vector2i, b: Vector2i) -> int:

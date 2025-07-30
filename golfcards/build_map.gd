@@ -2053,6 +2053,9 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		
 		ysort_objects.append({"node": oil_drum, "grid_pos": oil_pos})
 		obstacle_layer.add_child(oil_drum)
+		# Add oil drum to obstacle map to block movement
+		if oil_drum.has_method("blocks") and oil_drum.blocks():
+			obstacle_map[oil_pos] = oil_drum
 	
 	# Place Squirrels
 	if "SQUIRREL" in object_scene_map:

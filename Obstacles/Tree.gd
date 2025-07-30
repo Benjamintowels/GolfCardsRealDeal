@@ -683,6 +683,8 @@ func _setup_hitbox() -> void:
 		hitbox.collision_layer = 2
 		# Set collision mask to 0 (gun doesn't need to detect this)
 		hitbox.collision_mask = 0
+		# Add to hitboxes group for weapon system detection
+		hitbox.add_to_group("hitboxes")
 		print("✓ Tree HitBox setup complete for gun collision (layer 2)")
 	else:
 		print("✗ ERROR: Tree HitBox not found!")

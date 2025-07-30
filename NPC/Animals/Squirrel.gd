@@ -643,7 +643,12 @@ func _is_position_valid(pos: Vector2i) -> bool:
 	if player and player.grid_pos == pos:
 		return false
 
-	# For now, allow movement to any position within bounds
+	# Check if position is occupied by any other entity (NPCs)
+	var course = get_tree().current_scene
+	if course and course.has_method("is_position_occupied_by_entity"):
+		if course.is_position_occupied_by_entity(pos):
+			return false
+
 	return true
 
 func _get_valid_adjacent_positions() -> Array[Vector2i]:
