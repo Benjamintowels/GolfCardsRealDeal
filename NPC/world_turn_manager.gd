@@ -579,13 +579,13 @@ func _process_together_mode_turn() -> void:
 
 	# Only transition camera to NPC if not a boss room
 	if not _is_boss_room():
-		# Find the highest priority NPC for camera focus
-		var highest_priority_npc = _get_highest_priority_npc_for_camera()
-		if highest_priority_npc:
+		# Find the NPC closest to the player for camera focus
+		var closest_npc = _get_closest_npc_for_camera()
+		if closest_npc:
 			print("=== TOGETHER MODE: CAMERA TRANSITION ===")
-			print("Moving camera to highest priority NPC: ", highest_priority_npc.name, " (Priority: ", get_npc_priority(highest_priority_npc), ")")
-			# Transition camera to the highest priority NPC
-			await _transition_camera_to_npc(highest_priority_npc)
+			print("Moving camera to NPC closest to player: ", closest_npc.name)
+			# Transition camera to the closest NPC
+			await _transition_camera_to_npc(closest_npc)
 			# Wait for camera transition
 			await get_tree().create_timer(CAMERA_TRANSITION_DURATION).timeout
 		else:
@@ -686,10 +686,18 @@ func _execute_npc_turn_task(task: Dictionary) -> void:
 	
 	print("  Completed turn for: ", npc.name)
 
-func _get_highest_priority_npc_for_camera() -> Node:
-	"""Get the highest priority NPC that should take a turn for camera focus"""
-	var highest_priority_npc: Node = null
-	var highest_priority: int = -1
+func _get_closest_npc_for_camera() -> Node:
+	"""Get the NPC closest to the player that should take a turn for camera focus"""
+	var closest_npc: Node = null
+	var closest_distance: float = INF
+	
+	# Get player position
+	var player_pos: Vector2 = Vector2.ZERO
+	if course_reference and course_reference.player_manager and course_reference.player_manager.get_player_node():
+		player_pos = course_reference.player_manager.get_player_node().global_position
+	else:
+		print("ERROR: Could not get player position for camera focus selection")
+		return null
 	
 	for npc in npcs_in_turn_order:
 		if not is_instance_valid(npc):
@@ -699,13 +707,16 @@ func _get_highest_priority_npc_for_camera() -> Node:
 		if not _should_npc_take_turn(npc):
 			continue
 		
-		var priority = get_npc_priority(npc)
-		if priority > highest_priority:
-			highest_priority = priority
-			highest_priority_npc = npc
+		# Calculate distance to player
+		var npc_pos = npc.global_position
+		var distance = player_pos.distance_to(npc_pos)
+		
+		if distance < closest_distance:
+			closest_distance = distance
+			closest_npc = npc
 	
-	print("Highest priority NPC for camera: ", highest_priority_npc.name if highest_priority_npc else "None", " (Priority: ", highest_priority, ")")
-	return highest_priority_npc
+	print("Closest NPC to player for camera: ", closest_npc.name if closest_npc else "None", " (Distance: ", closest_distance, ")")
+	return closest_npc
 
 func _wait_for_all_tasks(tasks: Array) -> void:
 	"""Wait for all tasks to complete"""
