@@ -1,14 +1,26 @@
-[gd_scene load_steps=2 format=3 uid="uid://wtf41wnk0sys"]
+[gd_scene load_steps=4 format=3 uid="uid://wtf41wnk0sys"]
 
 [ext_resource type="Texture2D" uid="uid://bmm7sayjxodft" path="res://Dialog/SpeechBubble.png" id="1_32n88"]
+[ext_resource type="Script" uid="uid://oe2lh2i2ybeo" path="res://Dialog/speech_bubble.gd" id="2_wfdee"]
+[ext_resource type="AudioStream" uid="uid://dl6tb8mt6d6yv" path="res://Sounds/SpeechBoop.mp3" id="3_257so"]
 
-[node name="SpeechBubble" type="Sprite2D"]
+[node name="SpeechBubble" type="Node2D"]
+z_index = 2385
+position = Vector2(-2, 0)
+script = ExtResource("2_wfdee")
+
+[node name="SpeechBubbleSprite" type="Sprite2D" parent="."]
+texture_filter = 1
 texture = ExtResource("1_32n88")
 
 [node name="Label" type="Label" parent="."]
+z_index = 4096
 offset_left = -63.0
 offset_top = -48.0
 offset_right = -23.0
 offset_bottom = -25.0
 theme_override_colors/font_color = Color(0, 0, 0, 1)
 text = "Hello"
+
+[node name="SpeechBoop" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("3_257so")

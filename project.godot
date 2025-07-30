@@ -21,6 +21,8 @@ Global="*res://Global.gd"
 Deck="*res://DeckManager.gd"
 FadeManager="*res://FadeManager.gd"
 CurrentDeckManager="*res://current_deck_manager.gd"
+SpeechManager="*res://SpeechManager.gd"
+SpeechEventManager="*res://SpeechEventManager.gd"
 
 [display]
 

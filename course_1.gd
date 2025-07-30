@@ -1347,6 +1347,15 @@ func _on_tile_input(event: InputEvent, x: int, y: int) -> void:
 				# Update player position and create ball
 				player_manager.update_player_position_with_ball_creation(self)
 				
+				# Trigger speech event for tee placement
+				var speech_event_manager = get_node_or_null("/root/SpeechEventManager")
+				if speech_event_manager:
+					speech_event_manager.trigger_player_placed_on_tee(
+						game_state_manager.get_current_hole_index(),
+						Global.selected_character,
+						player_manager.get_player_node()
+					)
+				
 				sound_manager.play_sand_thunk()
 				game_state_manager.start_round_after_tee_selection(self, player_manager, deck_manager, ui_manager)
 			else:
@@ -1377,6 +1386,8 @@ func _on_tile_input(event: InputEvent, x: int, y: int) -> void:
 # hide_aiming_circle function moved to UIManager
 
 # update_aiming_circle function moved to UIManager
+
+
 
 func launch_golf_ball(direction: Vector2, charged_power: float, height: float):
 	# Check if player has available shots

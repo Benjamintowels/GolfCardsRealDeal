@@ -1,7 +1,8 @@
-[gd_scene load_steps=21 format=3 uid="uid://clxh2b81uxvtv"]
+[gd_scene load_steps=22 format=3 uid="uid://clxh2b81uxvtv"]
 
 [ext_resource type="Script" uid="uid://bkqfjhiqcwabx" path="res://Characters/Player.gd" id="1_yweqe"]
 [ext_resource type="AudioStream" uid="uid://w3sc1j80onsl" path="res://Sounds/PistolShot.mp3" id="2_5tbhv"]
+[ext_resource type="PackedScene" uid="uid://wtf41wnk0sys" path="res://Dialog/SpeechBubble.tscn" id="2_g0yh8"]
 [ext_resource type="AudioStream" uid="uid://fmo3bamkgajl" path="res://Sounds/Kicksound.mp3" id="3_fngfj"]
 [ext_resource type="AudioStream" uid="uid://bvovxo40aee20" path="res://Sounds/SlashSound.mp3" id="3_tyq5o"]
 [ext_resource type="AudioStream" uid="uid://2p5emwcir25h" path="res://Sounds/Burst.mp3" id="4_burst"]
@@ -24,6 +25,12 @@
 
 [node name="Player1" type="CharacterBody2D"]
 script = ExtResource("1_yweqe")
+
+[node name="SpeechBubble" parent="." instance=ExtResource("2_g0yh8")]
+visible = false
+texture_filter = 1
+position = Vector2(37, -128)
+scale = Vector2(0.487462, 0.487462)
 
 [node name="PistolShot" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("2_5tbhv")
