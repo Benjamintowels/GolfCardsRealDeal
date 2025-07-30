@@ -6,7 +6,6 @@
 
 [node name="SpeechBubble" type="Node2D"]
 z_index = 2385
-position = Vector2(-2, 0)
 script = ExtResource("2_wfdee")
 
 [node name="SpeechBubbleSprite" type="Sprite2D" parent="."]

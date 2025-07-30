@@ -115,28 +115,28 @@ func perform_kickb_attack_with_movement(target_pos: Vector2i) -> void:
 	original_player_pos = player_grid_pos
 	needs_return_movement = true
 	
-	# Calculate the position adjacent to the target (1 tile away from target towards player)
-	var direction = player_grid_pos - target_pos
-	var adjacent_pos = target_pos
+	# Calculate the position in front of the target (between player and target)
+	var direction = target_pos - player_grid_pos
+	var adjacent_pos = player_grid_pos
 	if direction.x > 0:
-		adjacent_pos.x -= 1  # Move towards player (target is to the left of player)
+		adjacent_pos.x += 1  # Move towards target (target is to the right of player)
 	elif direction.x < 0:
-		adjacent_pos.x += 1  # Move towards player (target is to the right of player)
+		adjacent_pos.x -= 1  # Move towards target (target is to the left of player)
 	elif direction.y > 0:
-		adjacent_pos.y -= 1  # Move towards player (target is above player)
+		adjacent_pos.y += 1  # Move towards target (target is below player)
 	elif direction.y < 0:
-		adjacent_pos.y += 1  # Move towards player (target is below player)
+		adjacent_pos.y -= 1  # Move towards target (target is above player)
 	
-	print("Moving to adjacent position:", adjacent_pos, "to attack target at:", target_pos)
+	print("Moving to position in front of target:", adjacent_pos, "to attack target at:", target_pos)
 	
 	# Start kick animation immediately when movement begins
 	emit_signal("kick_attack_performed")
 	
 	# Chain the animations together for smooth movement
 	if player_node and player_node.has_method("animate_to_position"):
-		# First move to adjacent position
+		# First move to position in front of target
 		player_node.animate_to_position(adjacent_pos, func():
-			print("🔍 KICK DEBUG: Movement to adjacent position completed")
+			print("🔍 KICK DEBUG: Movement to position in front of target completed")
 			# Now perform the attack
 			perform_kickb_attack_direct(target_pos)
 			# The attack completion will handle the return movement
@@ -265,28 +265,28 @@ func perform_punchb_attack_with_movement(target_pos: Vector2i) -> void:
 	original_player_pos = player_grid_pos
 	needs_return_movement = true
 	
-	# Calculate the position adjacent to the target (1 tile away from target towards player)
-	var direction = player_grid_pos - target_pos
-	var adjacent_pos = target_pos
+	# Calculate the position in front of the target (between player and target)
+	var direction = target_pos - player_grid_pos
+	var adjacent_pos = player_grid_pos
 	if direction.x > 0:
-		adjacent_pos.x -= 1  # Move towards player (target is to the left of player)
+		adjacent_pos.x += 1  # Move towards target (target is to the right of player)
 	elif direction.x < 0:
-		adjacent_pos.x += 1  # Move towards player (target is to the right of player)
+		adjacent_pos.x -= 1  # Move towards target (target is to the left of player)
 	elif direction.y > 0:
-		adjacent_pos.y -= 1  # Move towards player (target is above player)
+		adjacent_pos.y += 1  # Move towards target (target is below player)
 	elif direction.y < 0:
-		adjacent_pos.y += 1  # Move towards player (target is below player)
+		adjacent_pos.y -= 1  # Move towards target (target is above player)
 	
-	print("Moving to adjacent position:", adjacent_pos, "to attack target at:", target_pos)
+	print("Moving to position in front of target:", adjacent_pos, "to attack target at:", target_pos)
 	
 	# Start punch animation immediately when movement begins
 	emit_signal("punchb_attack_performed")
 	
 	# Chain the animations together for smooth movement
 	if player_node and player_node.has_method("animate_to_position"):
-		# First move to adjacent position
+		# First move to position in front of target
 		player_node.animate_to_position(adjacent_pos, func():
-			print("🔍 PUNCH DEBUG: Movement to adjacent position completed")
+			print("🔍 PUNCH DEBUG: Movement to position in front of target completed")
 			# Now perform the attack
 			perform_punchb_attack_direct(target_pos)
 			# The attack completion will handle the return movement
