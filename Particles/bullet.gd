@@ -132,7 +132,18 @@ func _on_area_entered(area: Area2D) -> void:
 		else:
 			print("✗ HitBox parent doesn't have take_damage method")
 	else:
-		print("✗ Bullet hit non-HitBox area:", area.name)
+		# Check if this is a character's collision area (Area2D)
+		var parent = area.get_parent()
+		if parent and parent.has_method("take_damage"):
+			# Check if this is our own collision area - if so, ignore it
+			if parent == shooter:
+				print("✗ Hit our own collision area - ignoring")
+				return
+			
+			print("✓ Hit character collision area:", parent.name)
+			_handle_bullet_hit(parent)
+		else:
+			print("✗ Bullet hit non-HitBox area:", area.name)
 
 func _on_body_entered(body: Node2D) -> void:
 	"""Called when bullet enters a body (for completeness)"""
@@ -154,8 +165,8 @@ func _handle_bullet_hit(target: Node) -> void:
 	# Stop movement
 	is_moving = false
 	
-	# Emit hit signal
-	bullet_hit.emit(target)
+	# Note: Damage is now handled by raytrace in the police script
+	# So we don't emit the bullet_hit signal here
 	
 	# Hide bullet
 	visible = false

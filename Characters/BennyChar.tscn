@@ -267,9 +267,10 @@ sprite_frames = SubResource("SpriteFrames_swing")
 animation = &"Punch"
 
 [node name="HitBox" type="Area2D" parent="."]
+position = Vector2(1, -36)
 
 [node name="HitBoxShape" type="CollisionShape2D" parent="HitBox"]
-position = Vector2(2, -42)
+position = Vector2(-1, -8)
 shape = SubResource("CapsuleShape2D_woj5g")
 
 [node name="BennyBlock" type="Sprite2D" parent="."]

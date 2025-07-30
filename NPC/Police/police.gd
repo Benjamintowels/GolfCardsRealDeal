@@ -1058,22 +1058,95 @@ func _fire_bullet_at_player() -> void:
 	print("Bullet start:", bullet_start_pos)
 	print("Bullet end:", bullet_end_pos)
 	
-	# Create bullet instance
+	# Perform raytrace to check if bullet will hit
+	var hit_target = _perform_bullet_raytrace(bullet_start_pos, bullet_end_pos)
+	
+	# Create bullet instance for visual effect
 	current_bullet = BulletScene.instantiate()
 	get_tree().current_scene.add_child(current_bullet)
 	
-	# Connect bullet signals
-	current_bullet.bullet_hit.connect(_on_bullet_hit)
-	current_bullet.bullet_missed.connect(_on_bullet_missed)
-	
-	# Fire the bullet
+	# Fire the bullet (damage is handled by raytrace, not bullet signals)
 	current_bullet.fire(bullet_start_pos, bullet_end_pos, self)
+	
+	# If raytrace hit something, apply damage immediately
+	if hit_target:
+		print("✓ Raytrace hit target:", hit_target.name)
+		_apply_bullet_damage(hit_target)
+	else:
+		print("✗ Raytrace missed target")
+
+func _perform_bullet_raytrace(bullet_start: Vector2, bullet_end: Vector2) -> Node:
+	"""Perform raytrace to check if bullet will hit anything"""
+	var direction = (bullet_end - bullet_start).normalized()
+	var distance = bullet_start.distance_to(bullet_end)
+	
+	# Cast ray from bullet start to end position
+	var space_state = get_world_2d().direct_space_state
+	var query = PhysicsRayQueryParameters2D.create(bullet_start, bullet_end)
+	query.collision_mask = 2  # Collide with layer 2 (HitBoxes for weapons)
+	query.collide_with_bodies = false  # We're using Area2D HitBoxes
+	query.collide_with_areas = true
+	
+	var result = space_state.intersect_ray(query)
+	
+	if result:
+		# Bullet hit something
+		var hit_object = result.collider
+		
+		# Check if it's a HitBox Area2D
+		if hit_object.name == "HitBox":
+			var parent = hit_object.get_parent()
+			
+			# Check if it's our own HitBox - if so, ignore it
+			if parent == self:
+				print("✗ Hit our own HitBox - ignoring")
+				return null
+			
+			# Check if parent has take_damage method
+			if parent and parent.has_method("take_damage"):
+				return parent  # Return the parent, not the HitBox
+		
+		# Check if it's a direct hit on an object with take_damage
+		elif hit_object.has_method("take_damage"):
+			return hit_object
+	
+	return null
+
+func _apply_bullet_damage(target: Node) -> void:
+	"""Apply bullet damage to the target"""
+	print("=== APPLYING BULLET DAMAGE ===")
+	print("Target:", target.name)
+	
+	# Check if this is the player and use PlayerManager
+	if target.has_method("get_class") and target.get_class() == "CharacterBody2D":
+		# This is likely the player - use PlayerManager
+		var course = get_tree().current_scene
+		if course and "player_manager" in course:
+			var player_manager = course.player_manager
+			if player_manager and player_manager.has_method("take_damage"):
+				player_manager.take_damage(attack_damage)
+				print("✓ Police dealt", attack_damage, "damage to player via PlayerManager")
+			else:
+				print("✗ PlayerManager not found or doesn't have take_damage method")
+				# Fallback to direct damage
+				target.take_damage(attack_damage)
+				print("✓ Police dealt", attack_damage, "damage to player directly")
+		else:
+			print("✗ Course doesn't have player_manager property")
+			# Fallback to direct damage
+			target.take_damage(attack_damage)
+			print("✓ Police dealt", attack_damage, "damage to player directly")
+	else:
+		# This is an NPC - apply damage directly
+		target.take_damage(attack_damage)
+		print("✓ Police dealt", attack_damage, "damage to NPC:", target.name)
 
 func _get_player_hitbox_position() -> Vector2:
 	"""Get the player's HitBox position for accurate targeting"""
 	# Try to find the player's HitBox
 	var player_hitbox = _find_player_hitbox()
 	if player_hitbox:
+		print("✓ Found player HitBox at:", player_hitbox.global_position)
 		return player_hitbox.global_position
 	else:
 		# Fallback to player's global position
@@ -1085,6 +1158,7 @@ func _find_player_hitbox() -> Area2D:
 	# Look for HitBox in player's direct children
 	var hitbox = player.get_node_or_null("HitBox")
 	if hitbox:
+		print("✓ Found HitBox in player's direct children")
 		return hitbox
 	
 	# Look for HitBox in player's character scene children
@@ -1092,6 +1166,7 @@ func _find_player_hitbox() -> Area2D:
 		if child is Node2D:
 			hitbox = child.get_node_or_null("HitBox")
 			if hitbox:
+				print("✓ Found HitBox in character scene:", child.name)
 				return hitbox
 	
 	print("⚠ Could not find player HitBox")
@@ -1140,7 +1215,33 @@ func _on_bullet_hit(target: Node) -> void:
 		else:
 			print("✗ HitBox parent doesn't have take_damage method")
 	else:
-		print("✗ Bullet hit non-HitBox object:", target.name)
+		# Direct hit on target (not a HitBox)
+		if target.has_method("take_damage"):
+			# Check if this is the player
+			if target.has_method("get_class") and target.get_class() == "CharacterBody2D":
+				# This is likely the player - use PlayerManager
+				var course = get_tree().current_scene
+				if course and "player_manager" in course:
+					var player_manager = course.player_manager
+					if player_manager and player_manager.has_method("take_damage"):
+						player_manager.take_damage(attack_damage)
+						print("✓ Police dealt", attack_damage, "damage to player via PlayerManager")
+					else:
+						print("✗ PlayerManager not found or doesn't have take_damage method")
+						# Fallback to direct damage
+						target.take_damage(attack_damage)
+						print("✓ Police dealt", attack_damage, "damage to player directly")
+				else:
+					print("✗ Course doesn't have player_manager property")
+					# Fallback to direct damage
+					target.take_damage(attack_damage)
+					print("✓ Police dealt", attack_damage, "damage to player directly")
+			else:
+				# This is an NPC - apply damage directly
+				target.take_damage(attack_damage)
+				print("✓ Police dealt", attack_damage, "damage to NPC:", target.name)
+		else:
+			print("✗ Target doesn't have take_damage method:", target.name)
 
 func _on_bullet_missed() -> void:
 	"""Called when bullet misses its target"""
