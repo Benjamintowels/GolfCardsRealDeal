@@ -95,14 +95,7 @@ func _initialize_tree_cutting_components():
 # Tree cutting system - called by PowerBeam
 func take_damage(damage: int, attack_type: String = ""):
 	"""Handle damage by cutting the tree only for specific attacks"""
-	print("=== TREE TAKE_DAMAGE CALLED ===")
-	print("Tree name:", name)
-	print("Damage:", damage)
-	print("Attack type:", attack_type)
-	print("Is tree already cut:", is_tree_cut)
-	
 	if is_tree_cut:
-		print("Tree is already cut - ignoring damage")
 		return  # Already cut
 	
 	# Only cut the tree for specific attack types
@@ -111,48 +104,30 @@ func take_damage(damage: int, attack_type: String = ""):
 	# Check if this is a PowerBeam attack
 	if attack_type == "power_beam":
 		can_cut_tree = true
-		print("✓ PowerBeam attack detected - tree can be cut")
 	
 	# Check if this is a Slash attack
 	elif attack_type == "slash":
 		can_cut_tree = true
-		print("✓ Slash attack detected - tree can be cut")
 	
 	# Check if this is a Meteor attack
 	elif attack_type == "meteor":
 		can_cut_tree = true
-		print("✓ Meteor attack detected - tree can be cut")
 	
 	# Check if this is a PowerBeam by checking the caller's script
 	elif attack_type == "" and _is_power_beam_attack():
 		can_cut_tree = true
-		print("✓ PowerBeam attack detected via script check - tree can be cut")
 	
 	# Check if this is a Slash attack by checking the caller's script
 	elif attack_type == "" and _is_slash_attack():
 		can_cut_tree = true
-		print("✓ Slash attack detected via script check - tree can be cut")
-	
-	# Debug: log all attack types for troubleshooting
-	print("DEBUG: Checking attack type:", attack_type, "against allowed types: power_beam, slash, meteor")
-	print("DEBUG: can_cut_tree result:", can_cut_tree)
 	
 	if can_cut_tree:
-		print("=== TREE CUTTING INITIATED ===")
-		print("Damage received:", damage)
-		print("Attack type:", attack_type)
-		
 		# Mark tree as cut
 		is_tree_cut = true
 		
 		# Cut the tree
 		_cut_tree()
 	else:
-		print("=== TREE DAMAGE IGNORED (NO CUTTING) ===")
-		print("Damage received:", damage)
-		print("Attack type:", attack_type)
-		print("This attack type cannot cut trees - damage ignored for cutting")
-		
 		# Still handle the collision effects (sounds, etc.) even if not cutting
 		_handle_non_cutting_damage(damage, attack_type)
 
@@ -184,15 +159,10 @@ func _is_slash_attack() -> bool:
 
 func _handle_non_cutting_damage(damage: int, attack_type: String):
 	"""Handle damage from attacks that don't cut the tree but should still have effects"""
-	print("Handling non-cutting damage:", damage, "from attack type:", attack_type)
-	
 	# Play trunk thunk sound for any damage to the tree
 	var thunk = get_node_or_null("TrunkThunk")
 	if thunk:
 		thunk.play()
-		print("✓ TrunkThunk sound played for non-cutting damage")
-	else:
-		print("✗ TrunkThunk sound not found!")
 	
 	# You can add other effects here like:
 	# - Particle effects
@@ -216,14 +186,11 @@ func get_grid_position() -> Vector2i:
 		if course and course.has_method("get_camera_offset"):
 			var camera_offset = course.get_camera_offset()
 			world_pos -= camera_offset
-			print("DEBUG: Tree grid calculation - Original world pos:", global_position, "Camera offset:", camera_offset, "Adjusted world pos:", world_pos)
 		
 		# Since the tree is placed at cell center, we need to adjust for the offset
 		var grid_x = floor((world_pos.x - cell_size / 2) / cell_size)
 		var grid_y = floor((world_pos.y - cell_size / 2) / cell_size)
-		var grid_pos = Vector2i(grid_x, grid_y)
-		print("DEBUG: Tree grid calculation - Final grid pos:", grid_pos)
-		return grid_pos
+		return Vector2i(grid_x, grid_y)
 
 func _cut_tree():
 	"""Cut the tree into stump and falling top"""
@@ -376,10 +343,6 @@ func _handle_tree_top_collision(target: Node):
 	
 	# Check if target is an NPC (GangMember, Police, ZombieGolfer, etc.)
 	if target.has_method("take_damage") and _is_npc(target):
-		# Exclude boss objects from TreeTop damage
-		if target.get_script() and (target.get_script().resource_path.ends_with("boss_hand.gd") or target.get_script().resource_path.ends_with("boss_eye.gd")):
-			print("✓ Boss object", target.name, "ignored by TreeTop collision")
-			return
 		_handle_tree_top_npc_collision(target)
 		return
 	
@@ -471,13 +434,11 @@ func _apply_ball_roof_bounce(ball: Node, tree_top: Node):
 
 func _handle_tree_top_player_collision(player: Node):
 	"""Handle TreeTop collision with player"""
-	print("Tree top hit player:", player.name)
-	
 	# Apply damage and knockback to player
 	var tree_top = get_node_or_null("TreeTop")
 	if tree_top:
-		# Apply damage (tree top damage)
-		player.take_damage(25, false)  # 25 damage, not headshot
+		# Apply damage (tree top damage) - 50 damage for player
+		player.take_damage(50, false)  # 50 damage, not headshot
 		
 		# Apply knockback
 		var knockback_direction = (player.global_position - tree_top.global_position).normalized()
@@ -487,18 +448,29 @@ func _handle_tree_top_player_collision(player: Node):
 			player.apply_knockback(knockback_force)
 		elif "velocity" in player:
 			player.velocity = knockback_force
-		
-		print("✓ Applied damage and knockback to player")
 
 func _handle_tree_top_npc_collision(npc: Node):
 	"""Handle TreeTop collision with NPC"""
-	print("Tree top hit NPC:", npc.name)
-	
 	# Apply damage and knockback to NPC
 	var tree_top = get_node_or_null("TreeTop")
 	if tree_top:
-		# Apply damage (tree top damage)
-		npc.take_damage(30, false, tree_top.global_position)  # 30 damage, not headshot, weapon position
+		# Apply damage (tree top damage) - 150 damage for NPCs
+		# Use the correct function signature based on NPC type
+		if npc.get_script() and npc.get_script().resource_path.ends_with("ZombieGolfer.gd"):
+			# ZombieGolfer takes damage and is_headshot
+			npc.take_damage(150, false)
+		elif npc.get_script() and npc.get_script().resource_path.ends_with("GangMember.gd"):
+			# GangMember takes damage, is_headshot, and weapon_position
+			npc.take_damage(150, false, tree_top.global_position)
+		elif npc.get_script() and npc.get_script().resource_path.ends_with("police.gd"):
+			# Police takes damage, is_headshot, and weapon_position
+			npc.take_damage(150, false, tree_top.global_position)
+		elif npc.get_script() and npc.get_script().resource_path.ends_with("wraith.gd"):
+			# Wraith takes damage and is_headshot
+			npc.take_damage(150, false)
+		else:
+			# Default: just pass damage amount
+			npc.take_damage(150)
 		
 		# Apply knockback
 		var knockback_direction = (npc.global_position - tree_top.global_position).normalized()
@@ -508,17 +480,11 @@ func _handle_tree_top_npc_collision(npc: Node):
 			npc.apply_knockback(knockback_force)
 		elif "velocity" in npc:
 			npc.velocity = knockback_force
-		
-		print("✓ Applied damage and knockback to NPC")
 
 func _handle_tree_top_destructible_collision(destructible: Node):
 	"""Handle TreeTop collision with destructible object"""
-	print("Tree top hit destructible:", destructible.name)
-	
 	# Apply damage to destructible
 	destructible.take_damage(40)  # 40 damage to destructibles
-	
-	print("✓ Applied damage to destructible")
 
 func _is_npc(target: Node) -> bool:
 	"""Check if target is an NPC"""
@@ -526,9 +492,7 @@ func _is_npc(target: Node) -> bool:
 		"GangMember.gd",
 		"police.gd", 
 		"ZombieGolfer.gd",
-		"wraith.gd",
-		"boss_eye.gd",
-		"boss_hand.gd"
+		"wraith.gd"
 	]
 	
 	if target.get_script():
@@ -592,7 +556,6 @@ func _update_collision_to_stump():
 func _ready():
 	# Add tree to destructible_objects group for attack detection
 	add_to_group("destructible_objects")
-	print("✓ Tree added to destructible_objects group")
 	
 	# Connect to Area2D's area_entered and area_exited signals for collision detection
 	var trunk_base_area = get_node_or_null("TrunkBaseArea")
