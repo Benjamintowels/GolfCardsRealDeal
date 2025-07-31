@@ -178,7 +178,7 @@ _data = {
 }
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_8f3lk"]
-radius = 1.24042
+radius = 1.85975
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_iu17o"]
 radius = 27.7443
@@ -298,7 +298,7 @@ scale = Vector2(1.525, 0.605)
 shape = SubResource("CapsuleShape2D_8f3lk")
 
 [node name="TopHeight" type="Marker2D" parent="."]
-position = Vector2(0, -217)
+position = Vector2(0, -195)
 
 [node name="LightOccluder2D" type="LightOccluder2D" parent="."]
 occluder = SubResource("OccluderPolygon2D_8f3lk")

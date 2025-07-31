@@ -2888,6 +2888,14 @@ func start_slash_animation() -> void:
 	normal_sprite.visible = false
 	slash_animation.visible = true
 	
+	# Start the Shine animation on the BennySlash
+	var shine_animation = slash_animation.get_node_or_null("Shine")
+	if shine_animation and shine_animation is AnimatedSprite2D:
+		# Update the Shine animation facing to match the player
+		update_animation_facing(shine_animation)
+		shine_animation.play("Shiner")
+		print("✓ Started Shine animation")
+	
 	# Note: SlashFX is now spawned at the click location, so we don't need to start it here
 	# start_slashfx_animation()
 	
@@ -2907,6 +2915,12 @@ func _on_slash_animation_complete() -> void:
 	# Get the normal character sprite
 	var normal_sprite = get_character_sprite()
 	if normal_sprite and slash_animation:
+		# Stop the Shine animation
+		var shine_animation = slash_animation.get_node_or_null("Shine")
+		if shine_animation and shine_animation is AnimatedSprite2D:
+			shine_animation.stop()
+			print("✓ Stopped Shine animation")
+		
 		# Switch back to normal sprite
 		slash_animation.visible = false
 		normal_sprite.visible = true

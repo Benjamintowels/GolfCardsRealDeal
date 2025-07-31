@@ -1,4 +1,4 @@
-[gd_scene load_steps=39 format=3 uid="uid://bc8s6t7wka23s"]
+[gd_scene load_steps=51 format=3 uid="uid://bc8s6t7wka23s"]
 
 [ext_resource type="Texture2D" uid="uid://bu6bwgk8aipl2" path="res://Characters/BennyChar.png" id="1_oukfo"]
 [ext_resource type="Script" uid="uid://d2iiaqe57mea" path="res://Characters/SwingAnimation.gd" id="2_swing"]
@@ -8,6 +8,7 @@
 [ext_resource type="Texture2D" uid="uid://bxy6rtxgb2fco" path="res://Characters/Block.png" id="6_3tp8o"]
 [ext_resource type="Texture2D" uid="uid://27c7xxjtjvye" path="res://Characters/BennySlash.png" id="6_ym4u6"]
 [ext_resource type="Texture2D" uid="uid://bv35vxn4r6qcl" path="res://Characters/BennyMeditate.png" id="7_423w5"]
+[ext_resource type="Texture2D" uid="uid://cs0bv0ottfwux" path="res://Particles/ShineGif.png" id="7_ghbtk"]
 [ext_resource type="Texture2D" uid="uid://jenr44lel6lx" path="res://Characters/BennyArmless.png" id="8_bc1tv"]
 [ext_resource type="Script" uid="uid://bkhq5oyslgb0n" path="res://Characters/BennyArmHeightController.gd" id="9_arm_height_controller"]
 [ext_resource type="Texture2D" uid="uid://b0xvya1sogjsu" path="res://Characters/BennyDodge.png" id="10_tjcqo"]
@@ -173,6 +174,84 @@ _data = {
 &"Swing": SubResource("Animation_swing")
 }
 
+[sub_resource type="AtlasTexture" id="AtlasTexture_gg2xg"]
+atlas = ExtResource("7_ghbtk")
+region = Rect2(8, 0, 29, 40)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_0vpeq"]
+atlas = ExtResource("7_ghbtk")
+region = Rect2(37, 0, 29, 40)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_21h7i"]
+atlas = ExtResource("7_ghbtk")
+region = Rect2(66, 0, 29, 40)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_1bh1m"]
+atlas = ExtResource("7_ghbtk")
+region = Rect2(95, 0, 29, 40)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_55l6l"]
+atlas = ExtResource("7_ghbtk")
+region = Rect2(124, 0, 29, 40)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_sfr5e"]
+atlas = ExtResource("7_ghbtk")
+region = Rect2(8, 40, 29, 40)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_dq0x1"]
+atlas = ExtResource("7_ghbtk")
+region = Rect2(37, 40, 29, 40)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_32d4k"]
+atlas = ExtResource("7_ghbtk")
+region = Rect2(66, 40, 29, 40)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_26hog"]
+atlas = ExtResource("7_ghbtk")
+region = Rect2(95, 40, 29, 40)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_bn0oq"]
+atlas = ExtResource("7_ghbtk")
+region = Rect2(124, 40, 29, 40)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_l40i3"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_gg2xg")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_0vpeq")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_21h7i")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_1bh1m")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_55l6l")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_sfr5e")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_dq0x1")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_32d4k")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_26hog")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_bn0oq")
+}],
+"loop": false,
+"name": &"Shiner",
+"speed": 24.0
+}]
+
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_woj5g"]
 radius = 12.0
 height = 88.0
@@ -258,6 +337,12 @@ visible = false
 texture_filter = 1
 position = Vector2(30, -50)
 texture = ExtResource("6_ym4u6")
+
+[node name="Shine" type="AnimatedSprite2D" parent="BennySlash"]
+z_index = 3280
+position = Vector2(62, -45)
+sprite_frames = SubResource("SpriteFrames_l40i3")
+animation = &"Shiner"
 
 [node name="BennyPunch" type="AnimatedSprite2D" parent="."]
 visible = false
