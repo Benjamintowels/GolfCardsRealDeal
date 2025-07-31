@@ -11,10 +11,12 @@ extends Control
 @onready var kendama_button = $UI/Kendama
 @onready var select_sound = $Select
 @onready var deck_select_sound = $DeckSelect
+@onready var animation_player = $ClubHouseBackgroundLayers/AnimationPlayer
 
 var selected_character = 1  # Default to character 1
 var deck_selection_dialog: Control
 var pending_game_mode = ""  # Store which game mode was selected while waiting for deck selection
+var benny_selected = false  # Track if Benny was selected to play benny_door animation
 
 func _ready():
 	# Set up button group for exclusive selection
@@ -68,6 +70,7 @@ func _play_deck_select_sound():
 func _on_character1_selected():
 	_play_select_sound()
 	selected_character = 1
+	benny_selected = false  # Reset Benny selection flag
 	print("Character 1 (Layla) selected, selected_character = ", selected_character)
 	print("About to show deck selection dialog...")
 	_show_deck_selection_dialog()
@@ -75,13 +78,23 @@ func _on_character1_selected():
 func _on_character2_selected():
 	_play_select_sound()
 	selected_character = 2
+	benny_selected = true  # Mark that Benny was selected
 	print("Character 2 (Benny) selected, selected_character = ", selected_character)
+	
+	# Play the select_benny animation
+	if animation_player:
+		animation_player.play("select_benny")
+		print("Playing select_benny animation")
+	else:
+		print("ERROR: Animation player not found!")
+	
 	print("About to show deck selection dialog...")
 	_show_deck_selection_dialog()
 
 func _on_character3_selected():
 	_play_select_sound()
 	selected_character = 3
+	benny_selected = false  # Reset Benny selection flag
 	print("Character 3 (Clark) selected, selected_character = ", selected_character)
 	print("About to show deck selection dialog...")
 	_show_deck_selection_dialog()
@@ -102,6 +115,37 @@ func _on_deck_selected(deck_type: String):
 	_play_deck_select_sound()
 	# Store the selected deck type in Global for reference
 	Global.selected_deck_type = deck_type
+	
+	# Play benny_door animation if Benny was selected
+	if benny_selected and animation_player:
+		animation_player.play("benny_door")
+		print("Playing benny_door animation")
+		
+		# Wait for benny_door animation to complete, then play map animations
+		await animation_player.animation_finished
+		
+		# Play map_intro animation from CourseSelectionMap
+		var course_selection_map = $ClubHouseBackgroundLayers/CourseSelectionMap
+		if course_selection_map:
+			var map_animation_player = course_selection_map.get_node("CourseSelectionAnimationPlayer")
+			if map_animation_player:
+				map_animation_player.play("map_intro")
+				print("Playing map_intro animation")
+				
+				# Wait for map_intro to complete, then play intro animation
+				await map_animation_player.animation_finished
+				
+				# Play intro animation from CourseSelectionMap's AnimationPlayer
+				var course_map_animation_player = course_selection_map.get_node("AnimationPlayer")
+				if course_map_animation_player:
+					course_map_animation_player.play("intro")
+					print("Playing intro animation")
+				else:
+					print("ERROR: CourseSelectionMap AnimationPlayer not found!")
+			else:
+				print("ERROR: CourseSelectionMap CourseSelectionAnimationPlayer not found!")
+		else:
+			print("ERROR: CourseSelectionMap not found!")
 	
 	# If there was a pending game mode, start it now
 	if pending_game_mode != "":

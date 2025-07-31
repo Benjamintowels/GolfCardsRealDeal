@@ -1,0 +1,103 @@
+[gd_scene load_steps=8 format=3 uid="uid://mikj057r7rx5"]
+
+[ext_resource type="Script" uid="uid://cd1ygqs2w7434" path="res://ClubHouse/course_selection_map.gd" id="1_0g7ve"]
+[ext_resource type="Texture2D" uid="uid://blq7adw0d3qyi" path="res://ClubHouse/CourseMap.png" id="2_4occg"]
+[ext_resource type="Texture2D" uid="uid://co3t8pmnxc6ir" path="res://ClubHouse/MapFlag.png" id="3_mnnow"]
+[ext_resource type="Texture2D" uid="uid://b73pb3lcyue36" path="res://ClubHouse/GolfIsland.png" id="4_nhby7"]
+
+[sub_resource type="Animation" id="Animation_4wqfi"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("MapMarker:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(31, -653.325)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("GolfIsland:position")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(0, -273.755)]
+}
+
+[sub_resource type="Animation" id="Animation_nhby7"]
+resource_name = "intro"
+length = 0.6815
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("MapMarker:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.6),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [Vector2(31, -653.325), Vector2(31, -50)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("GolfIsland:position")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.633333),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [Vector2(0, -273.755), Vector2(0, -225)]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_voyc7"]
+_data = {
+&"RESET": SubResource("Animation_4wqfi"),
+&"intro": SubResource("Animation_nhby7")
+}
+
+[node name="CourseSelectionMap" type="Node2D"]
+script = ExtResource("1_0g7ve")
+
+[node name="MapBackground" type="Sprite2D" parent="."]
+texture_filter = 1
+texture = ExtResource("2_4occg")
+
+[node name="MapMarker" type="TextureButton" parent="."]
+texture_filter = 1
+offset_left = 31.0
+offset_top = -653.325
+offset_right = 287.0
+offset_bottom = -397.325
+scale = Vector2(0.41, 0.41)
+texture_normal = ExtResource("3_mnnow")
+texture_pressed = ExtResource("3_mnnow")
+texture_hover = ExtResource("3_mnnow")
+
+[node name="GolfIsland" type="Sprite2D" parent="."]
+position = Vector2(0, -273.755)
+texture = ExtResource("4_nhby7")
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+libraries = {
+&"": SubResource("AnimationLibrary_voyc7")
+}
+
+[node name="Label" type="Label" parent="."]
+texture_filter = 1
+offset_left = -150.0
+offset_top = 158.0
+offset_right = -36.0
+offset_bottom = 198.0
+theme_override_font_sizes/font_size = 29
+text = "Course: "
