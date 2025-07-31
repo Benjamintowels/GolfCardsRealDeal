@@ -2401,6 +2401,11 @@ func _on_advance_to_next_hole():
 func reset_for_next_hole():
 	print("=== ADVANCING TO HOLE", game_state_manager.get_current_hole_index() + 2, "===")
 	
+	# Fade to black and then load the next hole
+	FadeManager.fade_to_black(func(): _load_next_hole(), 0.5)
+
+func _load_next_hole():
+	"""Load the next hole after fade to black"""
 	# Reverse 3D effect for next hole
 	if pseudo_3d_effect and pseudo_3d_effect.has_method("reverse_3d_effect"):
 		pseudo_3d_effect.reverse_3d_effect()
