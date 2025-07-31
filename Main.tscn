@@ -1,9 +1,10 @@
-[gd_scene load_steps=18 format=3 uid="uid://wyu3udwngros"]
+[gd_scene load_steps=19 format=3 uid="uid://wyu3udwngros"]
 
 [ext_resource type="Script" uid="uid://ct4bebh7dhisi" path="res://Main.gd" id="1_r0du0"]
 [ext_resource type="Texture2D" uid="uid://dg84gx06tkrtv" path="res://ClubHouse/Outside.png" id="3_sc1dx"]
-[ext_resource type="Texture2D" uid="uid://ckagq3sx0xrnl" path="res://ClubHouse/CHFresh.png" id="4_kjvhd"]
+[ext_resource type="Texture2D" uid="uid://bo65sr134g0r8" path="res://ClubHouse/GolfGreenBG.png" id="4_5tuhn"]
 [ext_resource type="Texture2D" uid="uid://cej1ljnr2x51a" path="res://Characters/BennyIpodBig.png" id="5_5vvyt"]
+[ext_resource type="Texture2D" uid="uid://bgacttbtvqmdd" path="res://ClubHouse/CHClean.png" id="5_kjvhd"]
 [ext_resource type="Texture2D" uid="uid://h7kyn51t7cq" path="res://Character3.png" id="5_lgr22"]
 [ext_resource type="Texture2D" uid="uid://cj2ru4qsekcbx" path="res://Characters/LaylaCoffeBig.png" id="7_5vvyt"]
 [ext_resource type="Texture2D" uid="uid://cwdlr21pb6ap" path="res://Title.png" id="7_lgr22"]
@@ -26,23 +27,47 @@ script = ExtResource("1_r0du0")
 [node name="CurrentDeckManager" type="Node" parent="."]
 script = ExtResource("8_current_deck_manager")
 
-[node name="TextureRect" type="TextureRect" parent="."]
-texture_filter = 1
-layout_mode = 0
-offset_left = -3.27
-offset_right = 2632.73
-offset_bottom = 1488.0
-scale = Vector2(0.749709, 0.750651)
+[node name="ClubHouseBackgroundLayers" type="Node2D" parent="."]
+
+[node name="Outside" type="Sprite2D" parent="ClubHouseBackgroundLayers"]
+position = Vector2(895, 543)
 texture = ExtResource("3_sc1dx")
 
-[node name="TextureRect3" type="TextureRect" parent="."]
+[node name="GolfGreenBg" type="Sprite2D" parent="ClubHouseBackgroundLayers"]
+position = Vector2(936, 512)
+scale = Vector2(1.75847, 1.75847)
+texture = ExtResource("4_5tuhn")
+
+[node name="ChClean" type="Sprite2D" parent="ClubHouseBackgroundLayers"]
+position = Vector2(924, 547)
+scale = Vector2(1.45, 1.45)
+texture = ExtResource("5_kjvhd")
+
+[node name="Table" type="Sprite2D" parent="ClubHouseBackgroundLayers"]
 texture_filter = 1
-layout_mode = 0
-offset_left = -3.27
-offset_right = 2632.73
-offset_bottom = 1488.0
-scale = Vector2(0.749709, 0.750651)
-texture = ExtResource("4_kjvhd")
+position = Vector2(936, 880)
+scale = Vector2(0.285, 0.285)
+texture = ExtResource("11_20pc6")
+
+[node name="Character2" type="Sprite2D" parent="ClubHouseBackgroundLayers"]
+texture_filter = 1
+position = Vector2(605, 912)
+scale = Vector2(0.286, 0.284)
+texture = ExtResource("5_5vvyt")
+
+[node name="StartRoundDoor" type="TextureButton" parent="ClubHouseBackgroundLayers"]
+texture_filter = 1
+offset_left = 1443.0
+offset_top = 584.0
+offset_right = 1504.0
+offset_bottom = 685.0
+scale = Vector2(3.47039, 3.47039)
+tooltip_text = "Start Round"
+texture_normal = ExtResource("12_5vvyt")
+texture_pressed = ExtResource("12_5vvyt")
+texture_hover = ExtResource("12_5vvyt")
+texture_disabled = ExtResource("12_5vvyt")
+texture_focused = ExtResource("12_5vvyt")
 
 [node name="UI" type="CanvasLayer" parent="."]
 
@@ -59,13 +84,8 @@ offset_bottom = 20.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="Table" type="Sprite2D" parent="UI"]
-texture_filter = 1
-position = Vector2(882, 802)
-scale = Vector2(0.285, 0.285)
-texture = ExtResource("11_20pc6")
-
 [node name="Character1Button" type="Button" parent="UI"]
+visible = false
 offset_left = 916.0
 offset_top = 656.0
 offset_right = 965.0
@@ -100,38 +120,32 @@ offset_bottom = 101.0
 text = "Start Round"
 
 [node name="DrivingRange" type="Button" parent="UI"]
-offset_left = 280.0
-offset_top = 602.0
-offset_right = 396.0
-offset_bottom = 633.0
+offset_left = 302.0
+offset_top = 560.0
+offset_right = 418.0
+offset_bottom = 591.0
 text = "Driving Range"
 
 [node name="BossRoom" type="Button" parent="UI"]
-offset_left = 837.0
-offset_top = 399.0
-offset_right = 953.0
-offset_bottom = 430.0
+offset_left = 291.0
+offset_top = 427.0
+offset_right = 407.0
+offset_bottom = 458.0
 text = "Boss Room"
 
 [node name="FightRoom" type="Button" parent="UI"]
-offset_left = 837.0
-offset_top = 459.0
-offset_right = 953.0
-offset_bottom = 490.0
+offset_left = 291.0
+offset_top = 472.0
+offset_right = 407.0
+offset_bottom = 503.0
 text = "Fight Room"
 
 [node name="Kendama" type="Button" parent="UI"]
-offset_left = 837.0
-offset_top = 511.0
-offset_right = 953.0
-offset_bottom = 542.0
+offset_left = 292.0
+offset_top = 518.0
+offset_right = 408.0
+offset_bottom = 549.0
 text = "Kendama"
-
-[node name="Character2" type="Sprite2D" parent="UI"]
-texture_filter = 1
-position = Vector2(611, 889)
-scale = Vector2(0.286, 0.284)
-texture = ExtResource("5_5vvyt")
 
 [node name="Character3" type="Sprite2D" parent="UI"]
 visible = false
@@ -141,6 +155,7 @@ scale = Vector2(1.358, 1.376)
 texture = ExtResource("5_lgr22")
 
 [node name="Character1" type="Sprite2D" parent="UI"]
+visible = false
 texture_filter = 1
 position = Vector2(929, 857)
 scale = Vector2(0.18, 0.17)
@@ -191,22 +206,8 @@ stream = ExtResource("12_fpfj3")
 volume_db = 3.949
 pitch_scale = 1.35
 
-[node name="StartRoundDoor" type="TextureButton" parent="."]
-texture_filter = 1
-layout_mode = 0
-offset_left = 1474.0
-offset_top = 579.0
-offset_right = 1535.0
-offset_bottom = 680.0
-scale = Vector2(2.65, 2.65)
-tooltip_text = "Start Round"
-texture_normal = ExtResource("12_5vvyt")
-texture_pressed = ExtResource("12_5vvyt")
-texture_hover = ExtResource("12_5vvyt")
-texture_disabled = ExtResource("12_5vvyt")
-texture_focused = ExtResource("12_5vvyt")
-
 [node name="FlippyTheDolphin" parent="." instance=ExtResource("13_c6i3y")]
+visible = false
 position = Vector2(1342, 768)
 
 [node name="DrivingRangeSign" type="Sprite2D" parent="."]
@@ -223,6 +224,6 @@ position = Vector2(890, 228)
 scale = Vector2(1.93, 1.93)
 texture = ExtResource("15_fpfj3")
 
+[connection signal="pressed" from="ClubHouseBackgroundLayers/StartRoundDoor" to="." method="_on_start_round_pressed"]
 [connection signal="pressed" from="UI/StartPuttPutt" to="." method="_on_start_putt_putt_button_pressed"]
 [connection signal="pressed" from="UI/StartBack9" to="." method="_on_start_back_9_pressed"]
-[connection signal="pressed" from="StartRoundDoor" to="." method="_on_start_round_pressed"]

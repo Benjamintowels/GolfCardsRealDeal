@@ -79,7 +79,7 @@ animations = [{
 rotation = -0.705113
 scale = Vector2(0.385, 0.385)
 sprite_frames = SubResource("SpriteFrames_idg8d")
-frame_progress = 0.56764
+frame_progress = 0.775279
 script = ExtResource("2_0db5h")
 
 [node name="ElectricArc" type="AudioStreamPlayer2D" parent="."]
