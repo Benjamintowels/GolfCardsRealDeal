@@ -78,6 +78,10 @@ var damage_bar: DamageBar = null
 const GameStateManager := preload("res://GameStateManager.gd")
 var game_state_manager: GameStateManager = null
 
+# Weather manager
+const WeatherManager := preload("res://WeatherManager.gd")
+var weather_manager: WeatherManager = null
+
 # Sound manager
 const SoundManager := preload("res://SoundManager.gd")
 var sound_manager: SoundManager = null
@@ -461,6 +465,11 @@ func _ready() -> void:
 	# Initialize SoundManager
 	sound_manager = SoundManager.new()
 	add_child(sound_manager)
+	
+	# Initialize WeatherManager
+	weather_manager = WeatherManager.new()
+	add_child(weather_manager)
+	weather_manager.add_to_group("weather_manager")
 	
 	# Initialize card effect handler
 	var effect_handler_script = load("res://CardEffectHandler.gd")
@@ -925,6 +934,10 @@ func adjust_background_positioning() -> void:
 		map_manager.load_map_data(GolfCourseLayout.get_hole_layout(game_state_manager.get_current_hole_index()))
 	build_map.build_map_from_layout_with_randomization(map_manager.level_layout, game_state_manager.get_current_hole_index(), game_state_manager.get_current_puzzle_type())
 	
+	# Generate initial wind factor for the first hole
+	if weather_manager:
+		weather_manager.generate_new_wind_factor()
+	
 	# Sync shop grid position with build_map
 	game_state_manager.set_shop_grid_position(build_map.shop_grid_pos)
 	
@@ -987,6 +1000,8 @@ func adjust_background_positioning() -> void:
 	debug_damage_bar_btn.z_index = 999
 	$UILayer.add_child(debug_damage_bar_btn)
 	debug_damage_bar_btn.pressed.connect(_on_debug_damage_bar_pressed)
+	
+
 
 
 func _on_complete_hole_pressed():
@@ -2487,6 +2502,10 @@ func reset_for_next_hole():
 		map_manager.load_map_data(GolfCourseLayout.get_hole_layout(game_state_manager.get_current_hole_index()))
 	
 	build_map.build_map_from_layout_with_randomization(map_manager.level_layout, game_state_manager.get_current_hole_index(), game_state_manager.get_current_puzzle_type())
+	
+	# Generate new wind factor for the new hole
+	if weather_manager:
+		weather_manager.generate_new_wind_factor()
 	
 	# Sync shop grid position with build_map
 	game_state_manager.set_shop_grid_position(build_map.shop_grid_pos)
@@ -4408,6 +4427,8 @@ func _on_debug_damage_bar_pressed() -> void:
 		print("🎯 DEBUG: Damage bar visible:", damage_bar.visible)
 	else:
 		print("❌ DEBUG: Damage bar is null!")
+
+
 
 func play_background_squish_animation() -> void:
 	"""Play the background squish animation on hole completion"""

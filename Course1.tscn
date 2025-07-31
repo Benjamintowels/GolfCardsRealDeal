@@ -1,4 +1,4 @@
-[gd_scene load_steps=55 format=3 uid="uid://dlq5ygh2wv33m"]
+[gd_scene load_steps=56 format=3 uid="uid://dlq5ygh2wv33m"]
 
 [ext_resource type="Script" uid="uid://d4hrfk75nrm45" path="res://course_1.gd" id="1_pe8tc"]
 [ext_resource type="Texture2D" uid="uid://cpe67sk2vh8me" path="res://EDGE.png" id="2_eymfu"]
@@ -19,6 +19,7 @@
 [ext_resource type="PackedScene" path="res://InventoryDialog.tscn" id="13_inventory"]
 [ext_resource type="PackedScene" uid="uid://bx4rfj5obqdvq" path="res://NPC/Bosses/BossHealthBar.tscn" id="13_opida"]
 [ext_resource type="Script" uid="uid://1gtesn5q77m4" path="res://golfcards/build_map.gd" id="14_build_map"]
+[ext_resource type="PackedScene" uid="uid://cwfcukt4glt6v" path="res://UI/WindArrow.tscn" id="14_skg1a"]
 [ext_resource type="Texture2D" uid="uid://ded1wjrmxwoqc" path="res://UI/BennyDeckPlaceholder.png" id="15_er2ln"]
 [ext_resource type="Script" uid="uid://dks6b1bolk5lu" path="res://LaunchManager.gd" id="15_launch_manager"]
 [ext_resource type="Script" uid="uid://b278n4knxowm2" path="res://Entities.gd" id="16_entities"]
@@ -337,6 +338,9 @@ script = ExtResource("26_coin_explosion")
 [node name="WorldTurnManager" parent="." instance=ExtResource("11_rkv8t")]
 
 [node name="UILayer" type="CanvasLayer" parent="."]
+
+[node name="WindArrow" parent="UILayer" instance=ExtResource("14_skg1a")]
+position = Vector2(1111, 47)
 
 [node name="BossHealthBar" parent="UILayer" instance=ExtResource("13_opida")]
 visible = false

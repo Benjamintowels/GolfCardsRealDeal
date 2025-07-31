@@ -1,0 +1,19 @@
+[gd_scene load_steps=3 format=3 uid="uid://cwfcukt4glt6v"]
+
+[ext_resource type="Texture2D" uid="uid://mto64swgr11p" path="res://UI/WindArrow.png" id="1_7n2j5"]
+[ext_resource type="Script" uid="uid://d3gwdos4pohlm" path="res://UI/wind_arrow.gd" id="1_i1b5o"]
+
+[node name="WindArrow" type="Node2D"]
+script = ExtResource("1_i1b5o")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture_filter = 1
+texture = ExtResource("1_7n2j5")
+
+[node name="Label" type="Label" parent="."]
+texture_filter = 1
+offset_left = -25.0
+offset_top = 41.0
+offset_right = 20.0
+offset_bottom = 64.0
+text = "5mph"

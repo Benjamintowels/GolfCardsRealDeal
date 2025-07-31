@@ -1,5 +1,8 @@
 extends Node2D
 
+# Import WeatherManager for wind effects
+const WeatherManager = preload("res://WeatherManager.gd")
+
 signal grenade_landed(final_position: Vector2)
 signal grenade_exploded(explosion_position: Vector2)
 signal landed(final_tile: Vector2i)  # Add landed signal for compatibility with course
@@ -67,6 +70,9 @@ var is_penalty_shot: bool = false  # True if red circle is below min distance
 # Simple collision system variables
 var current_ground_level: float = 0.0  # Current ground level (can be elevated by roofs)
 
+# Weather system reference
+var weather_manager: WeatherManager = null
+
 # Explosion properties
 var explosion_radius := 150.0  # Radius of explosion damage
 var explosion_damage := 300  # Damage dealt by explosion
@@ -124,6 +130,11 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 	
 	# Get reference to YSortPoint for proper Y-sorting
 	var ysort_point = $YSortPoint
+	
+	# Find weather manager for wind effects
+	weather_manager = get_node_or_null("/root/WeatherManager")
+	if not weather_manager:
+		weather_manager = get_tree().get_first_node_in_group("weather_manager")
 	
 	# Set base scale from sprite's current scale
 	if sprite:
@@ -581,6 +592,10 @@ func _process(delta):
 			if horizontal_velocity.length() > 0:
 				var resistance_direction = -horizontal_velocity.normalized()
 				velocity += resistance_direction * resistance_force
+	
+	# Apply wind effects to grenade velocity when in the air
+	if weather_manager and z > 0.0:
+		velocity = weather_manager.apply_wind_to_projectile(velocity, delta)
 	
 	# Update position
 	position += velocity * delta

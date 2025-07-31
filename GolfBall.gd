@@ -3,6 +3,9 @@ extends Node2D
 # Import ElementData for element system
 const ElementData = preload("res://Elements/ElementData.gd")
 
+# Import WeatherManager for wind effects
+const WeatherManager = preload("res://WeatherManager.gd")
+
 # Leaf particle scenes for collision effects
 const LeafParticle1Scene = preload("res://Particles/LeafParticle1.tscn")
 const LeafParticle2Scene = preload("res://Particles/LeafParticle2.tscn")
@@ -191,6 +194,9 @@ var ballhop_force: float = 350.0  # Vertical force applied by BallHop (reduced f
 # Tile sound system variables
 var current_tile_type: String = ""  # Track current tile type for sound effects
 var last_tile_type: String = ""  # Track previous tile type to detect changes
+
+# Weather system reference
+var weather_manager: WeatherManager = null
 
 # Call this to launch the ball
 func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, spin_strength_category: int = 0):
@@ -394,6 +400,11 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 	shadow = $Shadow
 	element_sprite = $Element
 	
+	# Find weather manager for wind effects
+	weather_manager = get_node_or_null("/root/WeatherManager")
+	if not weather_manager:
+		weather_manager = get_tree().get_first_node_in_group("weather_manager")
+	
 	# Set initial shadow position (same as ball but on ground)
 	if shadow:
 		shadow.position = Vector2.ZERO
@@ -501,6 +512,10 @@ func _process(delta):
 			if horizontal_velocity.length() > 0:
 				var resistance_direction = -horizontal_velocity.normalized()
 				velocity += resistance_direction * resistance_force
+	
+	# Apply wind effects to ball velocity when in the air
+	if weather_manager and z > 0.0:
+		velocity = weather_manager.apply_wind_to_projectile(velocity, delta)
 	
 	# Update position
 	position += velocity * delta

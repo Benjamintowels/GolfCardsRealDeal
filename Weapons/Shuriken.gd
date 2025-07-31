@@ -1,5 +1,8 @@
 extends Node2D
 
+# Import WeatherManager for wind effects
+const WeatherManager = preload("res://WeatherManager.gd")
+
 signal shuriken_landed(final_position: Vector2)
 signal shuriken_hit_target(target: Node2D)
 signal landed(final_tile: Vector2i)  # Add landed signal for compatibility with course
@@ -61,6 +64,9 @@ var is_penalty_shot: bool = false  # True if red circle is below min distance
 
 # Simple collision system variables
 var current_ground_level: float = 0.0  # Current ground level (can be elevated by roofs)
+
+# Weather system reference
+var weather_manager: WeatherManager = null
 
 func _ready():
 	"""Initialize the shuriken when it's added to the scene"""
@@ -144,6 +150,11 @@ func launch(direction: Vector2, power: float, height: float, spin: float = 0.0, 
 	# Set base scale from sprite's current scale
 	if sprite:
 		base_scale = sprite.scale
+	
+	# Find weather manager for wind effects
+	weather_manager = get_node_or_null("/root/WeatherManager")
+	if not weather_manager:
+		weather_manager = get_tree().get_first_node_in_group("weather_manager")
 	
 	# Set initial shadow position (same as shuriken but on ground)
 	if shadow:
@@ -249,6 +260,10 @@ func _handle_roof_bounce_collision(object: Node2D) -> void:
 func _physics_process(delta: float):
 	if landed_flag:
 		return
+	
+	# Apply wind effects to shuriken velocity when in the air
+	if weather_manager and z > 0.0:
+		velocity = weather_manager.apply_wind_to_projectile(velocity, delta)
 	
 	# Update position
 	global_position += velocity * delta
