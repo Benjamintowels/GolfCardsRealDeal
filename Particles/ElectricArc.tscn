@@ -70,16 +70,16 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_cb0ma")
 }],
-"loop": false,
+"loop": true,
 "name": &"default",
 "speed": 24.0
 }]
 
 [node name="ElectricArc" type="AnimatedSprite2D"]
 rotation = -0.705113
+scale = Vector2(0.385, 0.385)
 sprite_frames = SubResource("SpriteFrames_idg8d")
-frame = 8
-frame_progress = 1.0
+frame_progress = 0.56764
 script = ExtResource("2_0db5h")
 
 [node name="ElectricArc" type="AudioStreamPlayer2D" parent="."]

@@ -82,7 +82,8 @@ animations = [{
 
 [node name="WaterBallEffect" type="AnimatedSprite2D"]
 texture_filter = 1
-position = Vector2(-38, 1)
+position = Vector2(-19, 2)
+scale = Vector2(0.51, 0.51)
 sprite_frames = SubResource("SpriteFrames_5ssm8")
 autoplay = "default"
 frame = 3

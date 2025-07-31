@@ -82,7 +82,8 @@ animations = [{
 
 [node name="FireBallEffect" type="AnimatedSprite2D"]
 texture_filter = 1
-position = Vector2(-12, -3)
+position = Vector2(-7, -2)
+scale = Vector2(0.575, 0.575)
 sprite_frames = SubResource("SpriteFrames_h3wyi")
 autoplay = "default"
 frame = 5
