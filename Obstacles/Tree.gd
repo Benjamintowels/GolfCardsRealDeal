@@ -615,10 +615,15 @@ func _on_trunk_area_entered(area: Area2D):
 	print("Projectile type:", projectile.get_class() if projectile else "Unknown")
 	print("Projectile position:", projectile.global_position if projectile else "Unknown")
 	
-	if projectile and (projectile.name == "GolfBall" or projectile.name == "GhostBall" or projectile.has_method("is_throwing_knife")):
-		print("✓ Valid projectile detected:", projectile.name)
+	if projectile and projectile.has_method("is_throwing_knife"):
+		print("✓ Valid throwing knife detected:", projectile.name)
 		# Handle the collision using proper Area2D collision detection
 		_handle_trunk_area_collision(projectile)
+	elif projectile and (projectile.name == "GolfBall" or projectile.name == "GhostBall"):
+		print("✓ Golf ball detected - letting golf ball's collision system handle it")
+		# Let the golf ball's collision system handle this
+		# The golf ball will call _handle_trunk_collision on this tree
+		pass
 	else:
 		print("✗ Invalid projectile or non-projectile object:", projectile.name if projectile else "Unknown")
 	
@@ -687,6 +692,45 @@ func _handle_knife_trunk_area_collision(knife: Node2D, knife_height: float, tree
 	else:
 		print("✗ Knife is below tree height - reflecting")
 		_reflect_projectile(knife)
+
+func _handle_roof_bounce_collision(projectile: Node2D) -> void:
+	"""
+	Simple collision handler: if projectile height < tree height, reflect.
+	If projectile height > tree height, set ground to tree height.
+	"""
+	if not projectile:
+		return
+	
+	# Get projectile height
+	var projectile_height = 0.0
+	if projectile.has_method("get_height"):
+		projectile_height = projectile.get_height()
+	elif "z" in projectile:
+		projectile_height = projectile.z
+	
+	# Get tree height using the appropriate height marker
+	var tree_height = Global.get_object_height_from_marker(get_height_marker())
+	
+	# Check if projectile is above the tree
+	if projectile_height > tree_height:
+		# Projectile is above tree - set ground level to tree height (roof bounce)
+		if projectile.has_method("_set_ground_level"):
+			projectile._set_ground_level(tree_height)
+		elif projectile.has_method("set_ground_level"):
+			projectile.set_ground_level(tree_height)
+		elif "current_ground_level" in projectile:
+			projectile.current_ground_level = tree_height
+		print("✓ Ball is above tree - allowing roof bounce, ground level set to:", tree_height)
+	else:
+		# Projectile is below tree height - reflect off tree
+		_reflect_projectile(projectile)
+
+func _handle_trunk_collision(projectile: Node2D) -> void:
+	"""
+	Handle trunk collision - this is the method the golf ball looks for.
+	Delegates to the roof bounce collision system.
+	"""
+	_handle_roof_bounce_collision(projectile)
 
 func _allow_projectile_entry(projectile: Node2D, tree_height: float):
 	"""Allow projectile to enter tree area and set ground level"""
