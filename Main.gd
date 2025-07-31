@@ -17,6 +17,7 @@ var selected_character = 1  # Default to character 1
 var deck_selection_dialog: Control
 var pending_game_mode = ""  # Store which game mode was selected while waiting for deck selection
 var benny_selected = false  # Track if Benny was selected to play benny_door animation
+var is_reversing_animations = false  # Track if we're currently reversing animations
 
 func _ready():
 	# Set up button group for exclusive selection
@@ -41,6 +42,9 @@ func _ready():
 	
 	# Create and setup deck selection dialog
 	_setup_deck_selection_dialog()
+	
+	# Connect input events for right-click functionality
+	set_process_input(true)
 	
 	print("Buttons connected successfully")
 	print("Initial selected_character: ", selected_character)
@@ -81,6 +85,9 @@ func _on_character2_selected():
 	benny_selected = true  # Mark that Benny was selected
 	print("Character 2 (Benny) selected, selected_character = ", selected_character)
 	
+	# Hide the Character2Button after selecting Benny
+	character2_button.visible = false
+	
 	# Play the select_benny animation
 	if animation_player:
 		animation_player.play("select_benny")
@@ -105,6 +112,15 @@ func _show_deck_selection_dialog():
 	if deck_selection_dialog:
 		print("Deck selection dialog found, showing...")
 		deck_selection_dialog.show_dialog()
+	else:
+		print("ERROR: Deck selection dialog is null!")
+
+func _hide_deck_selection_dialog():
+	"""Hide the deck selection dialog"""
+	print("_hide_deck_selection_dialog() called")
+	if deck_selection_dialog:
+		print("Deck selection dialog found, hiding...")
+		deck_selection_dialog.hide_dialog()
 	else:
 		print("ERROR: Deck selection dialog is null!")
 
@@ -319,6 +335,101 @@ func _change_to_fight_room():
 	$DoorOpen.play()
 	await $DoorOpen.finished
 	$DoorClose.play()
+
+func _input(event):
+	"""Handle input events for right-click functionality"""
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
+		_handle_right_click()
+
+func _handle_right_click():
+	"""Handle right-click to reverse animations and show Character2Button"""
+	print("Right-click detected - reversing animations")
+	
+	# Don't handle right-click if we're already reversing
+	if is_reversing_animations:
+		print("Already reversing animations, ignoring right-click")
+		return
+	
+	# Show the Character2Button again
+	character2_button.visible = true
+	
+	# If deck selection dialog is visible, hide it and reverse select_benny
+	if deck_selection_dialog and deck_selection_dialog.visible:
+		print("Deck selection dialog is visible, hiding it and reversing select_benny")
+		_reverse_select_benny_animation()
+		return
+	
+	# If we're in the course selection phase (after deck selection), reverse those animations
+	if benny_selected and Global.selected_deck_type != "":
+		_reverse_course_selection_animations()
+	else:
+		# Just reverse the select_benny animation
+		_reverse_select_benny_animation()
+
+func _reverse_select_benny_animation():
+	"""Reverse the select_benny animation"""
+	is_reversing_animations = true
+	
+	# Hide deck selection dialog if it's visible (only if called from right-click, not from cancel button)
+	if deck_selection_dialog and deck_selection_dialog.visible:
+		_hide_deck_selection_dialog()
+	
+	_reverse_select_benny_animation_internal()
+
+func _reverse_select_benny_animation_internal():
+	"""Internal function to reverse the select_benny animation without hiding dialog"""
+	if animation_player:
+		animation_player.play_backwards("select_benny")
+		print("Playing select_benny animation backwards")
+		
+		# Wait for animation to complete
+		await animation_player.animation_finished
+		
+		# Reset Benny selection
+		benny_selected = false
+		selected_character = 1  # Reset to default character
+		character1_button.button_pressed = true
+		print("Benny selection reversed")
+	
+	is_reversing_animations = false
+
+func _reverse_course_selection_animations():
+	"""Reverse the course selection animations"""
+	is_reversing_animations = true
+	
+	var course_selection_map = $ClubHouseBackgroundLayers/CourseSelectionMap
+	if course_selection_map:
+		# First reverse the intro animation
+		var course_map_animation_player = course_selection_map.get_node("AnimationPlayer")
+		if course_map_animation_player:
+			course_map_animation_player.play_backwards("intro")
+			print("Playing intro animation backwards")
+			await course_map_animation_player.animation_finished
+		
+		# Then reverse the map_intro animation
+		var map_animation_player = course_selection_map.get_node("CourseSelectionAnimationPlayer")
+		if map_animation_player:
+			map_animation_player.play_backwards("map_intro")
+			print("Playing map_intro animation backwards")
+			await map_animation_player.animation_finished
+		
+		# Finally reverse the benny_door animation
+		if animation_player:
+			animation_player.play_backwards("benny_door")
+			print("Playing benny_door animation backwards")
+			await animation_player.animation_finished
+			
+			# Reset Benny selection and show deck selection dialog
+			benny_selected = false
+			selected_character = 1  # Reset to default character
+			character1_button.button_pressed = true
+			Global.selected_deck_type = ""  # Clear deck selection
+			print("Course selection reversed, showing deck selection dialog")
+			_show_deck_selection_dialog()
+	else:
+		print("ERROR: CourseSelectionMap not found for reverse animation")
+	
+	is_reversing_animations = false
 
 func _change_to_kendama_game():
 	# Start fade to black first

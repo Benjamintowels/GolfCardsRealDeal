@@ -54,6 +54,11 @@ func _on_cancel_pressed():
 	print("Deck selection cancelled")
 	emit_signal("dialog_closed")
 	hide_dialog()
+	
+	# Get the parent Main scene and call its reverse animation function
+	var main_scene = get_parent()
+	if main_scene and main_scene.has_method("_reverse_select_benny_animation_internal"):
+		main_scene._reverse_select_benny_animation_internal()
 
 func _on_background_clicked(event):
 	"""Handle background click to close dialog"""
