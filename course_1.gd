@@ -86,6 +86,10 @@ var weather_manager: WeatherManager = null
 const SoundManager := preload("res://SoundManager.gd")
 var sound_manager: SoundManager = null
 
+# Pseudo 3D Effect
+const Pseudo3DEffect := preload("res://Pseudo3DEffect.tscn")
+var pseudo_3d_effect: Node = null
+
 var obstacle_map: Dictionary = {}  # Vector2i -> BaseObstacle
 
 var cell_size: int = 48 # This will be set by the main script
@@ -614,6 +618,10 @@ func _ready() -> void:
 	ui_manager = UIManager.new()
 	add_child(ui_manager)
 	ui_manager.setup($UILayer, self, player_manager, grid_manager, camera_manager, deck_manager, movement_controller, attack_handler, weapon_handler, launch_manager)
+	
+	# Initialize Pseudo3DEffect
+	pseudo_3d_effect = Pseudo3DEffect.instantiate()
+	add_child(pseudo_3d_effect)
 	
 	# Initialize DamageBar for driving range
 	var damage_bar_scene = preload("res://DamageBar.tscn")
@@ -2392,6 +2400,10 @@ func _on_advance_to_next_hole():
 
 func reset_for_next_hole():
 	print("=== ADVANCING TO HOLE", game_state_manager.get_current_hole_index() + 2, "===")
+	
+	# Reverse 3D effect for next hole
+	if pseudo_3d_effect and pseudo_3d_effect.has_method("reverse_3d_effect"):
+		pseudo_3d_effect.reverse_3d_effect()
 	
 	# Clear the player's hand when advancing to next hole
 	if deck_manager:
@@ -4688,3 +4700,8 @@ func is_position_valid_for_movement(pos: Vector2i) -> bool:
 		return false
 	
 	return true
+
+func _exit_tree():
+	"""Clean up resources when the scene is destroyed"""
+	if pseudo_3d_effect and pseudo_3d_effect.has_method("cleanup"):
+		pseudo_3d_effect.cleanup()

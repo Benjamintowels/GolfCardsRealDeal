@@ -25,6 +25,7 @@ var collision_detection_radius: float = 300.0  # Only check objects within this 
 var ysort_update_cooldown: float = 0.016  # ~60 FPS for moving objects
 var last_ysort_update: float = 0.0
 var objects_need_ysort_update: Array = []
+var ysort_disabled: bool = false  # Flag to disable Y-sorting during 3D effect
 
 # Tree collision optimization
 var tree_collision_active: bool = false
@@ -196,6 +197,10 @@ func update_essential_systems(course_instance):
 
 func should_update_ysort(current_time: float) -> bool:
 	"""Determine if Y-sort updates are needed"""
+	# Don't update if Y-sorting is disabled during 3D effect
+	if ysort_disabled:
+		return false
+	
 	# Always update if we have objects queued for update
 	if not objects_need_ysort_update.is_empty():
 		return true
@@ -457,4 +462,14 @@ func redraw_grid(course_instance):
 func cleanup():
 	"""Cleanup optimization systems"""
 	objects_need_ysort_update.clear()
-	nearby_collision_objects.clear() 
+	nearby_collision_objects.clear()
+
+func disable_ysort_updates():
+	"""Disable Y-sorting updates during 3D effect"""
+	ysort_disabled = true
+	print("SmartPerformanceOptimizer: Y-sort updates disabled")
+
+func enable_ysort_updates():
+	"""Re-enable Y-sorting updates after 3D effect"""
+	ysort_disabled = false
+	print("SmartPerformanceOptimizer: Y-sort updates re-enabled") 

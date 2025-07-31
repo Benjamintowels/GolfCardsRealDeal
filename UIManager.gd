@@ -410,6 +410,10 @@ func show_hole_completion_dialog() -> void:
 	"""Show hole completion dialog using the existing HoleCompletionDialog scene"""
 	print("=== SHOW_HOLE_COMPLETION_DIALOG CALLED ===")
 	
+	# Trigger 3D effect for hole completion
+	if course.pseudo_3d_effect and course.pseudo_3d_effect.has_method("trigger_3d_effect"):
+		course.pseudo_3d_effect.trigger_3d_effect()
+	
 	# Get the existing HoleCompletionDialog from the course
 	var hole_completion_dialog = course.get_node_or_null("UILayer/HoleCompletionDialog")
 	if hole_completion_dialog:
