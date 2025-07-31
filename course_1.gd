@@ -613,6 +613,7 @@ func _ready() -> void:
 	camera_manager = CameraManager.new()
 	add_child(camera_manager)
 	camera_manager.setup(camera, player_manager, grid_manager, background_manager, cell_size)
+	camera_manager.enable_camera_panning()  # Ensure camera panning is enabled by default
 	
 	# Initialize UIManager
 	ui_manager = UIManager.new()

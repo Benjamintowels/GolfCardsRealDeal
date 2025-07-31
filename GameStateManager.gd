@@ -753,6 +753,12 @@ func start_round_after_tee_selection(course: Node, player_manager: Node, deck_ma
 		player_manager.get_player_node().enable_animations()
 		print("Player movement animations enabled after tee placement")
 	
+	# Enable camera panning after player is placed on tee
+	var course_node = get_parent()
+	if course_node and course_node.camera_manager and course_node.camera_manager.has_method("enable_camera_panning"):
+		course_node.camera_manager.enable_camera_panning()
+		print("Camera panning enabled after player placed on tee")
+	
 	# Reset available shots for new player turn
 	reset_available_shots()
 	

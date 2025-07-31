@@ -11,6 +11,7 @@ var current_camera_tween: Tween = null
 var is_panning: bool = false
 var pan_start_pos: Vector2 = Vector2.ZERO
 var camera_snap_back_pos: Vector2 = Vector2.ZERO
+var camera_panning_enabled: bool = true  # Flag to enable/disable camera panning
 
 # Camera settings
 var cell_size: int = 48
@@ -315,6 +316,10 @@ func update_aiming_camera_tracking(aiming_circle_position: Vector2) -> void:
 
 func handle_camera_panning(event: InputEvent) -> bool:
 	"""Handle camera panning input. Returns true if input was handled."""
+	# Check if camera panning is enabled
+	if not camera_panning_enabled:
+		return false
+		
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_MIDDLE:
 		if event.pressed:
 			# Reset idle zoom timer when user starts panning
@@ -589,6 +594,20 @@ func reset_idle_zoom_timer() -> void:
 	
 	# Restart the timer
 	start_idle_zoom_timer()
+
+func disable_camera_panning() -> void:
+	"""Disable camera panning (e.g., during hole completion)"""
+	camera_panning_enabled = false
+	print("CameraManager: Camera panning disabled")
+
+func enable_camera_panning() -> void:
+	"""Enable camera panning (e.g., when player is placed on tee)"""
+	camera_panning_enabled = true
+	print("CameraManager: Camera panning enabled")
+
+func is_camera_panning_enabled() -> bool:
+	"""Check if camera panning is currently enabled"""
+	return camera_panning_enabled
 
 func handle_manual_zoom_input() -> void:
 	"""Handle manual zoom input from mouse wheel - reset idle timer"""

@@ -410,6 +410,11 @@ func show_hole_completion_dialog() -> void:
 	"""Show hole completion dialog using the existing HoleCompletionDialog scene"""
 	print("=== SHOW_HOLE_COMPLETION_DIALOG CALLED ===")
 	
+	# Disable camera panning during hole completion
+	if course.camera_manager and course.camera_manager.has_method("disable_camera_panning"):
+		course.camera_manager.disable_camera_panning()
+		print("Camera panning disabled for hole completion")
+	
 	# Trigger 3D effect for hole completion
 	if course.pseudo_3d_effect and course.pseudo_3d_effect.has_method("trigger_3d_effect"):
 		course.pseudo_3d_effect.trigger_3d_effect()
