@@ -150,6 +150,9 @@ func _deal_damage_to_object(object: Node):
 	elif object.get_script() and object.get_script().resource_path.ends_with("wraith.gd"):
 		# Wraith takes damage and is_headshot
 		object.take_damage(POWER_BEAM_DAMAGE, false)
+	elif object.get_script() and object.get_script().resource_path.ends_with("Tree.gd"):
+		# Tree takes damage with power_beam attack type
+		object.take_damage(POWER_BEAM_DAMAGE, "power_beam")
 	else:
 		# Default: just pass damage amount
 		object.take_damage(POWER_BEAM_DAMAGE)

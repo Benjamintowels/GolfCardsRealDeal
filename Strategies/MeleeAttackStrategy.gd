@@ -437,7 +437,11 @@ func perform_slash_attack(target_pos: Vector2i) -> void:
 			if not is_destroyed:
 				# Deal damage to the destructible object
 				if destructible.has_method("take_damage"):
-					destructible.take_damage(slash_damage)
+					# Check if this is a Tree and pass the attack type
+					if destructible.get_script() and destructible.get_script().resource_path.ends_with("Tree.gd"):
+						destructible.take_damage(slash_damage, "slash")
+					else:
+						destructible.take_damage(slash_damage)
 					total_damage_dealt += slash_damage
 					print("Dealt", slash_damage, "damage to destructible object:", destructible.name)
 				else:

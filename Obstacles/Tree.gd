@@ -93,20 +93,137 @@ func _initialize_tree_cutting_components():
 	print("✓ Tree cutting components initialized")
 
 # Tree cutting system - called by PowerBeam
-func take_damage(damage: int):
-	"""Handle PowerBeam damage by cutting the tree"""
+func take_damage(damage: int, attack_type: String = ""):
+	"""Handle damage by cutting the tree only for specific attacks"""
+	print("=== TREE TAKE_DAMAGE CALLED ===")
+	print("Tree name:", name)
+	print("Damage:", damage)
+	print("Attack type:", attack_type)
+	print("Is tree already cut:", is_tree_cut)
+	
 	if is_tree_cut:
 		print("Tree is already cut - ignoring damage")
 		return  # Already cut
 	
-	print("=== TREE CUTTING INITIATED ===")
-	print("Damage received:", damage)
+	# Only cut the tree for specific attack types
+	var can_cut_tree = false
 	
-	# Mark tree as cut
-	is_tree_cut = true
+	# Check if this is a PowerBeam attack
+	if attack_type == "power_beam":
+		can_cut_tree = true
+		print("✓ PowerBeam attack detected - tree can be cut")
 	
-	# Cut the tree
-	_cut_tree()
+	# Check if this is a Slash attack
+	elif attack_type == "slash":
+		can_cut_tree = true
+		print("✓ Slash attack detected - tree can be cut")
+	
+	# Check if this is a Meteor attack
+	elif attack_type == "meteor":
+		can_cut_tree = true
+		print("✓ Meteor attack detected - tree can be cut")
+	
+	# Check if this is a PowerBeam by checking the caller's script
+	elif attack_type == "" and _is_power_beam_attack():
+		can_cut_tree = true
+		print("✓ PowerBeam attack detected via script check - tree can be cut")
+	
+	# Check if this is a Slash attack by checking the caller's script
+	elif attack_type == "" and _is_slash_attack():
+		can_cut_tree = true
+		print("✓ Slash attack detected via script check - tree can be cut")
+	
+	# Debug: log all attack types for troubleshooting
+	print("DEBUG: Checking attack type:", attack_type, "against allowed types: power_beam, slash, meteor")
+	print("DEBUG: can_cut_tree result:", can_cut_tree)
+	
+	if can_cut_tree:
+		print("=== TREE CUTTING INITIATED ===")
+		print("Damage received:", damage)
+		print("Attack type:", attack_type)
+		
+		# Mark tree as cut
+		is_tree_cut = true
+		
+		# Cut the tree
+		_cut_tree()
+	else:
+		print("=== TREE DAMAGE IGNORED (NO CUTTING) ===")
+		print("Damage received:", damage)
+		print("Attack type:", attack_type)
+		print("This attack type cannot cut trees - damage ignored for cutting")
+		
+		# Still handle the collision effects (sounds, etc.) even if not cutting
+		_handle_non_cutting_damage(damage, attack_type)
+
+func _is_power_beam_attack() -> bool:
+	"""Check if the current attack is from PowerBeam by examining the call stack"""
+	# Get the current call stack
+	var stack = get_stack()
+	
+	# Look for PowerBeam in the call stack
+	for frame in stack:
+		if frame.source.ends_with("power_beam.gd"):
+			return true
+	
+	return false
+
+func _is_slash_attack() -> bool:
+	"""Check if the current attack is from Slash by examining the call stack"""
+	# Get the current call stack
+	var stack = get_stack()
+	
+	# Look for MeleeAttackStrategy (which handles Slash) in the call stack
+	for frame in stack:
+		if frame.source.ends_with("MeleeAttackStrategy.gd"):
+			# Check if this is specifically a slash attack by looking at the function name
+			if frame.function == "perform_slash_attack":
+				return true
+	
+	return false
+
+func _handle_non_cutting_damage(damage: int, attack_type: String):
+	"""Handle damage from attacks that don't cut the tree but should still have effects"""
+	print("Handling non-cutting damage:", damage, "from attack type:", attack_type)
+	
+	# Play trunk thunk sound for any damage to the tree
+	var thunk = get_node_or_null("TrunkThunk")
+	if thunk:
+		thunk.play()
+		print("✓ TrunkThunk sound played for non-cutting damage")
+	else:
+		print("✗ TrunkThunk sound not found!")
+	
+	# You can add other effects here like:
+	# - Particle effects
+	# - Screen shake
+	# - Visual feedback
+	# - etc.
+
+func get_grid_position() -> Vector2i:
+	"""Get the grid position of the tree"""
+	if has_meta("grid_position"):
+		return get_meta("grid_position")
+	elif get("grid_position") != null:
+		return get("grid_position")
+	else:
+		# Fallback: calculate grid position from world position
+		var world_pos = global_position
+		var cell_size = 48  # Default cell size
+		
+		# Account for camera offset if available
+		var course = get_tree().current_scene
+		if course and course.has_method("get_camera_offset"):
+			var camera_offset = course.get_camera_offset()
+			world_pos -= camera_offset
+			print("DEBUG: Tree grid calculation - Original world pos:", global_position, "Camera offset:", camera_offset, "Adjusted world pos:", world_pos)
+		
+		# Since the tree is placed at cell center, we need to adjust for the offset
+		var grid_x = floor((world_pos.x - cell_size / 2) / cell_size)
+		var grid_y = floor((world_pos.y - cell_size / 2) / cell_size)
+		var grid_pos = Vector2i(grid_x, grid_y)
+		print("DEBUG: Tree grid calculation - Final grid pos:", grid_pos)
+		return grid_pos
 
 func _cut_tree():
 	"""Cut the tree into stump and falling top"""
@@ -473,6 +590,10 @@ func _update_collision_to_stump():
 	call_deferred("_update_ysort")
 
 func _ready():
+	# Add tree to destructible_objects group for attack detection
+	add_to_group("destructible_objects")
+	print("✓ Tree added to destructible_objects group")
+	
 	# Connect to Area2D's area_entered and area_exited signals for collision detection
 	var trunk_base_area = get_node_or_null("TrunkBaseArea")
 	var leaves_area = get_node_or_null("Leaves")
