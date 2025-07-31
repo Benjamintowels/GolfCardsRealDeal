@@ -8,3 +8,4 @@ script = ExtResource("1_ice")
 name = "Ice"
 texture = ExtResource("2_ice")
 color = Color(0.341176, 0.921569, 0.980392, 1)
+scene_path = "res://Elements/IceBallEffect.tscn"

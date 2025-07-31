@@ -8,4 +8,5 @@ script = ExtResource("1_cju6h")
 name = "Electric"
 texture = ExtResource("2_h4b1p")
 color = Color(1, 1, 0.623529, 1)
+scene_path = "res://Elements/ElectricBallEffect.tscn"
 metadata/_custom_type_script = "uid://dk64kh6fkqud7"

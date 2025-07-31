@@ -1,0 +1,88 @@
+[gd_scene load_steps=13 format=3 uid="uid://dyi7hubtdav7r"]
+
+[ext_resource type="Texture2D" uid="uid://cldxvslwii4ar" path="res://Elements/Icething.png" id="1_ptpgb"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_1b0bl"]
+atlas = ExtResource("1_ptpgb")
+region = Rect2(0, 0, 156, 96)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_7hnbj"]
+atlas = ExtResource("1_ptpgb")
+region = Rect2(156, 0, 156, 96)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_4eau8"]
+atlas = ExtResource("1_ptpgb")
+region = Rect2(312, 0, 156, 96)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_40lha"]
+atlas = ExtResource("1_ptpgb")
+region = Rect2(468, 0, 156, 96)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_0l4kk"]
+atlas = ExtResource("1_ptpgb")
+region = Rect2(624, 0, 156, 96)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_fvo80"]
+atlas = ExtResource("1_ptpgb")
+region = Rect2(780, 0, 156, 96)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_bb0wf"]
+atlas = ExtResource("1_ptpgb")
+region = Rect2(936, 0, 156, 96)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_fbgl4"]
+atlas = ExtResource("1_ptpgb")
+region = Rect2(1092, 0, 156, 96)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_t68oh"]
+atlas = ExtResource("1_ptpgb")
+region = Rect2(1248, 0, 156, 96)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_2rvo6"]
+atlas = ExtResource("1_ptpgb")
+region = Rect2(1404, 0, 156, 96)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_p5w2s"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_1b0bl")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_7hnbj")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_4eau8")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_40lha")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_0l4kk")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_fvo80")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_bb0wf")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_fbgl4")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_t68oh")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_2rvo6")
+}],
+"loop": true,
+"name": &"default",
+"speed": 14.0
+}]
+
+[node name="IceBallEffect" type="AnimatedSprite2D"]
+texture_filter = 1
+position = Vector2(-32, -10)
+sprite_frames = SubResource("SpriteFrames_p5w2s")
+autoplay = "default"
+frame_progress = 0.223206

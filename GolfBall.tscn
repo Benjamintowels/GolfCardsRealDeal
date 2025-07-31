@@ -59,7 +59,8 @@ stream = ExtResource("4_k5viu")
 [node name="TopHeight" type="Marker2D" parent="."]
 position = Vector2(0, -7.561)
 
-[node name="Element" type="Sprite2D" parent="."]
+[node name="Element" type="AnimatedSprite2D" parent="."]
+visible = false
 texture_filter = 1
 
 [node name="FlameOn" type="AudioStreamPlayer2D" parent="."]

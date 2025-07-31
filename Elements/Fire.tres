@@ -8,3 +8,4 @@ script = ExtResource("1_fire")
 name = "Fire"
 texture = ExtResource("2_fire")
 color = Color(0.831373, 0.2, 0.172549, 1)
+scene_path = "res://Elements/FireBallEffect.tscn"

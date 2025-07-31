@@ -140,7 +140,7 @@ var explosive_shot_active: bool = false  # Track if Explosive effect is active
 
 # Element system variables
 var current_element: ElementData = null  # Current element applied to the ball
-var element_sprite: Sprite2D = null  # Reference to the Element sprite node
+var element_sprite: AnimatedSprite2D = null  # Reference to the Element animated sprite node
 
 # Elemental club effect variables
 var fire_club_active: bool = false  # Fire Club special effects
@@ -440,11 +440,31 @@ func set_element(element_data: ElementData) -> void:
 	
 	# Update the element sprite
 	if element_sprite:
-		if element_data and element_data.texture:
+		if element_data and element_data.scene_path:
+			# Load and apply the animated element scene using the scene_path from ElementData
+			var element_scene = load(element_data.scene_path)
+			if element_scene:
+				# Clear any existing children
+				for child in element_sprite.get_children():
+					child.queue_free()
+				
+				# Instance the animated element scene
+				var animated_element = element_scene.instantiate()
+				element_sprite.add_child(animated_element)
+				
+				# Apply element color modulation
+				element_sprite.modulate = element_data.color
+				element_sprite.visible = true
+				# Element set with animated sprite
+			else:
+				element_sprite.visible = false
+				# Failed to load element scene
+		elif element_data and element_data.texture:
+			# Fallback to old texture-based system for backward compatibility
 			element_sprite.texture = element_data.texture
 			element_sprite.modulate = element_data.color
 			element_sprite.visible = true
-			# Element set
+			# Element set with texture (fallback)
 		else:
 			element_sprite.visible = false
 			# Element cleared
@@ -454,6 +474,9 @@ func clear_element() -> void:
 	current_element = null
 	if element_sprite:
 		element_sprite.visible = false
+		# Clear any existing animated element children
+		for child in element_sprite.get_children():
+			child.queue_free()
 		# Element cleared from ball
 
 func get_element():
@@ -1012,6 +1035,15 @@ func update_visual_effects():
 		element_sprite.position = sprite.position
 		element_sprite.scale = sprite.scale
 		element_sprite.z_index = sprite.z_index + 1  # Element appears on top of ball
+		
+		# Rotate element based on ball direction
+		if velocity.length() > 10.0:  # Only rotate when ball is moving
+			var direction_angle = velocity.angle()
+			element_sprite.rotation = direction_angle
+		else:
+			# Reset rotation when ball is stationary
+			element_sprite.rotation = 0.0
+		
 		# Add element-specific visual effects
 		if current_element and current_element.name == "Fire":
 			# Add fire flickering effect
@@ -1431,7 +1463,7 @@ func reset_shot_effects() -> void:
 	"""Reset all shot modification effects after the ball has landed"""
 	sticky_shot_active = false
 	bouncey_shot_active = false
-	clear_element()  # Clear any element effects
+	clear_element()  # Clear any element effects (now handles animated sprites)
 	
 	# Reset elemental club effects
 	fire_club_active = false
@@ -2211,7 +2243,10 @@ func reset_ball_state() -> void:
 	# Reset element system
 	current_element = null
 	if element_sprite:
-		element_sprite.texture = null
+		element_sprite.visible = false
+		# Clear any existing animated element children
+		for child in element_sprite.get_children():
+			child.queue_free()
 	
 	# Reset landing system
 	remove_landing_highlight()

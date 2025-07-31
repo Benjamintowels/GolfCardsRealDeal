@@ -1,0 +1,92 @@
+[gd_scene load_steps=15 format=3 uid="uid://bwx3uo7lqt2bf"]
+
+[ext_resource type="Texture2D" uid="uid://cx3oyirawks2s" path="res://Particles/SkullFire.png" id="1_0hamj"]
+[ext_resource type="Script" uid="uid://cwmgl53dhikxv" path="res://Particles/skull_fire_attack.gd" id="2_0hamj"]
+[ext_resource type="AudioStream" uid="uid://dkvw07d8vrgvk" path="res://Sounds/FireStart.mp3" id="3_0ijwh"]
+[ext_resource type="AudioStream" uid="uid://dc4p1v43vdh2w" path="res://Sounds/MeteorStart.mp3" id="4_0w5ur"]
+[ext_resource type="AudioStream" uid="uid://fucw8248wxul" path="res://Sounds/FireEnd.mp3" id="5_6l3iu"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_wq3ra"]
+atlas = ExtResource("1_0hamj")
+region = Rect2(0, 0, 168, 159)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_0ijwh"]
+atlas = ExtResource("1_0hamj")
+region = Rect2(168, 0, 168, 159)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_0w5ur"]
+atlas = ExtResource("1_0hamj")
+region = Rect2(336, 0, 168, 159)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_6l3iu"]
+atlas = ExtResource("1_0hamj")
+region = Rect2(504, 0, 168, 159)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_duqmn"]
+atlas = ExtResource("1_0hamj")
+region = Rect2(672, 0, 168, 159)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_1liav"]
+atlas = ExtResource("1_0hamj")
+region = Rect2(840, 0, 168, 159)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ref31"]
+atlas = ExtResource("1_0hamj")
+region = Rect2(1008, 0, 168, 159)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_fgawl"]
+atlas = ExtResource("1_0hamj")
+region = Rect2(1176, 0, 168, 159)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_spw3k"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_wq3ra")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_0ijwh")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_0w5ur")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_6l3iu")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_duqmn")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_1liav")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ref31")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_fgawl")
+}],
+"loop": true,
+"name": &"default",
+"speed": 14.0
+}]
+
+[node name="SkullFireAttack" type="AnimatedSprite2D"]
+z_index = 500
+texture_filter = 1
+position = Vector2(0, -40.915)
+scale = Vector2(0.445, 0.445)
+sprite_frames = SubResource("SpriteFrames_spw3k")
+frame_progress = 0.00705191
+script = ExtResource("2_0hamj")
+
+[node name="FlameOn" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("3_0ijwh")
+pitch_scale = 0.91
+
+[node name="InAir" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("4_0w5ur")
+pitch_scale = 1.86
+
+[node name="Explode" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("5_6l3iu")
+pitch_scale = 1.86

@@ -1,0 +1,89 @@
+[gd_scene load_steps=13 format=3 uid="uid://l4b00t450s47"]
+
+[ext_resource type="Texture2D" uid="uid://c2xqmfuonts6h" path="res://Elements/WaterThing.png" id="1_4n8wv"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_5jun2"]
+atlas = ExtResource("1_4n8wv")
+region = Rect2(0, 0, 160, 116)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_pki35"]
+atlas = ExtResource("1_4n8wv")
+region = Rect2(160, 0, 160, 116)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_acms0"]
+atlas = ExtResource("1_4n8wv")
+region = Rect2(320, 0, 160, 116)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_0kbcj"]
+atlas = ExtResource("1_4n8wv")
+region = Rect2(480, 0, 160, 116)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_clf3b"]
+atlas = ExtResource("1_4n8wv")
+region = Rect2(640, 0, 160, 116)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_yrir1"]
+atlas = ExtResource("1_4n8wv")
+region = Rect2(800, 0, 160, 116)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_uiev0"]
+atlas = ExtResource("1_4n8wv")
+region = Rect2(960, 0, 160, 116)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_nf6si"]
+atlas = ExtResource("1_4n8wv")
+region = Rect2(1120, 0, 160, 116)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_t0ikj"]
+atlas = ExtResource("1_4n8wv")
+region = Rect2(1280, 0, 160, 116)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_5wn2s"]
+atlas = ExtResource("1_4n8wv")
+region = Rect2(1440, 0, 160, 116)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_5ssm8"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_5jun2")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_pki35")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_acms0")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_0kbcj")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_clf3b")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_yrir1")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_uiev0")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_nf6si")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_t0ikj")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_5wn2s")
+}],
+"loop": true,
+"name": &"default",
+"speed": 16.0
+}]
+
+[node name="WaterBallEffect" type="AnimatedSprite2D"]
+texture_filter = 1
+position = Vector2(-38, 1)
+sprite_frames = SubResource("SpriteFrames_5ssm8")
+autoplay = "default"
+frame = 3
+frame_progress = 0.361572

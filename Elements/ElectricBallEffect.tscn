@@ -1,0 +1,89 @@
+[gd_scene load_steps=13 format=3 uid="uid://bmh2i68pipspm"]
+
+[ext_resource type="Texture2D" uid="uid://bf5r4hi2n6xh8" path="res://Elements/ElectricBallEffect.png" id="1_61u1a"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_jlnra"]
+atlas = ExtResource("1_61u1a")
+region = Rect2(0, 0, 204, 102)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_vcrnp"]
+atlas = ExtResource("1_61u1a")
+region = Rect2(204, 0, 204, 102)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_meen3"]
+atlas = ExtResource("1_61u1a")
+region = Rect2(408, 0, 204, 102)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_iftr1"]
+atlas = ExtResource("1_61u1a")
+region = Rect2(612, 0, 204, 102)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_h8kge"]
+atlas = ExtResource("1_61u1a")
+region = Rect2(816, 0, 204, 102)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_kfpcj"]
+atlas = ExtResource("1_61u1a")
+region = Rect2(1020, 0, 204, 102)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_u4x82"]
+atlas = ExtResource("1_61u1a")
+region = Rect2(1224, 0, 204, 102)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_b6dkn"]
+atlas = ExtResource("1_61u1a")
+region = Rect2(1428, 0, 204, 102)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_okptn"]
+atlas = ExtResource("1_61u1a")
+region = Rect2(1632, 0, 204, 102)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_4w38i"]
+atlas = ExtResource("1_61u1a")
+region = Rect2(1836, 0, 204, 102)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_6m2x0"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_jlnra")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_vcrnp")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_meen3")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_iftr1")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_h8kge")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_kfpcj")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_u4x82")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_b6dkn")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_okptn")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_4w38i")
+}],
+"loop": true,
+"name": &"default",
+"speed": 30.0
+}]
+
+[node name="ElectricBallEffect" type="AnimatedSprite2D"]
+texture_filter = 1
+position = Vector2(-22, -2)
+scale = Vector2(0.47, 0.47)
+sprite_frames = SubResource("SpriteFrames_6m2x0")
+autoplay = "default"
+frame_progress = 0.279162

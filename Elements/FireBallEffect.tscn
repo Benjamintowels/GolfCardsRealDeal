@@ -1,0 +1,89 @@
+[gd_scene load_steps=13 format=3 uid="uid://h1bpky3nl41h"]
+
+[ext_resource type="Texture2D" uid="uid://1kd7hli4j3tg" path="res://Elements/firething.png" id="1_a0ubh"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_dmam2"]
+atlas = ExtResource("1_a0ubh")
+region = Rect2(0, 0, 117, 112)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_davbe"]
+atlas = ExtResource("1_a0ubh")
+region = Rect2(117, 0, 117, 112)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_6qr26"]
+atlas = ExtResource("1_a0ubh")
+region = Rect2(234, 0, 117, 112)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ncrth"]
+atlas = ExtResource("1_a0ubh")
+region = Rect2(351, 0, 117, 112)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_dc2ni"]
+atlas = ExtResource("1_a0ubh")
+region = Rect2(468, 0, 117, 112)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_w1jer"]
+atlas = ExtResource("1_a0ubh")
+region = Rect2(585, 0, 117, 112)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_xusvf"]
+atlas = ExtResource("1_a0ubh")
+region = Rect2(702, 0, 117, 112)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ptssw"]
+atlas = ExtResource("1_a0ubh")
+region = Rect2(819, 0, 117, 112)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_bmme0"]
+atlas = ExtResource("1_a0ubh")
+region = Rect2(936, 0, 117, 112)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_lhhn7"]
+atlas = ExtResource("1_a0ubh")
+region = Rect2(1053, 0, 117, 112)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_h3wyi"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_dmam2")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_davbe")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_6qr26")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ncrth")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_dc2ni")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_w1jer")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_xusvf")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ptssw")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_bmme0")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_lhhn7")
+}],
+"loop": true,
+"name": &"default",
+"speed": 24.0
+}]
+
+[node name="FireBallEffect" type="AnimatedSprite2D"]
+texture_filter = 1
+position = Vector2(-12, -3)
+sprite_frames = SubResource("SpriteFrames_h3wyi")
+autoplay = "default"
+frame = 5
+frame_progress = 0.323528
