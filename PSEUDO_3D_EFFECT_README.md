@@ -34,6 +34,11 @@ The system automatically scales objects in these groups:
 - `obstacles` - General obstacles
 - `NPC` - Non-player characters
 - `balls` - Golf balls
+- `pins` - Pin obstacles
+- `interactables` - Interactive objects (oil drums, bonfires, etc.)
+- `light_poles` - Light pole obstacles
+- `boulders` - Boulder obstacles
+- `rectangular_obstacles` - Shop exterior and other rectangular objects
 
 ## Integration
 

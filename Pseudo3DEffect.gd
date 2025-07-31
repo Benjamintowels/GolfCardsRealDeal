@@ -22,7 +22,12 @@ var object_groups: Array[String] = [
 	"grass_elements",
 	"obstacles",
 	"NPC",
-	"balls"
+	"balls",
+	"pins",
+	"interactables",
+	"light_poles",
+	"boulders",
+	"rectangular_obstacles"
 ]
 
 # Store original scales for restoration
@@ -202,6 +207,8 @@ func enable_ysort_updates():
 		# Fallback: remove the flag to enable Y-sorting
 		smart_optimizer.remove_meta("ysort_disabled")
 		print("Pseudo3DEffect: Removed Y-sort disabled flag")
+
+
 
 func is_effect_active() -> bool:
 	"""Check if the 3D effect is currently active"""

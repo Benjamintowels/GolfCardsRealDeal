@@ -172,6 +172,16 @@ func update_object_y_sort(node: Node2D, object_type: String = "objects"):
 	if node.has_method("get_y_sort_point"):
 		world_position.y = node.get_y_sort_point()
 	
+	# Adjust Y-sorting for 3D effect - scale up Y position to match visual scaling
+	var tree = node.get_tree()
+	if tree:  # Check if tree is valid
+		var course_node = tree.get_first_node_in_group("course")
+		if course_node and course_node.has_method("get_pseudo_3d_effect"):
+			var pseudo_3d_effect = course_node.get_pseudo_3d_effect()
+			if pseudo_3d_effect and pseudo_3d_effect.is_effect_active():
+				# Scale the Y position to match the visual scaling of objects
+				world_position.y *= 3.63  # Match the OBJECTS_Y_SCALE_TARGET
+	
 	var z_index = get_y_sort_z_index(world_position, object_type)
 	node.z_index = z_index
 
