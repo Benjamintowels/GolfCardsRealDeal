@@ -14,7 +14,7 @@ The weather system consists of:
 ### WeatherManager.gd
 - Generates random wind factors for each hole
 - Wind direction: 0-360 degrees (random)
-- Wind intensity: 0-30 mph (random)
+- Wind intensity: 0-10 mph (Front 9), 0-30 mph (Back 9)
 - Applies wind effects to projectiles in flight
 - Emits signals for UI updates
 
@@ -57,8 +57,9 @@ Wind effects are applied to:
 - Range: 0.0 (no effect) to 1.0 (full wind force)
 
 ### Wind Intensity Range
-- Default: 0-30 mph
-- Can be adjusted in generate_new_wind_factor()
+- Front 9 holes (1-9): 0-10 mph
+- Back 9 holes (10-18): 0-30 mph
+- Can be adjusted in WeatherManager.gd variables
 - Minimum threshold: 0.1 mph (below this = no wind)
 
 ## Performance

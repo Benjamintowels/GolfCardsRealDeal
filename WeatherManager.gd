@@ -12,7 +12,11 @@ var wind_intensity: float = 0.0  # 0-30 mph
 var wind_force: Vector2 = Vector2.ZERO  # Calculated wind force vector
 
 # Wind influence on projectiles
-var wind_influence_factor: float = 0.2  # How much wind affects projectiles (0.0-1.0) - Much stronger for testing
+var wind_influence_factor: float = 0.2  # How much wind affects projectiles (0.0-1.0)
+
+# Wind intensity ranges by hole set
+var front_9_max_wind: float = 10.0  # Front 9 holes: 0-10 mph
+var back_9_max_wind: float = 30.0   # Back 9 holes: 0-30 mph
 
 # Weather state
 var is_wind_active: bool = false
@@ -21,7 +25,7 @@ func _ready():
 	# Initialize with no wind
 	generate_new_wind_factor()
 
-func generate_new_wind_factor():
+func generate_new_wind_factor(hole_index: int = -1):
 	"""Generate a new random wind factor for the current hole"""
 	randomize()
 	
@@ -29,8 +33,17 @@ func generate_new_wind_factor():
 	var angle = randf() * TAU
 	wind_direction = Vector2(cos(angle), sin(angle))
 	
-	# Random intensity (0-30 mph)
-	wind_intensity = randf() * 30.0
+	# Determine wind intensity range based on hole set
+	var max_wind_intensity: float
+	if hole_index >= 0 and hole_index < 9:
+		# Front 9 holes (0-8): 0-10 mph
+		max_wind_intensity = front_9_max_wind
+	else:
+		# Back 9 holes (9-17): 0-30 mph
+		max_wind_intensity = back_9_max_wind
+	
+	# Random intensity based on hole set
+	wind_intensity = randf() * max_wind_intensity
 	
 	# Calculate wind force vector
 	wind_force = wind_direction * wind_intensity

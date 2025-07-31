@@ -936,7 +936,7 @@ func adjust_background_positioning() -> void:
 	
 	# Generate initial wind factor for the first hole
 	if weather_manager:
-		weather_manager.generate_new_wind_factor()
+		weather_manager.generate_new_wind_factor(game_state_manager.get_current_hole_index())
 	
 	# Sync shop grid position with build_map
 	game_state_manager.set_shop_grid_position(build_map.shop_grid_pos)
@@ -2505,7 +2505,7 @@ func reset_for_next_hole():
 	
 	# Generate new wind factor for the new hole
 	if weather_manager:
-		weather_manager.generate_new_wind_factor()
+		weather_manager.generate_new_wind_factor(game_state_manager.get_current_hole_index())
 	
 	# Sync shop grid position with build_map
 	game_state_manager.set_shop_grid_position(build_map.shop_grid_pos)
