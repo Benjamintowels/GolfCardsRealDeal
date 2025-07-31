@@ -73,6 +73,37 @@ func reverse_3d_effect():
 	# Create reverse animation tween
 	create_reverse_3d_animation_tween()
 
+func instant_reverse_3d_effect():
+	"""Instantly reverse the 3D effect without animation (for map clearing)"""
+	if not is_3d_effect_active:
+		print("Pseudo3DEffect: 3D effect not active, skipping instant reverse")
+		return
+	
+	print("Pseudo3DEffect: Instantly reversing 3D effect")
+	
+	# Kill any existing animation
+	if animation_tween and animation_tween.is_valid():
+		animation_tween.kill()
+		animation_tween = null
+	
+	# Instantly restore course scale
+	course_node.scale = original_course_scale
+	
+	# Instantly restore all object scales
+	for obj in original_object_scales.keys():
+		if is_instance_valid(obj):
+			var original_scale = original_object_scales[obj]
+			obj.scale = original_scale
+	
+	# Reset state
+	is_3d_effect_active = false
+	original_object_scales.clear()
+	
+	# Re-enable Y-sorting updates
+	enable_ysort_updates()
+	
+	print("Pseudo3DEffect: Instant reverse completed")
+
 func store_original_object_scales():
 	"""Store the original scale of all objects that need to be scaled"""
 	original_object_scales.clear()

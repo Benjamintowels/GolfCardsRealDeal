@@ -1258,6 +1258,14 @@ func build_map_from_layout_with_randomization(layout: Array, hole_index: int = -
 	
 	print("🎯 PUZZLE TYPE: Building map with puzzle type '", puzzle_type, "' for hole", current_hole + 1)
 	
+	# Instant reverse 3D effect before clearing objects to ensure correct Y-sorting
+	var course_node = get_parent()
+	if course_node and course_node.has_method("get_pseudo_3d_effect"):
+		var pseudo_3d_effect = course_node.get_pseudo_3d_effect()
+		if pseudo_3d_effect and pseudo_3d_effect.has_method("instant_reverse_3d_effect"):
+			pseudo_3d_effect.instant_reverse_3d_effect()
+			print("Pseudo3DEffect: Instant reverse before map clear")
+	
 	randomize()
 	clear_existing_objects()
 	build_map_from_layout_base(layout)

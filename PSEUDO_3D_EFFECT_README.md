@@ -10,8 +10,9 @@ The Pseudo3DEffect system creates a cool visual effect that simulates a 3D persp
 2. **Y-Sort Disabled**: Y-sorting updates are disabled to prevent visual glitches during scaling
 3. **Animation**: The Course1 node scales down to 0.25 on Y-axis while objects scale up to 3.63 on Y-axis
 4. **Duration**: The effect stays active during rewards selection and puzzle type selection phases
-5. **Next Hole**: When the next hole is loaded, the `reverse_3d_effect()` function restores normal scaling
-6. **Y-Sort Re-enabled**: Y-sorting updates are re-enabled after the effect is completely reversed
+5. **Map Clearing**: Right before the map layout is cleared, `instant_reverse_3d_effect()` is called to instantly restore normal scaling
+6. **New Objects**: All new objects load with correct Y-sorting since the 3D effect is already reversed
+7. **Y-Sort Re-enabled**: Y-sorting updates are re-enabled after the instant reverse
 
 ## Configuration
 
@@ -52,12 +53,16 @@ if course.pseudo_3d_effect and course.pseudo_3d_effect.has_method("trigger_3d_ef
     course.pseudo_3d_effect.trigger_3d_effect()
 ```
 
-### Reset Function
+### Map Building Integration
 
-One line added to `reset_for_next_hole()`:
+Added to `build_map.gd` in `build_map_from_layout()`:
 ```gdscript
-if pseudo_3d_effect and pseudo_3d_effect.has_method("reverse_3d_effect"):
-    pseudo_3d_effect.reverse_3d_effect()
+# Instant reverse 3D effect before clearing objects to ensure correct Y-sorting
+var course_node = get_parent()
+if course_node and course_node.has_method("get_pseudo_3d_effect"):
+    var pseudo_3d_effect = course_node.get_pseudo_3d_effect()
+    if pseudo_3d_effect and pseudo_3d_effect.has_method("instant_reverse_3d_effect"):
+        pseudo_3d_effect.instant_reverse_3d_effect()
 ```
 
 ## Testing

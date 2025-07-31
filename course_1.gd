@@ -2406,9 +2406,6 @@ func reset_for_next_hole():
 
 func _load_next_hole():
 	"""Load the next hole after fade to black"""
-	# Reverse 3D effect for next hole
-	if pseudo_3d_effect and pseudo_3d_effect.has_method("reverse_3d_effect"):
-		pseudo_3d_effect.reverse_3d_effect()
 	
 	# Clear the player's hand when advancing to next hole
 	if deck_manager:
@@ -4705,6 +4702,10 @@ func is_position_valid_for_movement(pos: Vector2i) -> bool:
 		return false
 	
 	return true
+
+func get_pseudo_3d_effect() -> Node:
+	"""Get the Pseudo3DEffect node for external access"""
+	return pseudo_3d_effect
 
 func _exit_tree():
 	"""Clean up resources when the scene is destroyed"""
