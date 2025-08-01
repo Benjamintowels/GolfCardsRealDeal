@@ -5,6 +5,9 @@ var level_layout: Array = []
 var grid_width: int
 var grid_height: int
 
+func _ready():
+	add_to_group("MapManager")
+
 # Scorched tiles tracking
 var scorched_tiles: Array[Vector2i] = []
 

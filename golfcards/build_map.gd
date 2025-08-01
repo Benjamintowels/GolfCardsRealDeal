@@ -1,5 +1,7 @@
 extends Node
 
+const ForestBorderManager = preload("res://ForestBorderManager.gd")
+
 func _ready():
 	print("🔧 BUILD_MAP.GD LOADED!")
 
@@ -20,6 +22,7 @@ var shop_grid_pos := Vector2i(2, 6)
 var current_hole: int = 0
 var card_effect_handler = null
 var suitcase_grid_pos := Vector2i.ZERO  # Track SuitCase position
+var forest_border_manager: ForestBorderManager = null
 
 func setup(tile_scene_map_: Dictionary, object_scene_map_: Dictionary, object_to_tile_mapping_: Dictionary, cell_size_: int, obstacle_layer_: Node, obstacle_map_: Dictionary, ysort_objects_: Array) -> void:
 	tile_scene_map = tile_scene_map_
@@ -29,6 +32,15 @@ func setup(tile_scene_map_: Dictionary, object_scene_map_: Dictionary, object_to
 	obstacle_layer = obstacle_layer_
 	obstacle_map = obstacle_map_
 	ysort_objects = ysort_objects_
+	
+	# Setup ForestBorderManager
+	forest_border_manager = ForestBorderManager.new()
+	forest_border_manager.setup(obstacle_layer, cell_size)
+	
+	# Initialize ForestBorderManager
+	forest_border_manager = ForestBorderManager.new()
+	forest_border_manager.setup(obstacle_layer, cell_size)
+	obstacle_layer.add_child(forest_border_manager)
 
 func build_map_from_layout(layout: Array, puzzle_type: String = "score") -> void:
 	obstacle_map.clear()
@@ -91,6 +103,15 @@ func build_map_from_layout(layout: Array, puzzle_type: String = "score") -> void
 					obstacle_map[pos] = object
 			elif not tile_scene_map.has(code):
 				pass
+	
+	# Create forest borders on left and right edges (always create for all holes)
+	if forest_border_manager:
+		forest_border_manager.create_forest_borders(layout[0].size(), layout.size())
+	else:
+		print("⚠️ ForestBorderManager not found, creating new instance")
+		forest_border_manager = ForestBorderManager.new()
+		forest_border_manager.setup(obstacle_layer, cell_size)
+		forest_border_manager.create_forest_borders(layout[0].size(), layout.size())
 	
 	# Place TreeLineVert borders
 	place_treeline_vert_borders(layout, puzzle_type)
@@ -1225,7 +1246,7 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 	return positions
 
 func place_treeline_vert_borders(layout: Array, puzzle_type: String = "score") -> void:
-	"""Place TreeLineVert scene on the left border of the map, unless it's a bounce_room"""
+	"""Place TreeLineVert scene on the left and right borders of the map, unless it's a bounce_room"""
 	if puzzle_type == "bounce_room":
 		print("Skipping TreeLineVert for bounce_room puzzle type")
 		return
@@ -1250,6 +1271,11 @@ func place_treeline_vert_borders(layout: Array, puzzle_type: String = "score") -
 	obstacle_layer.add_child(left_treeline)
 	print("✓ TreeLineVert border placed - Left at (-48, ", map_height / 2, ")")
 	print("✓ Using TreeLineVert.tscn scene file for better alignment control")
+	
+	# Position the right sprites within the TreeLineVert instance
+	if left_treeline.has_method("position_right_sprites"):
+		left_treeline.position_right_sprites()
+		print("✓ Right TreeLineVert sprites positioned based on map width: ", map_width)
 
 func build_map_from_layout_with_randomization(layout: Array, hole_index: int = -1, puzzle_type: String = "score") -> void:
 	# Update current_hole if hole_index is provided
@@ -1298,7 +1324,17 @@ func build_map_from_layout_with_randomization(layout: Array, hole_index: int = -
 	extract_sliding_door_positions_from_layout(layout, object_positions)
 	
 	place_objects_at_positions(object_positions, layout)
-	# Place TreeLineVert borders
+	
+	# Create forest borders on left and right edges (always create for all holes and puzzle types)
+	if forest_border_manager:
+		forest_border_manager.create_forest_borders(layout[0].size(), layout.size())
+	else:
+		print("⚠️ ForestBorderManager not found, creating new instance")
+		forest_border_manager = ForestBorderManager.new()
+		forest_border_manager.setup(obstacle_layer, cell_size)
+		forest_border_manager.create_forest_borders(layout[0].size(), layout.size())
+	
+	# Place TreeLineVert borders (keeping for now, can remove later)
 	place_treeline_vert_borders(layout, puzzle_type)
 	# position_camera_on_pin()  # This should be called from the main scene if needed
 

@@ -1,7 +1,10 @@
-[gd_scene load_steps=7 format=3 uid="uid://d1x61tl3uuf3w"]
+[gd_scene load_steps=11 format=3 uid="uid://d1x61tl3uuf3w"]
 
 [ext_resource type="Script" uid="uid://c2nqvw6jp56fn" path="res://Backgrounds/tree_line_vert.gd" id="1_krybp"]
 [ext_resource type="Texture2D" uid="uid://5lkhxqm8l8l1" path="res://Backgrounds/TreeLineVert.png" id="1_nhxsh"]
+[ext_resource type="Texture2D" uid="uid://d4n0l2c884b0f" path="res://Obstacles/Tree2.png" id="2_hk68d"]
+[ext_resource type="Texture2D" uid="uid://fq4orohxi7f3" path="res://Obstacles/Tree3.png" id="3_tq4v4"]
+[ext_resource type="Texture2D" uid="uid://bqhffygxa0j5o" path="res://Obstacles/Tree.png" id="4_lao2j"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_krybp"]
 size = Vector2(20, 21.1689)
@@ -11,7 +14,7 @@ length = 0.001
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
-tracks/0/path = NodePath("TreeLineVertSpriteLeft:modulate")
+tracks/0/path = NodePath("Node2D/TreeLineVertSpriteLeft:modulate")
 tracks/0/interp = 1
 tracks/0/loop_wrap = true
 tracks/0/keys = {
@@ -20,6 +23,42 @@ tracks/0/keys = {
 "update": 0,
 "values": [Color(1, 1, 1, 1)]
 }
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Node2D:position:y")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [0.0]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Node2D:scale:y")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [1.0]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("Node2D/TreeLineVertSpriteLeft:position")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(-522, -454)]
+}
 
 [sub_resource type="Animation" id="Animation_krybp"]
 resource_name = "hover_fade"
@@ -27,7 +66,7 @@ length = 1.558
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
-tracks/0/path = NodePath("TreeLineVertSpriteLeft:modulate")
+tracks/0/path = NodePath("Node2D/TreeLineVertSpriteLeft:modulate")
 tracks/0/interp = 1
 tracks/0/loop_wrap = true
 tracks/0/keys = {
@@ -39,7 +78,7 @@ tracks/0/keys = {
 tracks/1/type = "value"
 tracks/1/imported = false
 tracks/1/enabled = true
-tracks/1/path = NodePath("TreeLineVertSpriteLeft2:modulate")
+tracks/1/path = NodePath("Node2D/TreeLineVertSpriteLeft2:modulate")
 tracks/1/interp = 1
 tracks/1/loop_wrap = true
 tracks/1/keys = {
@@ -49,38 +88,107 @@ tracks/1/keys = {
 "values": [Color(1, 1, 1, 1), Color(1, 1, 1, 0.254902)]
 }
 
+[sub_resource type="Animation" id="Animation_pgguj"]
+resource_name = "pseudo3D"
+length = 1.5
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Node2D:position:y")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [0.0]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Node2D:scale:y")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [1.0]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Node2D/TreeLineVertSpriteLeft:scale")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(0.67, 0.67)]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("Node2D/TreeLineVertSpriteLeft:position")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(-522, -454)]
+}
+
 [sub_resource type="AnimationLibrary" id="AnimationLibrary_pgguj"]
 _data = {
 &"RESET": SubResource("Animation_3u475"),
-&"hover_fade": SubResource("Animation_krybp")
+&"hover_fade": SubResource("Animation_krybp"),
+&"pseudo3D": SubResource("Animation_pgguj")
 }
 
 [node name="TreeLineVert" type="Node2D"]
+visible = false
 z_index = 1230
 script = ExtResource("1_krybp")
 
-[node name="TreeLineVertSpriteLeft" type="Sprite2D" parent="."]
+[node name="Node2D" type="Node2D" parent="."]
+visible = false
+
+[node name="TreeLineVertSpriteLeft" type="Sprite2D" parent="Node2D"]
 z_index = 2820
 texture_filter = 1
-position = Vector2(-458, -865)
+position = Vector2(-522, -454)
+texture = ExtResource("2_hk68d")
+
+[node name="TreeLineVertSpriteLeft2" type="Sprite2D" parent="Node2D"]
+z_index = 2940
+texture_filter = 1
+position = Vector2(0, -1697)
+texture = ExtResource("3_tq4v4")
+
+[node name="TreeLineVertSpriteLeft3" type="Sprite2D" parent="Node2D"]
+z_index = 2940
+texture_filter = 1
+position = Vector2(0, -1512)
+texture = ExtResource("4_lao2j")
+
+[node name="TreeLineVertSpriteRight" type="Sprite2D" parent="Node2D"]
+z_index = 2820
+texture_filter = 1
+position = Vector2(3416.49, -705.065)
 scale = Vector2(0.67, 0.67)
 texture = ExtResource("1_nhxsh")
 
-[node name="TreeLineVertSpriteLeft2" type="Sprite2D" parent="."]
+[node name="TreeLineVertSpriteRight2" type="Sprite2D" parent="Node2D"]
 z_index = 2940
 texture_filter = 1
-position = Vector2(-560, 720)
+position = Vector2(3480.49, 446.935)
 scale = Vector2(0.709385, 0.758729)
 texture = ExtResource("1_nhxsh")
 
-[node name="Sprite2D" type="Sprite2D" parent="."]
-visible = false
-z_index = 3110
-texture_filter = 1
-position = Vector2(3291, -655)
-texture = ExtResource("1_nhxsh")
-
 [node name="MouseDetectionArea2D" type="Area2D" parent="."]
+position = Vector2(-106, 0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="MouseDetectionArea2D"]
 position = Vector2(-315, -92.8304)

@@ -64,6 +64,9 @@ func trigger_3d_effect():
 	# Store original scales of all objects
 	store_original_object_scales()
 	
+	# Trigger TreeLineVert pseudo3D animation
+	trigger_treeline_pseudo3d()
+	
 	# Create animation tween
 	create_3d_animation_tween()
 
@@ -74,6 +77,9 @@ func reverse_3d_effect():
 		return
 	
 	print("Pseudo3DEffect: Reversing 3D effect back to normal")
+	
+	# Trigger TreeLineVert pseudo3D reverse animation
+	trigger_treeline_pseudo3d_reverse()
 	
 	# Create reverse animation tween
 	create_reverse_3d_animation_tween()
@@ -207,6 +213,22 @@ func enable_ysort_updates():
 		# Fallback: remove the flag to enable Y-sorting
 		smart_optimizer.remove_meta("ysort_disabled")
 		print("Pseudo3DEffect: Removed Y-sort disabled flag")
+
+func trigger_treeline_pseudo3d():
+	"""Trigger forest tree pseudo3D animation"""
+	var forest_trees = get_tree().get_nodes_in_group("forest_trees")
+	for tree in forest_trees:
+		if tree.has_method("play_pseudo3d_effect"):
+			tree.play_pseudo3d_effect()
+	print("Pseudo3DEffect: Triggered forest tree pseudo3D animations on ", forest_trees.size(), " trees")
+
+func trigger_treeline_pseudo3d_reverse():
+	"""Trigger forest tree pseudo3D reverse animation"""
+	var forest_trees = get_tree().get_nodes_in_group("forest_trees")
+	for tree in forest_trees:
+		if tree.has_method("reverse_pseudo3d_effect"):
+			tree.reverse_pseudo3d_effect()
+	print("Pseudo3DEffect: Triggered forest tree pseudo3D reverse animations on ", forest_trees.size(), " trees")
 
 
 

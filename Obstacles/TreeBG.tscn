@@ -1,0 +1,15 @@
+[gd_scene load_steps=3 format=3 uid="uid://b24bmp5h0jnca"]
+
+[ext_resource type="Texture2D" uid="uid://bqhffygxa0j5o" path="res://Obstacles/Tree.png" id="1_eqv14"]
+[ext_resource type="Script" uid="uid://l34bgdkok5mm" path="res://Obstacles/tree_bg.gd" id="1_h4eqy"]
+
+[node name="TreeBg" type="Node2D"]
+script = ExtResource("1_h4eqy")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+z_index = 4096
+texture_filter = 1
+position = Vector2(-94, -139)
+texture = ExtResource("1_eqv14")
+
+[node name="YSortPoint" type="Node2D" parent="."]
