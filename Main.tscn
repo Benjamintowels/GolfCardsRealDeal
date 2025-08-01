@@ -296,7 +296,7 @@ tracks/9/keys = {
 
 [sub_resource type="Animation" id="Animation_2gh4u"]
 resource_name = "benny_door"
-length = 2.0
+length = 0.992
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -304,7 +304,7 @@ tracks/0/path = NodePath("Outside:position")
 tracks/0/interp = 1
 tracks/0/loop_wrap = true
 tracks/0/keys = {
-"times": PackedFloat32Array(0.0333333, 2),
+"times": PackedFloat32Array(0.0333333, 0.866667),
 "transitions": PackedFloat32Array(1, 1),
 "update": 0,
 "values": [Vector2(1296.6, 676.675), Vector2(1174.46, 676.675)]
@@ -316,7 +316,7 @@ tracks/1/path = NodePath("GolfGreenBg:position")
 tracks/1/interp = 1
 tracks/1/loop_wrap = true
 tracks/1/keys = {
-"times": PackedFloat32Array(0.0333333, 2),
+"times": PackedFloat32Array(0.0333333, 0.866667),
 "transitions": PackedFloat32Array(1, 1),
 "update": 0,
 "values": [Vector2(1130.71, 586.495), Vector2(1050.35, 586.495)]
@@ -388,7 +388,7 @@ tracks/7/path = NodePath(".:position")
 tracks/7/interp = 1
 tracks/7/loop_wrap = true
 tracks/7/keys = {
-"times": PackedFloat32Array(0.0333333, 2),
+"times": PackedFloat32Array(0.0333333, 0.866667),
 "transitions": PackedFloat32Array(1, 1),
 "update": 0,
 "values": [Vector2(-255, -797), Vector2(-1430.67, -782)]
