@@ -47,7 +47,12 @@ var puzzle_types = {
 	"fight_room": {
 		"name": "Fight Room",
 		"description": "Double the normal NPCs (minimum 3 each) placed on sidewalks and normal tiles",
-		"symbol_scene": preload("res://UI/PuzzleSymbols/FightRoom.tscn")
+		"symbol_scene": preload("res://UI/PuzzleSymbols/FightRoomSymbol.tscn")
+	},
+	"shop": {
+		"name": "Shop Encounter",
+		"description": "Visit a shop to buy items and equipment",
+		"symbol_scene": preload("res://UI/PuzzleSymbols/ShopSymbol.tscn")
 	}
 }
 
@@ -147,6 +152,10 @@ func show_puzzle_selection():
 			sprite_node = symbol_instance.get_node("DrivingRangeSymbol")
 		elif symbol_instance.has_node("BounceRoomSymbol"):
 			sprite_node = symbol_instance.get_node("BounceRoomSymbol")
+		elif symbol_instance.has_node("FightRoomSymbol"):
+			sprite_node = symbol_instance.get_node("FightRoomSymbol")
+		elif symbol_instance.has_node("ShopSymbol"):
+			sprite_node = symbol_instance.get_node("ShopSymbol")
 		
 		if sprite_node and sprite_node.texture:
 			left_symbol.texture = sprite_node.texture
@@ -181,6 +190,10 @@ func show_puzzle_selection():
 			sprite_node = symbol_instance.get_node("DrivingRangeSymbol")
 		elif symbol_instance.has_node("BounceRoomSymbol"):
 			sprite_node = symbol_instance.get_node("BounceRoomSymbol")
+		elif symbol_instance.has_node("FightRoomSymbol"):
+			sprite_node = symbol_instance.get_node("FightRoomSymbol")
+		elif symbol_instance.has_node("ShopSymbol"):
+			sprite_node = symbol_instance.get_node("ShopSymbol")
 		
 		if sprite_node and sprite_node.texture:
 			right_symbol.texture = sprite_node.texture
