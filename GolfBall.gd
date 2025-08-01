@@ -1774,13 +1774,13 @@ func _reflect_from_out_of_bounds(tile_pos: Vector2i) -> void:
 	if tile_pos.x < 0:
 		# Hit left boundary - reflect horizontally
 		reflected_velocity = Vector2(abs(ball_velocity.x), ball_velocity.y)
-		# Move ball back into bounds
-		position.x = 0.0
+		# Move ball back into bounds (slightly inside to prevent immediate re-trigger)
+		position.x = cell_size * 0.1
 	elif tile_pos.x >= map_manager.grid_width:
 		# Hit right boundary - reflect horizontally
 		reflected_velocity = Vector2(-abs(ball_velocity.x), ball_velocity.y)
-		# Move ball back into bounds
-		position.x = (map_manager.grid_width - 1) * cell_size
+		# Move ball back into bounds (slightly inside to prevent immediate re-trigger)
+		position.x = (map_manager.grid_width - 1) * cell_size - cell_size * 0.1
 	elif tile_pos.y < 0:
 		# Hit top boundary - reflect vertically
 		reflected_velocity = Vector2(ball_velocity.x, abs(ball_velocity.y))
