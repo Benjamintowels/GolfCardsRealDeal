@@ -96,40 +96,24 @@ func show_drive_distance_dialog(drive_distance: float) -> void:
 	drive_distance_dialog.add_child(background)
 	background.gui_input.connect(_on_drive_distance_dialog_input)
 	
-	var dialog_box := ColorRect.new()
-	dialog_box.color = Color(0.2, 0.2, 0.2, 0.9)
-	dialog_box.size = Vector2(400, 200)
-	dialog_box.position = (drive_distance_dialog.size - dialog_box.size) / 2  # Center the dialog
-	dialog_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	drive_distance_dialog.add_child(dialog_box)
+	# Create TextureRect for the DistanceDialog image
+	var dialog_image := TextureRect.new()
+	dialog_image.texture = load("res://UI/DistanceDialog.png")
+	dialog_image.size = Vector2(400, 200)  # Adjust size as needed for your image
+	dialog_image.position = (drive_distance_dialog.size - dialog_image.size) / 2  # Center the dialog
+	dialog_image.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	drive_distance_dialog.add_child(dialog_image)
 	
-	var title_label := Label.new()
-	title_label.text = "Shot Distance"
-	title_label.add_theme_font_size_override("font_size", 28)
-	title_label.add_theme_color_override("font_color", Color.YELLOW)
-	title_label.add_theme_constant_override("outline_size", 2)
-	title_label.add_theme_color_override("font_outline_color", Color.BLACK)
-	title_label.position = Vector2(150, 20)
-	title_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	dialog_box.add_child(title_label)
-	
+	# Only create the distance label with black text
 	var distance_label := Label.new()
-	distance_label.text = "%d pixels" % drive_distance
+	var distance_in_meters = drive_distance / 36.0  # Convert pixels to meters (36 pixels = 1 meter)
+	distance_label.text = "%.1fm" % distance_in_meters  # Display with 1 decimal place and "m" unit
 	distance_label.add_theme_font_size_override("font_size", 36)
-	distance_label.add_theme_color_override("font_color", Color.WHITE)
-	distance_label.add_theme_constant_override("outline_size", 2)
-	distance_label.add_theme_color_override("font_outline_color", Color.BLACK)
-	distance_label.position = Vector2(150, 80)
+	distance_label.add_theme_color_override("font_color", Color.BLACK)
+	distance_label.add_theme_constant_override("outline_size", 0)  # No outline needed for black text
+	distance_label.position = Vector2(150, 95)  # Adjust position to fit within the image
 	distance_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	dialog_box.add_child(distance_label)
-	
-	var instruction_label := Label.new()
-	instruction_label.text = "Click anywhere to continue"
-	instruction_label.add_theme_font_size_override("font_size", 18)
-	instruction_label.add_theme_color_override("font_color", Color.LIGHT_GRAY)
-	instruction_label.position = Vector2(120, 150)
-	instruction_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	dialog_box.add_child(instruction_label)
+	dialog_image.add_child(distance_label)
 	
 	ui_layer.add_child(drive_distance_dialog)
 
