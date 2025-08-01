@@ -112,9 +112,6 @@ func build_map_from_layout(layout: Array, puzzle_type: String = "score") -> void
 		forest_border_manager = ForestBorderManager.new()
 		forest_border_manager.setup(obstacle_layer, cell_size)
 		forest_border_manager.create_forest_borders(layout[0].size(), layout.size())
-	
-	# Place TreeLineVert borders
-	place_treeline_vert_borders(layout, puzzle_type)
 
 # --- Clear all existing objects from the map ---
 func clear_existing_objects() -> void:
@@ -1245,37 +1242,7 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 
 	return positions
 
-func place_treeline_vert_borders(layout: Array, puzzle_type: String = "score") -> void:
-	"""Place TreeLineVert scene on the left and right borders of the map, unless it's a bounce_room"""
-	if puzzle_type == "bounce_room":
-		print("Skipping TreeLineVert for bounce_room puzzle type")
-		return
-	# Load the TreeLineVert scene
-	var treeline_scene = load("res://Backgrounds/TreeLineVert.tscn")
-	if not treeline_scene:
-		push_error("🚫 TreeLineVert scene not found")
-		return
-	# Calculate map dimensions
-	var layout_width = layout[0].size()
-	var layout_height = layout.size()
-	var map_width = layout_width * cell_size
-	var map_height = layout_height * cell_size
-	# Create left border TreeLineVert
-	var left_treeline = treeline_scene.instantiate() as Node2D
-	if not left_treeline:
-		push_error("❌ Failed to instantiate left TreeLineVert scene")
-		return
-	left_treeline.z_index = 5  # Higher z-index to appear in front of map tiles (-5)
-	left_treeline.position = Vector2(-cell_size, map_height / 2)  # Left edge, centered vertically
-	# Add to obstacle layer
-	obstacle_layer.add_child(left_treeline)
-	print("✓ TreeLineVert border placed - Left at (-48, ", map_height / 2, ")")
-	print("✓ Using TreeLineVert.tscn scene file for better alignment control")
-	
-	# Position the right sprites within the TreeLineVert instance
-	if left_treeline.has_method("position_right_sprites"):
-		left_treeline.position_right_sprites()
-		print("✓ Right TreeLineVert sprites positioned based on map width: ", map_width)
+
 
 func build_map_from_layout_with_randomization(layout: Array, hole_index: int = -1, puzzle_type: String = "score") -> void:
 	# Update current_hole if hole_index is provided
@@ -1333,9 +1300,6 @@ func build_map_from_layout_with_randomization(layout: Array, hole_index: int = -
 		forest_border_manager = ForestBorderManager.new()
 		forest_border_manager.setup(obstacle_layer, cell_size)
 		forest_border_manager.create_forest_borders(layout[0].size(), layout.size())
-	
-	# Place TreeLineVert borders (keeping for now, can remove later)
-	place_treeline_vert_borders(layout, puzzle_type)
 	# position_camera_on_pin()  # This should be called from the main scene if needed
 
 func extract_boss_eye_positions_from_layout(layout: Array, object_positions: Dictionary) -> void:

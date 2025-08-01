@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3 uid="uid://d1x61tl3uuf3w"]
+[gd_scene load_steps=11 format=3 uid="uid://bg8l65djyv8lw"]
 
 [ext_resource type="Script" uid="uid://c2nqvw6jp56fn" path="res://Backgrounds/tree_line_vert.gd" id="1_krybp"]
 [ext_resource type="Texture2D" uid="uid://5lkhxqm8l8l1" path="res://Backgrounds/TreeLineVert.png" id="1_nhxsh"]

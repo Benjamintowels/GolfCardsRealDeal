@@ -1145,8 +1145,14 @@ func build_driving_range_map(layout: Array) -> void:
 	# Place objects at positions
 	place_driving_range_objects(object_positions, layout)
 	
-	# Place TreeLineVert borders
-	build_map.place_treeline_vert_borders(layout)
+	# Create forest borders for driving range
+	if build_map.forest_border_manager:
+		build_map.forest_border_manager.create_forest_borders(layout[0].size(), layout.size())
+	else:
+		print("⚠️ ForestBorderManager not found for driving range, creating new instance")
+		build_map.forest_border_manager = ForestBorderManager.new()
+		build_map.forest_border_manager.setup(build_map.obstacle_layer, build_map.cell_size)
+		build_map.forest_border_manager.create_forest_borders(layout[0].size(), layout.size())
 	
 	print("✓ Driving Range map built successfully")
 
