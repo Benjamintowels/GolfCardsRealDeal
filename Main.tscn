@@ -1,4 +1,4 @@
-[gd_scene load_steps=29 format=3 uid="uid://wyu3udwngros"]
+[gd_scene load_steps=37 format=3 uid="uid://wyu3udwngros"]
 
 [ext_resource type="Script" uid="uid://ct4bebh7dhisi" path="res://Main.gd" id="1_r0du0"]
 [ext_resource type="Texture2D" uid="uid://dg84gx06tkrtv" path="res://ClubHouse/Outside.png" id="3_sc1dx"]
@@ -10,6 +10,7 @@
 [ext_resource type="Texture2D" uid="uid://cwdlr21pb6ap" path="res://Title.png" id="7_lgr22"]
 [ext_resource type="PackedScene" uid="uid://mikj057r7rx5" path="res://ClubHouse/CourseSelectionMap.tscn" id="8_5tuhn"]
 [ext_resource type="Script" uid="uid://cnne1a0u85wtc" path="res://current_deck_manager.gd" id="8_current_deck_manager"]
+[ext_resource type="PackedScene" uid="uid://wtf41wnk0sys" path="res://Dialog/SpeechBubble.tscn" id="8_mxvw5"]
 [ext_resource type="AudioStream" uid="uid://uif6unejkcej" path="res://Sounds/Select.mp3" id="8_trn2v"]
 [ext_resource type="AudioStream" uid="uid://c4kj0vmsj7lux" path="res://Sounds/OpenDoor.mp3" id="9_wkp8b"]
 [ext_resource type="Animation" uid="uid://oikol2pivx2k" path="res://map_intro.res" id="10_2gh4u"]
@@ -19,7 +20,11 @@
 [ext_resource type="AudioStream" uid="uid://brvy126oki60w" path="res://Sounds/CoolSound.mp3" id="12_fpfj3"]
 [ext_resource type="PackedScene" uid="uid://cuj4dcwcb5bwf" path="res://ClubHouse/FlippyTheDolphin.tscn" id="13_c6i3y"]
 [ext_resource type="Texture2D" uid="uid://c8ekwddqhh5t0" path="res://ClubHouse/DrivingRangeSign.png" id="14_j4qnp"]
+[ext_resource type="AudioStream" uid="uid://3igpboa5ny6" path="res://Sounds/Thud.mp3" id="15_3b0ty"]
 [ext_resource type="Texture2D" uid="uid://b6xl46ycq11u4" path="res://ClubHouse/ClubHouseSign.png" id="15_fpfj3"]
+[ext_resource type="AudioStream" uid="uid://c62mm1m8rd147" path="res://Sounds/beamlow.mp3" id="16_bg4s2"]
+[ext_resource type="AudioStream" uid="uid://d3jtcufdc7hbv" path="res://Sounds/BeamSurge.mp3" id="17_hhcpw"]
+[ext_resource type="PackedScene" uid="uid://b4oxiu1huxcfd" path="res://ClubHouse/TractorBeam.tscn" id="19_devvj"]
 
 [sub_resource type="Animation" id="Animation_3b0ty"]
 length = 0.001
@@ -414,6 +419,186 @@ _data = {
 &"select_benny": SubResource("Animation_kjvhd")
 }
 
+[sub_resource type="Animation" id="Animation_bg4s2"]
+resource_name = "flippy_intro"
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0.0333333, 0.266667),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [Vector2(1279, -343), Vector2(1279, 943)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath(".:modulate")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.966667),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [Color(1, 1, 1, 0), Color(1, 1, 1, 1)]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("../TractorBeam:scale")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0, 0.166667, 0.566667, 0.933333),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 0,
+"values": [Vector2(-0.736, 0.699694), Vector2(-3.51042, 9.7671), Vector2(-3.51042, 9.7671), Vector2(-0.736, 0.699694)]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("../TractorBeam:position")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0, 0.166667, 0.566667, 0.933333),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 0,
+"values": [Vector2(1273, -69), Vector2(1279, 568), Vector2(1279, 568), Vector2(1279, -150)]
+}
+tracks/4/type = "value"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath("../Thud:playing")
+tracks/4/interp = 1
+tracks/4/loop_wrap = true
+tracks/4/keys = {
+"times": PackedFloat32Array(0.133333),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [true]
+}
+tracks/5/type = "value"
+tracks/5/imported = false
+tracks/5/enabled = true
+tracks/5/path = NodePath("../Beam:playing")
+tracks/5/interp = 1
+tracks/5/loop_wrap = true
+tracks/5/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [true]
+}
+tracks/6/type = "value"
+tracks/6/imported = false
+tracks/6/enabled = true
+tracks/6/path = NodePath("../Beam2:playing")
+tracks/6/interp = 1
+tracks/6/loop_wrap = true
+tracks/6/keys = {
+"times": PackedFloat32Array(0.0333333),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [true]
+}
+
+[sub_resource type="Animation" id="Animation_hhcpw"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(1279, 943)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath(".:modulate")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Color(1, 1, 1, 1)]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("../TractorBeam:scale")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(-0.736, 0.699694)]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("../TractorBeam:position")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(1273, -69)]
+}
+tracks/4/type = "value"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath("../Thud:playing")
+tracks/4/interp = 1
+tracks/4/loop_wrap = true
+tracks/4/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [false]
+}
+tracks/5/type = "value"
+tracks/5/imported = false
+tracks/5/enabled = true
+tracks/5/path = NodePath("../Beam:playing")
+tracks/5/interp = 1
+tracks/5/loop_wrap = true
+tracks/5/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [false]
+}
+tracks/6/type = "value"
+tracks/6/imported = false
+tracks/6/enabled = true
+tracks/6/path = NodePath("../Beam2:playing")
+tracks/6/interp = 1
+tracks/6/loop_wrap = true
+tracks/6/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [false]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_mxvw5"]
+_data = {
+&"RESET": SubResource("Animation_hhcpw"),
+&"flippy_intro": SubResource("Animation_bg4s2")
+}
+
 [node name="Main" type="Control"]
 layout_mode = 3
 anchors_preset = 0
@@ -449,6 +634,11 @@ texture_filter = 1
 position = Vector2(605, 912)
 scale = Vector2(0.286, 0.284)
 texture = ExtResource("5_5vvyt")
+
+[node name="SpeechBubble" parent="ClubHouseBackgroundLayers/Character2" instance=ExtResource("8_mxvw5")]
+visible = false
+position = Vector2(454.545, -834.507)
+scale = Vector2(5.34362, 5.34362)
 
 [node name="CourseSelectionMap" parent="ClubHouseBackgroundLayers" instance=ExtResource("8_5tuhn")]
 texture_filter = 1
@@ -605,6 +795,20 @@ texture = ExtResource("7_lgr22")
 [node name="Select" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("8_trn2v")
 
+[node name="Thud" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("15_3b0ty")
+
+[node name="Tractor" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("15_3b0ty")
+
+[node name="Beam" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("16_bg4s2")
+pitch_scale = 1.28
+
+[node name="Beam2" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("17_hhcpw")
+pitch_scale = 1.28
+
 [node name="DoorOpen" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("9_wkp8b")
 
@@ -617,8 +821,18 @@ volume_db = 3.949
 pitch_scale = 1.35
 
 [node name="FlippyTheDolphin" parent="." instance=ExtResource("13_c6i3y")]
-visible = false
-position = Vector2(1342, 768)
+position = Vector2(1279, 943)
+scale = Vector2(1.565, 1.565)
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="FlippyTheDolphin"]
+libraries = {
+&"": SubResource("AnimationLibrary_mxvw5")
+}
+
+[node name="TractorBeam" parent="." instance=ExtResource("19_devvj")]
+texture_filter = 1
+position = Vector2(1273, -69)
+scale = Vector2(-0.736, 0.699694)
 
 [node name="DrivingRangeSign" type="Sprite2D" parent="."]
 visible = false

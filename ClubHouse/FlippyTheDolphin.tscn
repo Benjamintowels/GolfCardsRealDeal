@@ -1,7 +1,12 @@
-[gd_scene load_steps=3 format=3 uid="uid://cuj4dcwcb5bwf"]
+[gd_scene load_steps=8 format=3 uid="uid://cuj4dcwcb5bwf"]
 
 [ext_resource type="Script" uid="uid://0qv55i5qyjfc" path="res://ClubHouse/flippy_the_dolphin.gd" id="1_4wnc3"]
 [ext_resource type="Texture2D" uid="uid://c68jc0dyvmhdm" path="res://ClubHouse/Flippy.png" id="2_l26rp"]
+[ext_resource type="PackedScene" uid="uid://wtf41wnk0sys" path="res://Dialog/SpeechBubble.tscn" id="3_jfynl"]
+[ext_resource type="AudioStream" uid="uid://chr2vti2qakiu" path="res://Sounds/Flippytalk3.mp3" id="4_c1grj"]
+[ext_resource type="AudioStream" uid="uid://cswnh4jpv2cfl" path="res://Sounds/FlippyTalk2.mp3" id="5_0ct51"]
+[ext_resource type="AudioStream" uid="uid://5kng2rgketnm" path="res://Sounds/flippytalk1.mp3" id="6_57l6d"]
+[ext_resource type="AudioStream" uid="uid://b6np4bmd18wd5" path="res://Sounds/FlippyOh.mp3" id="7_b8krt"]
 
 [node name="FlippyTheDolphin" type="Node2D"]
 script = ExtResource("1_4wnc3")
@@ -10,3 +15,21 @@ script = ExtResource("1_4wnc3")
 texture_filter = 1
 texture = ExtResource("2_l26rp")
 flip_h = true
+
+[node name="SpeechBubble" parent="." instance=ExtResource("3_jfynl")]
+visible = false
+texture_filter = 1
+position = Vector2(45, -145)
+scale = Vector2(0.487462, 0.487462)
+
+[node name="talk1" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("4_c1grj")
+
+[node name="talk2" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("5_0ct51")
+
+[node name="talk3" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("6_57l6d")
+
+[node name="oh" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("7_b8krt")

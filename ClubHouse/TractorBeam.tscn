@@ -1,0 +1,54 @@
+[gd_scene load_steps=5 format=3 uid="uid://b4oxiu1huxcfd"]
+
+[ext_resource type="Texture2D" uid="uid://du2rh38chxh0l" path="res://ClubHouse/TractorBeam.png" id="1_ua70c"]
+
+[sub_resource type="Animation" id="Animation_ua70c"]
+resource_name = "beam_pulse"
+length = 0.619
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Sprite2D:modulate")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0.0333333, 0.266667, 0.533333),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [Color(1, 1, 1, 0.784314), Color(1, 1, 1, 0.45098), Color(1, 1, 1, 0.784314)]
+}
+
+[sub_resource type="Animation" id="Animation_86ovi"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Sprite2D:modulate")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Color(1, 1, 1, 0.45098)]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_5y73o"]
+_data = {
+&"RESET": SubResource("Animation_86ovi"),
+&"beam_pulse": SubResource("Animation_ua70c")
+}
+
+[node name="TractorBeam" type="Node2D"]
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+modulate = Color(1, 1, 1, 0.45098)
+texture_filter = 1
+texture = ExtResource("1_ua70c")
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+libraries = {
+&"": SubResource("AnimationLibrary_5y73o")
+}
+autoplay = "beam_pulse"

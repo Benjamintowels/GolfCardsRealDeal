@@ -49,6 +49,15 @@ func _ready():
 	# Check if we have a loaded save file and update UI accordingly
 	update_ui_from_save_data()
 	
+	# Check for intro cutscene on first load
+	var save_file_manager = get_node("/root/SaveFileManager")
+	if save_file_manager and save_file_manager.get_story_flag("first_time_playing"):
+		# Wait a moment for the scene to settle
+		await get_tree().create_timer(1.0).timeout
+		var cutscene_manager = get_node("/root/CutsceneManager")
+		if cutscene_manager:
+			cutscene_manager.play_cutscene("intro")
+	
 	print("Buttons connected successfully")
 	print("Initial selected_character: ", selected_character)
 	print("Deck selection dialog setup complete")

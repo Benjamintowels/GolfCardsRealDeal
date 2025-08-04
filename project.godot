@@ -24,6 +24,7 @@ CurrentDeckManager="*res://current_deck_manager.gd"
 SpeechManager="*res://SpeechManager.gd"
 SpeechEventManager="*res://SpeechEventManager.gd"
 SaveFileManager="*res://SaveFileManager.gd"
+CutsceneManager="*res://Dialog/CutsceneManager.gd"
 
 [display]
 

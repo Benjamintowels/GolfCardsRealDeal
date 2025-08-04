@@ -175,11 +175,8 @@ func _on_save_file_selected(slot_id: int):
 
 func _on_new_game_requested(slot_id: int, character_id: int):
 	"""Handle new game request"""
-	# Create new save file with selected character
-	var save_file_manager = get_node("/root/SaveFileManager")
-	save_file_manager.create_new_save_file(slot_id, character_id)
-	
-	# Transition to ClubHouse (Main.tscn) with new save data
+	# Save file is already created in SaveFileSelectionDialog
+	# Just transition to ClubHouse (Main.tscn) with new save data
 	FadeManager.fade_to_black(func(): get_tree().change_scene_to_file("res://Main.tscn"), 0.5)
 
 func _on_save_dialog_closed():

@@ -81,10 +81,14 @@ func handle_slot_pressed(slot_id: int):
 			emit_signal("save_file_selected", slot_id)
 			hide()
 	else:
-		# Create new save - show character selection
+		# Create new save - go directly to Main scene (no character selection)
 		selected_slot = slot_id
-		character_selection.visible = true
-		character_selection.reset_selection()
+		# Create new save with default character (Benny - character 2)
+		if save_file_manager.create_new_save_file(slot_id, 2):
+			emit_signal("new_game_requested", slot_id, 2)
+			hide()
+		else:
+			print("ERROR: Failed to create save file")
 
 func _on_character_selected(character_id: int):
 	"""Handle character selection for new save"""
