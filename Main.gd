@@ -1,7 +1,7 @@
 extends Control
 
 @onready var character1_button = $UI/Character1Button
-@onready var character2_button = $UI/Character2Button  
+@onready var character2_button = $ClubHouseBackgroundLayers/Character2  
 @onready var character3_button = $UI/Character3Button
 @onready var start_putt_putt_button = $UI/StartPuttPutt
 @onready var start_back_9_button = $UI/StartBack9
@@ -12,18 +12,20 @@ extends Control
 @onready var select_sound = $Select
 @onready var deck_select_sound = $DeckSelect
 @onready var animation_player = $ClubHouseBackgroundLayers/AnimationPlayer
+@onready var character_stat_banner = $CharacterStatBanner
+@onready var club_house_camera = $ClubHouseCamera
 
 var selected_character = 1  # Default to character 1
 var deck_selection_dialog: Control
 var pending_game_mode = ""  # Store which game mode was selected while waiting for deck selection
 var benny_selected = false  # Track if Benny was selected to play benny_door animation
 var is_reversing_animations = false  # Track if we're currently reversing animations
+var waiting_for_benny_confirmation = false  # Track if we're waiting for second click on Benny
 
 func _ready():
-	# Set up button group for exclusive selection
+	# Set up button group for exclusive selection (only for UI buttons)
 	var button_group = ButtonGroup.new()
 	character1_button.button_group = button_group
-	character2_button.button_group = button_group
 	character3_button.button_group = button_group
 	
 	# Set character 1 as default selected
@@ -88,10 +90,9 @@ func _update_character_selection_ui():
 	character2_button.visible = save_file_manager.is_character_unlocked(2)
 	character3_button.visible = save_file_manager.is_character_unlocked(3)
 	
-	# Set the correct character as selected
+	# Set the correct character as selected (only for UI buttons)
 	match selected_character:
 		1: character1_button.button_pressed = true
-		2: character2_button.button_pressed = true
 		3: character3_button.button_pressed = true
 	
 	# Reset Benny selection flag based on current character
@@ -139,6 +140,11 @@ func _on_character1_selected():
 	_play_select_sound()
 	selected_character = 1
 	benny_selected = false  # Reset Benny selection flag
+	waiting_for_benny_confirmation = false  # Reset Benny confirmation state
+	
+	# Hide character stat banner if it's visible
+	if character_stat_banner and character_stat_banner.visible:
+		_hide_character_stat_banner()
 	
 	# Update save data with selected character
 	var save_file_manager = get_node("/root/SaveFileManager")
@@ -152,31 +158,48 @@ func _on_character1_selected():
 
 func _on_character2_selected():
 	_play_select_sound()
-	selected_character = 2
-	benny_selected = true  # Mark that Benny was selected
 	
-	# Update save data with selected character
-	var save_file_manager = get_node("/root/SaveFileManager")
-	if save_file_manager and save_file_manager.current_save_slot > 0:
-		save_file_manager.current_save_data["character_id"] = selected_character
-		save_file_manager.save_current_game()
-	
-	print("Character 2 (Benny) selected, selected_character = ", selected_character)
-	
-	# Play the select_benny animation
-	if animation_player:
-		animation_player.play("select_benny")
-		print("Playing select_benny animation")
+	# If we're already waiting for confirmation, proceed with selection
+	if waiting_for_benny_confirmation:
+		waiting_for_benny_confirmation = false
+		selected_character = 2
+		benny_selected = true  # Mark that Benny was selected
+		
+		# Update save data with selected character
+		var save_file_manager = get_node("/root/SaveFileManager")
+		if save_file_manager and save_file_manager.current_save_slot > 0:
+			save_file_manager.current_save_data["character_id"] = selected_character
+			save_file_manager.save_current_game()
+		
+		print("Character 2 (Benny) confirmed, selected_character = ", selected_character)
+		
+		# Hide the stat banner with fade
+		_hide_character_stat_banner()
+		
+		# Play the select_benny animation
+		if animation_player:
+			animation_player.play("select_benny")
+			print("Playing select_benny animation")
+		else:
+			print("ERROR: Animation player not found!")
+		
+		print("About to show deck selection dialog...")
+		_show_deck_selection_dialog()
 	else:
-		print("ERROR: Animation player not found!")
-	
-	print("About to show deck selection dialog...")
-	_show_deck_selection_dialog()
+		# First click - show the character stat banner
+		waiting_for_benny_confirmation = true
+		_show_character_stat_banner()
+		print("Showing Benny's character stat banner")
 
 func _on_character3_selected():
 	_play_select_sound()
 	selected_character = 3
 	benny_selected = false  # Reset Benny selection flag
+	waiting_for_benny_confirmation = false  # Reset Benny confirmation state
+	
+	# Hide character stat banner if it's visible
+	if character_stat_banner and character_stat_banner.visible:
+		_hide_character_stat_banner()
 	
 	# Update save data with selected character
 	var save_file_manager = get_node("/root/SaveFileManager")
@@ -205,6 +228,25 @@ func _hide_deck_selection_dialog():
 		deck_selection_dialog.hide_dialog()
 	else:
 		print("ERROR: Deck selection dialog is null!")
+
+func _show_character_stat_banner():
+	"""Show the character stat banner with fade in"""
+	if character_stat_banner:
+		character_stat_banner.visible = true
+		# Add fade in effect
+		character_stat_banner.modulate.a = 0.0
+		var tween = create_tween()
+		tween.tween_property(character_stat_banner, "modulate:a", 1.0, 0.3)
+		print("Character stat banner shown")
+
+func _hide_character_stat_banner():
+	"""Hide the character stat banner with fade out"""
+	if character_stat_banner:
+		var tween = create_tween()
+		tween.tween_property(character_stat_banner, "modulate:a", 0.0, 0.3)
+		await tween.finished
+		character_stat_banner.visible = false
+		print("Character stat banner hidden")
 
 func _on_deck_selected(deck_type: String):
 	"""Handle deck selection from dialog"""
@@ -384,6 +426,10 @@ func _start_pending_game_mode():
 	pending_game_mode = ""  # Clear the pending mode
 
 func _change_scene():
+	# Deactivate the club house camera
+	if club_house_camera:
+		club_house_camera.deactivate()
+	
 	# Start fade to black first
 	FadeManager.fade_to_black(func(): get_tree().change_scene_to_file("res://Course1.tscn"), 0.5)
 	
@@ -393,6 +439,10 @@ func _change_scene():
 	$DoorClose.play()
 
 func _change_to_driving_range():
+	# Deactivate the club house camera
+	if club_house_camera:
+		club_house_camera.deactivate()
+	
 	# Start fade to black first
 	FadeManager.fade_to_black(func(): get_tree().change_scene_to_file("res://Stages/DrivingRange.tscn"), 0.5)
 	# Play door sounds during the fade
@@ -401,6 +451,10 @@ func _change_to_driving_range():
 	$DoorClose.play()
 
 func _change_to_boss_room():
+	# Deactivate the club house camera
+	if club_house_camera:
+		club_house_camera.deactivate()
+	
 	# Start fade to black first
 	FadeManager.fade_to_black(func(): get_tree().change_scene_to_file("res://Course1.tscn"), 0.5)
 	
@@ -410,6 +464,10 @@ func _change_to_boss_room():
 	$DoorClose.play()
 
 func _change_to_fight_room():
+	# Deactivate the club house camera
+	if club_house_camera:
+		club_house_camera.deactivate()
+	
 	# Start fade to black first
 	FadeManager.fade_to_black(func(): get_tree().change_scene_to_file("res://Course1.tscn"), 0.5)
 	
@@ -424,12 +482,19 @@ func _input(event):
 		_handle_right_click()
 
 func _handle_right_click():
-	"""Handle right-click to reverse animations and show Character2Button"""
+	"""Handle right-click to reverse animations and show Character2"""
 	print("Right-click detected - reversing animations")
 	
 	# Don't handle right-click if we're already reversing
 	if is_reversing_animations:
 		print("Already reversing animations, ignoring right-click")
+		return
+	
+	# If character stat banner is visible, hide it and reset confirmation state
+	if character_stat_banner and character_stat_banner.visible:
+		print("Character stat banner is visible, hiding it and resetting confirmation state")
+		_hide_character_stat_banner()
+		waiting_for_benny_confirmation = false
 		return
 	
 	# Show the Character2Button again
@@ -514,6 +579,10 @@ func _reverse_course_selection_animations():
 	is_reversing_animations = false
 
 func _change_to_kendama_game():
+	# Deactivate the club house camera
+	if club_house_camera:
+		club_house_camera.deactivate()
+	
 	# Start fade to black first
 	FadeManager.fade_to_black(func(): get_tree().change_scene_to_file("res://Stages/KendamaGame/KendamaGame.tscn"), 0.5)
 	

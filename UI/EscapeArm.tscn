@@ -1,0 +1,84 @@
+[gd_scene load_steps=6 format=3 uid="uid://3isnpjnv374s"]
+
+[ext_resource type="Script" uid="uid://cmins3fkx2cac" path="res://UI/escape_arm.gd" id="1_21yir"]
+[ext_resource type="Texture2D" uid="uid://bhdlyaeqttgf0" path="res://UI/BennyIpod.png" id="2_of401"]
+
+[sub_resource type="Animation" id="Animation_of401"]
+resource_name = "escape_arm"
+length = 0.632
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Sprite2D:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.233333, 0.6),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [Vector2(575, 119), Vector2(392.641, -265.083), Vector2(349, -357)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Sprite2D:rotation")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.233333, 0.6),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [-1.8326, -0.565126, -0.261799]
+}
+
+[sub_resource type="Animation" id="Animation_iycw2"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Sprite2D:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(349, -357)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Sprite2D:rotation")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [-0.261799]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_iycw2"]
+_data = {
+&"RESET": SubResource("Animation_iycw2"),
+&"escape_arm": SubResource("Animation_of401")
+}
+
+[node name="EscapeArm" type="Node2D"]
+script = ExtResource("1_21yir")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+z_index = 1460
+texture_filter = 1
+position = Vector2(349, -357)
+rotation = -0.261799
+scale = Vector2(0.315, 0.315)
+texture = ExtResource("2_of401")
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+libraries = {
+&"": SubResource("AnimationLibrary_iycw2")
+}
+
+[node name="DialogPlacement" type="Node2D" parent="."]
+position = Vector2(262, -495)

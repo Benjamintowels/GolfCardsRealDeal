@@ -1,4 +1,4 @@
-[gd_scene load_steps=58 format=3 uid="uid://dlq5ygh2wv33m"]
+[gd_scene load_steps=59 format=3 uid="uid://dlq5ygh2wv33m"]
 
 [ext_resource type="Script" uid="uid://d4hrfk75nrm45" path="res://course_1.gd" id="1_pe8tc"]
 [ext_resource type="Texture2D" uid="uid://cpe67sk2vh8me" path="res://EDGE.png" id="2_eymfu"]
@@ -54,6 +54,7 @@
 [ext_resource type="Texture2D" uid="uid://rjr1uhg7lttn" path="res://Backgrounds/tree_line_1.png" id="48_ifs0d"]
 [ext_resource type="Texture2D" uid="uid://bgei7qlw6p2ns" path="res://Backgrounds/FrontLineWall.png" id="49_vp4yc"]
 [ext_resource type="Texture2D" uid="uid://duw03sqbo7fdt" path="res://Backgrounds/WoodenFenceHorizontal.png" id="51_j2ael"]
+[ext_resource type="PackedScene" uid="uid://3isnpjnv374s" path="res://UI/EscapeArm.tscn" id="55_sk0ew"]
 
 [sub_resource type="Animation" id="Animation_vp4yc"]
 length = 0.001
@@ -1001,3 +1002,7 @@ texture = ExtResource("51_j2ael")
 libraries = {
 &"": SubResource("AnimationLibrary_lbbxa")
 }
+
+[node name="EscapeDialog" type="Node2D" parent="."]
+
+[node name="EscapeArm" parent="EscapeDialog" instance=ExtResource("55_sk0ew")]
