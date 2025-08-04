@@ -63,4 +63,18 @@ func _on_cancel_pressed():
 func _on_background_clicked(event):
 	"""Handle background click to close dialog"""
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		_on_cancel_pressed() 
+		_on_cancel_pressed()
+
+func update_available_decks():
+	"""Update deck buttons based on unlocked decks in save data"""
+	var save_file_manager = get_node("/root/SaveFileManager")
+	if not save_file_manager:
+		return
+	
+	# Show/hide deck buttons based on unlocks
+	starter_deck_button.visible = save_file_manager.is_deck_unlocked("starter")
+	fighter_deck_button.visible = save_file_manager.is_deck_unlocked("fighter")
+	
+	# If no decks are unlocked, show at least the starter deck
+	if not starter_deck_button.visible and not fighter_deck_button.visible:
+		starter_deck_button.visible = true 

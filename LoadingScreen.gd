@@ -147,8 +147,42 @@ func on_loading_complete():
 	# Wait a moment to show completion
 	await get_tree().create_timer(0.5).timeout
 	
-	# Transition to main menu
-	FadeManager.fade_to_black(func(): get_tree().change_scene_to_file("res://Main.tscn"), 0.5)
+	# Show save file selection instead of going directly to main menu
+	show_save_file_selection()
 
 func get_loaded_resource(path: String):
 	return loaded_resources.get(path, null) 
+
+func show_save_file_selection():
+	"""Show the save file selection dialog"""
+	var save_dialog_scene = preload("res://UI/SaveFileSelectionDialog.tscn")
+	var save_dialog = save_dialog_scene.instantiate()
+	add_child(save_dialog)
+	
+	# Connect signals
+	save_dialog.save_file_selected.connect(_on_save_file_selected)
+	save_dialog.new_game_requested.connect(_on_new_game_requested)
+	save_dialog.dialog_closed.connect(_on_save_dialog_closed)
+
+func _on_save_file_selected(slot_id: int):
+	"""Handle existing save file selection"""
+	# Load the selected save file
+	var save_file_manager = get_node("/root/SaveFileManager")
+	save_file_manager.load_save_file(slot_id)
+	
+	# Transition to ClubHouse (Main.tscn) with loaded save data
+	FadeManager.fade_to_black(func(): get_tree().change_scene_to_file("res://Main.tscn"), 0.5)
+
+func _on_new_game_requested(slot_id: int, character_id: int):
+	"""Handle new game request"""
+	# Create new save file with selected character
+	var save_file_manager = get_node("/root/SaveFileManager")
+	save_file_manager.create_new_save_file(slot_id, character_id)
+	
+	# Transition to ClubHouse (Main.tscn) with new save data
+	FadeManager.fade_to_black(func(): get_tree().change_scene_to_file("res://Main.tscn"), 0.5)
+
+func _on_save_dialog_closed():
+	"""Handle save dialog closed"""
+	# Could show a quit confirmation or return to title screen
+	pass

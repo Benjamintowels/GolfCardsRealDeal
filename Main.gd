@@ -46,9 +46,64 @@ func _ready():
 	# Connect input events for right-click functionality
 	set_process_input(true)
 	
+	# Check if we have a loaded save file and update UI accordingly
+	update_ui_from_save_data()
+	
 	print("Buttons connected successfully")
 	print("Initial selected_character: ", selected_character)
 	print("Deck selection dialog setup complete")
+
+func update_ui_from_save_data():
+	"""Update UI based on loaded save data"""
+	var save_file_manager = get_node("/root/SaveFileManager")
+	if not save_file_manager or save_file_manager.current_save_slot == 0:
+		return
+	
+	var save_data = save_file_manager.current_save_data
+	
+	# Update character selection
+	selected_character = save_data.get("character_id", 1)
+	_update_character_selection_ui()
+	
+	# Update progression-based UI elements
+	_update_progression_ui()
+
+func _update_character_selection_ui():
+	"""Update character selection UI based on save data"""
+	var save_file_manager = get_node("/root/SaveFileManager")
+	if not save_file_manager:
+		return
+	
+	# Update character button states based on unlocks
+	character1_button.visible = save_file_manager.is_character_unlocked(1)
+	character2_button.visible = save_file_manager.is_character_unlocked(2)
+	character3_button.visible = save_file_manager.is_character_unlocked(3)
+	
+	# Set the correct character as selected
+	match selected_character:
+		1: character1_button.button_pressed = true
+		2: character2_button.button_pressed = true
+		3: character3_button.button_pressed = true
+	
+	# Reset Benny selection flag based on current character
+	benny_selected = (selected_character == 2)
+
+func _update_progression_ui():
+	"""Update UI elements based on progression"""
+	var save_file_manager = get_node("/root/SaveFileManager")
+	if not save_file_manager:
+		return
+	
+	# Show/hide buttons based on progression
+	if save_file_manager.get_story_flag("completed_front_9"):
+		start_back_9_button.visible = true
+	
+	if save_file_manager.get_story_flag("defeated_first_boss"):
+		boss_room_button.visible = true
+	
+	# Update deck selection based on unlocked decks
+	if deck_selection_dialog:
+		deck_selection_dialog.update_available_decks()
 
 func _setup_deck_selection_dialog():
 	"""Setup the deck selection dialog"""
@@ -75,6 +130,13 @@ func _on_character1_selected():
 	_play_select_sound()
 	selected_character = 1
 	benny_selected = false  # Reset Benny selection flag
+	
+	# Update save data with selected character
+	var save_file_manager = get_node("/root/SaveFileManager")
+	if save_file_manager and save_file_manager.current_save_slot > 0:
+		save_file_manager.current_save_data["character_id"] = selected_character
+		save_file_manager.save_current_game()
+	
 	print("Character 1 (Layla) selected, selected_character = ", selected_character)
 	print("About to show deck selection dialog...")
 	_show_deck_selection_dialog()
@@ -83,10 +145,14 @@ func _on_character2_selected():
 	_play_select_sound()
 	selected_character = 2
 	benny_selected = true  # Mark that Benny was selected
-	print("Character 2 (Benny) selected, selected_character = ", selected_character)
 	
-	# Hide the Character2Button after selecting Benny
-	character2_button.visible = false
+	# Update save data with selected character
+	var save_file_manager = get_node("/root/SaveFileManager")
+	if save_file_manager and save_file_manager.current_save_slot > 0:
+		save_file_manager.current_save_data["character_id"] = selected_character
+		save_file_manager.save_current_game()
+	
+	print("Character 2 (Benny) selected, selected_character = ", selected_character)
 	
 	# Play the select_benny animation
 	if animation_player:
@@ -102,6 +168,13 @@ func _on_character3_selected():
 	_play_select_sound()
 	selected_character = 3
 	benny_selected = false  # Reset Benny selection flag
+	
+	# Update save data with selected character
+	var save_file_manager = get_node("/root/SaveFileManager")
+	if save_file_manager and save_file_manager.current_save_slot > 0:
+		save_file_manager.current_save_data["character_id"] = selected_character
+		save_file_manager.save_current_game()
+	
 	print("Character 3 (Clark) selected, selected_character = ", selected_character)
 	print("About to show deck selection dialog...")
 	_show_deck_selection_dialog()
