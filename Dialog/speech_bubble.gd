@@ -32,13 +32,20 @@ func setup_speech(text: String, duration: float, speaker_node: Node):
 	speech_duration = duration
 	speaker = speaker_node
 	
+	# Process text to ensure it fits properly
+	var processed_text = _process_text_for_bubble(text)
+	
 	# Update label text
-	label.text = speech_text
+	label.text = processed_text
 	
 	# Show the speech bubble
 	visible = true
 	speech_bubble_sprite.visible = true
 	label.visible = true
+	
+	# Ensure parent is visible
+	if get_parent():
+		get_parent().visible = true
 	
 	# Play speech sound
 	if speech_boop and speech_boop.stream:
@@ -47,22 +54,42 @@ func setup_speech(text: String, duration: float, speaker_node: Node):
 	# Start fade timer
 	fade_timer.start(speech_duration)
 
+func _process_text_for_bubble(text: String) -> String:
+	"""Process text to ensure it fits properly in the speech bubble"""
+	# Remove any existing line breaks and normalize spacing
+	text = text.strip_edges()
+	
+	# For very long lines, we can add some manual line breaks to help with readability
+	# The label will handle autowrapping, but we can assist with natural break points
+	if text.length() > 50:
+		# Look for natural break points like "and", "but", "or", etc.
+		var break_points = [" and ", " but ", " or ", " so ", " well ", " uh ", " um "]
+		for break_point in break_points:
+			if text.contains(break_point):
+				# Replace with line break to help with wrapping
+				text = text.replace(break_point, "\n" + break_point.strip_edges())
+				break
+	
+	return text
+
 # Called when the fade timer expires
 func _on_fade_timer_timeout():
 	"""Handle the end of speech duration"""
-	# Emit signal to SpeechManager
-	var speech_manager = get_node_or_null("/root/SpeechManager")
-	if speech_manager:
-		speech_manager.emit_signal("speech_ended", "", speaker)
-	
-	# Hide the speech bubble
-	visible = false
-	speech_bubble_sprite.visible = false
-	label.visible = false
-	
-	# Remove from active bubbles
-	if speech_manager and self in speech_manager.active_speech_bubbles:
-		speech_manager.active_speech_bubbles.erase(self)
+	# Only auto-hide if duration is not very long (manual control)
+	if speech_duration < 100.0:
+		# Emit signal to SpeechManager
+		var speech_manager = get_node_or_null("/root/SpeechManager")
+		if speech_manager:
+			speech_manager.emit_signal("speech_ended", "", speaker)
+		
+		# Hide the speech bubble
+		visible = false
+		speech_bubble_sprite.visible = false
+		label.visible = false
+		
+		# Remove from active bubbles
+		if speech_manager and self in speech_manager.active_speech_bubbles:
+			speech_manager.active_speech_bubbles.erase(self)
 	
 	# Don't queue_free since this is an existing node in the scene
 	# Just hide it and let it be reused

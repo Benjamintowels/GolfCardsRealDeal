@@ -63,6 +63,7 @@ func _setup_ui():
 	cutscene_panel = Panel.new()
 	cutscene_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	cutscene_panel.modulate = Color(0, 0, 0, 0.3)  # Semi-transparent
+	cutscene_panel.z_index = 1000  # Set a lower z_index so speech bubbles appear above
 	add_child(cutscene_panel)
 	
 	# Dialog panel
@@ -190,8 +191,9 @@ func advance_dialog():
 
 func _on_dialog_advance(line_index: int):
 	"""Called when dialog advances"""
-	# Clear current speech bubbles
-	_clear_speech_bubbles()
+	# Don't clear speech bubbles immediately - let them show for a moment
+	# They will be cleared when the next speech bubble is shown
+	pass
 
 func _on_dialog_complete():
 	"""Called when dialog is complete"""
@@ -207,10 +209,23 @@ func _play_character_audio(speaker: String, audio_name: String):
 
 func _show_speech_bubble(speaker: String, text: String):
 	"""Show speech bubble for the speaker"""
+	# Clear previous speech bubbles first
+	_clear_speech_bubbles()
+	
 	var character_node = _get_character_node(speaker)
 	if character_node:
 		var speech_bubble = character_node.get_node_or_null("SpeechBubble")
 		if speech_bubble and speech_bubble.has_method("setup_speech"):
+			# Adjust positioning and scale for different characters
+			if speaker == "benny":
+				# Character2 (Benny) - static sprite in Main scene needs original positioning
+				speech_bubble.position = Vector2(454.545, -834.507)
+				speech_bubble.scale = Vector2(5.34362, 5.34362)
+			elif speaker == "flippy":
+				# Flippy - smaller scale to match his size
+				speech_bubble.position = Vector2(45, -145)
+				speech_bubble.scale = Vector2(0.7, 0.7)
+			
 			speech_bubble.setup_speech(text, 999.0, character_node)  # Long duration, manual control
 
 func _clear_speech_bubbles():
@@ -235,13 +250,16 @@ func _get_character_node(speaker: String) -> Node:
 	if not main_scene:
 		return null
 	
+	var character_node: Node = null
 	match speaker:
 		"benny":
-			return main_scene.get_node_or_null("ClubHouseBackgroundLayers/Character2")
+			character_node = main_scene.get_node_or_null("ClubHouseBackgroundLayers/Character2")
 		"flippy":
-			return main_scene.get_node_or_null("FlippyTheDolphin")
+			character_node = main_scene.get_node_or_null("FlippyTheDolphin")
 		_:
 			return null
+	
+	return character_node
 
 func _execute_actions(actions: Array):
 	"""Execute setup or cleanup actions"""
