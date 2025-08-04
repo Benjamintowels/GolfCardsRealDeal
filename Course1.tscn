@@ -633,6 +633,13 @@ script = ExtResource("26_coin_explosion")
 
 [node name="UILayer" type="CanvasLayer" parent="."]
 
+[node name="EscapeArm" parent="UILayer" instance=ExtResource("55_sk0ew")]
+z_index = 2000
+position = Vector2(824, 1303)
+scale = Vector2(1.73, 1.73)
+
+[node name="EscapeDialog" type="Node2D" parent="UILayer"]
+
 [node name="WindArrow" parent="UILayer" instance=ExtResource("14_skg1a")]
 position = Vector2(1111, 47)
 
@@ -1002,7 +1009,3 @@ texture = ExtResource("51_j2ael")
 libraries = {
 &"": SubResource("AnimationLibrary_lbbxa")
 }
-
-[node name="EscapeDialog" type="Node2D" parent="."]
-
-[node name="EscapeArm" parent="EscapeDialog" instance=ExtResource("55_sk0ew")]

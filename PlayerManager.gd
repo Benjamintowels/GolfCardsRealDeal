@@ -419,6 +419,98 @@ func switch_to_dodge_ready_sprite() -> void:
 	else:
 		print("✗ Could not find required sprites for dodge ready animation")
 
+func switch_to_escape_sprite() -> void:
+	"""Switch Benny character to escape sprite"""
+	print("=== SWITCH TO ESCAPE SPRITE CALLED ===")
+	if not player_node:
+		print("✗ No player node found")
+		return
+	
+	# Find all sprites in the player node
+	var normal_sprite = null
+	var escape_sprite = null
+	var block_sprite = null
+	var dodge_sprite = null
+	var dodge_ready_sprite = null
+	
+	print("Searching for sprites in player node children...")
+	for child in player_node.get_children():
+		print("  Child:", child.name, "Type:", child.get_class())
+		# The character scene (BennyChar) is a child of the player node
+		if child.name == "BennyChar" or child.name == "LaylaChar" or child.name == "ClarkChar":
+			print("  Found character scene:", child.name)
+			# Look for sprites within the character scene
+			for grandchild in child.get_children():
+				print("    Grandchild:", grandchild.name, "Type:", grandchild.get_class())
+				if grandchild is Sprite2D and grandchild.name == "Sprite2D":
+					normal_sprite = grandchild
+					print("    ✓ Found normal sprite:", grandchild.name)
+				elif grandchild is Sprite2D and grandchild.name == "BennyEscape":
+					escape_sprite = grandchild
+					print("    ✓ Found escape sprite:", grandchild.name)
+				elif grandchild is Sprite2D and grandchild.name == "BennyBlock":
+					block_sprite = grandchild
+					print("    ✓ Found block sprite:", grandchild.name)
+				elif grandchild is Sprite2D and grandchild.name == "BennyDodge":
+					dodge_sprite = grandchild
+					print("    ✓ Found dodge sprite:", grandchild.name)
+				elif grandchild is Sprite2D and grandchild.name == "BennyDodgeReady":
+					dodge_ready_sprite = grandchild
+					print("    ✓ Found dodge ready sprite:", grandchild.name)
+	
+	if normal_sprite and escape_sprite:
+		# Hide all sprites, show only escape sprite
+		normal_sprite.visible = false
+		if block_sprite:
+			block_sprite.visible = false
+		if dodge_sprite:
+			dodge_sprite.visible = false
+		if dodge_ready_sprite:
+			dodge_ready_sprite.visible = false
+		escape_sprite.visible = true
+		print("✓ Switched to escape sprite")
+	else:
+		print("✗ Could not find required sprites for escape animation")
+
+func switch_from_escape_sprite() -> void:
+	"""Switch Benny character back from escape sprite to normal"""
+	print("=== SWITCH FROM ESCAPE SPRITE CALLED ===")
+	if not player_node:
+		print("✗ No player node found")
+		return
+	
+	# Find all sprites in the player node
+	var normal_sprite = null
+	var escape_sprite = null
+	var block_sprite = null
+	var dodge_sprite = null
+	var dodge_ready_sprite = null
+	
+	for child in player_node.get_children():
+		# The character scene (BennyChar) is a child of the player node
+		if child.name == "BennyChar" or child.name == "LaylaChar" or child.name == "ClarkChar":
+			# Look for sprites within the character scene
+			for grandchild in child.get_children():
+				if grandchild is Sprite2D and grandchild.name == "Sprite2D":
+					normal_sprite = grandchild
+				elif grandchild is Sprite2D and grandchild.name == "BennyEscape":
+					escape_sprite = grandchild
+				elif grandchild is Sprite2D and grandchild.name == "BennyBlock":
+					block_sprite = grandchild
+				elif grandchild is Sprite2D and grandchild.name == "BennyDodge":
+					dodge_sprite = grandchild
+				elif grandchild is Sprite2D and grandchild.name == "BennyDodgeReady":
+					dodge_ready_sprite = grandchild
+			break
+	
+	if normal_sprite and escape_sprite:
+		# Hide escape sprite, show normal sprite
+		escape_sprite.visible = false
+		normal_sprite.visible = true
+		print("✓ Switched from escape sprite to normal")
+	else:
+		print("✗ Could not find required sprites for escape animation")
+
 func switch_to_dodge_sprite() -> void:
 	"""Switch Benny character to dodge sprite"""
 	print("=== SWITCH TO DODGE SPRITE CALLED ===")

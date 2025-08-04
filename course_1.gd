@@ -36,6 +36,7 @@ signal player_turn_ended
 @onready var background_manager: Node = $BackgroundManager
 @onready var reach_ball_button: Control = $UILayer/ReachBallButton
 @onready var background_animation_player: AnimationPlayer = $BackgroundLayersCourse1/AnimationPlayer
+@onready var escape_arm: Node2D = $UILayer/EscapeArm
 
 # WorldTurnManager reference
 @onready var world_turn_manager: Node = $WorldTurnManager
@@ -4076,9 +4077,14 @@ func add_looty_reward(reward_data: Resource) -> void:
 	Global.add_looty(looty_amount)
 	print("Added", looty_amount, "$Looty to player balance")
 
+func get_player_manager():
+	"""Get the player manager instance"""
+	return player_manager
+
 func show_pause_menu():
-	"""Show pause menu"""
-	ui_manager.show_pause_menu()
+	"""Show pause menu using escape arm animation"""
+	if escape_arm and escape_arm.has_method("show_escape_menu"):
+		escape_arm.show_escape_menu()
 
 func _on_pause_end_round_pressed(pause_dialog: Control):
 	"""Handle End Round button press from pause menu"""

@@ -1,7 +1,46 @@
-[gd_scene load_steps=6 format=3 uid="uid://3isnpjnv374s"]
+[gd_scene load_steps=7 format=3 uid="uid://3isnpjnv374s"]
 
 [ext_resource type="Script" uid="uid://cmins3fkx2cac" path="res://UI/escape_arm.gd" id="1_21yir"]
 [ext_resource type="Texture2D" uid="uid://bhdlyaeqttgf0" path="res://UI/BennyIpod.png" id="2_of401"]
+
+[sub_resource type="Animation" id="Animation_iycw2"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Sprite2D:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(575, 119)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Sprite2D:rotation")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [-1.8326]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("DialogPlacement/EscapeDialog:modulate")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Color(1, 1, 1, 0)]
+}
 
 [sub_resource type="Animation" id="Animation_of401"]
 resource_name = "escape_arm"
@@ -31,37 +70,27 @@ tracks/1/keys = {
 "values": [-1.8326, -0.565126, -0.261799]
 }
 
-[sub_resource type="Animation" id="Animation_iycw2"]
-length = 0.001
+[sub_resource type="Animation" id="Animation_wa2e4"]
+resource_name = "screen_on"
+length = 0.4715
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
-tracks/0/path = NodePath("Sprite2D:position")
+tracks/0/path = NodePath("DialogPlacement/EscapeDialog:modulate")
 tracks/0/interp = 1
 tracks/0/loop_wrap = true
 tracks/0/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
+"times": PackedFloat32Array(0, 0.4),
+"transitions": PackedFloat32Array(1, 1),
 "update": 0,
-"values": [Vector2(349, -357)]
-}
-tracks/1/type = "value"
-tracks/1/imported = false
-tracks/1/enabled = true
-tracks/1/path = NodePath("Sprite2D:rotation")
-tracks/1/interp = 1
-tracks/1/loop_wrap = true
-tracks/1/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 0,
-"values": [-0.261799]
+"values": [Color(1, 1, 1, 0), Color(1, 1, 1, 1)]
 }
 
 [sub_resource type="AnimationLibrary" id="AnimationLibrary_iycw2"]
 _data = {
 &"RESET": SubResource("Animation_iycw2"),
-&"escape_arm": SubResource("Animation_of401")
+&"escape_arm": SubResource("Animation_of401"),
+&"screen_on": SubResource("Animation_wa2e4")
 }
 
 [node name="EscapeArm" type="Node2D"]
@@ -70,8 +99,8 @@ script = ExtResource("1_21yir")
 [node name="Sprite2D" type="Sprite2D" parent="."]
 z_index = 1460
 texture_filter = 1
-position = Vector2(349, -357)
-rotation = -0.261799
+position = Vector2(575, 119)
+rotation = -1.8326
 scale = Vector2(0.315, 0.315)
 texture = ExtResource("2_of401")
 
@@ -81,4 +110,82 @@ libraries = {
 }
 
 [node name="DialogPlacement" type="Node2D" parent="."]
-position = Vector2(262, -495)
+position = Vector2(262, -498)
+
+[node name="EscapeDialog" type="Control" parent="DialogPlacement"]
+modulate = Color(1, 1, 1, 0)
+z_index = 453
+layout_mode = 3
+anchors_preset = 0
+offset_left = -60.0
+offset_top = -40.0
+offset_right = 60.0
+offset_bottom = 40.0
+mouse_filter = 2
+
+[node name="IpodScreen" type="ColorRect" parent="DialogPlacement/EscapeDialog"]
+z_index = 1595
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -47.0
+offset_bottom = -47.0
+grow_horizontal = 2
+grow_vertical = 2
+rotation = 0.0174533
+scale = Vector2(1.15998, 1.8)
+mouse_filter = 2
+color = Color(0.1, 0.1, 0.1, 0.95)
+
+[node name="TitleLabel" type="Label" parent="DialogPlacement/EscapeDialog"]
+z_index = 2645
+texture_filter = 1
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = -15.0
+offset_top = -42.0
+offset_right = -15.0
+offset_bottom = -25.0
+grow_horizontal = 2
+rotation = 0.0174533
+scale = Vector2(1.455, 1.455)
+theme_override_font_sizes/font_size = 12
+text = "Game Paused"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ButtonContainer" type="VBoxContainer" parent="DialogPlacement/EscapeDialog"]
+z_index = 2325
+texture_filter = 1
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -42.0
+offset_top = -40.0
+offset_right = 58.0
+offset_bottom = 30.0
+grow_horizontal = 2
+grow_vertical = 2
+rotation = 0.0174533
+mouse_filter = 2
+theme_override_constants/separation = 2
+
+[node name="EndRoundButton" type="Button" parent="DialogPlacement/EscapeDialog/ButtonContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+text = "End Round"
+
+[node name="QuitGameButton" type="Button" parent="DialogPlacement/EscapeDialog/ButtonContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+text = "Quit Game"
+
+[node name="CancelButton" type="Button" parent="DialogPlacement/EscapeDialog/ButtonContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+text = "Cancel"

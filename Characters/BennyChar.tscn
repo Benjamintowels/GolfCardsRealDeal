@@ -1,4 +1,4 @@
-[gd_scene load_steps=51 format=3 uid="uid://bc8s6t7wka23s"]
+[gd_scene load_steps=52 format=3 uid="uid://bc8s6t7wka23s"]
 
 [ext_resource type="Texture2D" uid="uid://bu6bwgk8aipl2" path="res://Characters/BennyChar.png" id="1_oukfo"]
 [ext_resource type="Script" uid="uid://d2iiaqe57mea" path="res://Characters/SwingAnimation.gd" id="2_swing"]
@@ -13,6 +13,7 @@
 [ext_resource type="Script" uid="uid://bkhq5oyslgb0n" path="res://Characters/BennyArmHeightController.gd" id="9_arm_height_controller"]
 [ext_resource type="Texture2D" uid="uid://b0xvya1sogjsu" path="res://Characters/BennyDodge.png" id="10_tjcqo"]
 [ext_resource type="Texture2D" uid="uid://cci0xicp4bfu2" path="res://Characters/BennyDodgeReady.png" id="11_jc6xu"]
+[ext_resource type="Texture2D" uid="uid://dmf4mnmyaden" path="res://Characters/BennyEscape.png" id="14_dqnxb"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_oukfo"]
 radius = 7.64385
@@ -401,6 +402,13 @@ texture_filter = 1
 position = Vector2(3, -44)
 scale = Vector2(0.95, 1)
 texture = ExtResource("11_jc6xu")
+
+[node name="BennyEscape" type="Sprite2D" parent="."]
+visible = false
+texture_filter = 1
+position = Vector2(0, -44)
+scale = Vector2(0.95, 1)
+texture = ExtResource("14_dqnxb")
 
 [node name="LightOccluder2D" type="LightOccluder2D" parent="."]
 occluder = SubResource("OccluderPolygon2D_jc6xu")
