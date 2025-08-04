@@ -47,9 +47,16 @@ func setup_speech(text: String, duration: float, speaker_node: Node):
 	if get_parent():
 		get_parent().visible = true
 	
-	# Play speech sound
+	# Only play SpeechBoop for Benny (Character2), not for Flippy
+	# Flippy has his own character audio that plays separately
 	if speech_boop and speech_boop.stream:
-		speech_boop.play()
+		# Check if this is Benny's speech bubble
+		var is_benny = false
+		if speaker_node and speaker_node.name == "Character2":
+			is_benny = true
+		
+		if is_benny:
+			speech_boop.play()
 	
 	# Start fade timer
 	fade_timer.start(speech_duration)
@@ -61,9 +68,9 @@ func _process_text_for_bubble(text: String) -> String:
 	
 	# For very long lines, we can add some manual line breaks to help with readability
 	# The label will handle autowrapping, but we can assist with natural break points
-	if text.length() > 50:
+	if text.length() > 60:
 		# Look for natural break points like "and", "but", "or", etc.
-		var break_points = [" and ", " but ", " or ", " so ", " well ", " uh ", " um "]
+		var break_points = [" and ", " but ", " or ", " so ", " well ", " uh ", " um ", " you ", " for ", " with "]
 		for break_point in break_points:
 			if text.contains(break_point):
 				# Replace with line break to help with wrapping

@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3 uid="uid://cuj4dcwcb5bwf"]
+[gd_scene load_steps=12 format=3 uid="uid://cuj4dcwcb5bwf"]
 
 [ext_resource type="Script" uid="uid://0qv55i5qyjfc" path="res://ClubHouse/flippy_the_dolphin.gd" id="1_4wnc3"]
 [ext_resource type="Texture2D" uid="uid://c68jc0dyvmhdm" path="res://ClubHouse/Flippy.png" id="2_l26rp"]
@@ -8,12 +8,42 @@
 [ext_resource type="AudioStream" uid="uid://5kng2rgketnm" path="res://Sounds/flippytalk1.mp3" id="6_57l6d"]
 [ext_resource type="AudioStream" uid="uid://b6np4bmd18wd5" path="res://Sounds/FlippyOh.mp3" id="7_b8krt"]
 
+[sub_resource type="AtlasTexture" id="AtlasTexture_c1grj"]
+atlas = ExtResource("2_l26rp")
+region = Rect2(0, 0, 274, 228)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_0ct51"]
+atlas = ExtResource("2_l26rp")
+region = Rect2(274, 0, 274, 228)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_57l6d"]
+atlas = ExtResource("2_l26rp")
+region = Rect2(548, 0, 274, 228)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_b8krt"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_c1grj")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_0ct51")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_57l6d")
+}],
+"loop": true,
+"name": &"default",
+"speed": 5.0
+}]
+
 [node name="FlippyTheDolphin" type="Node2D"]
 script = ExtResource("1_4wnc3")
 
-[node name="FlippySprite" type="Sprite2D" parent="."]
+[node name="FlippySprite" type="AnimatedSprite2D" parent="."]
 texture_filter = 1
-texture = ExtResource("2_l26rp")
+sprite_frames = SubResource("SpriteFrames_b8krt")
+frame_progress = 0.640093
 flip_h = true
 
 [node name="SpeechBubble" parent="." instance=ExtResource("3_jfynl")]

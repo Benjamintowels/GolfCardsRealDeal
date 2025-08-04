@@ -206,9 +206,17 @@ func _play_character_audio(speaker: String, audio_name: String):
 		var audio_player = character_node.get_node(audio_name)
 		if audio_player is AudioStreamPlayer2D:
 			audio_player.play()
+			
+			# Animate Flippy when he talks
+			if speaker == "flippy":
+				_animate_flippy_talking(character_node)
 
 func _show_speech_bubble(speaker: String, text: String):
 	"""Show speech bubble for the speaker"""
+	# Don't show speech bubble for empty text
+	if text.is_empty():
+		return
+	
 	# Clear previous speech bubbles first
 	_clear_speech_bubbles()
 	
@@ -301,6 +309,24 @@ func _show_flippy():
 	var flippy = main_scene.get_node_or_null("FlippyTheDolphin")
 	if flippy:
 		flippy.visible = true
+
+func _animate_flippy_talking(flippy_node: Node):
+	"""Animate Flippy's sprite when he talks"""
+	var sprite = flippy_node.get_node_or_null("FlippySprite")
+	if sprite and sprite is AnimatedSprite2D:
+		# Store original frame
+		var original_frame = sprite.frame
+		
+		# Play talking animation (frame 1 or 2 randomly)
+		var talking_frame = randi() % 2 + 1  # Randomly choose frame 1 or 2 (which are frames 2 and 3 in 0-based indexing)
+		sprite.frame = talking_frame
+		
+		# Return to default frame after a short delay
+		await get_tree().create_timer(0.3).timeout
+		sprite.frame = 0  # Return to default pose (frame 0)
+	elif sprite and sprite is Sprite2D:
+		# Fallback for regular Sprite2D (no animation)
+		pass
 
 func _end_cutscene():
 	"""End the current cutscene"""

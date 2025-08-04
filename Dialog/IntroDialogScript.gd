@@ -34,7 +34,7 @@ func _setup_dialog():
 		},
 		{
 			"speaker": "flippy",
-			"text": "You are going to be a Universal Celebrity after this",
+			"text": "You are going to be a Universal\nCelebrity after this",
 			"audio": "talk1",
 			"animation": null
 		},
@@ -46,7 +46,7 @@ func _setup_dialog():
 		},
 		{
 			"speaker": "flippy",
-			"text": "Well, more of a Universal Sports Icon I guess...",
+			"text": "Well, more of a Universal\nSports Icon I guess...",
 			"audio": "talk2",
 			"animation": null
 		},
@@ -64,7 +64,7 @@ func _setup_dialog():
 		},
 		{
 			"speaker": "flippy",
-			"text": "You've been selected to participate in a brand new game show",
+			"text": "You've been selected to participate\nin a brand new game show",
 			"audio": "talk1",
 			"animation": null
 		},
@@ -88,13 +88,19 @@ func _setup_dialog():
 		},
 		{
 			"speaker": "benny",
-			"text": "What are you talking about? What is happening right now?",
+			"text": "What are you talking about?\nWhat is happening right now?",
 			"audio": null,
 			"animation": null
 		},
 		{
 			"speaker": "flippy",
-			"text": "Uhhhhh... TLDR you're gonna play a new type of Golf for our Universal Cable Network and if you win we're going to hook you up bigly",
+			"text": "Uh... TLDR you're gonna play a new type of Golf for our Universal Cable Network",
+			"audio": "talk1",
+			"animation": null
+		},
+		{
+			"speaker": "flippy",
+			"text": "...and if you win we're going to hook you up bigly",
 			"audio": "talk1",
 			"animation": null
 		},
@@ -106,7 +112,13 @@ func _setup_dialog():
 		},
 		{
 			"speaker": "flippy",
-			"text": "You know what, this is always the most annoying part of all of this. How about you just click some buttons and see if you can figure it out",
+			"text": "You know what, this is always the most annoying part of all of this.",
+			"audio": "talk2",
+			"animation": null
+		},
+		{
+			"speaker": "flippy",
+			"text": "How about you just click some buttons and see if you can figure it out",
 			"audio": "talk2",
 			"animation": null
 		},
