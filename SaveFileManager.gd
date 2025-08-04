@@ -307,13 +307,71 @@ func delete_save_file(slot_id: int) -> bool:
 	"""Delete a save file from the specified slot"""
 	var save_path = SAVE_FILE_PATHS.get(slot_id, "")
 	if not save_path:
+		print("ERROR: Invalid save slot ID:", slot_id)
 		return false
 	
-	var dir = DirAccess.open("user://")
-	if dir and dir.remove(save_path.get_file()):
+	print("Attempting to delete file at path: ", save_path)
+	
+	# Check if file exists first
+	var file = FileAccess.open(save_path, FileAccess.READ)
+	if not file:
+		print("File doesn't exist: ", save_path)
+		# File doesn't exist, but we'll still emit the signal to update UI
+		if current_save_slot == slot_id:
+			current_save_slot = 0
+			current_save_data = {}
 		emit_signal("save_file_deleted", slot_id)
 		return true
+	file.close()
 	
+	print("File exists, attempting to delete...")
+	
+	var dir = DirAccess.open("user://")
+	if not dir:
+		print("ERROR: Could not open user:// directory")
+		return false
+	
+	var filename = save_path.get_file()
+	print("Attempting to remove file: ", filename)
+	
+	# Try with just filename first
+	if dir.remove(filename):
+		# Reset current save slot if we're deleting the currently loaded save
+		if current_save_slot == slot_id:
+			current_save_slot = 0
+			current_save_data = {}
+		emit_signal("save_file_deleted", slot_id)
+		print("Save file deleted successfully: ", filename)
+		return true
+	
+	print("Failed to delete save file: ", filename)
+	print("DirAccess error code: ", dir.get_open_error())
+	
+	# Try alternative deletion method using full path
+	print("Trying alternative deletion method with full path...")
+	if dir.remove(save_path):
+		if current_save_slot == slot_id:
+			current_save_slot = 0
+			current_save_data = {}
+		emit_signal("save_file_deleted", slot_id)
+		print("Save file deleted successfully using full path: ", save_path)
+		return true
+	
+	# Try using FileAccess to truncate and then delete
+	print("Trying FileAccess truncation method...")
+	var alt_file = FileAccess.open(save_path, FileAccess.WRITE)
+	if alt_file:
+		alt_file.close()
+		# Try DirAccess again with filename
+		if dir.remove(filename):
+			if current_save_slot == slot_id:
+				current_save_slot = 0
+				current_save_data = {}
+			emit_signal("save_file_deleted", slot_id)
+			print("Save file deleted successfully using truncation method: ", filename)
+			return true
+	
+	print("All deletion methods failed")
 	return false
 
 func save_to_file(path: String, data: Dictionary) -> bool:
