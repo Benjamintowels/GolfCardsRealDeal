@@ -55,7 +55,7 @@ tracks/0/keys = {
 "times": PackedFloat32Array(0, 0.633333, 1),
 "transitions": PackedFloat32Array(1, 1, 1),
 "update": 0,
-"values": [Vector2(1253.13, -353.371), Vector2(1253, 549), Vector2(1253, 811.11)]
+"values": [Vector2(1253.13, -353.371), Vector2(1253, 549), Vector2(1253, 598.795)]
 }
 
 [sub_resource type="AnimationLibrary" id="AnimationLibrary_bg4s2"]
@@ -126,7 +126,7 @@ tracks/4/keys = {
 "times": PackedFloat32Array(0),
 "transitions": PackedFloat32Array(1),
 "update": 0,
-"values": [Vector2(605, 912)]
+"values": [Vector2(520, 783)]
 }
 tracks/5/type = "value"
 tracks/5/imported = false
@@ -188,6 +188,30 @@ tracks/9/keys = {
 "update": 0,
 "values": [Vector2(1415.73, -353.371)]
 }
+tracks/10/type = "value"
+tracks/10/imported = false
+tracks/10/enabled = true
+tracks/10/path = NodePath("../FlippyTheDolphin:position")
+tracks/10/interp = 1
+tracks/10/loop_wrap = true
+tracks/10/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(1279, 943)]
+}
+tracks/11/type = "value"
+tracks/11/imported = false
+tracks/11/enabled = true
+tracks/11/path = NodePath("../FlippyTheDolphin:scale")
+tracks/11/interp = 1
+tracks/11/loop_wrap = true
+tracks/11/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(1.565, 1.565)]
+}
 
 [sub_resource type="Animation" id="Animation_2gh4u"]
 resource_name = "benny_door"
@@ -247,10 +271,10 @@ tracks/4/path = NodePath("Character2:position")
 tracks/4/interp = 1
 tracks/4/loop_wrap = true
 tracks/4/keys = {
-"times": PackedFloat32Array(0.0333333),
+"times": PackedFloat32Array(0),
 "transitions": PackedFloat32Array(1),
 "update": 0,
-"values": [Vector2(774.157, 817.978)]
+"values": [Vector2(694.894, 681.397)]
 }
 tracks/5/type = "value"
 tracks/5/imported = false
@@ -299,6 +323,30 @@ tracks/8/keys = {
 "transitions": PackedFloat32Array(1),
 "update": 0,
 "values": [Vector2(1.45, 1.17)]
+}
+tracks/9/type = "value"
+tracks/9/imported = false
+tracks/9/enabled = true
+tracks/9/path = NodePath("../FlippyTheDolphin:position")
+tracks/9/interp = 1
+tracks/9/loop_wrap = true
+tracks/9/keys = {
+"times": PackedFloat32Array(0.0333333, 0.866667),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [Vector2(2347, 700.445), Vector2(1154.89, 700.445)]
+}
+tracks/10/type = "value"
+tracks/10/imported = false
+tracks/10/enabled = true
+tracks/10/path = NodePath("../FlippyTheDolphin:scale")
+tracks/10/interp = 1
+tracks/10/loop_wrap = true
+tracks/10/keys = {
+"times": PackedFloat32Array(0.0333333),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(2.835, 2.835)]
 }
 
 [sub_resource type="Animation" id="Animation_kjvhd"]
@@ -362,7 +410,7 @@ tracks/4/keys = {
 "times": PackedFloat32Array(0, 1, 2),
 "transitions": PackedFloat32Array(1, 1, 1),
 "update": 0,
-"values": [Vector2(605, 912), Vector2(774.21, 912), Vector2(774.157, 817.978)]
+"values": [Vector2(520, 783), Vector2(698.402, 779.893), Vector2(694.894, 681.397)]
 }
 tracks/5/type = "value"
 tracks/5/imported = false
@@ -411,6 +459,30 @@ tracks/8/keys = {
 "transitions": PackedFloat32Array(1, 1, 1),
 "update": 0,
 "values": [Vector2(1.45, 1.45), Vector2(1.45, 1.45), Vector2(1.45, 1.17)]
+}
+tracks/9/type = "value"
+tracks/9/imported = false
+tracks/9/enabled = true
+tracks/9/path = NodePath("../FlippyTheDolphin:position")
+tracks/9/interp = 1
+tracks/9/loop_wrap = true
+tracks/9/keys = {
+"times": PackedFloat32Array(0, 0.566667, 1, 2),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 0,
+"values": [Vector2(1279, 943), Vector2(1499.83, 908.296), Vector2(1688.19, 881.805), Vector2(2347, 700.445)]
+}
+tracks/10/type = "value"
+tracks/10/imported = false
+tracks/10/enabled = true
+tracks/10/path = NodePath("../FlippyTheDolphin:scale")
+tracks/10/interp = 1
+tracks/10/loop_wrap = true
+tracks/10/keys = {
+"times": PackedFloat32Array(0, 1, 2),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [Vector2(1.565, 1.565), Vector2(2.08, 2.08), Vector2(2.835, 2.835)]
 }
 
 [sub_resource type="AnimationLibrary" id="AnimationLibrary_5tuhn"]
@@ -633,10 +705,11 @@ texture = ExtResource("11_20pc6")
 
 [node name="Character2" type="TextureButton" parent="ClubHouseBackgroundLayers"]
 texture_filter = 1
-offset_left = 605.0
-offset_top = 912.0
-offset_right = 2525.0
-offset_bottom = 2693.0
+anchors_preset = -1
+offset_left = 520.0
+offset_top = 783.0
+offset_right = 2440.0
+offset_bottom = 2564.0
 scale = Vector2(0.286, 0.284)
 texture_normal = ExtResource("5_5vvyt")
 texture_pressed = ExtResource("5_5vvyt")
@@ -650,8 +723,10 @@ position = Vector2(454.545, -834.507)
 scale = Vector2(5.34362, 5.34362)
 
 [node name="CourseSelectionMap" parent="ClubHouseBackgroundLayers" instance=ExtResource("8_5tuhn")]
+z_index = 450
 texture_filter = 1
 position = Vector2(1415.73, -353.371)
+scale = Vector2(0.54, 0.54)
 
 [node name="CourseSelectionAnimationPlayer" type="AnimationPlayer" parent="ClubHouseBackgroundLayers/CourseSelectionMap"]
 libraries = {

@@ -25,30 +25,32 @@ func _ready():
 	position = get_viewport().get_visible_rect().size / 2
 
 func _process(delta):
-	if not is_active:
-		return
+	# Commented out for now
+	pass
+	# if not is_active:
+	# 	return
 	
-	# Get mouse position in world coordinates
-	var mouse_pos = get_global_mouse_position()
+	# # Get mouse position in world coordinates
+	# var mouse_pos = get_global_mouse_position()
 	
-	# Calculate the center of the viewport
-	var viewport_center = get_viewport().get_visible_rect().size / 2
+	# # Calculate the center of the viewport
+	# var viewport_center = get_viewport().get_visible_rect().size / 2
 	
-	# Calculate the offset from center
-	var offset = mouse_pos - viewport_center
+	# # Calculate the offset from center
+	# var offset = mouse_pos - viewport_center
 	
-	# Clamp the offset to the maximum allowed distance
-	offset = offset.limit_length(max_offset)
+	# # Clamp the offset to the maximum allowed distance
+	# offset = offset.limit_length(max_offset)
 	
-	# Calculate target position
-	target_position = viewport_center + offset
+	# # Calculate target position
+	# target_position = viewport_center + offset
 	
-	# Clamp to scene boundaries
-	target_position.x = clamp(target_position.x, scene_bounds.position.x, scene_bounds.end.x)
-	target_position.y = clamp(target_position.y, scene_bounds.position.y, scene_bounds.end.y)
+	# # Clamp to scene boundaries
+	# target_position.x = clamp(target_position.x, scene_bounds.position.x, scene_bounds.end.x)
+	# target_position.y = clamp(target_position.y, scene_bounds.position.y, scene_bounds.end.y)
 	
-	# Smoothly move camera towards target position
-	position = position.lerp(target_position, follow_speed * delta)
+	# # Smoothly move camera towards target position
+	# position = position.lerp(target_position, follow_speed * delta)
 
 func deactivate():
 	"""Deactivate the camera when transitioning to other scenes"""
