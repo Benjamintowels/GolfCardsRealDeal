@@ -78,12 +78,39 @@ func _apply_upgrade_card_perk():
 		var available_clubs = course.club_data.keys()
 		var random_club = available_clubs[randi() % available_clubs.size()]
 		
-		var card_data = CardData.new()
-		card_data.name = random_club
-		card_data.effect_type = "Club"  # Use effect_type instead of type
-		card_data.effect_strength = 1
-		card_data.default_tier = 1
-		card_data.level = 2  # Upgraded level
+		# Map club names to their resource paths
+		var club_resource_map = {
+			"Driver": "res://Cards/Driver.tres",
+			"Hybrid": "res://Cards/Hybrid.tres", 
+			"Wood": "res://Cards/Wood.tres",
+			"Iron": "res://Cards/Iron.tres",
+			"Wooden": "res://Cards/Wooden.tres",
+			"Putter": "res://Cards/Putter.tres",
+			"PitchingWedge": "res://Cards/PitchingWedge.tres",
+			"Fire Club": "res://Cards/FireClub.tres",
+			"Ice Club": "res://Cards/IceClub.tres",
+			"GrenadeLauncherClubCard": "res://Cards/GrenadeLauncherClubCard.tres",
+			"ShotgunCard": "res://Cards/ShotgunCard.tres",
+			"ShurikenCard": "res://Cards/ShurikenCard.tres"
+		}
+		
+		# Load the actual card resource if available
+		var card_data: CardData = null
+		if club_resource_map.has(random_club):
+			card_data = load(club_resource_map[random_club]) as CardData
+			# Make it upgraded
+			if card_data:
+				card_data.level = 2
+		
+		# Fallback to creating a new card if resource not found
+		if not card_data:
+			card_data = CardData.new()
+			card_data.name = random_club
+			card_data.effect_type = "Club"
+			card_data.effect_strength = 1
+			card_data.default_tier = 1
+			card_data.level = 2  # Upgraded level
+			print("PerkDeployer: Created fallback upgraded club card for:", random_club)
 		
 		course.deck_manager.add_card_to_current_deck(card_data)
 		print("PerkDeployer: Added upgraded club card:", random_club, " (Level 2)")
@@ -196,12 +223,35 @@ func _apply_random_club_card_perk():
 		var available_clubs = course.club_data.keys()
 		var random_club = available_clubs[randi() % available_clubs.size()]
 		
-		# Create a card data for the random club
-		var card_data = CardData.new()
-		card_data.name = random_club
-		card_data.effect_type = "Club"  # Use effect_type instead of type
-		card_data.effect_strength = 1
-		card_data.default_tier = 1
+		# Map club names to their resource paths
+		var club_resource_map = {
+			"Driver": "res://Cards/Driver.tres",
+			"Hybrid": "res://Cards/Hybrid.tres", 
+			"Wood": "res://Cards/Wood.tres",
+			"Iron": "res://Cards/Iron.tres",
+			"Wooden": "res://Cards/Wooden.tres",
+			"Putter": "res://Cards/Putter.tres",
+			"PitchingWedge": "res://Cards/PitchingWedge.tres",
+			"Fire Club": "res://Cards/FireClub.tres",
+			"Ice Club": "res://Cards/IceClub.tres",
+			"GrenadeLauncherClubCard": "res://Cards/GrenadeLauncherClubCard.tres",
+			"ShotgunCard": "res://Cards/ShotgunCard.tres",
+			"ShurikenCard": "res://Cards/ShurikenCard.tres"
+		}
+		
+		# Load the actual card resource if available
+		var card_data: CardData = null
+		if club_resource_map.has(random_club):
+			card_data = load(club_resource_map[random_club]) as CardData
+		
+		# Fallback to creating a new card if resource not found
+		if not card_data:
+			card_data = CardData.new()
+			card_data.name = random_club
+			card_data.effect_type = "Club"
+			card_data.effect_strength = 1
+			card_data.default_tier = 1
+			print("PerkDeployer: Created fallback club card for:", random_club)
 		
 		# Add the card to the deck
 		course.deck_manager.add_card_to_current_deck(card_data)
