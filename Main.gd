@@ -17,10 +17,12 @@ extends Control
 
 var selected_character = 1  # Default to character 1
 var deck_selection_dialog: Control
+var perk_selection_dialog: Control
 var pending_game_mode = ""  # Store which game mode was selected while waiting for deck selection
 var benny_selected = false  # Track if Benny was selected to play benny_door animation
 var is_reversing_animations = false  # Track if we're currently reversing animations
 var waiting_for_benny_confirmation = false  # Track if we're waiting for second click on Benny
+var waiting_for_perk_selection = false  # Track if we're waiting for perk selection
 
 func _ready():
 	# Set up button group for exclusive selection (only for UI buttons)
@@ -44,6 +46,9 @@ func _ready():
 	
 	# Create and setup deck selection dialog
 	_setup_deck_selection_dialog()
+	
+	# Create and setup perk selection dialog
+	_setup_perk_selection_dialog()
 	
 	# Connect input events for right-click functionality
 	set_process_input(true)
@@ -129,6 +134,22 @@ func _setup_deck_selection_dialog():
 	deck_selection_dialog.deck_selected.connect(_on_deck_selected)
 	deck_selection_dialog.dialog_closed.connect(_on_deck_dialog_closed)
 	print("Dialog signals connected")
+
+func _setup_perk_selection_dialog():
+	"""Setup the perk selection dialog"""
+	print("Setting up perk selection dialog...")
+	var dialog_scene = preload("res://PerkSelectionDialog.tscn")
+	print("Perk dialog scene preloaded successfully")
+	perk_selection_dialog = dialog_scene.instantiate()
+	print("Perk dialog instantiated successfully")
+	add_child(perk_selection_dialog)
+	print("Perk dialog added as child")
+	
+	# Connect dialog signals
+	perk_selection_dialog.perk_selected.connect(_on_perk_selected)
+	perk_selection_dialog.dialog_closed.connect(_on_perk_dialog_closed)
+	print("Perk dialog signals connected")
+	print("Perk selection dialog setup complete!")
 
 func _play_select_sound():
 	select_sound.play()
@@ -287,14 +308,95 @@ func _on_deck_selected(deck_type: String):
 		else:
 			print("ERROR: CourseSelectionMap not found!")
 	
-	# If there was a pending game mode, start it now
+	# If there was a pending game mode, show perk selection instead of starting immediately
 	if pending_game_mode != "":
-		_start_pending_game_mode()
+		_show_perk_selection_dialog()
 
 func _on_deck_dialog_closed():
 	"""Handle deck dialog being closed without selection"""
 	print("Deck selection dialog closed without selection")
 	pending_game_mode = ""  # Clear any pending game mode
+
+func _show_perk_selection_dialog():
+	"""Show the perk selection dialog"""
+	print("_show_perk_selection_dialog() called")
+	if perk_selection_dialog:
+		print("Perk selection dialog found, showing...")
+		perk_selection_dialog.show_dialog()
+	else:
+		print("ERROR: Perk selection dialog is null!")
+
+func _hide_perk_selection_dialog():
+	"""Hide the perk selection dialog"""
+	print("_hide_perk_selection_dialog() called")
+	if perk_selection_dialog:
+		print("Perk selection dialog found, hiding...")
+		perk_selection_dialog.hide_dialog()
+	else:
+		print("ERROR: Perk selection dialog is null!")
+
+func _on_perk_selected(perk_type: String):
+	"""Handle perk selection from dialog"""
+	print("Perk selected:", perk_type)
+	
+	# Apply the selected perk
+	_apply_perk(perk_type)
+	
+	# Animate Flippy talking
+	_animate_flippy_talking()
+	
+	# After animation, start the pending game mode
+	await get_tree().create_timer(2.0).timeout  # Wait for talking animation
+	_start_pending_game_mode()
+
+func _on_perk_dialog_closed():
+	"""Handle perk dialog being closed without selection"""
+	print("Perk selection dialog closed without selection")
+	# Still start the game mode even if no perk was selected
+	_start_pending_game_mode()
+
+func _apply_perk(perk_type: String):
+	"""Apply the selected perk effect"""
+	match perk_type:
+		"start_with_200_looty":
+			print("Applying perk: Start with 200 extra $Looty")
+			# TODO: Add money to player's starting amount
+		"upgrade_card":
+			print("Applying perk: Upgrade a card in deck")
+			# TODO: Implement card upgrade system
+		"random_rare_action":
+			print("Applying perk: Receive random rare action card")
+			# TODO: Add random rare action card to deck
+		"random_equipment":
+			print("Applying perk: Receive random equipment")
+			# TODO: Add random equipment to inventory
+		"random_club_card":
+			print("Applying perk: Receive random club card")
+			# TODO: Add random club card to deck
+		"receive_bounty":
+			print("Applying perk: Receive bounty (placeholder)")
+			# TODO: Implement bounty system
+		_:
+			print("Unknown perk type:", perk_type)
+
+func _animate_flippy_talking():
+	"""Animate Flippy talking after perk selection"""
+	var flippy = $FlippyTheDolphin
+	if flippy:
+		var animation_player = flippy.get_node("AnimationPlayer")
+		if animation_player:
+			# Play a talking animation if available, otherwise just wait
+			if animation_player.has_animation("talk"):
+				animation_player.play("talk")
+			else:
+				print("No talk animation found for Flippy")
+		else:
+			print("No AnimationPlayer found for Flippy")
+	
+	# Play talking sound
+	var talking_sound = $Select  # Reuse select sound for now
+	if talking_sound:
+		talking_sound.play()
 
 func _on_start_round_pressed():
 	_play_select_sound()
@@ -308,8 +410,9 @@ func _on_start_round_pressed():
 		pending_game_mode = "normal_round"
 		_show_deck_selection_dialog()
 	else:
-		# Change scene on next frame
-		call_deferred("_change_scene")
+		# Show perk selection dialog instead of immediately starting
+		pending_game_mode = "normal_round"
+		_show_perk_selection_dialog()
 
 func _on_start_putt_putt_button_pressed():
 	_play_select_sound()

@@ -1,0 +1,75 @@
+[gd_scene load_steps=4 format=3 uid="uid://bqx8y2n3k4m5p"]
+
+[ext_resource type="Script" path="res://PerkSelectionDialog.gd" id="1_perk_dialog"]
+[ext_resource type="Texture2D" uid="uid://6roqcodb1nka" path="res://UI/AdvanceContainer.png" id="2_f0abr"]
+[ext_resource type="PackedScene" uid="uid://wtf41wnk0sys" path="res://Dialog/SpeechBubble.tscn" id="3_speech_bubble"]
+
+[node name="PerkSelectionDialog" type="Control"]
+z_index = 1000
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_perk_dialog")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.7)
+
+[node name="FlippySpeechBubble" parent="." instance=ExtResource("3_speech_bubble")]
+visible = false
+position = Vector2(1349.51, 238)
+scale = Vector2(2.0, 2.0)
+
+[node name="TextureRect" type="TextureRect" parent="."]
+layout_mode = 0
+offset_left = 378.0
+offset_top = 656.0
+offset_right = 920.0
+offset_bottom = 941.0
+texture = ExtResource("2_f0abr")
+
+[node name="DialogContainer" type="VBoxContainer" parent="."]
+layout_mode = 0
+offset_left = 509.0
+offset_top = 699.0
+offset_right = 709.0
+offset_bottom = 899.0
+
+[node name="Title" type="Label" parent="DialogContainer"]
+layout_mode = 2
+text = "Choose Your Perk"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="HSeparator" type="HSeparator" parent="DialogContainer"]
+layout_mode = 2
+
+[node name="PerkButtons" type="VBoxContainer" parent="DialogContainer"]
+layout_mode = 2
+
+[node name="PerkButton1" type="Button" parent="DialogContainer/PerkButtons"]
+layout_mode = 2
+text = "Perk 1"
+
+[node name="PerkButton2" type="Button" parent="DialogContainer/PerkButtons"]
+layout_mode = 2
+text = "Perk 2"
+
+[node name="PerkButton3" type="Button" parent="DialogContainer/PerkButtons"]
+layout_mode = 2
+text = "Perk 3"
+
+[node name="HSeparator2" type="HSeparator" parent="DialogContainer"]
+layout_mode = 2
+
+[node name="CancelButton" type="Button" parent="DialogContainer"]
+layout_mode = 2
+text = "Cancel" 

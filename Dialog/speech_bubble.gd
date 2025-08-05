@@ -107,3 +107,12 @@ func stop_speech():
 	if fade_timer:
 		fade_timer.stop()
 	_on_fade_timer_timeout()
+
+# Simple set_text function for compatibility
+func set_text(text: String):
+	"""Set the text of the speech bubble"""
+	if label:
+		label.text = text
+		visible = true
+		speech_bubble_sprite.visible = true
+		label.visible = true
