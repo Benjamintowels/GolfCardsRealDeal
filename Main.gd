@@ -339,8 +339,11 @@ func _on_perk_selected(perk_type: String):
 	"""Handle perk selection from dialog"""
 	print("Perk selected:", perk_type)
 	
-	# Apply the selected perk
-	_apply_perk(perk_type)
+	# Store the perk in PerkReceiver for later deployment
+	print("Attempting to store perk in PerkReceiver...")
+	PerkReceiver.store_perk(perk_type)
+	print("Perk stored in PerkReceiver for later deployment")
+	print("PerkReceiver has pending perk:", PerkReceiver.has_pending_perk())
 	
 	# Animate Flippy talking
 	_animate_flippy_talking()
@@ -355,29 +358,7 @@ func _on_perk_dialog_closed():
 	# Still start the game mode even if no perk was selected
 	_start_pending_game_mode()
 
-func _apply_perk(perk_type: String):
-	"""Apply the selected perk effect"""
-	match perk_type:
-		"start_with_200_looty":
-			print("Applying perk: Start with 200 extra $Looty")
-			# TODO: Add money to player's starting amount
-		"upgrade_card":
-			print("Applying perk: Upgrade a card in deck")
-			# TODO: Implement card upgrade system
-		"random_rare_action":
-			print("Applying perk: Receive random rare action card")
-			# TODO: Add random rare action card to deck
-		"random_equipment":
-			print("Applying perk: Receive random equipment")
-			# TODO: Add random equipment to inventory
-		"random_club_card":
-			print("Applying perk: Receive random club card")
-			# TODO: Add random club card to deck
-		"receive_bounty":
-			print("Applying perk: Receive bounty (placeholder)")
-			# TODO: Implement bounty system
-		_:
-			print("Unknown perk type:", perk_type)
+
 
 func _animate_flippy_talking():
 	"""Animate Flippy talking after perk selection"""

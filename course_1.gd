@@ -751,6 +751,14 @@ func _ready() -> void:
 	sound_manager.setup_swing_sounds($SwingStrong, $SwingMed, $SwingSoft)
 	sound_manager.setup_collision_sounds($WaterPlunk, $SandThunk, $TrunkThunk)
 	sound_manager.setup_global_death_sound()
+	
+	# Setup PerkDeployer
+	var perk_deployer = $PerkDeployer
+	if perk_deployer:
+		perk_deployer.setup(self)
+		print("PerkDeployer: Setup complete")
+	else:
+		print("ERROR: PerkDeployer not found in Course1 scene")
 
 func adjust_background_positioning() -> void:
 	"""Adjust background layer positioning for better visibility"""
@@ -1383,6 +1391,15 @@ func _on_tile_input(event: InputEvent, x: int, y: int) -> void:
 				
 				sound_manager.play_sand_thunk()
 				game_state_manager.start_round_after_tee_selection(self, player_manager, deck_manager, ui_manager)
+				
+				# Check and deploy any pending perks after the round starts
+				print("Course1: About to check for pending perks...")
+				var perk_deployer = $PerkDeployer
+				if perk_deployer:
+					print("Course1: PerkDeployer found, checking for perks...")
+					perk_deployer.check_and_deploy_perk()
+				else:
+					print("ERROR: PerkDeployer not found when trying to deploy perks")
 			else:
 				pass # Please select a Tee Box to start your round.
 		else:

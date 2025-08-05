@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cgdcgxxr4ulmi"
-path="res://.godot/imported/IceSpear.png-f1b8418512543b8b8483360fb5334615.ctex"
+path="res://.godot/imported/IceSpearCard.png-99aac852f79b10e41732184b6ad741dc.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Cards/IceSpear.png"
-dest_files=["res://.godot/imported/IceSpear.png-f1b8418512543b8b8483360fb5334615.ctex"]
+source_file="res://Cards/IceSpearCard.png"
+dest_files=["res://.godot/imported/IceSpearCard.png-99aac852f79b10e41732184b6ad741dc.ctex"]
 
 [params]
 

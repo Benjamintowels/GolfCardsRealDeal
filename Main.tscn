@@ -1,6 +1,7 @@
-[gd_scene load_steps=39 format=3 uid="uid://wyu3udwngros"]
+[gd_scene load_steps=40 format=3 uid="uid://wyu3udwngros"]
 
 [ext_resource type="Script" uid="uid://ct4bebh7dhisi" path="res://Main.gd" id="1_r0du0"]
+[ext_resource type="Script" uid="uid://cqehnplar8nuv" path="res://perk_receiver.gd" id="2_hri7i"]
 [ext_resource type="Texture2D" uid="uid://dg84gx06tkrtv" path="res://ClubHouse/Outside.png" id="3_sc1dx"]
 [ext_resource type="Texture2D" uid="uid://bo65sr134g0r8" path="res://ClubHouse/GolfGreenBG.png" id="4_5tuhn"]
 [ext_resource type="Texture2D" uid="uid://cej1ljnr2x51a" path="res://Characters/BennyIpodBig.png" id="5_5vvyt"]
@@ -678,6 +679,9 @@ layout_mode = 3
 anchors_preset = 0
 script = ExtResource("1_r0du0")
 
+[node name="PerkReceiver" type="Node" parent="."]
+script = ExtResource("2_hri7i")
+
 [node name="CurrentDeckManager" type="Node" parent="."]
 script = ExtResource("8_current_deck_manager")
 
@@ -705,7 +709,6 @@ texture = ExtResource("11_20pc6")
 
 [node name="Character2" type="TextureButton" parent="ClubHouseBackgroundLayers"]
 texture_filter = 1
-anchors_preset = -1
 offset_left = 520.0
 offset_top = 783.0
 offset_right = 2440.0
