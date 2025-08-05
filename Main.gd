@@ -383,20 +383,30 @@ func _animate_flippy_talking():
 	"""Animate Flippy talking after perk selection"""
 	var flippy = $FlippyTheDolphin
 	if flippy:
-		var animation_player = flippy.get_node("AnimationPlayer")
-		if animation_player:
-			# Play a talking animation if available, otherwise just wait
-			if animation_player.has_animation("talk"):
-				animation_player.play("talk")
-			else:
-				print("No talk animation found for Flippy")
+		# Get the FlippySprite (AnimatedSprite2D)
+		var sprite = flippy.get_node_or_null("FlippySprite")
+		if sprite and sprite is AnimatedSprite2D:
+			# Store original frame
+			var original_frame = sprite.frame
+			
+			# Play talking animation (frame 1 or 2 randomly)
+			var talking_frame = randi() % 2 + 1  # Randomly choose frame 1 or 2 (which are frames 2 and 3 in 0-based indexing)
+			sprite.frame = talking_frame
+			
+			# Play random talking sound
+			var talk_sounds = ["talk1", "talk2", "talk3"]
+			var random_sound = talk_sounds[randi() % talk_sounds.size()]
+			var audio_player = flippy.get_node_or_null(random_sound)
+			if audio_player and audio_player is AudioStreamPlayer2D:
+				audio_player.play()
+			
+			# Return to default frame after a short delay
+			await get_tree().create_timer(0.3).timeout
+			sprite.frame = 0  # Return to default pose (frame 0)
 		else:
-			print("No AnimationPlayer found for Flippy")
-	
-	# Play talking sound
-	var talking_sound = $Select  # Reuse select sound for now
-	if talking_sound:
-		talking_sound.play()
+			print("No FlippySprite found or not AnimatedSprite2D")
+	else:
+		print("No FlippyTheDolphin found")
 
 func _on_start_round_pressed():
 	_play_select_sound()
