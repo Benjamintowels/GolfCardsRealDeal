@@ -1895,6 +1895,11 @@ func _on_end_round_pressed() -> void:
 
 func _change_to_main() -> void:
 	Global.putt_putt_mode = false
+	
+	# Set flag to show final score display when returning to main (for any reason)
+	Global.show_final_score_display = true
+	print("Returning to main - setting flag to show final score display")
+	
 	FadeManager.fade_to_black(func(): get_tree().change_scene_to_file("res://Main.tscn"), 0.5)
 
 func show_tee_selection_instruction() -> void:
@@ -4123,6 +4128,10 @@ func _on_pause_end_round_pressed(pause_dialog: Control):
 	
 	# Remove pause dialog
 	pause_dialog.queue_free()
+	
+	# Set flag to show final score display when returning to main
+	Global.show_final_score_display = true
+	print("End round from pause menu - setting flag to show final score display")
 	
 	# Transition to Main.tscn
 	get_tree().change_scene_to_file("res://Main.tscn")

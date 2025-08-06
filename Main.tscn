@@ -1,4 +1,4 @@
-[gd_scene load_steps=119 format=3 uid="uid://wyu3udwngros"]
+[gd_scene load_steps=120 format=3 uid="uid://wyu3udwngros"]
 
 [ext_resource type="Script" uid="uid://ct4bebh7dhisi" path="res://Main.gd" id="1_r0du0"]
 [ext_resource type="Script" uid="uid://cqehnplar8nuv" path="res://perk_receiver.gd" id="2_hri7i"]
@@ -29,6 +29,7 @@
 [ext_resource type="PackedScene" uid="uid://b4oxiu1huxcfd" path="res://ClubHouse/TractorBeam.tscn" id="19_devvj"]
 [ext_resource type="PackedScene" uid="uid://l5svvc4lrrpp" path="res://UI/CharacterStatBanner.tscn" id="20_kgwt8"]
 [ext_resource type="Script" uid="uid://btyphvxp4w2v4" path="res://club_house_camera.gd" id="27_sqvbp"]
+[ext_resource type="PackedScene" uid="uid://kg85vs4xvah7" path="res://UI/FinalScoreDisplay.tscn" id="28_final_score_display"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_5mvff"]
 atlas = ExtResource("5_w3rk5")
@@ -1465,6 +1466,13 @@ offset_right = 8.0
 offset_bottom = 8.0
 text = "ModShotRoom"
 
+[node name="ClubHouseLevelLabel" type="Label" parent="UI"]
+offset_left = 142.0
+offset_top = 197.0
+offset_right = 284.0
+offset_bottom = 220.0
+text = "ClubHouse Level 1"
+
 [node name="CharacterStatBanner" parent="." instance=ExtResource("20_kgwt8")]
 visible = false
 position = Vector2(640, 360)
@@ -1536,6 +1544,10 @@ texture = ExtResource("15_fpfj3")
 
 [node name="ClubHouseCamera" type="Camera2D" parent="."]
 script = ExtResource("27_sqvbp")
+
+[node name="FinalScoreDisplay" parent="." instance=ExtResource("28_final_score_display")]
+visible = false
+layout_mode = 1
 
 [connection signal="pressed" from="ClubHouseBackgroundLayers/StartRoundDoor" to="." method="_on_start_round_pressed"]
 [connection signal="pressed" from="UI/StartPuttPutt" to="." method="_on_start_putt_putt_button_pressed"]

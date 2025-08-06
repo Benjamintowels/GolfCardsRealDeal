@@ -400,6 +400,9 @@ func apply_save_data_to_globals():
 	Global.front_9_score = game_state.get("front_9_score", 0)
 	Global.global_turn_count = game_state.get("global_turn_count", 1)
 	Global.current_reward_tier = game_state.get("current_reward_tier", 1)
+	
+	# Load FileLevelManager data
+	load_file_level_manager_data()
 
 func update_save_data_from_globals():
 	"""Update save data with current global state"""
@@ -412,6 +415,44 @@ func update_save_data_from_globals():
 	game_state["global_turn_count"] = Global.global_turn_count
 	game_state["current_reward_tier"] = Global.current_reward_tier
 	current_save_data["game_state"] = game_state
+	
+	# Update FileLevelManager progression data
+	update_file_level_manager_data()
+
+func update_file_level_manager_data():
+	"""Update save data with FileLevelManager progression"""
+	var file_level_manager = FileLevelManager
+	if file_level_manager:
+		var stats = file_level_manager.get_current_stats()
+		current_save_data["file_level_manager"] = {
+			"character_experience": stats.character_experience,
+			"clubhouse_experience": stats.clubhouse_experience,
+			"character_level": stats.character_level,
+			"clubhouse_level": stats.clubhouse_level
+		}
+		print("FileLevelManager data saved to save file")
+	else:
+		print("ERROR: FileLevelManager not found when saving data")
+
+func load_file_level_manager_data():
+	"""Load FileLevelManager data from save file"""
+	var file_level_manager = FileLevelManager
+	if not file_level_manager:
+		print("ERROR: FileLevelManager not found when loading data")
+		return
+	
+	var saved_data = current_save_data.get("file_level_manager", {})
+	if saved_data.is_empty():
+		print("No FileLevelManager data found in save file - using defaults")
+		return
+	
+	# Load the data into FileLevelManager
+	file_level_manager.character_experience = saved_data.get("character_experience", 0)
+	file_level_manager.clubhouse_experience = saved_data.get("clubhouse_experience", 0)
+	file_level_manager.character_level = saved_data.get("character_level", 1)
+	file_level_manager.clubhouse_level = saved_data.get("clubhouse_level", 1)
+	
+	print("FileLevelManager data loaded from save file: ", saved_data)
 
 # =============================================================================
 # PROGRESSION SYSTEM API FUNCTIONS

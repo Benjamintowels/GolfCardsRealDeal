@@ -14,6 +14,7 @@ extends Control
 @onready var animation_player = $ClubHouseBackgroundLayers/AnimationPlayer
 @onready var character_stat_banner = $CharacterStatBanner
 @onready var club_house_camera = $ClubHouseCamera
+@onready var final_score_display = $FinalScoreDisplay
 
 var selected_character = 1  # Default to character 1
 var deck_selection_dialog: Control
@@ -53,6 +54,19 @@ func _ready():
 	# Connect input events for right-click functionality
 	set_process_input(true)
 	
+	# Connect FinalScoreDisplay signal
+	if final_score_display:
+		final_score_display.return_to_clubhouse.connect(_on_return_to_clubhouse)
+	
+	# Connect FileLevelManager signals for UI updates (now an autoload)
+	var file_level_manager = FileLevelManager
+	if file_level_manager:
+		file_level_manager.level_up.connect(_on_level_up)
+		file_level_manager.experience_gained.connect(_on_experience_gained)
+		print("✅ FileLevelManager signals connected successfully")
+	else:
+		print("❌ ERROR: FileLevelManager autoload not found in Main.gd _ready()")
+	
 	# Check if we have a loaded save file and update UI accordingly
 	update_ui_from_save_data()
 	
@@ -64,6 +78,12 @@ func _ready():
 		var cutscene_manager = get_node("/root/CutsceneManager")
 		if cutscene_manager:
 			cutscene_manager.play_cutscene("intro")
+	
+	# Check if we should show the final score display (set from course completion)
+	if Global.show_final_score_display:
+		print("Global flag set - showing final score display")
+		show_final_score_display()
+		Global.show_final_score_display = false  # Reset the flag
 	
 	print("Buttons connected successfully")
 	print("Initial selected_character: ", selected_character)
@@ -119,6 +139,19 @@ func _update_progression_ui():
 	# Update deck selection based on unlocked decks
 	if deck_selection_dialog:
 		deck_selection_dialog.update_available_decks()
+	
+	# Update ClubHouse level label with current level
+	var file_level_manager = FileLevelManager
+	if file_level_manager:
+		var stats = file_level_manager.get_current_stats()
+		var clubhouse_level_label = $UI/ClubHouseLevelLabel
+		if clubhouse_level_label:
+			clubhouse_level_label.text = "ClubHouse Level " + str(stats.clubhouse_level)
+			print("✅ Initial ClubHouse level set to: ", clubhouse_level_label.text)
+		else:
+			print("❌ ERROR: ClubHouse level label not found in _update_progression_ui()")
+	else:
+		print("❌ ERROR: FileLevelManager autoload not found in _update_progression_ui()")
 
 func _setup_deck_selection_dialog():
 	"""Setup the deck selection dialog"""
@@ -254,11 +287,20 @@ func _show_character_stat_banner():
 	"""Show the character stat banner with fade in"""
 	if character_stat_banner:
 		character_stat_banner.visible = true
+		
+		# Update the level display with current character level
+		var file_level_manager = FileLevelManager
+		if file_level_manager:
+			var stats = file_level_manager.get_current_stats()
+			var level_label = character_stat_banner.get_node_or_null("Level")
+			if level_label:
+				level_label.text = "Level " + str(stats.character_level)
+		
 		# Add fade in effect
 		character_stat_banner.modulate.a = 0.0
 		var tween = create_tween()
 		tween.tween_property(character_stat_banner, "modulate:a", 1.0, 0.3)
-		print("Character stat banner shown")
+		print("Character stat banner shown with current level")
 
 func _hide_character_stat_banner():
 	"""Hide the character stat banner with fade out"""
@@ -684,3 +726,60 @@ func _change_to_kendama_game():
 	$DoorOpen.play()
 	await $DoorOpen.finished
 	$DoorClose.play()
+
+func show_final_score_display():
+	"""Show the final score display with current progression"""
+	if final_score_display:
+		final_score_display.show()
+		final_score_display.show_final_score()
+		print("Final score display shown")
+
+func complete_hole(hole_number: int):
+	"""Complete a hole and add experience points"""
+	var file_level_manager = FileLevelManager
+	if file_level_manager:
+		file_level_manager.complete_hole(hole_number)
+		print("Hole ", hole_number, " completed - experience added")
+	else:
+		print("ERROR: FileLevelManager autoload not found!")
+
+func _on_return_to_clubhouse():
+	"""Handle return to clubhouse from final score display"""
+	print("Returning to clubhouse from final score display")
+	# Hide the final score display
+	if final_score_display:
+		final_score_display.hide()
+	
+	# Save progression data when returning to clubhouse
+	var save_file_manager = get_node("/root/SaveFileManager")
+	if save_file_manager and save_file_manager.current_save_slot > 0:
+		save_file_manager.save_current_game()
+		print("💾 Progression saved when returning to clubhouse")
+
+func _on_level_up(character_level: int, clubhouse_level: int):
+	"""Handle level up events from FileLevelManager"""
+	print("🎉 LEVEL UP EVENT TRIGGERED! Character: ", character_level, " ClubHouse: ", clubhouse_level)
+	
+	# Update ClubHouse level label
+	var clubhouse_level_label = $UI/ClubHouseLevelLabel
+	if clubhouse_level_label:
+		clubhouse_level_label.text = "ClubHouse Level " + str(clubhouse_level)
+		print("✅ Updated ClubHouse level label to: ", clubhouse_level_label.text)
+	else:
+		print("❌ ERROR: ClubHouse level label not found!")
+	
+	# Update CharacterStatBanner level if it's visible and showing Benny
+	if character_stat_banner and character_stat_banner.visible:
+		var level_label = character_stat_banner.get_node_or_null("Level")
+		if level_label:
+			level_label.text = "Level " + str(character_level)
+			print("✅ Updated CharacterStatBanner level to: ", level_label.text)
+		else:
+			print("❌ ERROR: CharacterStatBanner Level label not found!")
+	else:
+		print("ℹ️ CharacterStatBanner not visible or not found")
+
+func _on_experience_gained(character_exp: int, clubhouse_exp: int):
+	"""Handle experience gained events from FileLevelManager"""
+	print("💫 EXPERIENCE GAINED! Character: ", character_exp, " ClubHouse: ", clubhouse_exp)
+	# This could be used for visual effects or sound feedback

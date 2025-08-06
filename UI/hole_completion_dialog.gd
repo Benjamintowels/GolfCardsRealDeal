@@ -118,6 +118,9 @@ func close_dialog() -> void:
 	var current_hole = course.game_state_manager.get_current_hole_index() if course and course.game_state_manager else 0
 	var is_back_9_mode = course.game_state_manager.is_back_9_mode if course and course.game_state_manager else false
 	
+	# Integrate with FileLevelManager progression system
+	_integrate_progression_system(current_hole, is_back_9_mode)
+	
 	if current_hole < round_end_hole:
 		# Show reward selection dialog for regular holes
 		if course.ui_manager and course.ui_manager.has_method("show_reward_phase"):
@@ -130,3 +133,31 @@ func close_dialog() -> void:
 		# Show course complete dialog for final hole
 		if course.has_method("show_course_complete_dialog"):
 			course.show_course_complete_dialog()
+
+func _integrate_progression_system(current_hole: int, is_back_9_mode: bool):
+	"""Integrate with FileLevelManager progression system"""
+	# FileLevelManager is now an autoload, accessible globally
+	var file_level_manager = FileLevelManager
+	if not file_level_manager:
+		print("ERROR: FileLevelManager autoload not found in hole completion dialog!")
+		return
+	
+	# Calculate the actual hole number (1-18) based on current hole index and mode
+	var actual_hole_number = current_hole + 1
+	if is_back_9_mode:
+		actual_hole_number = course.game_state_manager.back_9_start_hole + current_hole + 1
+	
+	print("Hole completion dialog: Adding experience for hole ", actual_hole_number)
+	file_level_manager.complete_hole(actual_hole_number)
+	
+	# Check if this is the final hole (hole 18 or hole 9 in front 9 mode)
+	var is_final_hole = false
+	if is_back_9_mode:
+		is_final_hole = (actual_hole_number == 18)
+	else:
+		is_final_hole = (actual_hole_number == 9)
+	
+	# If this is the final hole, set global flag to show final score display when returning to main
+	if is_final_hole:
+		print("Final hole completed - setting global flag to show final score display")
+		Global.show_final_score_display = true

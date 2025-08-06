@@ -1,10 +1,10 @@
 [gd_scene load_steps=2 format=3 uid="uid://d3cicotp2pf3t"]
 
-[ext_resource type="Texture2D" uid="uid://bq41s4yscxb2k" path="res://Interactables/Target.png" id="1_target"]
+[ext_resource type="Texture2D" uid="uid://bmtssikr5h7q4" path="res://Interactables/Target.png" id="1_j3sd5"]
 
 [node name="TargetSymbol" type="Node2D"]
 
 [node name="TargetSymbol" type="Sprite2D" parent="."]
 texture_filter = 1
 position = Vector2(8, 2)
-texture = ExtResource("1_target") 
+texture = ExtResource("1_j3sd5")

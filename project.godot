@@ -26,6 +26,7 @@ SpeechEventManager="*res://SpeechEventManager.gd"
 SaveFileManager="*res://SaveFileManager.gd"
 CutsceneManager="*res://Dialog/CutsceneManager.gd"
 PerkReceiver="*res://perk_receiver.gd"
+FileLevelManager="*res://file_level_manager.gd"
 
 [display]
 

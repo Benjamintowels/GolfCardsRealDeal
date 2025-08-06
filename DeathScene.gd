@@ -14,5 +14,9 @@ func _ready():
 	FadeManager.fade_from_black(1.0)
 
 func _on_return_button_pressed():
+	# Set flag to show final score display when returning to main
+	Global.show_final_score_display = true
+	print("Returning from death scene - setting flag to show final score display")
+	
 	# Return to main menu
 	FadeManager.fade_to_black(func(): get_tree().change_scene_to_file("res://Main.tscn"), 0.5) 
