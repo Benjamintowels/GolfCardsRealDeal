@@ -292,6 +292,7 @@ var object_scene_map := {
 	"VERTICAL_FIELD": preload("res://Interactables/VerticalField.tscn"),
 	"HORIZONTAL_FIELD": preload("res://Interactables/HorizontalField.tscn"),
 	"FORCE_FIELD_DOME": preload("res://Interactables/ForceFieldDome.tscn"),
+	"FLOATING_TARGET": preload("res://Interactables/FloatingTarget.tscn"),
 	"LIGHTPOLE": preload("res://Obstacles/LightPole.tscn"),
 	"SLIDING_DOOR": preload("res://Obstacles/SlidingDoor.tscn"),
 }
@@ -320,6 +321,7 @@ var object_to_tile_mapping := {
 	"VERTICAL_FIELD": "Base",
 	"HORIZONTAL_FIELD": "Base",
 	"FORCE_FIELD_DOME": "Base",
+	"FLOATING_TARGET": "Base",
 	"SLIDING_DOOR": "FW",
 }
 

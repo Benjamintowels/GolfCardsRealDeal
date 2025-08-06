@@ -801,6 +801,90 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 		print("  - Generator at:", generator_pos)
 		print("  - Pylons at:", pylon_positions)
 	
+	# Targets puzzle configuration - triggered by puzzle type
+	if puzzle_type == "targets":
+		# Determine if layout is horizontal or vertical
+		var is_horizontal_layout = layout[0].size() > layout.size()
+		
+		# Find fairway positions for target placement
+		var fairway_positions: Array = []
+		for y in layout.size():
+			for x in layout[y].size():
+				if layout[y][x] == "F":  # Fairway tiles
+					fairway_positions.append(Vector2i(x, y))
+		
+		# Place 5 floating targets on the map
+		var target_positions: Array = []
+		var targets_placed = 0
+		var max_targets = 5
+		
+		# Use fairway positions for target placement
+		var available_positions = fairway_positions.duplicate()
+		
+		while targets_placed < max_targets and available_positions.size() > 0:
+			var target_index = randi() % available_positions.size()
+			var target_pos = available_positions[target_index]
+			var valid = true
+			
+			# Check distance from other placed objects
+			for placed_pos in placed_objects:
+				var distance = max(abs(target_pos.x - placed_pos.x), abs(target_pos.y - placed_pos.y))
+				if distance < 6:  # Minimum spacing between targets
+					valid = false
+					break
+			
+			# Check distance from other targets
+			for existing_target in target_positions:
+				var distance = max(abs(target_pos.x - existing_target.x), abs(target_pos.y - existing_target.y))
+				if distance < 8:  # Minimum spacing between targets
+					valid = false
+					break
+			
+			if valid:
+				target_positions.append(target_pos)
+				placed_objects.append(target_pos)
+				targets_placed += 1
+			
+			available_positions.remove_at(target_index)
+		
+		# If we couldn't place enough targets on fairway, try other positions
+		if targets_placed < max_targets:
+			var remaining_positions = valid_positions.duplicate()
+			while targets_placed < max_targets and remaining_positions.size() > 0:
+				var target_index = randi() % remaining_positions.size()
+				var target_pos = remaining_positions[target_index]
+				var valid = true
+				
+				# Check distance from other placed objects
+				for placed_pos in placed_objects:
+					var distance = max(abs(target_pos.x - placed_pos.x), abs(target_pos.y - placed_pos.y))
+					if distance < 6:  # Minimum spacing between targets
+						valid = false
+						break
+				
+				# Check distance from other targets
+				for existing_target in target_positions:
+					var distance = max(abs(target_pos.x - existing_target.x), abs(target_pos.y - existing_target.y))
+					if distance < 8:  # Minimum spacing between targets
+						valid = false
+						break
+				
+				if valid:
+					target_positions.append(target_pos)
+					placed_objects.append(target_pos)
+					targets_placed += 1
+				
+				remaining_positions.remove_at(target_index)
+		
+		positions["targets_puzzle"] = {
+			"target_positions": target_positions,
+			"is_horizontal_layout": is_horizontal_layout
+		}
+		print("🎯 TARGETS PUZZLE: Added targets_puzzle data for current hole")
+		print("  - Layout is horizontal:", is_horizontal_layout)
+		print("  - Targets placed at:", target_positions)
+		print("  - Total targets:", targets_placed)
+	
 	# Place Bushes on remaining base tiles (after boulders)
 	var num_bushes = 6  # Place 6 bushes per hole
 	var bushes_placed = 0
@@ -2174,6 +2258,9 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 	# Place Generator Puzzle System
 	_place_generator_puzzle_system(object_positions, layout)
 	
+	# Place Targets Puzzle System
+	_place_targets_puzzle_system(object_positions, layout)
+	
 	# Place Miniboss Puzzle System
 	_place_miniboss_puzzle_system(object_positions, layout)
 	
@@ -2520,6 +2607,72 @@ func _place_miniboss_puzzle_system(object_positions: Dictionary, layout: Array):
 	print("  - Miniboss (Wraith) placed at:", miniboss_pos)
 	print("  - Force field dome placed at:", actual_pin_pos, "(actual pin position)")
 	print("  - Miniboss reference connected to dome")
+
+func _place_targets_puzzle_system(object_positions: Dictionary, layout: Array):
+	"""Place the targets puzzle system with floating targets"""
+	
+	print("🎯 TARGETS PUZZLE PLACEMENT FUNCTION CALLED!")
+	print("=== TARGETS PUZZLE PLACEMENT START ===")
+	print("🔍 Object positions keys:", object_positions.keys())
+	print("🔍 Object positions size:", object_positions.size())
+	
+	# Check if we have targets puzzle data
+	if not "targets_puzzle" in object_positions:
+		print("❌ No targets_puzzle data found in object_positions")
+		print("🔍 Available keys:", object_positions.keys())
+		return
+	
+	var puzzle_data = object_positions.targets_puzzle
+	print("✓ Targets puzzle data found:", puzzle_data)
+	
+	if not puzzle_data.has("target_positions") or not puzzle_data.has("is_horizontal_layout"):
+		print("❌ Missing required puzzle data - target_positions or is_horizontal_layout")
+		return
+	
+	var target_positions = puzzle_data.target_positions
+	var is_horizontal_layout = puzzle_data.is_horizontal_layout
+	
+	print("✓ Placing", target_positions.size(), "floating targets")
+	print("✓ Layout is horizontal:", is_horizontal_layout)
+	
+	# Place Floating Targets
+	var scene: PackedScene = object_scene_map["FLOATING_TARGET"]
+	if scene == null:
+		push_error("🚫 FloatingTarget scene is null")
+		return
+	
+	for target_pos in target_positions:
+		print("✓ Placing floating target at:", target_pos)
+		
+		var target: Node2D = scene.instantiate() as Node2D
+		if target == null:
+			push_error("❌ FloatingTarget instantiation failed at (%d,%d)" % [target_pos.x, target_pos.y])
+			continue
+		
+		var world_pos: Vector2 = Vector2(target_pos.x, target_pos.y) * cell_size
+		target.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
+		
+		# Set the grid_position property
+		target.set_meta("grid_position", target_pos)
+		
+		# Set the appropriate animation based on layout direction
+		if target.has_method("set_animation_based_on_layout"):
+			target.set_animation_based_on_layout(is_horizontal_layout)
+			print("✓ Target animation set for layout direction")
+		
+		# Add target to groups for smart optimization
+		target.add_to_group("interactables")
+		target.add_to_group("collision_objects")
+		target.add_to_group("floating_targets")
+		
+		ysort_objects.append({"node": target, "grid_pos": target_pos})
+		obstacle_layer.add_child(target)
+		
+		print("✓ Floating target placed successfully at:", target_pos)
+	
+	print("=== TARGETS PUZZLE PLACEMENT COMPLETE ===")
+	print("  - Floating targets placed at:", target_positions)
+	print("  - Layout direction:", "horizontal" if is_horizontal_layout else "vertical")
 
 func _find_map_manager() -> Node:
 	# Try to find MapManager in the scene tree

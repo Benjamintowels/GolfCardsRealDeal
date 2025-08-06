@@ -53,6 +53,11 @@ var puzzle_types = {
 		"name": "Shop Encounter",
 		"description": "Visit a shop to buy items and equipment",
 		"symbol_scene": preload("res://UI/PuzzleSymbols/ShopSymbol.tscn")
+	},
+	"targets": {
+		"name": "Target Practice",
+		"description": "Hit floating targets with your golf ball to complete the hole",
+		"symbol_scene": preload("res://UI/PuzzleSymbols/TargetSymbol.tscn")
 	}
 }
 

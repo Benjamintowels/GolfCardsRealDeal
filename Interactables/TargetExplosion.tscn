@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=3 uid="uid://8s03yqmtkglm"]
+
+[ext_resource type="Script" uid="uid://el3870t5sry" path="res://Interactables/target_explosion.gd" id="1_35aps"]
+
+[node name="TargetExplosion" type="Node2D"]
+script = ExtResource("1_35aps")
+
+[node name="GPUParticles2D" type="GPUParticles2D" parent="."]
