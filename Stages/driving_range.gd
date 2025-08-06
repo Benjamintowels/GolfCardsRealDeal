@@ -1163,6 +1163,7 @@ func get_driving_range_object_positions(layout: Array) -> Dictionary:
 		"shop": Vector2i.ZERO,
 		"gang_members": [],
 		"oil_drums": [],
+		"crates": [],
 		"stone_walls": [],  # Empty for driving range
 		"boulders": [],
 		"bushes": [],
@@ -1227,6 +1228,24 @@ func get_driving_range_object_positions(layout: Array) -> Dictionary:
 			placed_objects.append(boulder_pos)
 			boulders_placed += 1
 		valid_positions.remove_at(boulder_index)
+	
+	# Place crates (fewer for driving range)
+	var num_crates = 2  # Reduced number for driving range
+	var crates_placed = 0
+	while crates_placed < num_crates and valid_positions.size() > 0:
+		var crate_index = randi() % valid_positions.size()
+		var crate_pos = valid_positions[crate_index]
+		var valid = true
+		for placed_pos in placed_objects:
+			var distance = max(abs(crate_pos.x - placed_pos.x), abs(crate_pos.y - placed_pos.y))
+			if distance < 5:  # Slightly closer spacing than boulders
+				valid = false
+				break
+		if valid:
+			positions.crates.append(crate_pos)
+			placed_objects.append(crate_pos)
+			crates_placed += 1
+		valid_positions.remove_at(crate_index)
 	
 	# Place bushes (fewer for driving range)
 	var num_bushes = 3  # Reduced from 6
@@ -1347,6 +1366,26 @@ func place_driving_range_objects(object_positions: Dictionary, layout: Array) ->
 		boulder.add_to_group("collision_objects")
 		build_map.ysort_objects.append({"node": boulder, "grid_pos": boulder_pos})
 		obstacle_layer.add_child(boulder)
+	
+	# Place Crates
+	for crate_pos in object_positions.crates:
+		var scene: PackedScene = object_scene_map["CRATE"]
+		if scene == null:
+			push_error("🚫 Crate scene is null")
+			continue
+		var crate: Node2D = scene.instantiate() as Node2D
+		if crate == null:
+			push_error("❌ Crate instantiation failed at (%d,%d)" % [crate_pos.x, crate_pos.y])
+			continue
+		var world_pos: Vector2 = Vector2(crate_pos.x, crate_pos.y) * cell_size
+		crate.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
+		crate.set_meta("grid_position", crate_pos)
+		crate.add_to_group("interactables")
+		crate.add_to_group("collision_objects")
+		build_map.ysort_objects.append({"node": crate, "grid_pos": crate_pos})
+		obstacle_layer.add_child(crate)
+		if crate.has_method("blocks") and crate.blocks():
+			build_map.obstacle_map[crate_pos] = crate
 	
 	# Place Bushes
 	var bush_manager = get_node_or_null("/root/BushManager")

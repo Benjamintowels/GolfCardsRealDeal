@@ -1,0 +1,60 @@
+[gd_scene load_steps=9 format=3 uid="uid://c4jjso0rcx2fh"]
+
+[ext_resource type="Texture2D" uid="uid://brcrmobsxjhlv" path="res://Interactables/WoodenCrate.png" id="1_0lb3s"]
+[ext_resource type="Script" uid="uid://brqpsolmjdygv" path="res://Interactables/crate.gd" id="1_30ycf"]
+[ext_resource type="PackedScene" uid="uid://decuxjhm70lht" path="res://Interactables/CrateExplosion.tscn" id="3_cv2tt"]
+[ext_resource type="AudioStream" uid="uid://01xbvo1dq6r0" path="res://Sounds/TrunkThunk.mp3" id="4_6c0ns"]
+[ext_resource type="AudioStream" uid="uid://baxfoi2ekxyxi" path="res://Sounds/BoxBreak.mp3" id="5_om2pa"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_0lb3s"]
+size = Vector2(37.9958, 19.6242)
+
+[sub_resource type="OccluderPolygon2D" id="OccluderPolygon2D_0lb3s"]
+polygon = PackedVector2Array(-39, 47, 38, 47, 38, -46, -39, -46)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_30ycf"]
+size = Vector2(32, 32)
+
+[node name="Crate" type="Node2D"]
+script = ExtResource("1_30ycf")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(0, -43)
+texture = ExtResource("1_0lb3s")
+
+[node name="YSortPoint" type="Node2D" parent="."]
+position = Vector2(0, -10)
+
+[node name="TopHeight" type="Marker2D" parent="."]
+position = Vector2(0, -88)
+
+[node name="CrateArea2D" type="Area2D" parent="."]
+position = Vector2(0, -43)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="CrateArea2D"]
+position = Vector2(-0.499998, 32.5)
+scale = Vector2(2.395, 2.395)
+shape = SubResource("RectangleShape2D_0lb3s")
+
+[node name="LightOccluder2D" type="LightOccluder2D" parent="."]
+position = Vector2(0, -43)
+occluder = SubResource("OccluderPolygon2D_0lb3s")
+
+[node name="Hitbox" type="Area2D" parent="."]
+position = Vector2(0, -43)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hitbox"]
+scale = Vector2(2.625, 2.625)
+shape = SubResource("RectangleShape2D_30ycf")
+
+[node name="CrateExplosion" parent="." instance=ExtResource("3_cv2tt")]
+position = Vector2(0, -43)
+
+[node name="Thunk" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("4_6c0ns")
+pitch_scale = 0.51
+
+[node name="BoxBreak" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("5_om2pa")
+pitch_scale = 0.51

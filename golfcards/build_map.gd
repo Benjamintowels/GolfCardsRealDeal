@@ -447,6 +447,7 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 		"shop": Vector2i.ZERO,
 		"gang_members": [],
 		"oil_drums": [],
+		"crates": [],
 		"stone_walls": [],
 		"boulders": [],
 		"bushes": [],
@@ -1123,6 +1124,33 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 			oil_drums_placed += 1
 		
 		fairway_positions.remove_at(oil_index)
+	
+	# Place Crates on base tiles (similar to oil drums but on base tiles)
+	var num_crates = 3  # Default number of crates per hole
+	var crate_positions: Array = []
+	for y in layout.size():
+		for x in layout[y].size():
+			if layout[y][x] == "Base":
+				crate_positions.append(Vector2i(x, y))
+	var crates_placed = 0
+	while crates_placed < num_crates and crate_positions.size() > 0:
+		var crate_index = randi() % crate_positions.size()
+		var crate_pos = crate_positions[crate_index]
+		
+		# Check spacing from other placed objects
+		var valid = true
+		for placed_pos in placed_objects:
+			var distance = max(abs(crate_pos.x - placed_pos.x), abs(crate_pos.y - placed_pos.y))
+			if distance < 5:  # Slightly closer spacing than oil drums
+				valid = false
+				break
+		
+		if valid:
+			positions.crates.append(crate_pos)
+			placed_objects.append(crate_pos)
+			crates_placed += 1
+		
+		crate_positions.remove_at(crate_index)
 	
 	# Place SuitCase on fairway tiles (every 6 holes)
 	if should_place_suitcase():
@@ -2064,6 +2092,32 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		# Add oil drum to obstacle map to block movement
 		if oil_drum.has_method("blocks") and oil_drum.blocks():
 			obstacle_map[oil_pos] = oil_drum
+	
+	# Place Crates
+	for crate_pos in object_positions.crates:
+		var scene: PackedScene = object_scene_map["CRATE"]
+		if scene == null:
+			push_error("🚫 Crate scene is null")
+			continue
+		var crate: Node2D = scene.instantiate() as Node2D
+		if crate == null:
+			push_error("❌ Crate instantiation failed at (%d,%d)" % [crate_pos.x, crate_pos.y])
+			continue
+		var world_pos: Vector2 = Vector2(crate_pos.x, crate_pos.y) * cell_size
+		crate.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
+		
+		# Always set the grid_position property unconditionally
+		crate.set_meta("grid_position", crate_pos)
+		
+		# Add crate to groups for smart optimization
+		crate.add_to_group("interactables")
+		crate.add_to_group("collision_objects")
+		
+		ysort_objects.append({"node": crate, "grid_pos": crate_pos})
+		obstacle_layer.add_child(crate)
+		# Add crate to obstacle map to block movement
+		if crate.has_method("blocks") and crate.blocks():
+			obstacle_map[crate_pos] = crate
 	
 	# Place Squirrels
 	if "SQUIRREL" in object_scene_map:

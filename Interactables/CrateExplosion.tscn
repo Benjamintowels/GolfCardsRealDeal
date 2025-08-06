@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3 uid="uid://decuxjhm70lht"]
+
+[ext_resource type="Script" uid="uid://b113qu0ikehhq" path="res://Interactables/crate_explosion.gd" id="1_g60fc"]
+
+[node name="CrateExplosion" type="Node2D"]
+script = ExtResource("1_g60fc")
+
+[node name="GPUParticles2D" type="GPUParticles2D" parent="."]
+
+[node name="RewardPlacement" type="Node2D" parent="."]

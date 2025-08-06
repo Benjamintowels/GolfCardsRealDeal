@@ -1242,6 +1242,11 @@ func get_height() -> float:
 	return z
 
 func _on_area_entered(area):
+	print("=== GOLF BALL AREA ENTERED ===")
+	print("Area name:", area.name)
+	print("Area parent:", area.get_parent().name if area.get_parent() else "None")
+	print("Area parent class:", area.get_parent().get_class() if area.get_parent() else "None")
+	
 	# Check if this is a Pin collision
 	if area.get_parent() and area.get_parent().name == "Pin":
 		# Pin collision detected - the pin will handle hole completion
@@ -1254,7 +1259,8 @@ func _on_area_entered(area):
 			return  # Ignore vision area collisions
 		
 		# Only handle collisions with body areas, not vision areas
-		if area.name != "BodyArea2D":
+		# But allow crate collision areas
+		if area.name != "BodyArea2D" and area.name != "CrateArea2D":
 			print("GolfBall: Ignoring non-body area collision with ", area.name, " on ", area.get_parent().name)
 			return  # Ignore non-body area collisions
 		
@@ -1310,6 +1316,23 @@ func _on_area_entered(area):
 		_notify_bounce_room_bounce()
 		# Notify course to re-enable player collision since ball hit oil drum
 		notify_course_of_collision()
+	# Check if this is a Crate collision
+	elif area.get_parent() and (area.get_parent().name.contains("Crate") or area.get_parent().name.contains("crate")):
+		print("=== GOLF BALL CRATE COLLISION DETECTED ===")
+		print("Area parent name:", area.get_parent().name)
+		print("Area parent has _handle_ball_collision:", area.get_parent().has_method("_handle_ball_collision"))
+		# Crate collision detected - use the crate's ball collision system
+		if area.get_parent().has_method("_handle_ball_collision"):
+			print("✓ Calling crate's _handle_ball_collision method")
+			area.get_parent()._handle_ball_collision(self)
+		else:
+			# Fallback to roof bounce system
+			print("✗ Crate missing _handle_ball_collision method, using fallback")
+			_handle_roof_bounce_collision(area.get_parent())
+		_notify_bounce_room_bounce()
+		# Notify course to re-enable player collision since ball hit crate
+		notify_course_of_collision()
+		print("=== END GOLF BALL CRATE COLLISION ===")
 	# Check if this is a Boulder collision
 	elif area.get_parent() and area.get_parent().has_method("_handle_boulder_collision"):
 		# Boulder collision detected - use roof bounce system

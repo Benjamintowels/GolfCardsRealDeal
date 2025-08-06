@@ -618,6 +618,16 @@ func _on_area_entered(area):
 			_handle_roof_bounce_collision(area.get_parent())
 		# Notify course to re-enable player collision since ball hit oil drum
 		notify_course_of_collision()
+	# Check if this is a Crate collision
+	elif area.get_parent() and (area.get_parent().name.contains("Crate") or area.get_parent().name.contains("crate")):
+		# Crate collision detected - use the crate's ball collision system
+		if area.get_parent().has_method("_handle_ball_collision"):
+			area.get_parent()._handle_ball_collision(self)
+		else:
+			# Fallback to roof bounce system
+			_handle_roof_bounce_collision(area.get_parent())
+		# Notify course to re-enable player collision since ball hit crate
+		notify_course_of_collision()
 	# Check if this is a Boulder collision
 	elif area.get_parent() and area.get_parent().has_method("_handle_boulder_collision"):
 		# Boulder collision detected - use roof bounce system
