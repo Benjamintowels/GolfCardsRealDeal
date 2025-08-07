@@ -236,9 +236,7 @@ func _transition_to_boss_fight() -> void:
 		course.game_state_manager.set_next_puzzle_type("boss_fight")
 		print("Set puzzle type to boss_fight for boss fight")
 	
-	# Reset player position to tee area for boss fight
-	if course.player_manager and course.player_manager.has_method("reset_player_for_boss_fight"):
-		course.player_manager.reset_player_for_boss_fight()
+	# Do NOT pre-place the player; mimic new-hole flow so player places once at tee
 	
 	# Reset game state for boss fight
 	if course.game_state_manager:
@@ -246,6 +244,21 @@ func _transition_to_boss_fight() -> void:
 		course.game_state_manager.set_is_placing_player(true)
 		course.game_state_manager.reset_hole_score()
 		print("Reset game state for boss fight")
+		# Re-enable camera panning for boss fight placement
+		if course.camera_manager and course.camera_manager.has_method("enable_camera_panning"):
+			course.camera_manager.enable_camera_panning()
+			print("Camera panning enabled for boss fight")
+
+	# Align camera intro to Boss Room flow: start on Boss area then tween to Tee
+	if course.has_method("position_camera_on_pin"):
+		course.position_camera_on_pin(true)
+		print("Camera positioned on pin with intro transition for boss fight")
+
+	# Highlight tee tiles and show instruction like normal hole start
+	if course.map_manager and course.map_manager.has_method("highlight_tee_tiles"):
+		course.map_manager.highlight_tee_tiles()
+	if course.has_method("show_tee_selection_instruction"):
+		course.show_tee_selection_instruction()
 	
 	# Show boss fight intro dialog or message
 	if course.ui_manager and course.ui_manager.has_method("show_boss_fight_intro"):
