@@ -13,9 +13,32 @@ var clubhouse_experience: int = 0
 var character_level: int = 1
 var clubhouse_level: int = 1
 
+# Store experience values before round for animation
+var pre_round_character_exp: int = 0
+var pre_round_clubhouse_exp: int = 0
+var pre_round_character_level: int = 1
+var pre_round_clubhouse_level: int = 1
+
 # Experience required for each level (simple progression: 100 * level)
 func get_exp_required_for_level(level: int) -> int:
 	return level * 100
+
+# Store current values as pre-round values (call this before starting a round)
+func store_pre_round_values():
+	pre_round_character_exp = character_experience
+	pre_round_clubhouse_exp = clubhouse_experience
+	pre_round_character_level = character_level
+	pre_round_clubhouse_level = clubhouse_level
+	print("Stored pre-round values - Character: ", pre_round_character_exp, " ClubHouse: ", pre_round_clubhouse_exp)
+
+# Get pre-round values for animation
+func get_pre_round_values() -> Dictionary:
+	return {
+		"character_experience": pre_round_character_exp,
+		"clubhouse_experience": pre_round_clubhouse_exp,
+		"character_level": pre_round_character_level,
+		"clubhouse_level": pre_round_clubhouse_level
+	}
 
 # Add experience points
 func add_experience(exp_points: int):

@@ -905,6 +905,7 @@ func adjust_background_positioning() -> void:
 			print("❌ DAMAGE ROUND: Damage bar is null in driving range mode!")
 		
 		print("Driving range mode initialized with 3-shot system")
+	
 	# Check if we should start in back 9 mode
 	elif Global.starting_back_9:
 		print("=== STARTING BACK 9 MODE ===")
@@ -915,6 +916,12 @@ func adjust_background_positioning() -> void:
 		print("=== STARTING FRONT 9 MODE ===")
 		game_state_manager.start_front_nine()
 		print("Front 9 mode initialized, starting at hole:", game_state_manager.get_current_hole_index())
+	
+	# Store pre-round experience values for Final Score Display animation
+	var file_level_manager = FileLevelManager
+	if file_level_manager:
+		file_level_manager.store_pre_round_values()
+		print("Pre-round experience values stored for animation")
 	
 	# Initialize smart performance optimizer
 	var optimizer_script = load("res://SmartPerformanceOptimizer.gd")
@@ -3005,6 +3012,12 @@ func continue_to_hole_10():
 	
 	# Unpause the game
 	get_tree().paused = false
+	
+	# Store pre-round experience values for Final Score Display animation
+	var file_level_manager = FileLevelManager
+	if file_level_manager:
+		file_level_manager.store_pre_round_values()
+		print("Pre-round experience values stored for back 9 animation")
 	
 	# Set back 9 mode and start at hole 10
 	game_state_manager.is_back_9_mode = true

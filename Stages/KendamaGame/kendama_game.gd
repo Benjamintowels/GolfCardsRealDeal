@@ -38,6 +38,12 @@ var mouse_velocity = Vector2.ZERO
 @onready var dama_area = dama.get_node("DamaArea")
 
 func _ready():
+	# Store pre-round experience values for Final Score Display animation
+	var file_level_manager = FileLevelManager
+	if file_level_manager:
+		file_level_manager.store_pre_round_values()
+		print("Pre-round experience values stored for kendama game animation")
+	
 	# Set initial positions
 	ken.position = Vector2(640, 360)  # Center of screen
 	dama.position = Vector2(640, 600)  # Below the Ken

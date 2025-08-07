@@ -209,6 +209,13 @@ var object_to_tile_mapping := {
 
 func _ready():
 	print("[DRIVING RANGE DEBUG] _ready() called!")
+	
+	# Store pre-round experience values for Final Score Display animation
+	var file_level_manager = FileLevelManager
+	if file_level_manager:
+		file_level_manager.store_pre_round_values()
+		print("Pre-round experience values stored for driving range animation")
+	
 	# Initialize the driving range
 	setup_driving_range()
 	
