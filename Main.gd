@@ -995,6 +995,8 @@ func _on_upgrade_completed():
 	"""Handle upgrade completion"""
 	print("Upgrade completed")
 	_update_clubhouse_upgrade_ui()
+	# Animate Flippy talking on successful Flippy upgrade (no speech bubble)
+	_animate_flippy_talking()
 
 func _on_upgrade_dialog_closed():
 	"""Handle upgrade dialog close"""
