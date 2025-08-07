@@ -717,6 +717,11 @@ func generate_three_slot_rewards() -> Array:
 	"""Generate three specific rewards: club card, equipment, action card (or $Looty)"""
 	var rewards = []
 	
+	# Check if we're in Score Mode - if so, only offer club cards
+	if Global.score_only_mode:
+		print("🎯 SCORE MODE: Generating club card only rewards")
+		return generate_score_mode_rewards()
+	
 	# Get tiered rewards for each type
 	var tiered_club_cards = get_tiered_club_cards()
 	var tiered_action_cards = get_tiered_action_cards()
@@ -776,8 +781,37 @@ func generate_three_slot_rewards() -> Array:
 	
 	return rewards
 
+func generate_score_mode_rewards() -> Array:
+	"""Generate rewards for Score Mode - all club cards"""
+	var rewards = []
+	
+	# Get tiered club cards
+	var tiered_club_cards = get_tiered_club_cards()
+	
+	# If we don't have enough club cards, fall back to any cards
+	var available_cards = tiered_club_cards
+	if available_cards.size() < 3:
+		available_cards = get_tiered_cards()
+		print("🎯 SCORE MODE: Not enough club cards, using all cards as fallback")
+	
+	# Generate 3 random club cards (or any cards if not enough clubs)
+	var card1 = available_cards[randi() % available_cards.size()]
+	var card2 = available_cards[randi() % available_cards.size()]
+	var card3 = available_cards[randi() % available_cards.size()]
+	
+	# Build rewards array: [card1, "card", card2, "card", card3, "card"]
+	rewards = [card1, "card", card2, "card", card3, "card"]
+	
+	print("🎯 SCORE MODE: Generated 3 club card rewards")
+	return rewards
+
 func generate_random_rewards() -> Array:
 	var rewards = []
+	
+	# Check if we're in Score Mode - if so, only offer club cards
+	if Global.score_only_mode:
+		print("🎯 SCORE MODE: Generating club card only rewards (random)")
+		return generate_score_mode_random_rewards()
 	
 	# Check if bag upgrades are available
 	var has_bag_upgrades = available_bag_upgrades.size() > 0
@@ -831,6 +865,30 @@ func generate_random_rewards() -> Array:
 			var equipment = tiered_equipment[randi() % tiered_equipment.size()]
 			rewards = [bag_upgrade, "bag_upgrade", equipment, "equipment"]
 	
+	return rewards
+
+func generate_score_mode_random_rewards() -> Array:
+	"""Generate rewards for Score Mode - all club cards (random)"""
+	var rewards = []
+	
+	# Get tiered club cards
+	var tiered_club_cards = get_tiered_club_cards()
+	
+	# If we don't have enough club cards, fall back to any cards
+	var available_cards = tiered_club_cards
+	if available_cards.size() < 3:
+		available_cards = get_tiered_cards()
+		print("🎯 SCORE MODE: Not enough club cards, using all cards as fallback (random)")
+	
+	# Generate 3 random club cards (or any cards if not enough clubs)
+	var card1 = available_cards[randi() % available_cards.size()]
+	var card2 = available_cards[randi() % available_cards.size()]
+	var card3 = available_cards[randi() % available_cards.size()]
+	
+	# Build rewards array: [card1, "card", card2, "card", card3, "card"]
+	rewards = [card1, "card", card2, "card", card3, "card"]
+	
+	print("🎯 SCORE MODE: Generated 3 club card rewards (random)")
 	return rewards
 
 func setup_reward_button(button: Button, reward_data: Resource, reward_type: String):

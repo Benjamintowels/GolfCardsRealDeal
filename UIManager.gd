@@ -574,13 +574,6 @@ func show_reward_phase() -> void:
 	"""Show the suitcase for reward selection"""
 	print("Starting reward phase...")
 	
-	# Check if we're in score-only mode
-	if Global.score_only_mode:
-		print("Score-only mode: Skipping puzzle type selection")
-		# Skip puzzle selection and go directly to next hole
-		course.reset_for_next_hole()
-		return
-	
 	# Clear the player's hand and UI elements before showing rewards
 	if deck_manager:
 		print("Clearing player hand for reward phase - hand size before:", deck_manager.hand.size())
@@ -596,6 +589,13 @@ func show_reward_phase() -> void:
 		attack_handler.clear_all_attack_ui()
 	if weapon_handler:
 		weapon_handler.clear_all_weapon_ui()
+	
+	# Check if we're in score-only mode
+	if Global.score_only_mode:
+		print("Score-only mode: Showing rewards but skipping puzzle type selection")
+		# Show rewards directly without puzzle type selection
+		show_suitcase_reward_selection()
+		return
 	
 	# Create and show the suitcase
 	var suitcase_scene = preload("res://UI/SuitCase.tscn")
@@ -730,8 +730,15 @@ func _on_reward_selected(reward_data: Resource, reward_type: String) -> void:
 	if existing_reward_dialog:
 		existing_reward_dialog.queue_free()
 	
-	# Continue to next hole
-	course._on_advance_to_next_hole()
+	# Handle next hole based on game mode
+	if Global.score_only_mode:
+		print("Score-only mode: Going directly to next hole")
+		# In Score Mode, go directly to next hole without puzzle type selection
+		course.reset_for_next_hole()
+	else:
+		print("Adventure mode: Showing puzzle type selection")
+		# In Adventure Mode, show puzzle type selection
+		course._on_advance_to_next_hole()
 
 func _on_suitcase_reached() -> void:
 	"""Handle when the player reaches a SuitCase"""
