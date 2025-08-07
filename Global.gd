@@ -12,6 +12,7 @@ var fight_room_mode = false  # Flag for fight room mode
 var final_18_hole_score = 0  # Final score for 18-hole game
 var front_9_score = 0  # Score from front 9 holes
 var show_final_score_display = false  # Flag to trigger final score display when returning to main
+var score_only_mode = false  # Flag for score-only mode (no puzzle type selection)
 
 # Turn-based spawning system
 var global_turn_count: int = 1  # Global turn counter across all holes

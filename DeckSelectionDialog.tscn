@@ -57,6 +57,33 @@ vertical_alignment = 1
 [node name="HSeparator" type="HSeparator" parent="DialogContainer"]
 layout_mode = 2
 
+[node name="GameModeContainer" type="VBoxContainer" parent="DialogContainer"]
+layout_mode = 2
+
+[node name="GameModeLabel" type="Label" parent="DialogContainer/GameModeContainer"]
+layout_mode = 2
+text = "Game Mode:"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="GameModeButtons" type="HBoxContainer" parent="DialogContainer/GameModeContainer"]
+layout_mode = 2
+
+[node name="AdventureModeButton" type="Button" parent="DialogContainer/GameModeContainer/GameModeButtons"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Adventure Mode
+Choose puzzle types"
+
+[node name="ScoreModeButton" type="Button" parent="DialogContainer/GameModeContainer/GameModeButtons"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Score Mode
+Traditional golf only"
+
+[node name="HSeparator3" type="HSeparator" parent="DialogContainer"]
+layout_mode = 2
+
 [node name="DeckButtons" type="VBoxContainer" parent="DialogContainer"]
 layout_mode = 2
 

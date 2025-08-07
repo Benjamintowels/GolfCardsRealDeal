@@ -252,6 +252,9 @@ func create_new_save_file(slot_id: int, character_id: int) -> bool:
 				"movement_cards": 16,
 				"club_cards": 2
 			}
+		},
+		"game_preferences": {
+			"score_only_mode": false
 		}
 	}
 	
@@ -400,6 +403,7 @@ func apply_save_data_to_globals():
 	Global.front_9_score = game_state.get("front_9_score", 0)
 	Global.global_turn_count = game_state.get("global_turn_count", 1)
 	Global.current_reward_tier = game_state.get("current_reward_tier", 1)
+	Global.score_only_mode = current_save_data.get("game_preferences", {}).get("score_only_mode", false)
 	
 	# Load FileLevelManager data
 	load_file_level_manager_data()
@@ -415,6 +419,11 @@ func update_save_data_from_globals():
 	game_state["global_turn_count"] = Global.global_turn_count
 	game_state["current_reward_tier"] = Global.current_reward_tier
 	current_save_data["game_state"] = game_state
+	
+	# Update game preferences
+	var game_preferences = current_save_data.get("game_preferences", {})
+	game_preferences["score_only_mode"] = Global.score_only_mode
+	current_save_data["game_preferences"] = game_preferences
 	
 	# Update FileLevelManager progression data
 	update_file_level_manager_data()

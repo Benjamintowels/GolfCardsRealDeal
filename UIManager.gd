@@ -574,6 +574,13 @@ func show_reward_phase() -> void:
 	"""Show the suitcase for reward selection"""
 	print("Starting reward phase...")
 	
+	# Check if we're in score-only mode
+	if Global.score_only_mode:
+		print("Score-only mode: Skipping puzzle type selection")
+		# Skip puzzle selection and go directly to next hole
+		course.reset_for_next_hole()
+		return
+	
 	# Clear the player's hand and UI elements before showing rewards
 	if deck_manager:
 		print("Clearing player hand for reward phase - hand size before:", deck_manager.hand.size())

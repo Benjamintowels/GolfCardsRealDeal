@@ -684,8 +684,15 @@ func reset_for_new_hole() -> void:
 	reset_available_shots()
 	
 	# Apply the selected puzzle type for this hole
-	current_puzzle_type = next_puzzle_type
-	print("🎯 PUZZLE TYPE: Applying puzzle type '", current_puzzle_type, "' to hole", current_hole + 1)
+	if Global.score_only_mode:
+		# Force score mode for all holes
+		current_puzzle_type = "score"
+		next_puzzle_type = "score"
+		print("🎯 SCORE-ONLY MODE: Forcing score puzzle type for hole", current_hole + 1)
+	else:
+		# Normal puzzle type application
+		current_puzzle_type = next_puzzle_type
+		print("🎯 PUZZLE TYPE: Applying puzzle type '", current_puzzle_type, "' to hole", current_hole + 1)
 
 	# Reset bounce count for BounceRoom
 	if current_puzzle_type == "bounce_room":

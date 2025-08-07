@@ -103,6 +103,9 @@ func update_ui_from_save_data():
 	
 	# Update progression-based UI elements
 	_update_progression_ui()
+	
+	# Update game mode preference
+	Global.score_only_mode = save_data.get("game_preferences", {}).get("score_only_mode", false)
 
 func _update_character_selection_ui():
 	"""Update character selection UI based on save data"""
