@@ -140,7 +140,7 @@ func create_player() -> void:
 			cell_size = 48
 		player_node.setup(grid_size, cell_size, base_mobility, obstacle_map)
 	
-	player_node.set_grid_position(player_grid_pos, ysort_objects, shop_grid_pos)
+	_set_player_node_grid_position_safely(player_grid_pos, ysort_objects, shop_grid_pos)
 
 	player_node.player_clicked.connect(_on_player_input)
 	player_node.moved_to_tile.connect(_on_player_moved_to_tile)
@@ -669,9 +669,9 @@ func update_player_position() -> void:
 	# Update player position
 	player_node.position = local_pos
 	
-	# Update player's grid position reference
+	# Update player's grid position reference without triggering unintended animations
 	if player_node.has_method("set_grid_position"):
-		player_node.set_grid_position(player_grid_pos, ysort_objects, shop_grid_pos)
+		_set_player_node_grid_position_safely(player_grid_pos, ysort_objects, shop_grid_pos)
 	
 	# Update camera snap back position to player's current position
 	if course.camera_manager:
@@ -1109,6 +1109,20 @@ func reset_fire_damage_tracking(game_state_manager: Node) -> void:
 
 # ===== PLAYER POSITIONING =====
 
+# Safely call player's set_grid_position without triggering duplicate/conflicting animations
+func _set_player_node_grid_position_safely(pos: Vector2i, ysort: Array = [], shop_pos: Vector2i = Vector2i.ZERO) -> void:
+	if not player_node:
+		return
+	var had_flag := false
+	var original_enabled := false
+	if "animations_enabled" in player_node:
+		had_flag = true
+		original_enabled = player_node.animations_enabled
+		player_node.animations_enabled = false
+	player_node.set_grid_position(pos, ysort, shop_pos)
+	if had_flag:
+		player_node.animations_enabled = original_enabled
+
 func update_player_position_with_ball_creation(course: Node) -> void:
 	"""Update player position and handle related logic including ball creation"""
 	if not get_player_node():
@@ -1116,7 +1130,7 @@ func update_player_position_with_ball_creation(course: Node) -> void:
 	var sprite = get_player_node().get_node_or_null("Sprite2D")
 	var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(course.cell_size, course.cell_size)
 
-	get_player_node().set_grid_position(get_player_grid_pos(), course.ysort_objects)
+	_set_player_node_grid_position_safely(get_player_grid_pos(), course.ysort_objects)
 	
 	var player_center: Vector2 = get_player_node().global_position + player_size / 2
 	course.camera_manager.update_camera_snap_back_position(player_center)
