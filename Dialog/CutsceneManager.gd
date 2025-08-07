@@ -64,6 +64,8 @@ func _setup_ui():
 	cutscene_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	cutscene_panel.modulate = Color(0, 0, 0, 0.3)  # Semi-transparent
 	cutscene_panel.z_index = 1000  # Set a lower z_index so speech bubbles appear above
+	# Ensure the overlay captures mouse input so clicks don't hit UI beneath
+	cutscene_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(cutscene_panel)
 	
 	# Dialog panel
@@ -74,6 +76,8 @@ func _setup_ui():
 	dialog_panel.offset_right = -100
 	dialog_panel.offset_top = -150
 	dialog_panel.modulate = Color(0, 0, 0, 0.8)
+	# Also prevent dialog panel clicks from going through
+	dialog_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	cutscene_panel.add_child(dialog_panel)
 	
 	# Dialog label
@@ -189,7 +193,7 @@ func advance_dialog():
 	# Advance to next line
 	current_dialog_script.advance_dialog()
 
-func _on_dialog_advance(line_index: int):
+func _on_dialog_advance(_line_index: int):
 	"""Called when dialog advances"""
 	# Don't clear speech bubbles immediately - let them show for a moment
 	# They will be cleared when the next speech bubble is shown
@@ -282,19 +286,52 @@ func _execute_actions(actions: Array):
 			"show_flippy":
 				_show_flippy()
 
+func _resolve_ui_target(target_name: String) -> Node:
+	"""Resolve a logical target name to an actual node in the main scene"""
+	if not main_scene:
+		return null
+	match target_name:
+		"character1_button":
+			return main_scene.get_node_or_null("UI/Character1Button")
+		"character2_button":
+			# Benny's button lives in the background layers
+			return main_scene.get_node_or_null("ClubHouseBackgroundLayers/Character2")
+		"character3_button":
+			return main_scene.get_node_or_null("UI/Character3Button")
+		"start_putt_putt_button":
+			return main_scene.get_node_or_null("UI/StartPuttPutt")
+		"start_back_9_button":
+			return main_scene.get_node_or_null("UI/StartBack9")
+		"driving_range_button":
+			return main_scene.get_node_or_null("UI/DrivingRange")
+		"boss_room_button":
+			return main_scene.get_node_or_null("UI/BossRoom")
+		"fight_room_button":
+			return main_scene.get_node_or_null("UI/FightRoom")
+		"kendama_button":
+			return main_scene.get_node_or_null("UI/Kendama")
+		_:
+			# Fallback to UI namespace
+			return main_scene.get_node_or_null("UI/" + target_name)
+
 func _hide_ui_elements(targets: Array):
 	"""Hide UI elements"""
 	for target_name in targets:
-		var target = main_scene.get_node_or_null("UI/" + target_name)
+		var target = _resolve_ui_target(target_name)
 		if target:
 			target.visible = false
+			# If it's a button, also disable it to prevent input by script
+			if target is BaseButton:
+				target.disabled = true
 
 func _show_ui_elements(targets: Array):
 	"""Show UI elements"""
 	for target_name in targets:
-		var target = main_scene.get_node_or_null("UI/" + target_name)
+		var target = _resolve_ui_target(target_name)
 		if target:
 			target.visible = true
+			if target is BaseButton:
+				target.disabled = false
 
 func _play_animation(target_name: String, animation_name: String):
 	"""Play an animation on a target"""
@@ -315,7 +352,7 @@ func _animate_flippy_talking(flippy_node: Node):
 	var sprite = flippy_node.get_node_or_null("FlippySprite")
 	if sprite and sprite is AnimatedSprite2D:
 		# Store original frame
-		var original_frame = sprite.frame
+		var _original_frame = sprite.frame
 		
 		# Play talking animation (frame 1 or 2 randomly)
 		var talking_frame = randi() % 2 + 1  # Randomly choose frame 1 or 2 (which are frames 2 and 3 in 0-based indexing)

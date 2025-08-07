@@ -279,6 +279,10 @@ func _play_deck_select_sound():
 	deck_select_sound.play()
 
 func _on_character1_selected():
+	# Prevent character selection during cutscenes
+	var cutscene_manager = get_node_or_null("/root/CutsceneManager")
+	if cutscene_manager and cutscene_manager.is_cutscene_playing():
+		return
 	_play_select_sound()
 	selected_character = 1
 	benny_selected = false  # Reset Benny selection flag
@@ -299,6 +303,10 @@ func _on_character1_selected():
 	_show_deck_selection_dialog()
 
 func _on_character2_selected():
+	# Prevent character selection during cutscenes
+	var cutscene_manager = get_node_or_null("/root/CutsceneManager")
+	if cutscene_manager and cutscene_manager.is_cutscene_playing():
+		return
 	_play_select_sound()
 	
 	# If we're already waiting for confirmation, proceed with selection
@@ -334,6 +342,10 @@ func _on_character2_selected():
 		print("Showing Benny's character stat banner")
 
 func _on_character3_selected():
+	# Prevent character selection during cutscenes
+	var cutscene_manager = get_node_or_null("/root/CutsceneManager")
+	if cutscene_manager and cutscene_manager.is_cutscene_playing():
+		return
 	_play_select_sound()
 	selected_character = 3
 	benny_selected = false  # Reset Benny selection flag
