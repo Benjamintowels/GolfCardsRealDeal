@@ -219,6 +219,29 @@ func initialize_bag_upgrades():
 		
 		available_bag_upgrades.append(bag_upgrade)
 
+func filter_existing_cards(cards: Array[CardData]) -> Array[CardData]:
+	"""Filter out cards that the player already has"""
+	var bag = get_tree().current_scene.get_node_or_null("UILayer/Bag")
+	if not bag:
+		return cards  # Return all cards if bag not found
+	
+	var existing_cards = bag.get_current_deck()
+	var filtered_cards: Array[CardData] = []
+	
+	for card in cards:
+		var already_has = false
+		for existing_card in existing_cards:
+			# Check if player already has this card (same name and level)
+			if existing_card.name == card.name and existing_card.level == card.level:
+				already_has = true
+				break
+		
+		if not already_has:
+			filtered_cards.append(card)
+	
+	print("Filtered cards: ", cards.size(), " -> ", filtered_cards.size(), " (removed ", cards.size() - filtered_cards.size(), " existing cards)")
+	return filtered_cards
+
 func get_tiered_cards() -> Array[CardData]:
 	"""Get cards filtered by current tier probabilities"""
 	var probabilities: Dictionary
@@ -241,6 +264,11 @@ func get_tiered_cards() -> Array[CardData]:
 				tier_2_cards.append(card)
 			3:
 				tier_3_cards.append(card)
+	
+	# Filter out existing cards
+	tier_1_cards = filter_existing_cards(tier_1_cards)
+	tier_2_cards = filter_existing_cards(tier_2_cards)
+	tier_3_cards = filter_existing_cards(tier_3_cards)
 	
 	# Use weighted random selection based on probabilities
 	var selected_cards: Array[CardData] = []
@@ -392,6 +420,11 @@ func get_tiered_club_cards() -> Array[CardData]:
 			2: tier_2_cards.append(card)
 			3: tier_3_cards.append(card)
 	
+	# Filter out existing cards
+	tier_1_cards = filter_existing_cards(tier_1_cards)
+	tier_2_cards = filter_existing_cards(tier_2_cards)
+	tier_3_cards = filter_existing_cards(tier_3_cards)
+	
 	# Use weighted random selection based on probabilities
 	var selected_cards: Array[CardData] = []
 	
@@ -453,6 +486,20 @@ func create_looty_reward() -> Resource:
 	looty_reward.set_meta("name", "$Looty")
 	return looty_reward
 
+func create_fallback_card() -> CardData:
+	"""Create a fallback card when no cards are available"""
+	var fallback_card = CardData.new()
+	fallback_card.name = "Basic Move"
+	fallback_card.effect_type = "Movement"
+	fallback_card.effect_strength = 3
+	fallback_card.level = 1
+	fallback_card.max_level = 2
+	fallback_card.default_tier = 1
+	# Use a default texture if available
+	if base_cards.size() > 0:
+		fallback_card.image = base_cards[0].image
+	return fallback_card
+
 func get_tiered_action_cards() -> Array[CardData]:
 	"""Get action cards filtered by current tier probabilities"""
 	var action_cards = get_action_cards()
@@ -473,6 +520,11 @@ func get_tiered_action_cards() -> Array[CardData]:
 			1: tier_1_cards.append(card)
 			2: tier_2_cards.append(card)
 			3: tier_3_cards.append(card)
+	
+	# Filter out existing cards
+	tier_1_cards = filter_existing_cards(tier_1_cards)
+	tier_2_cards = filter_existing_cards(tier_2_cards)
+	tier_3_cards = filter_existing_cards(tier_3_cards)
 	
 	# Use weighted random selection based on probabilities
 	var selected_cards: Array[CardData] = []
@@ -737,7 +789,12 @@ func generate_three_slot_rewards() -> Array:
 	else:
 		# Fallback to any card if no club cards available
 		var all_cards = get_tiered_cards()
-		club_card = all_cards[randi() % all_cards.size()]
+		if all_cards.size() > 0:
+			club_card = all_cards[randi() % all_cards.size()]
+		else:
+			# If no cards available at all, create a fallback card
+			print("WARNING: No cards available for rewards, creating fallback")
+			club_card = create_fallback_card()
 	
 	# Slot 2: Equipment (middle)
 	var equipment
@@ -750,7 +807,12 @@ func generate_three_slot_rewards() -> Array:
 		else:
 			# Fallback to any card if no equipment or bag upgrades available
 			var all_cards = get_tiered_cards()
-			equipment = all_cards[randi() % all_cards.size()]
+			if all_cards.size() > 0:
+				equipment = all_cards[randi() % all_cards.size()]
+			else:
+				# If no cards available at all, create a fallback card
+				print("WARNING: No cards available for equipment fallback, creating fallback")
+				equipment = create_fallback_card()
 	
 	# Slot 3: Action Card or $Looty (right) - 30% chance for $Looty
 	var action_card
@@ -766,7 +828,12 @@ func generate_three_slot_rewards() -> Array:
 		else:
 			# Fallback to any card if no action cards available
 			var all_cards = get_tiered_cards()
-			action_card = all_cards[randi() % all_cards.size()]
+			if all_cards.size() > 0:
+				action_card = all_cards[randi() % all_cards.size()]
+			else:
+				# If no cards available at all, create a fallback card
+				print("WARNING: No cards available for action card fallback, creating fallback")
+				action_card = create_fallback_card()
 	
 	# Determine reward types
 	var club_type = "card"
@@ -789,15 +856,15 @@ func generate_score_mode_rewards() -> Array:
 	var tiered_club_cards = get_tiered_club_cards()
 	
 	# If we don't have enough club cards, fall back to any cards
-	var available_cards = tiered_club_cards
-	if available_cards.size() < 3:
-		available_cards = get_tiered_cards()
+	var available_cards_for_fallback = tiered_club_cards
+	if available_cards_for_fallback.size() < 3:
+		available_cards_for_fallback = get_tiered_cards()
 		print("🎯 SCORE MODE: Not enough club cards, using all cards as fallback")
 	
 	# Generate 3 random club cards (or any cards if not enough clubs)
-	var card1 = available_cards[randi() % available_cards.size()]
-	var card2 = available_cards[randi() % available_cards.size()]
-	var card3 = available_cards[randi() % available_cards.size()]
+	var card1 = available_cards_for_fallback[randi() % available_cards_for_fallback.size()]
+	var card2 = available_cards_for_fallback[randi() % available_cards_for_fallback.size()]
+	var card3 = available_cards_for_fallback[randi() % available_cards_for_fallback.size()]
 	
 	# Build rewards array: [card1, "card", card2, "card", card3, "card"]
 	rewards = [card1, "card", card2, "card", card3, "card"]
@@ -875,15 +942,15 @@ func generate_score_mode_random_rewards() -> Array:
 	var tiered_club_cards = get_tiered_club_cards()
 	
 	# If we don't have enough club cards, fall back to any cards
-	var available_cards = tiered_club_cards
-	if available_cards.size() < 3:
-		available_cards = get_tiered_cards()
+	var available_cards_for_fallback = tiered_club_cards
+	if available_cards_for_fallback.size() < 3:
+		available_cards_for_fallback = get_tiered_cards()
 		print("🎯 SCORE MODE: Not enough club cards, using all cards as fallback (random)")
 	
 	# Generate 3 random club cards (or any cards if not enough clubs)
-	var card1 = available_cards[randi() % available_cards.size()]
-	var card2 = available_cards[randi() % available_cards.size()]
-	var card3 = available_cards[randi() % available_cards.size()]
+	var card1 = available_cards_for_fallback[randi() % available_cards_for_fallback.size()]
+	var card2 = available_cards_for_fallback[randi() % available_cards_for_fallback.size()]
+	var card3 = available_cards_for_fallback[randi() % available_cards_for_fallback.size()]
 	
 	# Build rewards array: [card1, "card", card2, "card", card3, "card"]
 	rewards = [card1, "card", card2, "card", card3, "card"]
