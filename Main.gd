@@ -449,6 +449,19 @@ func _on_deck_dialog_closed():
 func _show_perk_selection_dialog():
 	"""Show the perk selection dialog"""
 	print("_show_perk_selection_dialog() called")
+	
+	# Check if Flippy is level 2 or higher (has perks to offer)
+	var clubhouse_upgrade_manager = get_node("/root/ClubHouseUpgradeManager")
+	if clubhouse_upgrade_manager:
+		var flippy_level = clubhouse_upgrade_manager.get_flippy_level()
+		var available_perks = clubhouse_upgrade_manager.get_flippy_perks_for_level()
+		
+		if flippy_level < 2 or available_perks.size() == 0:
+			print("Flippy is level", flippy_level, "with", available_perks.size(), "perks - skipping perk dialog")
+			# Skip perk dialog and go directly to game
+			_start_pending_game_mode()
+			return
+	
 	if perk_selection_dialog:
 		print("Perk selection dialog found, showing...")
 		perk_selection_dialog.show_dialog()
