@@ -1,9 +1,10 @@
-[gd_scene load_steps=9 format=3 uid="uid://mikj057r7rx5"]
+[gd_scene load_steps=10 format=3 uid="uid://mikj057r7rx5"]
 
 [ext_resource type="Script" uid="uid://cd1ygqs2w7434" path="res://ClubHouse/course_selection_map.gd" id="1_0g7ve"]
 [ext_resource type="Texture2D" uid="uid://blq7adw0d3qyi" path="res://ClubHouse/CourseMap.png" id="2_4occg"]
 [ext_resource type="Texture2D" uid="uid://co3t8pmnxc6ir" path="res://ClubHouse/MapFlag.png" id="3_mnnow"]
 [ext_resource type="Texture2D" uid="uid://b73pb3lcyue36" path="res://ClubHouse/GolfIsland.png" id="4_nhby7"]
+[ext_resource type="AudioStream" uid="uid://3igpboa5ny6" path="res://Sounds/Thud.mp3" id="5_4wqfi"]
 
 [sub_resource type="Animation" id="Animation_4wqfi"]
 length = 0.001
@@ -14,10 +15,10 @@ tracks/0/path = NodePath("MapMarkerFront9:position")
 tracks/0/interp = 1
 tracks/0/loop_wrap = true
 tracks/0/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
+"times": PackedFloat32Array(),
+"transitions": PackedFloat32Array(),
 "update": 0,
-"values": [Vector2(31, -653.325)]
+"values": []
 }
 tracks/1/type = "value"
 tracks/1/imported = false
@@ -38,10 +39,22 @@ tracks/2/path = NodePath("MapMarkerBack9:position")
 tracks/2/interp = 1
 tracks/2/loop_wrap = true
 tracks/2/keys = {
+"times": PackedFloat32Array(),
+"transitions": PackedFloat32Array(),
+"update": 0,
+"values": []
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("Thud:playing")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
 "times": PackedFloat32Array(0),
 "transitions": PackedFloat32Array(1),
-"update": 0,
-"values": [Vector2(31, -50)]
+"update": 1,
+"values": [false]
 }
 
 [sub_resource type="Animation" id="Animation_voyc7"]
@@ -86,7 +99,7 @@ tracks/2/keys = {
 
 [sub_resource type="Animation" id="Animation_nhby7"]
 resource_name = "intro"
-length = 0.6815
+length = 1.3035
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -111,6 +124,30 @@ tracks/1/keys = {
 "update": 0,
 "values": [Vector2(0, -273.755), Vector2(0, -225)]
 }
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("MapMarkerBack9:position")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0.0333333, 0.6),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [Vector2(31, -2440), Vector2(-72.555, -114.14)]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("Thud:playing")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0.466667),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [true]
+}
 
 [sub_resource type="AnimationLibrary" id="AnimationLibrary_voyc7"]
 _data = {
@@ -128,22 +165,21 @@ texture = ExtResource("2_4occg")
 
 [node name="MapMarkerFront9" type="TextureButton" parent="."]
 texture_filter = 1
-offset_left = 31.0
-offset_top = -653.325
-offset_right = 287.0
-offset_bottom = -397.325
+offset_left = 42.0
+offset_top = -1203.0
+offset_right = 298.0
+offset_bottom = -947.0
 scale = Vector2(0.41, 0.41)
 texture_normal = ExtResource("3_mnnow")
 texture_pressed = ExtResource("3_mnnow")
 texture_hover = ExtResource("3_mnnow")
 
 [node name="MapMarkerBack9" type="TextureButton" parent="."]
-visible = false
 texture_filter = 1
-offset_left = 31.0
-offset_top = -50.0
-offset_right = 287.0
-offset_bottom = 206.0
+offset_left = 44.0
+offset_top = -1167.0
+offset_right = 300.0
+offset_bottom = -911.0
 scale = Vector2(0.41, 0.41)
 texture_normal = ExtResource("3_mnnow")
 texture_pressed = ExtResource("3_mnnow")
@@ -166,3 +202,7 @@ offset_right = -36.0
 offset_bottom = 198.0
 theme_override_font_sizes/font_size = 29
 text = "Course: "
+
+[node name="Thud" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("5_4wqfi")
+pitch_scale = 0.69

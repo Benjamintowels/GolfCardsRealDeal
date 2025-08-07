@@ -417,29 +417,23 @@ func _on_deck_selected(deck_type: String):
 		# Play map_intro animation from CourseSelectionMap
 		var course_selection_map = $ClubHouseBackgroundLayers/CourseSelectionMap
 		if course_selection_map:
+			# Check if back 9 flag upgrade is purchased BEFORE deciding the flow
+			var save_file_manager = get_node("/root/SaveFileManager")
+			var _flag_purchased = false
+			if save_file_manager:
+				_flag_purchased = save_file_manager.get_story_flag("back_9_flag_upgrade_purchased")
+			
+			var course_map_animation_player = course_selection_map.get_node("AnimationPlayer")
 			var map_animation_player = course_selection_map.get_node("CourseSelectionAnimationPlayer")
+			
+			# Always play map reveal, then intro. Back9 marker visibility is handled by upgrade state
 			if map_animation_player:
 				map_animation_player.play("map_intro")
 				print("Playing map_intro animation")
-				
-				# Wait for map_intro to complete, then play appropriate animation
 				await map_animation_player.animation_finished
-				
-				# Check if back 9 flag upgrade is purchased
-				var save_file_manager = get_node("/root/SaveFileManager")
-				var flag_purchased = false
-				if save_file_manager:
-					flag_purchased = save_file_manager.get_story_flag("back_9_flag_upgrade_purchased")
-				
-				# Play appropriate animation based on flag upgrade status
-				var course_map_animation_player = course_selection_map.get_node("AnimationPlayer")
 				if course_map_animation_player:
-					if flag_purchased:
-						course_map_animation_player.play("back_9_flag")
-						print("Playing back_9_flag animation (flag upgrade purchased)")
-					else:
-						course_map_animation_player.play("intro")
-						print("Playing intro animation (no flag upgrade)")
+					course_map_animation_player.play("intro")
+					print("Playing intro animation")
 				else:
 					print("ERROR: CourseSelectionMap AnimationPlayer not found!")
 			else:
@@ -538,7 +532,7 @@ func _animate_flippy_talking():
 		var sprite = flippy.get_node_or_null("FlippySprite")
 		if sprite and sprite is AnimatedSprite2D:
 			# Store original frame
-			var original_frame = sprite.frame
+			var _original_frame = sprite.frame
 			
 			# Play talking animation (frame 1 or 2 randomly)
 			var talking_frame = randi() % 2 + 1  # Randomly choose frame 1 or 2 (which are frames 2 and 3 in 0-based indexing)
@@ -812,22 +806,18 @@ func _reverse_course_selection_animations():
 	if course_selection_map:
 		# Check which animation was played to reverse it properly
 		var save_file_manager = get_node("/root/SaveFileManager")
-		var flag_purchased = false
+		var _flag_purchased = false
 		if save_file_manager:
-			flag_purchased = save_file_manager.get_story_flag("back_9_flag_upgrade_purchased")
+			_flag_purchased = save_file_manager.get_story_flag("back_9_flag_upgrade_purchased")
 		
-		# First reverse the appropriate animation
+		# First reverse the course map intro animation (always used now)
 		var course_map_animation_player = course_selection_map.get_node("AnimationPlayer")
 		if course_map_animation_player:
-			if flag_purchased:
-				course_map_animation_player.play_backwards("back_9_flag")
-				print("Playing back_9_flag animation backwards")
-			else:
-				course_map_animation_player.play_backwards("intro")
-				print("Playing intro animation backwards")
+			course_map_animation_player.play_backwards("intro")
+			print("Playing intro animation backwards")
 			await course_map_animation_player.animation_finished
 		
-		# Then reverse the map_intro animation
+		# Then reverse the map reveal
 		var map_animation_player = course_selection_map.get_node("CourseSelectionAnimationPlayer")
 		if map_animation_player:
 			map_animation_player.play_backwards("map_intro")
