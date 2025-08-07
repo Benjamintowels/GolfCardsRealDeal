@@ -721,6 +721,12 @@ func handle_player_death() -> void:
 	"""Handle player death - fade to black and show death screen"""
 	print("Handling player death...")
 	
+	# Handle ClubHouse Looty transfer (cut in half)
+	var clubhouse_upgrade_manager = get_node("/root/ClubHouseUpgradeManager")
+	if clubhouse_upgrade_manager:
+		clubhouse_upgrade_manager.handle_player_death()
+		print("Player death: Course Looty cut in half and transferred to ClubHouse")
+	
 	# Disable all input to prevent further actions
 	if course:
 		course.set_process_input(false)

@@ -1,20 +1,25 @@
 extends Control
 
-@onready var character1_button = $UI/Character1Button
-@onready var character2_button = $ClubHouseBackgroundLayers/Character2  
-@onready var character3_button = $UI/Character3Button
-@onready var start_putt_putt_button = $UI/StartPuttPutt
-@onready var start_back_9_button = $UI/StartBack9
-@onready var driving_range_button = $UI/DrivingRange
-@onready var boss_room_button = $UI/BossRoom
-@onready var fight_room_button = $UI/FightRoom
-@onready var kendama_button = $UI/Kendama
+# These buttons might be hidden initially, so we'll get them when needed
+var character1_button: Button
+var character2_button: TextureButton
+var character3_button: Button
+# These buttons might be hidden initially, so we'll get them when needed
+var start_putt_putt_button: Button
+var start_back_9_button: Button
+var driving_range_button: Button
+var boss_room_button: Button
+var fight_room_button: Button
+var kendama_button: Button
 @onready var select_sound = $Select
 @onready var deck_select_sound = $DeckSelect
 @onready var animation_player = $ClubHouseBackgroundLayers/AnimationPlayer
 @onready var character_stat_banner = $CharacterStatBanner
 @onready var club_house_camera = $ClubHouseCamera
 @onready var final_score_display = $FinalScoreDisplay
+@onready var clubhouse_upgrade_dialog = $ClubHouseUpgradeDialog
+@onready var clubhouse_looty_label = $UI/ClubHouseLootyLabel
+@onready var upgrade_clubhouse_button = $UI/UpgradeClubHouseButton
 
 var selected_character = 1  # Default to character 1
 var deck_selection_dialog: Control
@@ -26,24 +31,59 @@ var waiting_for_benny_confirmation = false  # Track if we're waiting for second 
 var waiting_for_perk_selection = false  # Track if we're waiting for perk selection
 
 func _ready():
+	# Get the buttons that might be hidden initially
+	character1_button = get_node_or_null("UI/Character1Button")
+	character2_button = get_node_or_null("ClubHouseBackgroundLayers/Character2")
+	character3_button = get_node_or_null("UI/Character3Button")
+	start_putt_putt_button = get_node_or_null("UI/StartPuttPutt")
+	start_back_9_button = get_node_or_null("UI/StartBack9")
+	driving_range_button = get_node_or_null("UI/DrivingRange")
+	boss_room_button = get_node_or_null("UI/BossRoom")
+	fight_room_button = get_node_or_null("UI/FightRoom")
+	kendama_button = get_node_or_null("UI/Kendama")
+	
 	# Set up button group for exclusive selection (only for UI buttons)
 	var button_group = ButtonGroup.new()
-	character1_button.button_group = button_group
-	character3_button.button_group = button_group
 	
-	# Set character 1 as default selected
-	character1_button.button_pressed = true
+	# Connect button signals with safety checks
+	if character1_button and is_instance_valid(character1_button):
+		character1_button.button_group = button_group
+		character1_button.pressed.connect(_on_character1_selected)
+		character1_button.button_pressed = true  # Set character 1 as default selected
+		print("✅ Character1 button connected")
 	
-	# Connect button signals
-	character1_button.pressed.connect(_on_character1_selected)
-	character2_button.pressed.connect(_on_character2_selected)
-	character3_button.pressed.connect(_on_character3_selected)
-	start_putt_putt_button.pressed.connect(_on_start_putt_putt_button_pressed)
-	start_back_9_button.pressed.connect(_on_start_back_9_pressed)
-	driving_range_button.pressed.connect(_on_driving_range_button_pressed)
-	boss_room_button.pressed.connect(_on_boss_room_button_pressed)
-	fight_room_button.pressed.connect(_on_fight_room_button_pressed)
-	kendama_button.pressed.connect(_on_kendama_button_pressed)
+	if character2_button and is_instance_valid(character2_button):
+		character2_button.pressed.connect(_on_character2_selected)
+		print("✅ Character2 button connected")
+	
+	if character3_button and is_instance_valid(character3_button):
+		character3_button.button_group = button_group
+		character3_button.pressed.connect(_on_character3_selected)
+		print("✅ Character3 button connected")
+	
+	if start_putt_putt_button and is_instance_valid(start_putt_putt_button):
+		start_putt_putt_button.pressed.connect(_on_start_putt_putt_button_pressed)
+		print("✅ StartPuttPutt button connected")
+	
+	if start_back_9_button and is_instance_valid(start_back_9_button):
+		start_back_9_button.pressed.connect(_on_start_back_9_pressed)
+		print("✅ StartBack9 button connected")
+	
+	if driving_range_button and is_instance_valid(driving_range_button):
+		driving_range_button.pressed.connect(_on_driving_range_button_pressed)
+		print("✅ DrivingRange button connected")
+	
+	if boss_room_button and is_instance_valid(boss_room_button):
+		boss_room_button.pressed.connect(_on_boss_room_button_pressed)
+		print("✅ BossRoom button connected")
+	
+	if fight_room_button and is_instance_valid(fight_room_button):
+		fight_room_button.pressed.connect(_on_fight_room_button_pressed)
+		print("✅ FightRoom button connected")
+	
+	if kendama_button and is_instance_valid(kendama_button):
+		kendama_button.pressed.connect(_on_kendama_button_pressed)
+		print("✅ Kendama button connected")
 	
 	# Create and setup deck selection dialog
 	_setup_deck_selection_dialog()
@@ -66,6 +106,9 @@ func _ready():
 		print("✅ FileLevelManager signals connected successfully")
 	else:
 		print("❌ ERROR: FileLevelManager autoload not found in Main.gd _ready()")
+	
+	# Setup ClubHouse upgrade system (deferred to ensure all nodes are ready)
+	call_deferred("_setup_clubhouse_upgrade_system")
 	
 	# Check if we have a loaded save file and update UI accordingly
 	update_ui_from_save_data()
@@ -114,14 +157,23 @@ func _update_character_selection_ui():
 		return
 	
 	# Update character button states based on unlocks
-	character1_button.visible = save_file_manager.is_character_unlocked(1)
-	character2_button.visible = save_file_manager.is_character_unlocked(2)
-	character3_button.visible = save_file_manager.is_character_unlocked(3)
+	if character1_button and is_instance_valid(character1_button):
+		character1_button.visible = save_file_manager.is_character_unlocked(1)
+	
+	if character2_button and is_instance_valid(character2_button):
+		character2_button.visible = save_file_manager.is_character_unlocked(2)
+	
+	if character3_button and is_instance_valid(character3_button):
+		character3_button.visible = save_file_manager.is_character_unlocked(3)
 	
 	# Set the correct character as selected (only for UI buttons)
-	match selected_character:
-		1: character1_button.button_pressed = true
-		3: character3_button.button_pressed = true
+	if character1_button and is_instance_valid(character1_button):
+		if selected_character == 1:
+			character1_button.button_pressed = true
+	
+	if character3_button and is_instance_valid(character3_button):
+		if selected_character == 3:
+			character3_button.button_pressed = true
 	
 	# Reset Benny selection flag based on current character
 	benny_selected = (selected_character == 2)
@@ -186,6 +238,38 @@ func _setup_perk_selection_dialog():
 	perk_selection_dialog.dialog_closed.connect(_on_perk_dialog_closed)
 	print("Perk dialog signals connected")
 	print("Perk selection dialog setup complete!")
+
+func _setup_clubhouse_upgrade_system():
+	"""Setup the ClubHouse upgrade system"""
+	# Get the ClubHouse upgrade manager
+	var clubhouse_upgrade_manager = get_node("/root/ClubHouseUpgradeManager")
+	if not clubhouse_upgrade_manager:
+		print("ERROR: ClubHouseUpgradeManager not found!")
+		return
+	
+	# Connect signals
+	clubhouse_upgrade_manager.flippy_level_changed.connect(_on_flippy_level_changed)
+	clubhouse_upgrade_manager.looty_changed.connect(_on_clubhouse_looty_changed)
+	
+	# Connect upgrade button (with safety check)
+	if upgrade_clubhouse_button and is_instance_valid(upgrade_clubhouse_button):
+		upgrade_clubhouse_button.pressed.connect(_on_upgrade_clubhouse_pressed)
+		print("✅ Upgrade ClubHouse button connected")
+	else:
+		print("⚠️ Upgrade ClubHouse button not found or invalid")
+	
+	# Connect upgrade dialog signals (with safety check)
+	if clubhouse_upgrade_dialog and is_instance_valid(clubhouse_upgrade_dialog):
+		clubhouse_upgrade_dialog.upgrade_completed.connect(_on_upgrade_completed)
+		clubhouse_upgrade_dialog.dialog_closed.connect(_on_upgrade_dialog_closed)
+		print("✅ ClubHouse upgrade dialog signals connected")
+	else:
+		print("⚠️ ClubHouse upgrade dialog not found or invalid")
+	
+	# Update initial display
+	_update_clubhouse_upgrade_ui()
+	
+	print("ClubHouse upgrade system setup complete")
 
 func _play_select_sound():
 	select_sound.play()
@@ -758,6 +842,9 @@ func _on_return_to_clubhouse():
 	if save_file_manager and save_file_manager.current_save_slot > 0:
 		save_file_manager.save_current_game()
 		print("💾 Progression saved when returning to clubhouse")
+	
+	# Update ClubHouse upgrade UI
+	_update_clubhouse_upgrade_ui()
 
 func _on_level_up(character_level: int, clubhouse_level: int):
 	"""Handle level up events from FileLevelManager"""
@@ -786,3 +873,51 @@ func _on_experience_gained(character_exp: int, clubhouse_exp: int):
 	"""Handle experience gained events from FileLevelManager"""
 	print("💫 EXPERIENCE GAINED! Character: ", character_exp, " ClubHouse: ", clubhouse_exp)
 	# This could be used for visual effects or sound feedback
+
+# ClubHouse Upgrade System Functions
+func _update_clubhouse_upgrade_ui():
+	"""Update ClubHouse upgrade UI elements"""
+	var clubhouse_upgrade_manager = get_node("/root/ClubHouseUpgradeManager")
+	if not clubhouse_upgrade_manager:
+		return
+	
+	# Update Looty display
+	var clubhouse_looty = clubhouse_upgrade_manager.get_clubhouse_looty()
+	if clubhouse_looty_label:
+		clubhouse_looty_label.text = "ClubHouse $Looty: " + str(clubhouse_looty)
+	
+	# Update upgrade button visibility based on ClubHouse level
+	var file_level_manager = FileLevelManager
+	if file_level_manager and upgrade_clubhouse_button and is_instance_valid(upgrade_clubhouse_button):
+		var stats = file_level_manager.get_current_stats()
+		upgrade_clubhouse_button.visible = stats.clubhouse_level >= 2
+		
+		# Ensure button is connected if it wasn't before
+		if not upgrade_clubhouse_button.pressed.is_connected(_on_upgrade_clubhouse_pressed):
+			upgrade_clubhouse_button.pressed.connect(_on_upgrade_clubhouse_pressed)
+			print("✅ Upgrade ClubHouse button connected in UI update")
+
+func _on_flippy_level_changed(new_level: int):
+	"""Handle Flippy level change"""
+	print("Flippy level changed to:", new_level)
+	_update_clubhouse_upgrade_ui()
+
+func _on_clubhouse_looty_changed(new_amount: int):
+	"""Handle ClubHouse Looty amount change"""
+	print("ClubHouse Looty changed to:", new_amount)
+	_update_clubhouse_upgrade_ui()
+
+func _on_upgrade_clubhouse_pressed():
+	"""Handle upgrade ClubHouse button press"""
+	print("Upgrade ClubHouse button pressed")
+	if clubhouse_upgrade_dialog:
+		clubhouse_upgrade_dialog.show_dialog()
+
+func _on_upgrade_completed():
+	"""Handle upgrade completion"""
+	print("Upgrade completed")
+	_update_clubhouse_upgrade_ui()
+
+func _on_upgrade_dialog_closed():
+	"""Handle upgrade dialog close"""
+	print("Upgrade dialog closed")

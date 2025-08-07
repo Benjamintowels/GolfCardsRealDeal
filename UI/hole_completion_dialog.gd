@@ -121,6 +121,9 @@ func close_dialog() -> void:
 	# Integrate with FileLevelManager progression system
 	_integrate_progression_system(current_hole, is_back_9_mode)
 	
+	# Handle ClubHouse Looty transfer for final holes
+	_handle_clubhouse_looty_transfer(current_hole, is_back_9_mode)
+	
 	if current_hole < round_end_hole:
 		# Show reward selection dialog for regular holes
 		if course.ui_manager and course.ui_manager.has_method("show_reward_phase"):
@@ -161,3 +164,32 @@ func _integrate_progression_system(current_hole: int, is_back_9_mode: bool):
 	if is_final_hole:
 		print("Final hole completed - setting global flag to show final score display")
 		Global.show_final_score_display = true
+
+func _handle_clubhouse_looty_transfer(current_hole: int, is_back_9_mode: bool):
+	"""Handle ClubHouse Looty transfer for final holes"""
+	var clubhouse_upgrade_manager = get_node("/root/ClubHouseUpgradeManager")
+	if not clubhouse_upgrade_manager:
+		print("ERROR: ClubHouseUpgradeManager not found in hole completion dialog!")
+		return
+	
+	# Calculate the actual hole number (1-18) based on current hole index and mode
+	var actual_hole_number = current_hole + 1
+	if is_back_9_mode:
+		actual_hole_number = course.game_state_manager.back_9_start_hole + current_hole + 1
+	
+	# Check if this is hole 18 (final hole)
+	if actual_hole_number == 18:
+		print("Hole 18 completed! Doubling course Looty")
+		clubhouse_upgrade_manager.handle_hole_18_completion()
+	
+	# Check if this is the final hole of the round (hole 9 or 18)
+	var is_final_hole = false
+	if is_back_9_mode:
+		is_final_hole = (actual_hole_number == 18)
+	else:
+		is_final_hole = (actual_hole_number == 9)
+	
+	# Transfer course Looty to ClubHouse for final holes
+	if is_final_hole:
+		print("Final hole completed - transferring course Looty to ClubHouse")
+		clubhouse_upgrade_manager.transfer_course_looty_to_clubhouse()

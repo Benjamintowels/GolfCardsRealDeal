@@ -1,0 +1,114 @@
+[gd_scene load_steps=2 format=3 uid="uid://d3as54tecvulu"]
+
+[ext_resource type="Script" uid="uid://8rb4tl1o3nty" path="res://ClubHouseUpgradeDialog.gd" id="1_upgrade_dialog"]
+
+[node name="ClubHouseUpgradeDialog" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_upgrade_dialog")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.5)
+
+[node name="DialogContainer" type="Panel" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = 48.0
+offset_top = 300.0
+offset_right = 648.0
+offset_bottom = 800.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Title" type="Label" parent="DialogContainer"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 20.0
+offset_top = 20.0
+offset_right = -20.0
+offset_bottom = 60.0
+grow_horizontal = 2
+text = "ClubHouse Upgrades"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ClubHouseLootyLabel" type="Label" parent="DialogContainer"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 20.0
+offset_top = 70.0
+offset_right = -20.0
+offset_bottom = 100.0
+grow_horizontal = 2
+text = "ClubHouse $Looty: 0"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="UpgradeOptions" type="VBoxContainer" parent="DialogContainer"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 40.0
+offset_top = 120.0
+offset_right = -40.0
+offset_bottom = -80.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="FlippySection" type="VBoxContainer" parent="DialogContainer/UpgradeOptions"]
+layout_mode = 2
+
+[node name="FlippyTitle" type="Label" parent="DialogContainer/UpgradeOptions/FlippySection"]
+layout_mode = 2
+text = "Flippy The Dolphin"
+horizontal_alignment = 1
+
+[node name="FlippyLevelLabel" type="Label" parent="DialogContainer/UpgradeOptions/FlippySection"]
+layout_mode = 2
+text = "Flippy Level: 1"
+horizontal_alignment = 1
+
+[node name="FlippyCostLabel" type="Label" parent="DialogContainer/UpgradeOptions/FlippySection"]
+layout_mode = 2
+text = "Cost: 100 $Looty"
+horizontal_alignment = 1
+
+[node name="FlippyUpgradeButton" type="Button" parent="DialogContainer/UpgradeOptions/FlippySection"]
+layout_mode = 2
+text = "Upgrade Flippy"
+
+[node name="Spacer" type="Control" parent="DialogContainer/UpgradeOptions"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+
+[node name="CloseButton" type="Button" parent="DialogContainer"]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -50.0
+offset_top = -50.0
+offset_right = 50.0
+offset_bottom = -20.0
+grow_horizontal = 2
+grow_vertical = 0
+text = "Close"

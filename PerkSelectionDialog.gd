@@ -9,14 +9,7 @@ signal dialog_closed
 @onready var cancel_button = $DialogContainer/CancelButton
 @onready var flippy_speech_bubble = $FlippySpeechBubble
 
-var available_perks = [
-	"start_with_200_looty",
-	"upgrade_card",
-	"random_rare_action",
-	"random_equipment", 
-	"random_club_card",
-	"receive_bounty"
-]
+var clubhouse_upgrade_manager: Node
 
 var perk_descriptions = {
 	"start_with_200_looty": "Start with 200 extra $Looty",
@@ -76,16 +69,31 @@ func hide_dialog():
 	flippy_speech_bubble.visible = false
 
 func _generate_random_perks():
-	"""Generate 3 random perks for selection"""
+	"""Generate random perks for selection based on Flippy level"""
 	selected_perks.clear()
-	var shuffled_perks = available_perks.duplicate()
-	shuffled_perks.shuffle()
 	
-	# Take first 3 perks
-	for i in range(min(3, shuffled_perks.size())):
-		selected_perks.append(shuffled_perks[i])
+	# Get the ClubHouse upgrade manager
+	if not clubhouse_upgrade_manager:
+		clubhouse_upgrade_manager = get_node("/root/ClubHouseUpgradeManager")
+		if not clubhouse_upgrade_manager:
+			print("ERROR: ClubHouseUpgradeManager not found!")
+			return
 	
-	# Update button texts
+	# Get perks based on Flippy level
+	var available_perks = clubhouse_upgrade_manager.get_flippy_perks_for_level()
+	
+	# If no perks available (level 1), don't show any buttons
+	if available_perks.size() == 0:
+		perk_button_1.visible = false
+		perk_button_2.visible = false
+		perk_button_3.visible = false
+		return
+	
+	# Take the available perks
+	for i in range(available_perks.size()):
+		selected_perks.append(available_perks[i])
+	
+	# Update button texts and visibility
 	if selected_perks.size() >= 1:
 		perk_button_1.text = perk_descriptions[selected_perks[0]]
 		perk_button_1.visible = true

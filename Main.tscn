@@ -1,4 +1,4 @@
-[gd_scene load_steps=120 format=3 uid="uid://wyu3udwngros"]
+[gd_scene load_steps=121 format=3 uid="uid://wyu3udwngros"]
 
 [ext_resource type="Script" uid="uid://ct4bebh7dhisi" path="res://Main.gd" id="1_r0du0"]
 [ext_resource type="Script" uid="uid://cqehnplar8nuv" path="res://perk_receiver.gd" id="2_hri7i"]
@@ -30,6 +30,7 @@
 [ext_resource type="PackedScene" uid="uid://l5svvc4lrrpp" path="res://UI/CharacterStatBanner.tscn" id="20_kgwt8"]
 [ext_resource type="Script" uid="uid://btyphvxp4w2v4" path="res://club_house_camera.gd" id="27_sqvbp"]
 [ext_resource type="PackedScene" uid="uid://kg85vs4xvah7" path="res://UI/FinalScoreDisplay.tscn" id="28_final_score_display"]
+[ext_resource type="PackedScene" path="res://ClubHouseUpgradeDialog.tscn" id="29_upgrade_dialog"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_5mvff"]
 atlas = ExtResource("5_w3rk5")
@@ -1473,6 +1474,21 @@ offset_right = 284.0
 offset_bottom = 220.0
 text = "ClubHouse Level 1"
 
+[node name="ClubHouseLootyLabel" type="Label" parent="UI"]
+offset_left = 142.0
+offset_top = 220.0
+offset_right = 284.0
+offset_bottom = 243.0
+text = "ClubHouse $Looty: 0"
+
+[node name="UpgradeClubHouseButton" type="Button" parent="UI"]
+visible = false
+offset_left = 142.0
+offset_top = 250.0
+offset_right = 284.0
+offset_bottom = 281.0
+text = "Upgrade ClubHouse"
+
 [node name="CharacterStatBanner" parent="." instance=ExtResource("20_kgwt8")]
 visible = false
 position = Vector2(640, 360)
@@ -1548,6 +1564,12 @@ script = ExtResource("27_sqvbp")
 [node name="FinalScoreDisplay" parent="." instance=ExtResource("28_final_score_display")]
 visible = false
 layout_mode = 1
+
+[node name="ClubHouseUpgradeDialog" parent="." instance=ExtResource("29_upgrade_dialog")]
+visible = false
+layout_mode = 1
+grow_horizontal = 2
+grow_vertical = 2
 
 [connection signal="pressed" from="ClubHouseBackgroundLayers/StartRoundDoor" to="." method="_on_start_round_pressed"]
 [connection signal="pressed" from="UI/StartPuttPutt" to="." method="_on_start_putt_putt_button_pressed"]

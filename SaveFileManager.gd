@@ -163,7 +163,13 @@ var CLUBHOUSE_PROGRESSION = {
 	
 	# ClubHouse equipment storage
 	"clubhouse_equipment": [],
-	"equipment_table_unlocked": false
+	"equipment_table_unlocked": false,
+	
+	# Flippy level system
+	"flippy_level": 1,
+	
+	# ClubHouse Looty system
+	"clubhouse_looty": 0
 }
 
 # =============================================================================
@@ -785,6 +791,32 @@ func get_clubhouse_level() -> int:
 	"""Get ClubHouse level"""
 	var clubhouse = current_save_data.get("clubhouse_progression", {})
 	return clubhouse.get("clubhouse_level", 1)
+
+func get_flippy_level() -> int:
+	"""Get Flippy level"""
+	var clubhouse = current_save_data.get("clubhouse_progression", {})
+	return clubhouse.get("flippy_level", 1)
+
+func set_flippy_level(level: int) -> bool:
+	"""Set Flippy level"""
+	var clubhouse = current_save_data.get("clubhouse_progression", {})
+	clubhouse["flippy_level"] = level
+	current_save_data["clubhouse_progression"] = clubhouse
+	emit_signal("progression_updated", "clubhouse", "flippy_level", level)
+	return true
+
+func get_clubhouse_looty() -> int:
+	"""Get ClubHouse Looty amount"""
+	var clubhouse = current_save_data.get("clubhouse_progression", {})
+	return clubhouse.get("clubhouse_looty", 0)
+
+func set_clubhouse_looty(amount: int) -> bool:
+	"""Set ClubHouse Looty amount"""
+	var clubhouse = current_save_data.get("clubhouse_progression", {})
+	clubhouse["clubhouse_looty"] = amount
+	current_save_data["clubhouse_progression"] = clubhouse
+	emit_signal("progression_updated", "clubhouse", "clubhouse_looty", amount)
+	return true
 
 func is_equipment_table_unlocked() -> bool:
 	"""Check if equipment table is unlocked"""

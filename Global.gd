@@ -878,6 +878,12 @@ func get_looty() -> int:
 func add_looty(amount: int) -> void:
 	"""Add $Looty to player's balance"""
 	current_looty += amount
+	
+	# Also add to course Looty for ClubHouse system
+	var clubhouse_upgrade_manager = get_node("/root/ClubHouseUpgradeManager")
+	if clubhouse_upgrade_manager:
+		clubhouse_upgrade_manager.add_course_looty(amount)
+	
 	print("Added %d $Looty. New balance: %d $Looty" % [amount, current_looty])
 
 func spend_looty(amount: int) -> bool:
