@@ -925,6 +925,12 @@ func _on_return_to_clubhouse_pressed():
 	"""Handle return to clubhouse button press"""
 	print("Return to clubhouse button pressed")
 	
+	# Transfer course Looty to ClubHouse
+	var clubhouse_upgrade_manager = get_node("/root/ClubHouseUpgradeManager")
+	if clubhouse_upgrade_manager:
+		clubhouse_upgrade_manager.transfer_course_looty_to_clubhouse()
+		print("💰 Course Looty transferred to ClubHouse from driving range")
+	
 	# Clean up camera tracking
 	cleanup_camera_tracking()
 	

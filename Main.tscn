@@ -30,7 +30,7 @@
 [ext_resource type="PackedScene" uid="uid://l5svvc4lrrpp" path="res://UI/CharacterStatBanner.tscn" id="20_kgwt8"]
 [ext_resource type="Script" uid="uid://btyphvxp4w2v4" path="res://club_house_camera.gd" id="27_sqvbp"]
 [ext_resource type="PackedScene" uid="uid://kg85vs4xvah7" path="res://UI/FinalScoreDisplay.tscn" id="28_final_score_display"]
-[ext_resource type="PackedScene" path="res://ClubHouseUpgradeDialog.tscn" id="29_upgrade_dialog"]
+[ext_resource type="PackedScene" uid="uid://d3as54tecvulu" path="res://ClubHouseUpgradeDialog.tscn" id="29_upgrade_dialog"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_5mvff"]
 atlas = ExtResource("5_w3rk5")

@@ -267,6 +267,13 @@ func create_new_save_file(slot_id: int, character_id: int) -> bool:
 	# Save to file
 	if save_to_file(save_path, current_save_data):
 		current_save_slot = slot_id
+		
+		# Reset course Looty for new game
+		var clubhouse_upgrade_manager = get_node("/root/ClubHouseUpgradeManager")
+		if clubhouse_upgrade_manager:
+			clubhouse_upgrade_manager.course_looty = 0
+			print("Reset course Looty to 0 for new game")
+		
 		emit_signal("save_file_created", slot_id)
 		return true
 	
@@ -296,6 +303,12 @@ func load_save_file(slot_id: int) -> bool:
 	
 	# Apply save data to global systems
 	apply_save_data_to_globals()
+	
+	# Reset course Looty when loading a save file (since we're starting fresh)
+	var clubhouse_upgrade_manager = get_node("/root/ClubHouseUpgradeManager")
+	if clubhouse_upgrade_manager:
+		clubhouse_upgrade_manager.course_looty = 0
+		print("Reset course Looty to 0 when loading save file")
 	
 	emit_signal("save_file_loaded", current_save_data)
 	return true
@@ -404,7 +417,12 @@ func apply_save_data_to_globals():
 	
 	# Apply to Global singleton
 	Global.selected_character = current_save_data.get("character_id", 1)
-	Global.current_looty = current_save_data.get("current_looty", 50)
+	
+	# Reset current Looty to starting amount when loading a save file (for new course)
+	# The saved current_looty includes course Looty, so we reset it to starting amount
+	Global.current_looty = 50
+	print("Reset Global.current_looty to 50 when loading save file (saved amount was:", current_save_data.get("current_looty", 50), ")")
+	
 	Global.final_18_hole_score = game_state.get("front_9_score", 0) + game_state.get("back_9_score", 0)
 	Global.front_9_score = game_state.get("front_9_score", 0)
 	Global.global_turn_count = game_state.get("global_turn_count", 1)

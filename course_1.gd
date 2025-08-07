@@ -763,6 +763,16 @@ func _ready() -> void:
 		print("PerkDeployer: Setup complete")
 	else:
 		print("ERROR: PerkDeployer not found in Course1 scene")
+	
+	# Reset course Looty at the start of a new course
+	var clubhouse_upgrade_manager = get_node("/root/ClubHouseUpgradeManager")
+	if clubhouse_upgrade_manager:
+		clubhouse_upgrade_manager.course_looty = 0
+		print("Reset course Looty to 0 at course start")
+	
+	# Reset current Looty to starting amount at course start
+	Global.current_looty = 50
+	print("Reset Global.current_looty to 50 at course start")
 
 func adjust_background_positioning() -> void:
 	"""Adjust background layer positioning for better visibility"""
@@ -4190,6 +4200,12 @@ func clear_player_state():
 	
 	# Reset currency
 	Global.current_looty = 50
+	
+	# Reset course Looty for new course
+	var clubhouse_upgrade_manager = get_node("/root/ClubHouseUpgradeManager")
+	if clubhouse_upgrade_manager:
+		clubhouse_upgrade_manager.course_looty = 0
+		print("Reset course Looty to 0 for new course")
 	
 	# Clear any active game states
 	game_state_manager.set_game_phase("move")

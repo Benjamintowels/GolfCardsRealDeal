@@ -190,6 +190,12 @@ func _on_dama_hole_entered(body):
 		_handle_spike(1.0/60.0)  # Pass delta time
 
 func _on_return_button_pressed():
+	# Transfer course Looty to ClubHouse
+	var clubhouse_upgrade_manager = get_node("/root/ClubHouseUpgradeManager")
+	if clubhouse_upgrade_manager:
+		clubhouse_upgrade_manager.transfer_course_looty_to_clubhouse()
+		print("💰 Course Looty transferred to ClubHouse from kendama game")
+	
 	# Return to main menu
 	get_tree().change_scene_to_file("res://Main.tscn") 
 

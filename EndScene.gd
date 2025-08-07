@@ -63,5 +63,11 @@ func display_final_results():
 	score_label.text = score_text
 
 func _on_return_button_pressed():
+	# Transfer course Looty to ClubHouse
+	var clubhouse_upgrade_manager = get_node("/root/ClubHouseUpgradeManager")
+	if clubhouse_upgrade_manager:
+		clubhouse_upgrade_manager.transfer_course_looty_to_clubhouse()
+		print("💰 Course Looty transferred to ClubHouse from end scene")
+	
 	# Return to main menu
 	FadeManager.fade_to_black(func(): get_tree().change_scene_to_file("res://Main.tscn"), 0.5) 

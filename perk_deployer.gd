@@ -67,8 +67,9 @@ func _apply_perk(perk_type: String):
 
 func _apply_looty_perk():
 	"""Apply the start with 200 looty perk"""
-	Global.add_looty(200)
-	print("PerkDeployer: Added 200 looty to player")
+	# Add directly to current Looty without affecting course Looty
+	Global.current_looty += 200
+	print("PerkDeployer: Added 200 looty to player (current balance: %d)" % Global.current_looty)
 
 func _apply_upgrade_card_perk():
 	"""Apply the upgrade card perk"""

@@ -1306,8 +1306,10 @@ func update_deck_display() -> void:
 		looty_label = Label.new()
 		looty_label.name = "LootyLabel"
 		hud.add_child(looty_label)
-	looty_label.text = "$Looty: %d" % Global.get_looty()
+	var current_looty = Global.get_looty()
+	looty_label.text = "$Looty: %d" % current_looty
 	looty_label.add_theme_color_override("font_color", Color.GOLD)
+	print("💰 Course UI: Displaying Looty amount:", current_looty)
 	
 	# Update the new deck image labels
 	var draw_pile_label = course.get_node_or_null("UILayer/DeckImageDraw/DrawPileLabel")

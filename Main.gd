@@ -837,6 +837,12 @@ func _on_return_to_clubhouse():
 	if final_score_display:
 		final_score_display.hide()
 	
+	# Transfer course Looty to ClubHouse
+	var clubhouse_upgrade_manager = get_node("/root/ClubHouseUpgradeManager")
+	if clubhouse_upgrade_manager:
+		clubhouse_upgrade_manager.transfer_course_looty_to_clubhouse()
+		print("💰 Course Looty transferred to ClubHouse")
+	
 	# Save progression data when returning to clubhouse
 	var save_file_manager = get_node("/root/SaveFileManager")
 	if save_file_manager and save_file_manager.current_save_slot > 0:
@@ -877,25 +883,34 @@ func _on_experience_gained(character_exp: int, clubhouse_exp: int):
 # ClubHouse Upgrade System Functions
 func _update_clubhouse_upgrade_ui():
 	"""Update ClubHouse upgrade UI elements"""
+	print("🔄 Updating ClubHouse upgrade UI...")
 	var clubhouse_upgrade_manager = get_node("/root/ClubHouseUpgradeManager")
 	if not clubhouse_upgrade_manager:
+		print("❌ ClubHouseUpgradeManager not found!")
 		return
 	
 	# Update Looty display
 	var clubhouse_looty = clubhouse_upgrade_manager.get_clubhouse_looty()
+	print("💰 ClubHouse Looty amount:", clubhouse_looty)
 	if clubhouse_looty_label:
 		clubhouse_looty_label.text = "ClubHouse $Looty: " + str(clubhouse_looty)
+		print("✅ Updated ClubHouse Looty label to:", clubhouse_looty_label.text)
+	else:
+		print("❌ ClubHouse Looty label not found!")
 	
 	# Update upgrade button visibility based on ClubHouse level
 	var file_level_manager = FileLevelManager
 	if file_level_manager and upgrade_clubhouse_button and is_instance_valid(upgrade_clubhouse_button):
 		var stats = file_level_manager.get_current_stats()
 		upgrade_clubhouse_button.visible = stats.clubhouse_level >= 2
+		print("🔘 Upgrade button visibility set to:", upgrade_clubhouse_button.visible, "(ClubHouse level:", stats.clubhouse_level, ")")
 		
 		# Ensure button is connected if it wasn't before
 		if not upgrade_clubhouse_button.pressed.is_connected(_on_upgrade_clubhouse_pressed):
 			upgrade_clubhouse_button.pressed.connect(_on_upgrade_clubhouse_pressed)
 			print("✅ Upgrade ClubHouse button connected in UI update")
+	else:
+		print("⚠️ Could not update upgrade button (manager or button not found)")
 
 func _on_flippy_level_changed(new_level: int):
 	"""Handle Flippy level change"""
