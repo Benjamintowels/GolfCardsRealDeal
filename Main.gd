@@ -29,6 +29,7 @@ var benny_selected = false  # Track if Benny was selected to play benny_door ani
 var is_reversing_animations = false  # Track if we're currently reversing animations
 var waiting_for_benny_confirmation = false  # Track if we're waiting for second click on Benny
 var waiting_for_perk_selection = false  # Track if we're waiting for perk selection
+var selected_course: String = ""  # "front_9" or "back_9" set by map marker buttons
 
 func _ready():
 	# Get the buttons that might be hidden initially
@@ -506,21 +507,19 @@ func _on_perk_dialog_closed():
 
 func _on_map_marker_front_9_selected():
 	"""Handle MapMarkerFront9 selection"""
-	print("MapMarkerFront9 selected - starting Front 9")
+	print("MapMarkerFront9 selected - toggled Front 9")
 	_play_select_sound()
-	
-	# Start normal front 9 mode
+	# Toggle selection only; starting happens when clicking the door
+	selected_course = "front_9"
 	Global.starting_back_9 = false
-	call_deferred("_change_scene")
 
 func _on_map_marker_back_9_selected():
 	"""Handle MapMarkerBack9 selection"""
-	print("MapMarkerBack9 selected - starting Back 9")
+	print("MapMarkerBack9 selected - toggled Back 9")
 	_play_select_sound()
-	
-	# Start back 9 mode
+	# Toggle selection only; starting happens when clicking the door
+	selected_course = "back_9"
 	Global.starting_back_9 = true
-	call_deferred("_change_scene")
 
 
 
@@ -558,14 +557,25 @@ func _on_start_round_pressed():
 	# Store the selected character in a global variable
 	Global.selected_character = selected_character
 	Global.putt_putt_mode = false  # Ensure normal mode for regular rounds
-	print("Selected character: ", selected_character, " - Starting normal round")
 	
-	# Check if deck has been selected, if not, show dialog and store pending mode
+	# If a course was selected via map markers, use that selection
+	if selected_course != "":
+		if Global.selected_deck_type == "":
+			# Defer start until deck selection (and possibly perks) completes
+			pending_game_mode = "back_9" if selected_course == "back_9" else "normal_round"
+			_show_deck_selection_dialog()
+		else:
+			# Show perks if available, then start
+			pending_game_mode = "back_9" if selected_course == "back_9" else "normal_round"
+			_show_perk_selection_dialog()
+		return
+	
+	# Fallback: no course selected, behave like normal round start
+	print("No map course selected, defaulting to Front 9")
 	if Global.selected_deck_type == "":
 		pending_game_mode = "normal_round"
 		_show_deck_selection_dialog()
 	else:
-		# Show perk selection dialog instead of immediately starting
 		pending_game_mode = "normal_round"
 		_show_perk_selection_dialog()
 
