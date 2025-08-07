@@ -40,6 +40,11 @@ func _ready():
 	
 	# Load data from save file if available
 	_load_from_save_file()
+	
+	# React to save file load events to refresh ClubHouse data (e.g., $Looty)
+	var save_file_manager = get_node("/root/SaveFileManager")
+	if save_file_manager:
+		save_file_manager.save_file_loaded.connect(_on_save_file_loaded)
 
 func _load_from_save_file():
 	"""Load ClubHouse upgrade data from save file"""
@@ -48,8 +53,15 @@ func _load_from_save_file():
 		flippy_level = save_file_manager.get_flippy_level()
 		clubhouse_looty = save_file_manager.get_clubhouse_looty()
 		print("Loaded ClubHouse upgrade data from save file - Flippy level:", flippy_level, "ClubHouse Looty:", clubhouse_looty)
+		# Emit to update any bound UI immediately
+		flippy_level_changed.emit(flippy_level)
+		looty_changed.emit(clubhouse_looty)
 	else:
 		print("No save file loaded, using default ClubHouse upgrade values")
+
+func _on_save_file_loaded(_data: Dictionary):
+	"""Refresh ClubHouse values when a save file is loaded"""
+	_load_from_save_file()
 
 func _save_to_save_file():
 	"""Save ClubHouse upgrade data to save file"""

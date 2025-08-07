@@ -197,6 +197,20 @@ func get_save_file_info(slot_id: int) -> Dictionary:
 	if not save_data:
 		return {"exists": false, "slot_id": slot_id}
 	
+	# Derive clubhouse level from nested data structures
+	var derived_clubhouse_level: int = 1
+	var file_level_manager_data: Dictionary = save_data.get("file_level_manager", {})
+	if not file_level_manager_data.is_empty():
+		derived_clubhouse_level = int(file_level_manager_data.get("clubhouse_level", derived_clubhouse_level))
+	else:
+		var clubhouse_progression: Dictionary = save_data.get("clubhouse_progression", {})
+		derived_clubhouse_level = int(clubhouse_progression.get("clubhouse_level", derived_clubhouse_level))
+
+	# Derive unlocked characters from character progression
+	var derived_unlocked_characters: int = 2
+	var character_progression: Dictionary = save_data.get("character_progression", {})
+	derived_unlocked_characters = int(character_progression.get("unlocked_characters", derived_unlocked_characters))
+
 	return {
 		"exists": true,
 		"slot_id": slot_id,
@@ -204,8 +218,8 @@ func get_save_file_info(slot_id: int) -> Dictionary:
 		"total_score": save_data.get("total_score", 0),
 		"total_holes_played": save_data.get("total_holes_played", 0),
 		"last_played": save_data.get("last_played", ""),
-		"clubhouse_level": save_data.get("clubhouse_level", 1),
-		"unlocked_characters": save_data.get("unlocked_characters", 2)
+		"clubhouse_level": derived_clubhouse_level,
+		"unlocked_characters": derived_unlocked_characters
 	}
 
 func create_new_save_file(slot_id: int, character_id: int) -> bool:
