@@ -49,10 +49,17 @@ func setup(grid_size_param: Vector2i, cell_size_param: int, obstacle_map_param: 
 	shop_grid_pos = shop_grid_pos_param
 	health_bar = health_bar_param
 	block_health_bar = block_health_bar_param
+	
+	# Connect to Global equipment buffs signal
+	if Global.equipment_buffs_applied.is_connected(update_player_stats_from_equipment):
+		Global.equipment_buffs_applied.disconnect(update_player_stats_from_equipment)
+	Global.equipment_buffs_applied.connect(update_player_stats_from_equipment)
 
 func create_player() -> void:
 	"""Create and setup the player character"""
-	player_stats = Global.CHARACTER_STATS.get(Global.selected_character, {})
+	# Ensure selected_character is an integer when accessing CHARACTER_STATS
+	var character_id = int(Global.selected_character)
+	player_stats = Global.CHARACTER_STATS.get(character_id, {})
 	
 	# Initialize health bar with character stats
 	if health_bar:
@@ -121,7 +128,17 @@ func create_player() -> void:
 				player_node.setup_meditation_after_character()
 
 	var base_mobility = player_stats.get("base_mobility", 0)
-	player_node.setup(grid_size, cell_size, base_mobility, obstacle_map)
+	# Add safety checks for parameters before calling setup
+	if grid_size != Vector2i.ZERO and cell_size > 0:
+		player_node.setup(grid_size, cell_size, base_mobility, obstacle_map)
+	else:
+		print("⚠ Warning: Invalid grid parameters in create_player - grid_size:", grid_size, "cell_size:", cell_size)
+		# Set default values if parameters are invalid
+		if grid_size == Vector2i.ZERO:
+			grid_size = Vector2i(50, 50)
+		if cell_size <= 0:
+			cell_size = 48
+		player_node.setup(grid_size, cell_size, base_mobility, obstacle_map)
 	
 	player_node.set_grid_position(player_grid_pos, ysort_objects, shop_grid_pos)
 
@@ -137,12 +154,24 @@ func create_player() -> void:
 
 func update_player_stats_from_equipment() -> void:
 	"""Update player stats to reflect equipment buffs"""
-	player_stats = Global.CHARACTER_STATS.get(Global.selected_character, {})
+	# Ensure selected_character is an integer when accessing CHARACTER_STATS
+	var character_id = int(Global.selected_character)
+	player_stats = Global.CHARACTER_STATS.get(character_id, {})
 	
 	if player_node and is_instance_valid(player_node):
-		var base_mobility = player_stats.get("base_mobility", 0)
-		player_node.setup(grid_size, cell_size, base_mobility, obstacle_map)
-		print("Updated player stats with equipment buffs:", player_stats)
+		# Check if player_node has the setup method
+		if player_node.has_method("setup"):
+			var base_mobility = player_stats.get("base_mobility", 0)
+			# Add safety checks for parameters
+			if grid_size != Vector2i.ZERO and cell_size > 0:
+				player_node.setup(grid_size, cell_size, base_mobility, obstacle_map)
+				print("Updated player stats with equipment buffs:", player_stats)
+			else:
+				print("⚠ Warning: Invalid grid parameters - grid_size:", grid_size, "cell_size:", cell_size)
+		else:
+			print("⚠ Warning: Player node does not have setup method")
+	else:
+		print("⚠ Warning: Player node is not valid or not initialized")
 
 func take_damage(amount: int) -> void:
 	"""Player takes damage and updates health bar"""
@@ -179,8 +208,9 @@ func take_damage(amount: int) -> void:
 	# Apply remaining damage to health
 	if health_bar and damage_to_health > 0:
 		health_bar.take_damage(damage_to_health)
-		# Update Global stats
-		Global.CHARACTER_STATS[Global.selected_character]["current_hp"] = health_bar.current_hp
+		# Update Global stats - ensure selected_character is an integer
+		var character_id = int(Global.selected_character)
+		Global.CHARACTER_STATS[character_id]["current_hp"] = health_bar.current_hp
 		print("Player took %d damage to health. Current HP: %d" % [damage_to_health, health_bar.current_hp])
 		
 		# Play push sound when taking damage
@@ -208,8 +238,9 @@ func heal_player(amount: int) -> void:
 	"""Player heals and updates health bar"""
 	if health_bar:
 		health_bar.heal(amount)
-		# Update Global stats
-		Global.CHARACTER_STATS[Global.selected_character]["current_hp"] = health_bar.current_hp
+		# Update Global stats - ensure selected_character is an integer
+		var character_id = int(Global.selected_character)
+		Global.CHARACTER_STATS[character_id]["current_hp"] = health_bar.current_hp
 		print("Player healed %d HP. Current HP: %d" % [amount, health_bar.current_hp])
 
 func get_player_health() -> Dictionary:
@@ -648,6 +679,13 @@ func update_player_position() -> void:
 		var player_size = sprite.texture.get_size() * sprite.scale if sprite and sprite.texture else Vector2(cell_size, cell_size)
 		var player_center: Vector2 = player_node.global_position + player_size / 2
 		course.camera_manager.update_camera_snap_back_position(player_center)
+
+# Cleanup function
+func _exit_tree() -> void:
+	"""Cleanup when PlayerManager is destroyed"""
+	# Disconnect from Global equipment buffs signal
+	if Global.equipment_buffs_applied.is_connected(update_player_stats_from_equipment):
+		Global.equipment_buffs_applied.disconnect(update_player_stats_from_equipment)
 
 # Special mode management
 func activate_ghost_mode() -> void:

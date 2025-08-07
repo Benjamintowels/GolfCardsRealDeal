@@ -86,6 +86,8 @@ const HEIGHT_SHADOW_SCALE_FACTOR = 0.5  # How much to scale shadow per unit of h
 # These values represent the actual visual height of sprites in the game world
 
 # Equipment functions
+signal equipment_buffs_applied
+
 func add_equipment(equipment: EquipmentData) -> void:
 	"""Add equipment to inventory and apply buffs"""
 	if not equipped_items.has(equipment):
@@ -100,8 +102,9 @@ func remove_equipment(equipment: EquipmentData) -> void:
 
 func apply_equipment_buffs() -> void:
 	"""Apply all equipment buffs to character stats"""
-	# Reset character stats to base values
-	var base_stats = CHARACTER_STATS[selected_character].duplicate()
+	# Reset character stats to base values - ensure selected_character is an integer
+	var character_id = int(selected_character)
+	var base_stats = CHARACTER_STATS[character_id].duplicate()
 	
 	# Apply equipment buffs
 	for equipment in equipped_items:
@@ -113,8 +116,11 @@ func apply_equipment_buffs() -> void:
 			"card_draw":
 				base_stats.card_draw += equipment.buff_value
 	
-	# Update character stats
-	CHARACTER_STATS[selected_character] = base_stats
+	# Update character stats - ensure selected_character is an integer
+	CHARACTER_STATS[character_id] = base_stats
+	
+	# Emit signal to notify that equipment buffs have been applied
+	equipment_buffs_applied.emit()
 
 func get_equipment_buff(stat_type: String) -> int:
 	"""Get total buff value for a specific stat type"""
@@ -126,14 +132,16 @@ func get_equipment_buff(stat_type: String) -> int:
 
 func reset_character_health() -> void:
 	"""Reset character health to maximum for new round"""
-	if CHARACTER_STATS.has(selected_character):
-		var max_hp = CHARACTER_STATS[selected_character].get("max_hp", 100)
-		CHARACTER_STATS[selected_character]["current_hp"] = max_hp
+	var character_id = int(selected_character)
+	if CHARACTER_STATS.has(character_id):
+		var max_hp = CHARACTER_STATS[character_id].get("max_hp", 100)
+		CHARACTER_STATS[character_id]["current_hp"] = max_hp
 
 func get_character_health() -> Dictionary:
 	"""Get current character health info"""
-	if CHARACTER_STATS.has(selected_character):
-		var stats = CHARACTER_STATS[selected_character]
+	var character_id = int(selected_character)
+	if CHARACTER_STATS.has(character_id):
+		var stats = CHARACTER_STATS[character_id]
 		return {
 			"current_hp": stats.get("current_hp", 100),
 			"max_hp": stats.get("max_hp", 100),

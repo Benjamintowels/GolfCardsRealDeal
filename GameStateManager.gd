@@ -753,7 +753,9 @@ func start_round_after_tee_selection(course: Node, player_manager: Node, deck_ma
 	# Reset global turn counter for new round
 	Global.reset_global_turn()
 	
-	player_manager.set_player_stats(Global.CHARACTER_STATS.get(Global.selected_character, {}))
+	# Ensure selected_character is an integer when accessing CHARACTER_STATS
+	var character_id = int(Global.selected_character)
+	player_manager.set_player_stats(Global.CHARACTER_STATS.get(character_id, {}))
 	
 	deck_manager.initialize_separate_decks()
 	print("Separate decks initialized - Club cards:", deck_manager.club_draw_pile.size(), "Action cards:", deck_manager.action_draw_pile.size())

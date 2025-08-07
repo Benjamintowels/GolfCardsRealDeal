@@ -422,14 +422,24 @@ func _on_deck_selected(deck_type: String):
 				map_animation_player.play("map_intro")
 				print("Playing map_intro animation")
 				
-				# Wait for map_intro to complete, then play intro animation
+				# Wait for map_intro to complete, then play appropriate animation
 				await map_animation_player.animation_finished
 				
-				# Play intro animation from CourseSelectionMap's AnimationPlayer
+				# Check if back 9 flag upgrade is purchased
+				var save_file_manager = get_node("/root/SaveFileManager")
+				var flag_purchased = false
+				if save_file_manager:
+					flag_purchased = save_file_manager.get_story_flag("back_9_flag_upgrade_purchased")
+				
+				# Play appropriate animation based on flag upgrade status
 				var course_map_animation_player = course_selection_map.get_node("AnimationPlayer")
 				if course_map_animation_player:
-					course_map_animation_player.play("intro")
-					print("Playing intro animation")
+					if flag_purchased:
+						course_map_animation_player.play("back_9_flag")
+						print("Playing back_9_flag animation (flag upgrade purchased)")
+					else:
+						course_map_animation_player.play("intro")
+						print("Playing intro animation (no flag upgrade)")
 				else:
 					print("ERROR: CourseSelectionMap AnimationPlayer not found!")
 			else:
@@ -499,6 +509,24 @@ func _on_perk_dialog_closed():
 	print("Perk selection dialog closed without selection")
 	# Still start the game mode even if no perk was selected
 	_start_pending_game_mode()
+
+func _on_map_marker_front_9_selected():
+	"""Handle MapMarkerFront9 selection"""
+	print("MapMarkerFront9 selected - starting Front 9")
+	_play_select_sound()
+	
+	# Start normal front 9 mode
+	Global.starting_back_9 = false
+	call_deferred("_change_scene")
+
+func _on_map_marker_back_9_selected():
+	"""Handle MapMarkerBack9 selection"""
+	print("MapMarkerBack9 selected - starting Back 9")
+	_play_select_sound()
+	
+	# Start back 9 mode
+	Global.starting_back_9 = true
+	call_deferred("_change_scene")
 
 
 
@@ -782,11 +810,21 @@ func _reverse_course_selection_animations():
 	
 	var course_selection_map = $ClubHouseBackgroundLayers/CourseSelectionMap
 	if course_selection_map:
-		# First reverse the intro animation
+		# Check which animation was played to reverse it properly
+		var save_file_manager = get_node("/root/SaveFileManager")
+		var flag_purchased = false
+		if save_file_manager:
+			flag_purchased = save_file_manager.get_story_flag("back_9_flag_upgrade_purchased")
+		
+		# First reverse the appropriate animation
 		var course_map_animation_player = course_selection_map.get_node("AnimationPlayer")
 		if course_map_animation_player:
-			course_map_animation_player.play_backwards("intro")
-			print("Playing intro animation backwards")
+			if flag_purchased:
+				course_map_animation_player.play_backwards("back_9_flag")
+				print("Playing back_9_flag animation backwards")
+			else:
+				course_map_animation_player.play_backwards("intro")
+				print("Playing intro animation backwards")
 			await course_map_animation_player.animation_finished
 		
 		# Then reverse the map_intro animation

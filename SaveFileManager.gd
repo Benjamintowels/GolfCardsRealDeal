@@ -119,6 +119,7 @@ var STORY_PROGRESSION = {
 	"completed_back_9": false,
 	"defeated_first_boss": false,
 	"defeated_final_boss": false,
+	"back_9_flag_upgrade_purchased": false,  # Flag for back 9 shortcut upgrade
 	
 	# NPC questlines (modular system)
 	"npc_quests": {
@@ -415,8 +416,8 @@ func apply_save_data_to_globals():
 	var game_state = current_save_data["game_state"]
 	var character_state = current_save_data.get("character_state", {})
 	
-	# Apply to Global singleton
-	Global.selected_character = current_save_data.get("character_id", 1)
+	# Apply to Global singleton - ensure character_id is an integer
+	Global.selected_character = int(current_save_data.get("character_id", 1))
 	
 	# Reset current Looty to starting amount when loading a save file (for new course)
 	# The saved current_looty includes course Looty, so we reset it to starting amount

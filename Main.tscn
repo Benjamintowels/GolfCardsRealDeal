@@ -1568,8 +1568,6 @@ layout_mode = 1
 [node name="ClubHouseUpgradeDialog" parent="." instance=ExtResource("29_upgrade_dialog")]
 visible = false
 layout_mode = 1
-grow_horizontal = 2
-grow_vertical = 2
 
 [connection signal="pressed" from="ClubHouseBackgroundLayers/StartRoundDoor" to="." method="_on_start_round_pressed"]
 [connection signal="pressed" from="UI/StartPuttPutt" to="." method="_on_start_putt_putt_button_pressed"]

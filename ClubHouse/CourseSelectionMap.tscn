@@ -44,34 +44,6 @@ tracks/2/keys = {
 "values": [Vector2(31, -50)]
 }
 
-[sub_resource type="Animation" id="Animation_nhby7"]
-resource_name = "intro"
-length = 0.6815
-tracks/0/type = "value"
-tracks/0/imported = false
-tracks/0/enabled = true
-tracks/0/path = NodePath("MapMarkerFront9:position")
-tracks/0/interp = 1
-tracks/0/loop_wrap = true
-tracks/0/keys = {
-"times": PackedFloat32Array(0, 0.6),
-"transitions": PackedFloat32Array(1, 1),
-"update": 0,
-"values": [Vector2(31, -653.325), Vector2(31, -50)]
-}
-tracks/1/type = "value"
-tracks/1/imported = false
-tracks/1/enabled = true
-tracks/1/path = NodePath("GolfIsland:position")
-tracks/1/interp = 1
-tracks/1/loop_wrap = true
-tracks/1/keys = {
-"times": PackedFloat32Array(0, 0.633333),
-"transitions": PackedFloat32Array(1, 1),
-"update": 0,
-"values": [Vector2(0, -273.755), Vector2(0, -225)]
-}
-
 [sub_resource type="Animation" id="Animation_voyc7"]
 resource_name = "back_9_flag"
 length = 1.243
@@ -112,6 +84,34 @@ tracks/2/keys = {
 "values": [Vector2(31, -2440), Vector2(-72.555, -114.14)]
 }
 
+[sub_resource type="Animation" id="Animation_nhby7"]
+resource_name = "intro"
+length = 0.6815
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("MapMarkerFront9:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.6),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [Vector2(31, -653.325), Vector2(31, -50)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("GolfIsland:position")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.633333),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [Vector2(0, -273.755), Vector2(0, -225)]
+}
+
 [sub_resource type="AnimationLibrary" id="AnimationLibrary_voyc7"]
 _data = {
 &"RESET": SubResource("Animation_4wqfi"),
@@ -138,6 +138,7 @@ texture_pressed = ExtResource("3_mnnow")
 texture_hover = ExtResource("3_mnnow")
 
 [node name="MapMarkerBack9" type="TextureButton" parent="."]
+visible = false
 texture_filter = 1
 offset_left = 31.0
 offset_top = -50.0
