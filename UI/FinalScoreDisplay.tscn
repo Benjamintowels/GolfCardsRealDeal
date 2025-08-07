@@ -1,6 +1,7 @@
-[gd_scene load_steps=5 format=3 uid="uid://kg85vs4xvah7"]
+[gd_scene load_steps=6 format=3 uid="uid://kg85vs4xvah7"]
 
 [ext_resource type="Script" uid="uid://bcjdp24b0431" path="res://UI/final_score_display.gd" id="1_final_score_display"]
+[ext_resource type="AudioStream" uid="uid://c6807wk0mjel5" path="res://Sounds/HoleComplete.mp3" id="2_p1e8y"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_1"]
 bg_color = Color(0.2, 0.2, 0.2, 0.8)
@@ -126,5 +127,9 @@ layout_mode = 2
 layout_mode = 2
 theme_override_font_sizes/font_size = 18
 text = "Continue to ClubHouse"
+
+[node name="LevelUp" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("2_p1e8y")
+pitch_scale = 1.68
 
 [connection signal="pressed" from="MainPanel/VBoxContainer/ContinueButton" to="." method="_on_continue_button_pressed"]
