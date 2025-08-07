@@ -252,7 +252,7 @@ func create_new_save_file(slot_id: int, character_id: int) -> bool:
 		# Deck state
 		"deck_state": {
 			"current_deck": [],
-			"bag_level": 1,
+			"bag_level": 1,  # Will be updated based on score mode
 			"bag_slots": {
 				"equipment": 1,
 				"movement_cards": 16,
@@ -428,6 +428,15 @@ func apply_save_data_to_globals():
 	Global.global_turn_count = game_state.get("global_turn_count", 1)
 	Global.current_reward_tier = game_state.get("current_reward_tier", 1)
 	Global.score_only_mode = current_save_data.get("game_preferences", {}).get("score_only_mode", false)
+	
+	# Apply bag level from save file if available
+	var deck_state = current_save_data.get("deck_state", {})
+	var saved_bag_level = deck_state.get("bag_level", 1)
+	if Global.score_only_mode and saved_bag_level < 4:
+		# If score mode is active but save has lower bag level, update it
+		deck_state["bag_level"] = 4
+		current_save_data["deck_state"] = deck_state
+		print("🎯 SCORE MODE: Updated save file bag level to 4")
 	
 	# Load FileLevelManager data
 	load_file_level_manager_data()

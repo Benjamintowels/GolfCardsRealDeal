@@ -3329,8 +3329,16 @@ func setup_bag_and_inventory() -> void:
 	# No need to connect to the old inventory dialog
 	
 	if bag and bag.has_method("set_bag_level"):
-		bag.set_bag_level(2)  # Start with level 2 for testing
-		print("Bag initialized with level 2")
+		# Check if score mode is active and set bag level accordingly
+		var bag_level = 2  # Default level
+		if Global.score_only_mode:
+			bag_level = 4  # Level 4 bag for score mode to hold more club cards
+			print("🎯 SCORE MODE: Setting bag to level 4 for increased club card capacity")
+		else:
+			print("Normal mode: Setting bag to level 2")
+		
+		bag.set_bag_level(bag_level)
+		print("Bag initialized with level", bag_level)
 		print("Bag z_index:", bag.z_index, "position:", bag.position, "size:", bag.size)
 		print("Bag global_position:", bag.global_position)
 	else:

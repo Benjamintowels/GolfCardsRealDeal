@@ -73,6 +73,15 @@ func _on_adventure_mode_selected():
 	Global.score_only_mode = false
 	_update_game_mode_buttons()
 	_save_game_mode_preference()
+	
+	# Reset bag level to default for adventure mode
+	var save_file_manager = get_node("/root/SaveFileManager")
+	if save_file_manager and save_file_manager.current_save_slot > 0:
+		var deck_state = save_file_manager.current_save_data.get("deck_state", {})
+		deck_state["bag_level"] = 1
+		save_file_manager.current_save_data["deck_state"] = deck_state
+		save_file_manager.save_current_game()
+		print("🎯 ADVENTURE MODE: Reset save file bag level to 1")
 
 func _on_score_mode_selected():
 	"""Handle score mode selection"""
@@ -80,6 +89,15 @@ func _on_score_mode_selected():
 	Global.score_only_mode = true
 	_update_game_mode_buttons()
 	_save_game_mode_preference()
+	
+	# Update bag level to 4 for score mode to hold more club cards
+	var save_file_manager = get_node("/root/SaveFileManager")
+	if save_file_manager and save_file_manager.current_save_slot > 0:
+		var deck_state = save_file_manager.current_save_data.get("deck_state", {})
+		deck_state["bag_level"] = 4
+		save_file_manager.current_save_data["deck_state"] = deck_state
+		save_file_manager.save_current_game()
+		print("🎯 SCORE MODE: Updated save file bag level to 4")
 
 func _update_game_mode_buttons():
 	"""Update button states to show selected game mode"""
