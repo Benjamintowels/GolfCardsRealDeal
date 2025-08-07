@@ -56,6 +56,9 @@ var turn_count: int = 0
 var is_charging: bool = false
 var is_power_beam_attack: bool = false
 
+# Death handling guard
+var death_handled: bool = false
+
 # Collision and height properties
 # base_collision_area is already declared above
 
@@ -168,10 +171,10 @@ func _ready():
 	print("BossEye: Initialized with health:", current_health)
 
 # Empty handlers for WorldTurnManager signals
-func _on_turn_started(npc = null):
+func _on_turn_started(_npc = null):
 	pass
 
-func _on_turn_ended(npc = null):
+func _on_turn_ended(_npc = null):
 	pass
 
 func _on_body_entered(body):
@@ -237,8 +240,8 @@ func perform_elemental_summon_attack():
 			var chosen_world_pos = null
 			for offset in offsets:
 				var target_grid = player_grid_pos + offset
-				var cell_size = course.cell_size if "cell_size" in course else 48
-				var world_pos = Vector2(target_grid.x * cell_size + cell_size/2, target_grid.y * cell_size + cell_size/2)
+				var local_cell_size = course.cell_size if "cell_size" in course else 48
+				var world_pos = Vector2(target_grid.x * local_cell_size + local_cell_size/2, target_grid.y * local_cell_size + local_cell_size/2)
 				chosen_offset = offset
 				chosen_world_pos = world_pos
 				break # Only pick one
@@ -410,7 +413,7 @@ func is_alive_npc() -> bool:
 	"""Check if the BossEye is alive"""
 	return is_alive and not is_dead
 
-func setup(boss_eye_pos: Vector2i, cell_size: int) -> void:
+func setup(boss_eye_pos: Vector2i, _cell_size: int) -> void:
 	"""Setup the BossEye with position and cell size"""
 	grid_position = boss_eye_pos
 	print("BossEye: Setup at position", boss_eye_pos)
@@ -436,6 +439,8 @@ func update_boss_health_bar():
 
 func take_damage(amount: int):
 	"""Take damage"""
+	if is_dead or death_handled:
+		return
 	current_health -= amount
 	print("BossEye took", amount, "damage. Health:", current_health)
 	# Play push sound
@@ -450,19 +455,73 @@ func take_damage(amount: int):
 
 func die():
 	"""Handle death"""
+	if death_handled:
+		return
+	death_handled = true
 	is_alive = false
 	is_dead = true
 	current_state = State.DEAD
 	print("BossEye defeated!")
+
+	# Stop collisions/hits immediately
+	if base_collision_area:
+		base_collision_area.monitoring = false
+	collision_layer = 0
+	collision_mask = 0
+	hide_beams()
+
+	# Stop hand attacks if present
+	if boss_hand_right and boss_hand_right.has_method("stop_all_actions"):
+		boss_hand_right.stop_all_actions()
+	if boss_hand_left and boss_hand_left.has_method("stop_all_actions"):
+		boss_hand_left.stop_all_actions()
+
 	if boss_health_bar:
 		boss_health_bar.visible = false
-	
-	# Check if this is a post-hole-18 boss fight
-	if Global.post_hole_18_boss_fight:
-		print("Post-hole-18 boss fight completed - transitioning to round completion")
-		_handle_post_hole_18_boss_fight_completion()
-	else:
-		turn_completed.emit()
+
+	# Play simple death tween (scale + fade)
+	if animation_player and animation_player.is_playing():
+		animation_player.stop()
+	var death_tween := create_tween()
+	death_tween.tween_property(sprite, "scale", sprite.scale * 1.2, 0.15)
+	death_tween.tween_property(sprite, "modulate:a", 0.0, 0.45)
+	death_tween.tween_property(sprite, "scale", Vector2(0.0, 0.0), 0.45)
+	await death_tween.finished
+
+	# Show SUCCESS dialog and on confirm finish round and go to Main
+	var course = get_tree().get_root().get_node_or_null("Course1")
+	if course:
+		var ui_layer = get_tree().get_root().get_node_or_null("Course1/UILayer")
+		if ui_layer:
+			var dialog := AcceptDialog.new()
+			dialog.title = "SUCCESS!"
+			dialog.dialog_text = "Boss defeated! Click to continue."
+			ui_layer.add_child(dialog)
+			dialog.popup_centered()
+			dialog.confirmed.connect(func():
+				# Ensure WorldTurnManager can proceed if needed
+				turn_completed.emit()
+
+				# Transfer course Looty
+				var clubhouse_upgrade_manager = get_node("/root/ClubHouseUpgradeManager")
+				if clubhouse_upgrade_manager:
+					clubhouse_upgrade_manager.transfer_course_looty_to_clubhouse()
+
+				# Show final score when returning to main
+				Global.show_final_score_display = true
+
+				# Transition to Main (clubhouse)
+				if course.has_method("_change_to_main"):
+					course._change_to_main()
+				else:
+					FadeManager.fade_to_black(func(): get_tree().change_scene_to_file("res://Main.tscn"), 0.5)
+			)
+			return
+
+	# Fallback: emit and transition directly if UI layer not found
+	turn_completed.emit()
+	Global.show_final_score_display = true
+	FadeManager.fade_to_black(func(): get_tree().change_scene_to_file("res://Main.tscn"), 0.5)
 
 func _handle_post_hole_18_boss_fight_completion() -> void:
 	"""Handle completion of post-hole-18 boss fight"""
@@ -495,10 +554,12 @@ func _handle_post_hole_18_boss_fight_completion() -> void:
 	await get_tree().create_timer(2.5).timeout
 	
 	# Show the course complete dialog
-	if course.has_method("show_course_complete_dialog"):
-		course.show_course_complete_dialog()
+	# Transition to Main (clubhouse) to show final score
+	if course.has_method("_change_to_main"):
+		course._change_to_main()
 	else:
-		print("ERROR: Course1 missing show_course_complete_dialog method!")
+		print("Course1 missing _change_to_main method; performing transition to Main.tscn")
+		FadeManager.fade_to_black(func(): get_tree().change_scene_to_file("res://Main.tscn"), 0.5)
 	
 	print("=== ROUND COMPLETION FLOW INITIATED ===")
 

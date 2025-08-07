@@ -19,6 +19,7 @@ offset_left = 76.0
 offset_top = 310.0
 offset_right = 619.0
 offset_bottom = 595.0
+scale = Vector2(1.0086, 1.14759)
 texture = ExtResource("2_f0abr")
 
 [node name="Background" type="ColorRect" parent="."]
