@@ -1112,6 +1112,44 @@ func reset_player_to_tee(map_manager: Node, course: Node) -> void:
 	set_player_grid_pos(Vector2i(25, 25))
 	update_player_position_with_ball_creation(course)
 
+func reset_player_for_boss_fight() -> void:
+	"""Reset player position for boss fight - position at tee area"""
+	print("=== RESETTING PLAYER FOR BOSS FIGHT ===")
+	
+	# Get the course reference
+	var course = get_parent()
+	if not course:
+		print("ERROR: Course1 not found for boss fight player reset!")
+		return
+	
+	# Find tee position in the boss fight layout
+	var tee_found = false
+	for y in course.map_manager.level_layout.size():
+		for x in course.map_manager.level_layout[y].size():
+			if course.map_manager.get_tile_type(x, y) == "Tee":
+				set_player_grid_pos(Vector2i(x, y))
+				tee_found = true
+				print("Found tee position for boss fight at:", Vector2i(x, y))
+				break
+		if tee_found:
+			break
+	
+	# Fallback to default position if no tee found
+	if not tee_found:
+		set_player_grid_pos(Vector2i(9, 15))  # Default position in boss fight layout
+		print("No tee found, using default boss fight position:", Vector2i(9, 15))
+	
+	# Update player position and create ball
+	update_player_position_with_ball_creation(course)
+	
+	# Ensure player is visible and animations are enabled
+	if player_node:
+		player_node.visible = true
+		if player_node.has_method("enable_animations"):
+			player_node.enable_animations()
+	
+	print("=== PLAYER RESET FOR BOSS FIGHT COMPLETE ===")
+
 func _get_tile_type_at_position(grid_pos: Vector2i, course: Node) -> String:
 	"""Get the tile type at a specific grid position"""
 	if not course or not course.has_node("MapManager"):

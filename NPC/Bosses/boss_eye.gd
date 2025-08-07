@@ -456,7 +456,51 @@ func die():
 	print("BossEye defeated!")
 	if boss_health_bar:
 		boss_health_bar.visible = false
-	turn_completed.emit()
+	
+	# Check if this is a post-hole-18 boss fight
+	if Global.post_hole_18_boss_fight:
+		print("Post-hole-18 boss fight completed - transitioning to round completion")
+		_handle_post_hole_18_boss_fight_completion()
+	else:
+		turn_completed.emit()
+
+func _handle_post_hole_18_boss_fight_completion() -> void:
+	"""Handle completion of post-hole-18 boss fight"""
+	print("=== POST-HOLE-18 BOSS FIGHT COMPLETED ===")
+	
+	# Reset the flag
+	Global.post_hole_18_boss_fight = false
+	
+	# Get the course reference
+	var course = get_tree().get_root().get_node_or_null("Course1")
+	if not course:
+		print("ERROR: Course1 not found for boss fight completion!")
+		return
+	
+	# Handle ClubHouse Looty transfer for the completed round
+	var clubhouse_upgrade_manager = get_node("/root/ClubHouseUpgradeManager")
+	if clubhouse_upgrade_manager:
+		print("Boss fight completed - transferring course Looty to ClubHouse")
+		clubhouse_upgrade_manager.transfer_course_looty_to_clubhouse()
+	
+	# Set global flag to show final score display when returning to main
+	Global.show_final_score_display = true
+	print("Boss fight completed - setting global flag to show final score display")
+	
+	# Show victory message
+	if course.ui_manager and course.ui_manager.has_method("show_turn_message"):
+		course.ui_manager.show_turn_message("Boss Defeated!", 2.0)
+	
+	# Wait a moment for the message to be seen
+	await get_tree().create_timer(2.5).timeout
+	
+	# Show the course complete dialog
+	if course.has_method("show_course_complete_dialog"):
+		course.show_course_complete_dialog()
+	else:
+		print("ERROR: Course1 missing show_course_complete_dialog method!")
+	
+	print("=== ROUND COMPLETION FLOW INITIATED ===")
 
 func flash_red():
 	"""Flash red when taking damage"""

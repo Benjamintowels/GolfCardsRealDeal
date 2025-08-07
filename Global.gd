@@ -9,6 +9,7 @@ var in_mid_game_shop_mode = false  # Flag for mid-game shop mode
 var damage_round_mode = false  # Flag for damage round mode (special fun mode)
 var boss_room_mode = false  # Flag for boss room mode
 var fight_room_mode = false  # Flag for fight room mode
+var post_hole_18_boss_fight = false  # Flag for post-hole-18 boss fight in Adventure Mode
 var final_18_hole_score = 0  # Final score for 18-hole game
 var front_9_score = 0  # Score from front 9 holes
 var show_final_score_display = false  # Flag to trigger final score display when returning to main

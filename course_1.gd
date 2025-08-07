@@ -963,6 +963,9 @@ func adjust_background_positioning() -> void:
 	elif game_state_manager.get_current_puzzle_type() == "fight_room":
 		map_manager.load_map_data(GolfCourseLayout.get_fight_room_layout())
 		print("Loading Fight Room layout for fight_room puzzle type")
+	elif game_state_manager.get_current_puzzle_type() == "boss_fight":
+		map_manager.load_map_data(BossFight.LAYOUT)
+		print("Loading Boss Fight layout for boss_fight puzzle type")
 	elif game_state_manager.get_driving_range_mode():
 		map_manager.load_map_data(GolfCourseLayout.get_damage_round_layout())
 		print("Loading Driving Range layout")
@@ -2540,6 +2543,14 @@ func _load_next_hole():
 			print("🎯 DAMAGE ROUND: Damage bar z_index:", damage_bar.z_index)
 		else:
 			print("❌ DAMAGE ROUND: Damage bar is null!")
+	elif game_state_manager.get_current_puzzle_type() == "boss_fight":
+		# Show damage bar for boss fight puzzle type
+		if damage_bar:
+			damage_bar.visible = true
+			damage_bar.reset_damage()  # Reset for new hole
+			print("🎯 BOSS FIGHT: Damage bar made visible for boss fight")
+		else:
+			print("❌ BOSS FIGHT: Damage bar is null!")
 	else:
 		if damage_bar:
 			damage_bar.visible = false
@@ -2557,6 +2568,9 @@ func _load_next_hole():
 	elif game_state_manager.get_current_puzzle_type() == "fight_room":
 		map_manager.load_map_data(GolfCourseLayout.get_fight_room_layout())
 		print("FightRoom Mode: Loading FightRoomLayout for next hole")
+	elif game_state_manager.get_current_puzzle_type() == "boss_fight":
+		map_manager.load_map_data(BossFight.LAYOUT)
+		print("BossFight Mode: Loading BossFightLayout for next hole")
 	else:
 		map_manager.load_map_data(GolfCourseLayout.get_hole_layout(game_state_manager.get_current_hole_index()))
 	

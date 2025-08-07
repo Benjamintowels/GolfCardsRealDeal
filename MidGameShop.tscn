@@ -1,8 +1,144 @@
-[gd_scene load_steps=4 format=3 uid="uid://cyy0rquh4r2g5"]
+[gd_scene load_steps=10 format=3 uid="uid://cyy0rquh4r2g5"]
 
 [ext_resource type="Script" uid="uid://dtw7n33nnyewo" path="res://mid_game_shop.gd" id="1_0k8m2"]
 [ext_resource type="Texture2D" uid="uid://dwj1jsqkci76e" path="res://MidGameShop.png" id="2_midshop"]
 [ext_resource type="Texture2D" uid="uid://c1vpbijigd3m6" path="res://UI/WoodenDoor.png" id="3_oubb6"]
+[ext_resource type="Texture2D" uid="uid://co3t8pmnxc6ir" path="res://ClubHouse/MapFlag.png" id="4_j64yv"]
+[ext_resource type="AudioStream" uid="uid://3igpboa5ny6" path="res://Sounds/Thud.mp3" id="5_vy08b"]
+[ext_resource type="AudioStream" uid="uid://c6807wk0mjel5" path="res://Sounds/HoleComplete.mp3" id="6_1qvjk"]
+
+[sub_resource type="Animation" id="Animation_j64yv"]
+resource_name = "place_flag"
+length = 1.3845
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Node2D/MapFlag:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(55, -101)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Node2D:position")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.566667),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [Vector2(147, -1006), Vector2(114.755, 528.155)]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Node2D:rotation")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0, 0.566667, 0.633333, 0.733333, 0.866667, 1),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1),
+"update": 0,
+"values": [0.0, 0.0, 0.135472, -0.207693, 0.0521329, -0.00192704]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("Thud:playing")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0.4),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [true]
+}
+tracks/4/type = "value"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath("UpgradeCool:playing")
+tracks/4/interp = 1
+tracks/4/loop_wrap = true
+tracks/4/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [true]
+}
+
+[sub_resource type="Animation" id="Animation_vy08b"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Node2D:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(147, -1006)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Node2D/MapFlag:position")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(55, -101)]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Node2D:rotation")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [0.0]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("Thud:playing")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [false]
+}
+tracks/4/type = "value"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath("UpgradeCool:playing")
+tracks/4/interp = 1
+tracks/4/loop_wrap = true
+tracks/4/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [false]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_vy08b"]
+_data = {
+&"RESET": SubResource("Animation_vy08b"),
+&"place_flag": SubResource("Animation_j64yv")
+}
 
 [node name="MidGameShop" type="Control"]
 layout_mode = 3
@@ -64,3 +200,24 @@ texture_pressed = ExtResource("3_oubb6")
 texture_hover = ExtResource("3_oubb6")
 texture_disabled = ExtResource("3_oubb6")
 texture_focused = ExtResource("3_oubb6")
+
+[node name="Node2D" type="Node2D" parent="."]
+position = Vector2(147, -1006)
+
+[node name="MapFlag" type="Sprite2D" parent="Node2D"]
+texture_filter = 1
+position = Vector2(55, -101)
+texture = ExtResource("4_j64yv")
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+libraries = {
+&"": SubResource("AnimationLibrary_vy08b")
+}
+
+[node name="Thud" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("5_vy08b")
+pitch_scale = 2.05
+
+[node name="UpgradeCool" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("6_1qvjk")
+pitch_scale = 3.27

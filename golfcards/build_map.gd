@@ -482,8 +482,8 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 			num_zombies = npc_counts.zombies * 2
 			print("🎯 PUZZLE TYPE: Mob puzzle - doubling NPC counts")
 			
-		"generator", "miniboss":
-			# Generator and Miniboss puzzles: Use normal difficulty tier
+		"generator", "miniboss", "boss_fight":
+			# Generator, Miniboss, and BossFight puzzles: Use normal difficulty tier
 			print("🎯 PUZZLE TYPE: ", puzzle_type, " puzzle - using normal difficulty tier")
 			
 		"driving_range":
@@ -1461,6 +1461,11 @@ func apply_puzzle_type_configuration(puzzle_type: String) -> void:
 			print("🎯 PUZZLE TYPE: Miniboss puzzle - will be applied during object placement")
 			# The miniboss puzzle logic is already in get_random_positions_for_objects
 			# We just need to ensure it's triggered for this hole
+			
+		"boss_fight":
+			# BossFight puzzle: Force boss fight on this hole
+			print("🎯 PUZZLE TYPE: BossFight puzzle - will be applied during object placement")
+			# The boss fight logic will be applied during object placement
 			
 		"driving_range":
 			# Damage Round puzzle: Spawn 30 NPCs near the green for damage testing

@@ -34,6 +34,11 @@ var puzzle_types = {
 		"description": "Face a Wraith boss with force field dome protection",
 		"symbol_scene": preload("res://UI/PuzzleSymbols/MinibossSymbol.tscn")
 	},
+	"boss_fight": {
+		"name": "Boss Fight",
+		"description": "Face Docculus the Brave in an epic battle",
+		"symbol_scene": preload("res://UI/PuzzleSymbols/MinibossSymbol.tscn")  # Reuse miniboss symbol for now
+	},
 	"driving_range": {
 		"name": "Damage Round",
 		"description": "Special fun mode with extra NPCs and oil drums - only club cards allowed",
@@ -118,8 +123,9 @@ func show_puzzle_selection():
 	
 	print("🎯 PUZZLE SELECTION: All required nodes found")
 	
-	# Get all available puzzle types
+	# Get all available puzzle types (exclude boss_fight from random selection)
 	available_puzzle_types = puzzle_types.keys()
+	available_puzzle_types.erase("boss_fight")  # Exclude boss_fight from random selection
 	print("🎯 PUZZLE SELECTION: Available puzzle types:", available_puzzle_types)
 	
 	# Randomly select 2 different puzzle types

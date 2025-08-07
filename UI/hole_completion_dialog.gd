@@ -2,6 +2,8 @@ extends Control
 
 signal dialog_closed
 
+const BossFight := preload("res://Maps/BossFightLayout.gd")
+
 var course: Node = null
 var ui_layer: CanvasLayer = null
 var round_end_hole: int = 0
@@ -124,6 +126,17 @@ func close_dialog() -> void:
 	# Handle ClubHouse Looty transfer for final holes
 	_handle_clubhouse_looty_transfer(current_hole, is_back_9_mode)
 	
+	# Calculate the actual hole number (1-18) based on current hole index and mode
+	var actual_hole_number = current_hole + 1
+	# Note: In back 9 mode, current_hole is already the absolute index (9-17 for holes 10-18)
+	# So we don't need to add back_9_start_hole again
+	
+	# Special case: Hole 18 in Adventure Mode (back 9 mode) - transition to boss fight
+	if actual_hole_number == 18 and is_back_9_mode:
+		print("Hole 18 completed in Adventure Mode - transitioning to BossEye fight")
+		_transition_to_boss_fight()
+		return
+	
 	if current_hole < round_end_hole:
 		# Show reward selection dialog for regular holes
 		if course.ui_manager and course.ui_manager.has_method("show_reward_phase"):
@@ -147,10 +160,10 @@ func _integrate_progression_system(current_hole: int, is_back_9_mode: bool):
 	
 	# Calculate the actual hole number (1-18) based on current hole index and mode
 	var actual_hole_number = current_hole + 1
-	if is_back_9_mode:
-		actual_hole_number = course.game_state_manager.back_9_start_hole + current_hole + 1
+	# Note: In back 9 mode, current_hole is already the absolute index (9-17 for holes 10-18)
+	# So we don't need to add back_9_start_hole again
 	
-	print("Hole completion dialog: Adding experience for hole ", actual_hole_number)
+	print("Hole completion dialog: Debug - current_hole:", current_hole, "is_back_9_mode:", is_back_9_mode, "back_9_start_hole:", course.game_state_manager.back_9_start_hole, "calculated hole:", actual_hole_number)
 	file_level_manager.complete_hole(actual_hole_number)
 	
 	# Check if this is the final hole (hole 18 or hole 9 in front 9 mode)
@@ -161,7 +174,8 @@ func _integrate_progression_system(current_hole: int, is_back_9_mode: bool):
 		is_final_hole = (actual_hole_number == 9)
 	
 	# If this is the final hole, set global flag to show final score display when returning to main
-	if is_final_hole:
+	# But only if we're not transitioning to a boss fight
+	if is_final_hole and not (actual_hole_number == 18 and is_back_9_mode):
 		print("Final hole completed - setting global flag to show final score display")
 		Global.show_final_score_display = true
 
@@ -174,8 +188,8 @@ func _handle_clubhouse_looty_transfer(current_hole: int, is_back_9_mode: bool):
 	
 	# Calculate the actual hole number (1-18) based on current hole index and mode
 	var actual_hole_number = current_hole + 1
-	if is_back_9_mode:
-		actual_hole_number = course.game_state_manager.back_9_start_hole + current_hole + 1
+	# Note: In back 9 mode, current_hole is already the absolute index (9-17 for holes 10-18)
+	# So we don't need to add back_9_start_hole again
 	
 	# Check if this is hole 18 (final hole)
 	if actual_hole_number == 18:
@@ -190,6 +204,55 @@ func _handle_clubhouse_looty_transfer(current_hole: int, is_back_9_mode: bool):
 		is_final_hole = (actual_hole_number == 9)
 	
 	# Transfer course Looty to ClubHouse for final holes
-	if is_final_hole:
+	# But only if we're not transitioning to a boss fight
+	if is_final_hole and not (actual_hole_number == 18 and is_back_9_mode):
 		print("Final hole completed - transferring course Looty to ClubHouse")
 		clubhouse_upgrade_manager.transfer_course_looty_to_clubhouse()
+
+func _transition_to_boss_fight() -> void:
+	"""Transition to BossEye fight after hole 18 completion"""
+	print("=== TRANSITIONING TO BOSS FIGHT ===")
+	
+	# Set a flag to indicate we're in post-hole-18 boss fight mode
+	Global.post_hole_18_boss_fight = true
+	
+	# Load the boss fight layout
+	if course.map_manager and course.map_manager.has_method("load_map_data"):
+		course.map_manager.load_map_data(BossFight.LAYOUT)
+		print("Loaded Boss Fight layout for post-hole-18 boss fight")
+	
+	# Rebuild the map with boss fight layout
+	if course.build_map and course.build_map.has_method("build_map_from_layout_with_randomization"):
+		course.build_map.build_map_from_layout_with_randomization(
+			course.map_manager.level_layout, 
+			course.game_state_manager.get_current_hole_index(), 
+			"miniboss"  # Use miniboss puzzle type for boss fight
+		)
+		print("Built boss fight map")
+	
+	# Set the puzzle type to boss_fight for the boss fight
+	if course.game_state_manager:
+		course.game_state_manager.set_current_puzzle_type("boss_fight")
+		course.game_state_manager.set_next_puzzle_type("boss_fight")
+		print("Set puzzle type to boss_fight for boss fight")
+	
+	# Reset player position to tee area for boss fight
+	if course.player_manager and course.player_manager.has_method("reset_player_for_boss_fight"):
+		course.player_manager.reset_player_for_boss_fight()
+	
+	# Reset game state for boss fight
+	if course.game_state_manager:
+		course.game_state_manager.set_game_phase("tee_select")
+		course.game_state_manager.set_is_placing_player(true)
+		course.game_state_manager.reset_hole_score()
+		print("Reset game state for boss fight")
+	
+	# Show boss fight intro dialog or message
+	if course.ui_manager and course.ui_manager.has_method("show_boss_fight_intro"):
+		course.ui_manager.show_boss_fight_intro()
+	else:
+		# Fallback: show a simple message
+		if course.ui_manager and course.ui_manager.has_method("show_turn_message"):
+			course.ui_manager.show_turn_message("Boss Fight!", 3.0)
+	
+	print("=== BOSS FIGHT TRANSITION COMPLETE ===")

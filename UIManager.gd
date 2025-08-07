@@ -937,6 +937,19 @@ func show_turn_message(message: String, duration: float) -> void:
 	if is_instance_valid(message_label):
 		message_label.queue_free()
 
+func show_boss_fight_intro() -> void:
+	"""Show boss fight intro message"""
+	print("=== SHOWING BOSS FIGHT INTRO ===")
+	
+	# Show the boss fight intro message
+	await show_turn_message("Boss Fight!", 2.0)
+	
+	# Wait a moment, then show additional message
+	await get_tree().create_timer(0.5).timeout
+	await show_turn_message("Defeat Docculus!", 2.5)
+	
+	print("=== BOSS FIGHT INTRO COMPLETE ===")
+
 func show_pause_menu() -> void:
 	"""Show pause menu"""
 	var pause_dialog = Control.new()
@@ -1154,9 +1167,15 @@ func show_draw_cards_button_for_turn_start() -> void:
 
 	if course and course.game_state_manager:
 		var is_damage_round = course.game_state_manager.get_current_puzzle_type() == "driving_range"
+		var is_boss_fight = course.game_state_manager.get_current_puzzle_type() == "boss_fight"
 		if is_damage_round:
 			# --- Original DamageRound logic ---
 			print("DamageRound Puzzle Type: Showing draw cards button for modifiers")
+			draw_cards_button.visible = true
+			return
+		elif is_boss_fight:
+			# --- BossFight logic ---
+			print("BossFight Puzzle Type: Showing draw cards button for modifiers")
 			draw_cards_button.visible = true
 			return
 
@@ -1182,22 +1201,23 @@ func show_draw_club_cards_button() -> void:
 		# Show the draw cards button for modifiers on DamageRound holes or if player has ShineStar equipment when player is on tee
 		if course.game_state_manager and course.game_state_manager.get_game_phase() == "draw_cards":
 			if draw_cards_button:
-				# Check if this is a DamageRound hole or if player has ShineStar equipment
+				# Check if this is a DamageRound hole, BossFight hole, or if player has ShineStar equipment
 				var is_damage_round = course.game_state_manager.get_current_puzzle_type() == "driving_range"
+				var is_boss_fight = course.game_state_manager.get_current_puzzle_type() == "boss_fight"
 				var has_shine_star = false
 				
-				if not is_damage_round:
+				if not is_damage_round and not is_boss_fight:
 					var equipment_manager = course.get_node_or_null("EquipmentManager")
 					has_shine_star = equipment_manager and equipment_manager.has_equipment("Shine Star")
 				
-				# Show draw cards button for DamageRound holes, ShineStar equipment, and if player has modifier cards in hand
-				if (is_damage_round or has_shine_star) and course.deck_manager and course.deck_manager.hand.size() > 0:
+				# Show draw cards button for DamageRound holes, BossFight holes, ShineStar equipment, and if player has modifier cards in hand
+				if (is_damage_round or is_boss_fight or has_shine_star) and course.deck_manager and course.deck_manager.hand.size() > 0:
 					draw_cards_button.visible = true
-					var reason = "DamageRound hole" if is_damage_round else "ShineStar equipment"
+					var reason = "DamageRound hole" if is_damage_round else "BossFight hole" if is_boss_fight else "ShineStar equipment"
 					print("Draw Cards button shown for modifiers -", reason, "- player has", course.deck_manager.hand.size(), "modifier cards")
 				else:
 					draw_cards_button.visible = false
-					print("Draw Cards button hidden - not DamageRound hole, no ShineStar equipment, or no modifier cards available")
+					print("Draw Cards button hidden - not DamageRound hole, not BossFight hole, no ShineStar equipment, or no modifier cards available")
 
 func enter_draw_cards_phase() -> void:
 	"""Enter the draw cards phase - start with club selection"""
