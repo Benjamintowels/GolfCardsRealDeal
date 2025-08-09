@@ -43,7 +43,8 @@ var cutscene_data = {
 		"trigger_flag": null,
 		"played_flag": "heard_golfsmith_intro",
 		"setup_actions": [
-			{"type": "hide_ui", "targets": ["character1_button", "character2_button", "character3_button", "start_putt_putt_button", "start_back_9_button", "driving_range_button", "boss_room_button", "fight_room_button", "kendama_button"]}
+			# Hide clubhouse UI buttons but keep Benny visible so he doesn't pop in mid-cutscene
+			{"type": "hide_ui", "targets": ["character1_button", "character3_button", "start_putt_putt_button", "start_back_9_button", "driving_range_button", "boss_room_button", "fight_room_button", "kendama_button"]}
 		],
 		"cleanup_actions": [
 			{"type": "show_ui", "targets": ["character1_button", "character2_button", "character3_button", "start_putt_putt_button", "start_back_9_button", "driving_range_button", "boss_room_button", "fight_room_button", "kendama_button"]}

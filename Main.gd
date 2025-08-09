@@ -923,6 +923,10 @@ func _on_return_to_clubhouse():
 	# Save progression data when returning to clubhouse
 	var save_file_manager = get_node("/root/SaveFileManager")
 	if save_file_manager and save_file_manager.current_save_slot > 0:
+		# Unlock the upgrade button after the first return from a round (freebie entry point)
+		if not save_file_manager.get_story_flag("upgrade_button_unlocked"):
+			save_file_manager.set_story_flag("upgrade_button_unlocked", true)
+		# Save after updating story flags
 		save_file_manager.save_current_game()
 		print("💾 Progression saved when returning to clubhouse")
 	
@@ -992,13 +996,14 @@ func _update_clubhouse_upgrade_ui():
 	else:
 		print("❌ ClubHouse Looty label not found!")
 	
-	# Update upgrade button visibility based on ClubHouse level
-	var file_level_manager = FileLevelManager
-	if file_level_manager and upgrade_clubhouse_button and is_instance_valid(upgrade_clubhouse_button):
-		var stats = file_level_manager.get_current_stats()
-		upgrade_clubhouse_button.visible = stats.clubhouse_level >= 2
-		print("🔘 Upgrade button visibility set to:", upgrade_clubhouse_button.visible, "(ClubHouse level:", stats.clubhouse_level, ")")
-		
+	# Update upgrade button visibility based on story flag: show after first return from a round
+	var save_file_manager2 = get_node("/root/SaveFileManager")
+	if upgrade_clubhouse_button and is_instance_valid(upgrade_clubhouse_button):
+		var unlocked := false
+		if save_file_manager2:
+			unlocked = save_file_manager2.get_story_flag("upgrade_button_unlocked")
+		upgrade_clubhouse_button.visible = unlocked
+		print("🔘 Upgrade button visibility set to:", upgrade_clubhouse_button.visible, "(Unlocked:", unlocked, ")")
 		# Ensure button is connected if it wasn't before
 		if not upgrade_clubhouse_button.pressed.is_connected(_on_upgrade_clubhouse_pressed):
 			upgrade_clubhouse_button.pressed.connect(_on_upgrade_clubhouse_pressed)

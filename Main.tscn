@@ -1,4 +1,4 @@
-[gd_scene load_steps=123 format=3 uid="uid://wyu3udwngros"]
+[gd_scene load_steps=124 format=3 uid="uid://wyu3udwngros"]
 
 [ext_resource type="Script" uid="uid://ct4bebh7dhisi" path="res://Main.gd" id="1_r0du0"]
 [ext_resource type="Script" uid="uid://cqehnplar8nuv" path="res://perk_receiver.gd" id="2_hri7i"]
@@ -28,6 +28,7 @@
 [ext_resource type="Texture2D" uid="uid://b6xl46ycq11u4" path="res://ClubHouse/ClubHouseSign.png" id="15_fpfj3"]
 [ext_resource type="AudioStream" uid="uid://c62mm1m8rd147" path="res://Sounds/beamlow.mp3" id="16_bg4s2"]
 [ext_resource type="AudioStream" uid="uid://d3jtcufdc7hbv" path="res://Sounds/BeamSurge.mp3" id="17_hhcpw"]
+[ext_resource type="PackedScene" uid="uid://dvpal82d11cdd" path="res://UI/AdvanceContainer.tscn" id="18_sph85"]
 [ext_resource type="PackedScene" uid="uid://b4oxiu1huxcfd" path="res://ClubHouse/TractorBeam.tscn" id="19_devvj"]
 [ext_resource type="PackedScene" uid="uid://l5svvc4lrrpp" path="res://UI/CharacterStatBanner.tscn" id="20_kgwt8"]
 [ext_resource type="Script" uid="uid://btyphvxp4w2v4" path="res://club_house_camera.gd" id="27_sqvbp"]
@@ -1421,31 +1422,31 @@ offset_bottom = 101.0
 text = "Start Round"
 
 [node name="DrivingRange" type="Button" parent="UI"]
-offset_left = 51.0
-offset_top = 978.0
-offset_right = 167.0
-offset_bottom = 1009.0
+offset_left = 52.0
+offset_top = 933.0
+offset_right = 168.0
+offset_bottom = 964.0
 text = "Driving Range"
 
 [node name="BossRoom" type="Button" parent="UI"]
-offset_left = 40.0
-offset_top = 845.0
-offset_right = 156.0
-offset_bottom = 876.0
+offset_left = 41.0
+offset_top = 800.0
+offset_right = 157.0
+offset_bottom = 831.0
 text = "Boss Room"
 
 [node name="FightRoom" type="Button" parent="UI"]
-offset_left = 40.0
-offset_top = 890.0
-offset_right = 156.0
-offset_bottom = 921.0
+offset_left = 41.0
+offset_top = 845.0
+offset_right = 157.0
+offset_bottom = 876.0
 text = "Fight Room"
 
 [node name="Kendama" type="Button" parent="UI"]
-offset_left = 41.0
-offset_top = 936.0
-offset_right = 157.0
-offset_bottom = 967.0
+offset_left = 42.0
+offset_top = 891.0
+offset_right = 158.0
+offset_bottom = 922.0
 text = "Kendama"
 
 [node name="Character3" type="Sprite2D" parent="UI"]
@@ -1499,12 +1500,15 @@ offset_bottom = 243.0
 text = "ClubHouse $Looty: 0"
 
 [node name="UpgradeClubHouseButton" type="Button" parent="UI"]
-visible = false
-offset_left = 142.0
-offset_top = 250.0
-offset_right = 284.0
-offset_bottom = 281.0
+offset_left = 41.0
+offset_top = 1009.0
+offset_right = 203.0
+offset_bottom = 1040.0
 text = "Upgrade ClubHouse"
+
+[node name="AdvanceContainer" parent="UI/UpgradeClubHouseButton" instance=ExtResource("18_sph85")]
+z_index = -1
+position = Vector2(-19, -11)
 
 [node name="CharacterStatBanner" parent="." instance=ExtResource("20_kgwt8")]
 visible = false
