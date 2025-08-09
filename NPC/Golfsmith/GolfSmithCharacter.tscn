@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3 uid="uid://bw4gbo60jepwp"]
+[gd_scene load_steps=9 format=3 uid="uid://bw4gbo60jepwp"]
 
 [ext_resource type="Script" uid="uid://b1mvbwrn17nqn" path="res://NPC/Golfsmith/golf_smith_character.gd" id="1_7y123"]
 [ext_resource type="Texture2D" uid="uid://wbc6vg34c84y" path="res://NPC/Golfsmith/GolfsmithSprite.png" id="1_hkm7x"]
@@ -6,6 +6,7 @@
 [ext_resource type="Texture2D" uid="uid://b4v6t0pief6mn" path="res://NPC/Golfsmith/GolfsmithBlock.png" id="4_3cyr3"]
 [ext_resource type="Texture2D" uid="uid://de754j2c006ss" path="res://NPC/Golfsmith/GolfsmithDead.png" id="5_agoqa"]
 [ext_resource type="AudioStream" uid="uid://clorehgdvljmk" path="res://Sounds/DeathGroan.mp3" id="6_6jf5m"]
+[ext_resource type="AudioStream" uid="uid://bxqh8tkqgbvm8" path="res://Sounds/Reward.mp3" id="7_n8go4"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_7y123"]
 radius = 13.0
@@ -55,4 +56,8 @@ shape = SubResource("CircleShape2D_7y123")
 
 [node name="DeathGroan" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("6_6jf5m")
+pitch_scale = 0.81
+
+[node name="Success" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("7_n8go4")
 pitch_scale = 0.81

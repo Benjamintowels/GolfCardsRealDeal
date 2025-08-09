@@ -29,10 +29,14 @@ var movement_tween: Tween
 var movement_duration: float = 0.3
 
 # AI
-var movement_range: int = 1
+var movement_range: int = 0
 var vision_range: int = 12
 var attack_range: int = 2
 var attack_damage: int = 45
+
+# Health
+var max_health: int = 150
+var current_health: int = 150
 
 # References
 var course: Node = null
@@ -66,6 +70,9 @@ func _late_ready() -> void:
 
 	# Set initial ysort
 	update_z_index_for_ysort()
+
+	# Ensure we have a SpeechBubble child for clubhouse cutscene if present in Main scene
+	# (No-op here; clubhouse speech bubble is defined in Main.tscn)
 
 func _find_course_and_refs() -> void:
 	# Find course (course_1.gd) up the tree
@@ -166,6 +173,9 @@ func _attack_enemy_at(_enemy_grid_pos: Vector2i) -> void:
 	pass
 
 func _move_away_from(threat_grid_pos: Variant) -> void:
+	# No movement when movement_range is 0
+	if movement_range <= 0:
+		return
 	if threat_grid_pos == null:
 		# No threat found: small random wiggle within movement_range
 		var candidates: Array[Vector2i] = _get_adjacent_positions()
@@ -300,8 +310,10 @@ func take_damage(amount: int) -> void:
 			clear_block()
 	if remaining <= 0:
 		return
-	# Apply simple health logic: if any damage gets through block, Golfsmith dies
-	_die()
+	# Apply remaining damage to health
+	current_health -= remaining
+	if current_health <= 0:
+		_die()
 
 func activate_block(amount: int) -> void:
 	block_active = true

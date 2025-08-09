@@ -1,4 +1,4 @@
-[gd_scene load_steps=121 format=3 uid="uid://wyu3udwngros"]
+[gd_scene load_steps=123 format=3 uid="uid://wyu3udwngros"]
 
 [ext_resource type="Script" uid="uid://ct4bebh7dhisi" path="res://Main.gd" id="1_r0du0"]
 [ext_resource type="Script" uid="uid://cqehnplar8nuv" path="res://perk_receiver.gd" id="2_hri7i"]
@@ -14,9 +14,11 @@
 [ext_resource type="Script" uid="uid://cnne1a0u85wtc" path="res://current_deck_manager.gd" id="8_current_deck_manager"]
 [ext_resource type="PackedScene" uid="uid://wtf41wnk0sys" path="res://Dialog/SpeechBubble.tscn" id="8_mxvw5"]
 [ext_resource type="AudioStream" uid="uid://uif6unejkcej" path="res://Sounds/Select.mp3" id="8_trn2v"]
+[ext_resource type="Texture2D" uid="uid://wbc6vg34c84y" path="res://NPC/Golfsmith/GolfsmithSprite.png" id="9_40n85"]
 [ext_resource type="AudioStream" uid="uid://c4kj0vmsj7lux" path="res://Sounds/OpenDoor.mp3" id="9_wkp8b"]
 [ext_resource type="Animation" uid="uid://oikol2pivx2k" path="res://map_intro.res" id="10_2gh4u"]
 [ext_resource type="AudioStream" uid="uid://d3arwob15mnkt" path="res://Sounds/CloseDoor.mp3" id="10_20pc6"]
+[ext_resource type="Script" uid="uid://bsc58ejp3g1qw" path="res://golfsmith_club_house.gd" id="10_gb15f"]
 [ext_resource type="Texture2D" uid="uid://c5m7m06j7yols" path="res://ClubHouse/TableWooden.png" id="11_20pc6"]
 [ext_resource type="Texture2D" uid="uid://c1vpbijigd3m6" path="res://UI/WoodenDoor.png" id="12_5vvyt"]
 [ext_resource type="AudioStream" uid="uid://brvy126oki60w" path="res://Sounds/CoolSound.mp3" id="12_fpfj3"]
@@ -1311,6 +1313,21 @@ texture_filter = 1
 position = Vector2(936, 880)
 scale = Vector2(0.285, 0.285)
 texture = ExtResource("11_20pc6")
+
+[node name="GolfsmithClubHouse" type="Sprite2D" parent="ClubHouseBackgroundLayers/Table"]
+visible = false
+z_index = 60
+texture_filter = 1
+position = Vector2(-1922.81, -154.386)
+scale = Vector2(11.139, 11.139)
+texture = ExtResource("9_40n85")
+flip_h = true
+script = ExtResource("10_gb15f")
+
+[node name="SpeechBubble" parent="ClubHouseBackgroundLayers/Table/GolfsmithClubHouse" instance=ExtResource("8_mxvw5")]
+visible = false
+position = Vector2(0, -120)
+scale = Vector2(0.7, 0.7)
 
 [node name="Character2" type="TextureButton" parent="ClubHouseBackgroundLayers"]
 texture_filter = 1

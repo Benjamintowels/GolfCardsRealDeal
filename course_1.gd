@@ -3267,6 +3267,33 @@ func _on_hole_in_one(score: int):
 		launch_manager.set_ball_in_flight(false)
 		print("Ball in flight state reset to false (hole completion)")
 	
+	# If Golfsmith is alive on this map, play Success sound and mark quest progress
+	var golfsmith_alive: bool = false
+	var golfsmith_node: Node = null
+	var npcs = get_tree().get_nodes_in_group("NPC")
+	for n in npcs:
+		if is_instance_valid(n) and n.name == "GolfSmith":
+			golfsmith_node = n
+			var alive := true
+			if n.has_method("get_is_dead"):
+				alive = not n.get_is_dead()
+			elif n.has_method("is_dead"):
+				alive = not n.is_dead()
+			elif "is_dead" in n:
+				alive = not n.is_dead
+			golfsmith_alive = alive
+			break
+	if golfsmith_alive and golfsmith_node:
+		var success_audio = golfsmith_node.get_node_or_null("Success")
+		if success_audio and success_audio.has_method("play"):
+			success_audio.play()
+		# Set Golfsmith appear flag via quest progress
+		var save_file_manager = get_node_or_null("/root/SaveFileManager")
+		if save_file_manager and save_file_manager.has_method("get_npc_quest_progress") and save_file_manager.has_method("set_npc_quest_progress"):
+			var current_progress: int = save_file_manager.get_npc_quest_progress("golfsmith")
+			if current_progress < 25:
+				save_file_manager.set_npc_quest_progress("golfsmith", 25)
+	
 	ui_manager.show_hole_completion_dialog()
 
 func _on_gimme_triggered(ball: Node2D):

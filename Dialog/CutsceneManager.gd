@@ -6,6 +6,7 @@ signal cutscene_skipped(cutscene_id: String)
 
 # Preload dialog scripts
 const IntroDialogScript = preload("res://Dialog/IntroDialogScript.gd")
+const GolfsmithClubHouseIntro = preload("res://Dialog/GolfsmithClubHouseIntro.gd")
 
 # Cutscene data structure
 var cutscene_data = {
@@ -34,6 +35,18 @@ var cutscene_data = {
 				"type": "show_flippy",
 				"target": "FlippyTheDolphin"
 			}
+		]
+	},
+	"golfsmith_intro": {
+		"title": "Golfsmith Arrives",
+		"dialog_script": "GolfsmithClubHouseIntro",
+		"trigger_flag": null,
+		"played_flag": "heard_golfsmith_intro",
+		"setup_actions": [
+			{"type": "hide_ui", "targets": ["character1_button", "character2_button", "character3_button", "start_putt_putt_button", "start_back_9_button", "driving_range_button", "boss_room_button", "fight_room_button", "kendama_button"]}
+		],
+		"cleanup_actions": [
+			{"type": "show_ui", "targets": ["character1_button", "character2_button", "character3_button", "start_putt_putt_button", "start_back_9_button", "driving_range_button", "boss_room_button", "fight_room_button", "kendama_button"]}
 		]
 	}
 }
@@ -67,6 +80,8 @@ func _setup_ui():
 	# Ensure the overlay captures mouse input so clicks don't hit UI beneath
 	cutscene_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(cutscene_panel)
+	# Capture clicks on the overlay to advance dialog
+	cutscene_panel.gui_input.connect(_on_cutscene_gui_input)
 	
 	# Dialog panel
 	dialog_panel = Panel.new()
@@ -79,6 +94,7 @@ func _setup_ui():
 	# Also prevent dialog panel clicks from going through
 	dialog_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	cutscene_panel.add_child(dialog_panel)
+	dialog_panel.gui_input.connect(_on_cutscene_gui_input)
 	
 	# Dialog label
 	dialog_label = Label.new()
@@ -102,6 +118,12 @@ func _setup_ui():
 	advance_label.text = "Left Click to advance • Spacebar to skip"
 	advance_label.modulate = Color.GRAY
 	cutscene_panel.add_child(advance_label)
+
+func _on_cutscene_gui_input(event: InputEvent) -> void:
+	if not visible or current_cutscene == "":
+		return
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		advance_dialog()
 
 func _input(event):
 	"""Handle input for cutscene control"""
@@ -161,6 +183,8 @@ func _setup_dialog_script(script_name: String):
 	match script_name:
 		"IntroDialogScript":
 			current_dialog_script = IntroDialogScript.new()
+		"GolfsmithClubHouseIntro":
+			current_dialog_script = GolfsmithClubHouseIntro.new()
 		_:
 			print("Unknown dialog script: ", script_name)
 			return
@@ -237,6 +261,11 @@ func _show_speech_bubble(speaker: String, text: String):
 				# Flippy - smaller scale to match his size
 				speech_bubble.position = Vector2(45, -145)
 				speech_bubble.scale = Vector2(0.7, 0.7)
+			elif speaker == "golfsmith":
+				# Golfsmith - use default position but lower pitch of boop sound
+				var boop = speech_bubble.get_node_or_null("SpeechBoop")
+				if boop and boop is AudioStreamPlayer2D:
+					boop.pitch_scale = 0.75
 			
 			speech_bubble.setup_speech(text, 999.0, character_node)  # Long duration, manual control
 
@@ -257,6 +286,13 @@ func _clear_speech_bubbles():
 			if flippy_speech:
 				flippy_speech.visible = false
 
+		# Clear Golfsmith's speech bubble
+		var golfsmith = main_scene.get_node_or_null("ClubHouseBackgroundLayers/Table/GolfsmithClubHouse")
+		if golfsmith:
+			var golfsmith_speech = golfsmith.get_node_or_null("SpeechBubble")
+			if golfsmith_speech:
+				golfsmith_speech.visible = false
+
 func _get_character_node(speaker: String) -> Node:
 	"""Get the character node for the speaker"""
 	if not main_scene:
@@ -268,6 +304,8 @@ func _get_character_node(speaker: String) -> Node:
 			character_node = main_scene.get_node_or_null("ClubHouseBackgroundLayers/Character2")
 		"flippy":
 			character_node = main_scene.get_node_or_null("FlippyTheDolphin")
+		"golfsmith":
+			character_node = main_scene.get_node_or_null("ClubHouseBackgroundLayers/Table/GolfsmithClubHouse")
 		_:
 			return null
 	

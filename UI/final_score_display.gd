@@ -172,9 +172,7 @@ func _on_level_up(character_level: int, clubhouse_level: int):
 func _on_continue_button_pressed():
 	# Emit signal to return to clubhouse
 	return_to_clubhouse.emit()
-	
-	# Change scene back to main (clubhouse)
-	get_tree().change_scene_to_file("res://Main.tscn")
+	# Stay in Main scene; Main.gd handles return and any follow-up cutscenes
 
 # Function to be called when transitioning to this scene
 func show_final_score():

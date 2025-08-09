@@ -94,6 +94,23 @@ horizontal_alignment = 1
 layout_mode = 2
 text = "Upgrade Flippy"
 
+[node name="GolfsmithSection" type="VBoxContainer" parent="DialogContainer/UpgradeOptions"]
+layout_mode = 2
+
+[node name="GolfsmithTitle" type="Label" parent="DialogContainer/UpgradeOptions/GolfsmithSection"]
+layout_mode = 2
+text = "Golfsmith"
+horizontal_alignment = 1
+
+[node name="GolfsmithCostLabel" type="Label" parent="DialogContainer/UpgradeOptions/GolfsmithSection"]
+layout_mode = 2
+text = "Cost: 250 $Looty"
+horizontal_alignment = 1
+
+[node name="GolfsmithUpgradeButton" type="Button" parent="DialogContainer/UpgradeOptions/GolfsmithSection"]
+layout_mode = 2
+text = "Hire Golfsmith for Shop"
+
 [node name="Spacer" type="Control" parent="DialogContainer/UpgradeOptions"]
 custom_minimum_size = Vector2(0, 20)
 layout_mode = 2

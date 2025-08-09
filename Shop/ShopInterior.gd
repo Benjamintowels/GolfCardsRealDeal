@@ -37,7 +37,16 @@ func _ready():
 	var golfsmith_button = $Golfsmith
 	if golfsmith_button:
 		golfsmith_button.pressed.connect(_on_golfsmith_button_pressed)
-		print("ShopInterior: Golfsmith button connected")
+		# Gate visibility by quest shop flag
+		var save_file_manager = get_node_or_null("/root/SaveFileManager")
+		var visible_flag := false
+		if save_file_manager:
+			var story = save_file_manager.current_save_data.get("story_progression", {})
+			var npc_quests = story.get("npc_quests", {})
+			var gs = npc_quests.get("golfsmith", {})
+			visible_flag = bool(gs.get("shop", false))
+		golfsmith_button.visible = visible_flag
+		print("ShopInterior: Golfsmith button connected; visible:", visible_flag)
 	else:
 		print("ShopInterior: ERROR - Golfsmith button not found!")
 	

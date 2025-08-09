@@ -11,6 +11,8 @@ var close_button: Button
 var clubhouse_looty_label: Label
 
 var clubhouse_upgrade_manager: Node
+var golfsmith_upgrade_button: Button
+var golfsmith_cost_label: Label
 
 func _ready():
 	# Hide dialog initially
@@ -22,6 +24,8 @@ func _ready():
 	flippy_cost_label = get_node_or_null("DialogContainer/UpgradeOptions/FlippySection/FlippyCostLabel")
 	close_button = get_node_or_null("DialogContainer/CloseButton")
 	clubhouse_looty_label = get_node_or_null("DialogContainer/ClubHouseLootyLabel")
+	golfsmith_upgrade_button = get_node_or_null("DialogContainer/UpgradeOptions/GolfsmithSection/GolfsmithUpgradeButton")
+	golfsmith_cost_label = get_node_or_null("DialogContainer/UpgradeOptions/GolfsmithSection/GolfsmithCostLabel")
 	
 	# Get the ClubHouse upgrade manager
 	clubhouse_upgrade_manager = get_node("/root/ClubHouseUpgradeManager")
@@ -37,6 +41,9 @@ func _ready():
 	if close_button and is_instance_valid(close_button):
 		close_button.pressed.connect(_on_close_pressed)
 		print("✅ Close button connected")
+	
+	if golfsmith_upgrade_button and is_instance_valid(golfsmith_upgrade_button):
+		golfsmith_upgrade_button.pressed.connect(_on_golfsmith_upgrade_pressed)
 	
 	# Connect to manager signals
 	clubhouse_upgrade_manager.flippy_level_changed.connect(_on_flippy_level_changed)
@@ -81,6 +88,19 @@ func update_display():
 		else:
 			flippy_upgrade_button.text = "Upgrade Flippy"
 	
+	# Update Golfsmith shop upgrade state
+	var save_file_manager = get_node("/root/SaveFileManager")
+	if save_file_manager:
+		var story = save_file_manager.current_save_data.get("story_progression", {})
+		var npc_quests = story.get("npc_quests", {})
+		var gs = npc_quests.get("golfsmith", {})
+		var already_unlocked: bool = bool(gs.get("shop", false))
+		if golfsmith_upgrade_button and is_instance_valid(golfsmith_upgrade_button):
+			golfsmith_upgrade_button.disabled = already_unlocked or clubhouse_upgrade_manager.get_clubhouse_looty() < 250
+			golfsmith_upgrade_button.text = "Golfsmith Hired" if already_unlocked else "Hire Golfsmith for Shop"
+		if golfsmith_cost_label and is_instance_valid(golfsmith_cost_label):
+			golfsmith_cost_label.text = "Cost: 250 $Looty" if not already_unlocked else "Unlocked"
+
 	# Update ClubHouse Looty display
 	var clubhouse_looty = clubhouse_upgrade_manager.get_clubhouse_looty()
 	if clubhouse_looty_label and is_instance_valid(clubhouse_looty_label):
@@ -98,6 +118,26 @@ func _on_flippy_upgrade_pressed():
 		upgrade_completed.emit()
 	else:
 		print("Failed to upgrade Flippy")
+
+func _on_golfsmith_upgrade_pressed():
+	"""Handle Golfsmith shop upgrade purchase"""
+	var clubhouse_upgrade_manager = get_node("/root/ClubHouseUpgradeManager")
+	var save_file_manager = get_node("/root/SaveFileManager")
+	if not clubhouse_upgrade_manager or not save_file_manager:
+		return
+	# Cost 250 $Looty from ClubHouse wallet
+	if clubhouse_upgrade_manager.spend_clubhouse_looty(250):
+		# Set shop flag
+		var story = save_file_manager.current_save_data.get("story_progression", {})
+		var npc_quests = story.get("npc_quests", {})
+		if not npc_quests.has("golfsmith"):
+			npc_quests["golfsmith"] = {"appear": false, "shop": false, "quest_completed": false, "quest_progress": 0}
+		npc_quests["golfsmith"]["shop"] = true
+		story["npc_quests"] = npc_quests
+		save_file_manager.current_save_data["story_progression"] = story
+		save_file_manager.save_current_game()
+		print("✅ Golfsmith shop unlocked for 250 $Looty")
+		update_display()
 
 func _on_close_pressed():
 	"""Handle close button press"""

@@ -128,6 +128,11 @@ func _ready():
 		print("Global flag set - showing final score display")
 		show_final_score_display()
 		Global.show_final_score_display = false  # Reset the flag
+		# After final score is dismissed, check for Golfsmith intro cutscene
+		# This is handled in _on_return_to_clubhouse()
+
+	# Ensure Golfsmith clubhouse sprite visibility reflects save at startup
+	_update_progression_ui()
 	
 	print("Buttons connected successfully")
 	print("Initial selected_character: ", selected_character)
@@ -208,6 +213,15 @@ func _update_progression_ui():
 			print("❌ ERROR: ClubHouse level label not found in _update_progression_ui()")
 	else:
 		print("❌ ERROR: FileLevelManager autoload not found in _update_progression_ui()")
+
+	# Toggle GolfsmithClubHouse visibility based on story flag
+	var gs_node = get_node_or_null("ClubHouseBackgroundLayers/Table/GolfsmithClubHouse")
+	if gs_node:
+		var save_file_manager3 = get_node("/root/SaveFileManager")
+		var story = save_file_manager3.current_save_data.get("story_progression", {}) if save_file_manager3 else {}
+		var npc_quests = story.get("npc_quests", {})
+		var gs = npc_quests.get("golfsmith", {})
+		gs_node.visible = bool(gs.get("appear", false))
 
 func _setup_deck_selection_dialog():
 	"""Setup the deck selection dialog"""
@@ -914,6 +928,23 @@ func _on_return_to_clubhouse():
 	
 	# Update ClubHouse upgrade UI
 	_update_clubhouse_upgrade_ui()
+
+	# If Golfsmith was rescued (appear flag true) and intro not played yet, show Golfsmith intro cutscene
+	var save_file_manager2 = get_node("/root/SaveFileManager")
+	var cutscene_manager = get_node("/root/CutsceneManager")
+	if save_file_manager2 and cutscene_manager:
+		var story = save_file_manager2.current_save_data.get("story_progression", {})
+		var npc_quests = story.get("npc_quests", {})
+		var gs = npc_quests.get("golfsmith", {})
+		var golfsmith_appeared: bool = bool(gs.get("appear", false))
+		var heard_intro: bool = story.get("story_events", {}).get("heard_golfsmith_intro", false)
+		if golfsmith_appeared and not heard_intro:
+			# Ensure clubhouse sprite visible
+			var gs_node = get_node_or_null("ClubHouseBackgroundLayers/Table/GolfsmithClubHouse")
+			if gs_node:
+				gs_node.visible = true
+			# Play Golfsmith clubhouse intro cutscene
+			cutscene_manager.play_cutscene("golfsmith_intro", true)
 
 func _on_level_up(character_level: int, clubhouse_level: int):
 	"""Handle level up events from FileLevelManager"""
