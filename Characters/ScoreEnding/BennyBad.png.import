@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bypf5w0xblhbl"
-path="res://.godot/imported/ClarkBad.png-b8edf7fd5ef4318d46023fa213a95806.ctex"
+uid="uid://jxgbqees6jt5"
+path="res://.godot/imported/BennyBad.png-4811f169783487ef2963cff402be9871.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Characters/ClarkBad.png"
-dest_files=["res://.godot/imported/ClarkBad.png-b8edf7fd5ef4318d46023fa213a95806.ctex"]
+source_file="res://Characters/ScoreEnding/BennyBad.png"
+dest_files=["res://.godot/imported/BennyBad.png-4811f169783487ef2963cff402be9871.ctex"]
 
 [params]
 

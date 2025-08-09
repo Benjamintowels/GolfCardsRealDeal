@@ -215,4 +215,25 @@ func show_final_score():
 	is_leveling_up = false
 	animation_timer = 0.0
 	
+	# Update ScoreEnding image based on performance
+	_update_score_ending_image()
+
 	show()
+
+func _update_score_ending_image():
+	var score_ending: Node = get_node_or_null("ScoreEnding")
+	if not score_ending:
+		return
+	if Global.show_final_score_force_bad:
+		if score_ending.has_method("set_result"):
+			score_ending.set_result(false)
+		return
+	# compute good/bad based on last round score vs expected par
+	var strokes: int = int(Global.last_round_score)
+	var par_value: int = int(Global.last_round_expected_par)
+	if par_value <= 0:
+		# fallback: assume 72 for 18 or 36 for 9 depending on start mode
+		par_value = 72 if Global.starting_back_9 else 36
+	var is_good: bool = strokes < par_value
+	if score_ending.has_method("set_result"):
+		score_ending.set_result(is_good)

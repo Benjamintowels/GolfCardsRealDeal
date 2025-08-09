@@ -16,6 +16,7 @@ func _ready():
 func _on_return_button_pressed():
 	# Set flag to show final score display when returning to main
 	Global.show_final_score_display = true
+	Global.show_final_score_force_bad = true
 	print("Returning from death scene - setting flag to show final score display")
 	
 	# Return to main menu

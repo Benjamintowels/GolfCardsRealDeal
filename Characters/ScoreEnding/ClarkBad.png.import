@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cs7rohif000pf"
-path="res://.godot/imported/LaylaGood.png-6ebe58bfe2f12df71e8013162ecf362e.ctex"
+uid="uid://bypf5w0xblhbl"
+path="res://.godot/imported/ClarkBad.png-1c3ca6c2305998741dfdae18c03b8ed8.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Characters/LaylaGood.png"
-dest_files=["res://.godot/imported/LaylaGood.png-6ebe58bfe2f12df71e8013162ecf362e.ctex"]
+source_file="res://Characters/ScoreEnding/ClarkBad.png"
+dest_files=["res://.godot/imported/ClarkBad.png-1c3ca6c2305998741dfdae18c03b8ed8.ctex"]
 
 [params]
 

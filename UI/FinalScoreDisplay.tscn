@@ -1,6 +1,7 @@
-[gd_scene load_steps=6 format=3 uid="uid://kg85vs4xvah7"]
+[gd_scene load_steps=7 format=3 uid="uid://kg85vs4xvah7"]
 
 [ext_resource type="Script" uid="uid://bcjdp24b0431" path="res://UI/final_score_display.gd" id="1_final_score_display"]
+[ext_resource type="PackedScene" uid="uid://5pu3mwjqp2nq" path="res://Characters/ScoreEnding/ScoreEnding.tscn" id="2_dw4o5"]
 [ext_resource type="AudioStream" uid="uid://c6807wk0mjel5" path="res://Sounds/HoleComplete.mp3" id="2_p1e8y"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_1"]
@@ -41,6 +42,8 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 color = Color(0, 0, 0, 0.7)
+
+[node name="ScoreEnding" parent="." instance=ExtResource("2_dw4o5")]
 
 [node name="MainPanel" type="Panel" parent="."]
 layout_mode = 1

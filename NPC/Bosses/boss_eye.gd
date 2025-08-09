@@ -544,6 +544,7 @@ func _handle_post_hole_18_boss_fight_completion() -> void:
 	
 	# Set global flag to show final score display when returning to main
 	Global.show_final_score_display = true
+	Global.show_final_score_force_bad = false
 	print("Boss fight completed - setting global flag to show final score display")
 	
 	# Show victory message

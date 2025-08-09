@@ -4171,6 +4171,9 @@ func _on_pause_end_round_pressed(pause_dialog: Control):
 	# Reset damage round mode flag
 	Global.damage_round_mode = false
 	
+	# Mark final screen to force bad image (quit counts as bad)
+	Global.show_final_score_force_bad = true
+
 	# Remove pause dialog
 	pause_dialog.queue_free()
 	

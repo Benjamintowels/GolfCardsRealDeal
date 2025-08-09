@@ -731,6 +731,9 @@ func handle_player_death() -> void:
 	if course:
 		course.set_process_input(false)
 	
+	# Mark final screen to force bad image
+	Global.show_final_score_force_bad = true
+
 	# Fade to black and transition to death scene
 	FadeManager.fade_to_black(func(): get_tree().change_scene_to_file("res://DeathScene.tscn"), 1.0)
 

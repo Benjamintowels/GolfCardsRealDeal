@@ -15,6 +15,11 @@ var front_9_score = 0  # Score from front 9 holes
 var show_final_score_display = false  # Flag to trigger final score display when returning to main
 var score_only_mode = false  # Flag for score-only mode (no puzzle type selection)
 
+# Final screen helpers
+var show_final_score_force_bad: bool = false  # Force bad image (death/quit)
+var last_round_score: int = 0  # Sum of strokes for completed holes in the just-finished round
+var last_round_expected_par: int = 0  # Par for holes actually completed in the round
+
 # Turn-based spawning system
 var global_turn_count: int = 1  # Global turn counter across all holes
 

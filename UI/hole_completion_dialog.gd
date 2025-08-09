@@ -69,12 +69,12 @@ func setup_dialog(course_ref: Node, ui_layer_ref: CanvasLayer) -> void:
 		var total_round_score = 0
 		for score in round_scores:
 			total_round_score += score
-		var total_par = 0
-		if is_back_9_mode:
-			total_par = GolfCourseLayout.get_back_nine_par()
-		else:
-			total_par = GolfCourseLayout.get_front_nine_par()
+		# Expected par uses simple 4-per-hole for holes actually completed
+		var total_par = round_scores.size() * 4
 		var round_vs_par = total_round_score - total_par
+		# Store running score for final screen logic
+		Global.last_round_score = total_round_score
+		Global.last_round_expected_par = total_par
 		
 		score_text += "\nRound Progress: %d/%d holes\n" % [current_hole + 1, course.game_state_manager.NUM_HOLES]
 		score_text += "Round Score: %d\n" % total_round_score

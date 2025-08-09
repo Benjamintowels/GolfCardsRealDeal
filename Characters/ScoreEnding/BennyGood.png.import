@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://byt8abcmoyhws"
-path="res://.godot/imported/LaylaBad.png-1b7987049f2875366613363a066fde7c.ctex"
+uid="uid://chxnbmvisrskl"
+path="res://.godot/imported/BennyGood.png-1da438759516f3bf27f64c938b978f49.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Characters/LaylaBad.png"
-dest_files=["res://.godot/imported/LaylaBad.png-1b7987049f2875366613363a066fde7c.ctex"]
+source_file="res://Characters/ScoreEnding/BennyGood.png"
+dest_files=["res://.godot/imported/BennyGood.png-1da438759516f3bf27f64c938b978f49.ctex"]
 
 [params]
 
