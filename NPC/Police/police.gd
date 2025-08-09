@@ -414,25 +414,33 @@ func _calculate_velocity_damage(velocity_magnitude: float) -> int:
 	return final_damage
 
 func _find_player_reference() -> void:
-	"""Find the player reference in the scene"""
-	# First try to find the player by name
+	"""Find the primary target reference (Golfsmith if alive, else Player)"""
+	# Prefer course-provided reference (Golfsmith-first policy)
+	var course_ref = _find_course_script()
+	if course_ref and course_ref.has_method("get_player_reference"):
+		var target = course_ref.get_player_reference()
+		if target:
+			player = target
+			print("✓ Police found target via course reference: ", player.name)
+			return
+	
+	# Fallback: original behavior (players group)
 	player = get_tree().get_first_node_in_group("players")
 	if player:
 		print("✓ Police found player reference via group: ", player.name)
 		return
 	
-	# Fallback: search for any node with grid_pos property and take_damage method
+	# Fallback: search for any node with grid_pos and take_damage
 	var scene_tree = get_tree()
 	var all_nodes = scene_tree.get_nodes_in_group("")
-	
 	for node in all_nodes:
 		if "grid_pos" in node and node.has_method("take_damage"):
 			player = node
-			print("✓ Police found player reference via search: ", player.name)
+			print("✓ Police found target via search: ", player.name)
 			break
 	
 	if not player:
-		print("✗ ERROR: Police could not find player reference!")
+		print("✗ ERROR: Police could not find target reference!")
 
 func take_turn() -> void:
 	"""Take the Police's turn"""

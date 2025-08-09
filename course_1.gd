@@ -4734,6 +4734,21 @@ func _unlock_fight_room_door() -> void:
 
 func get_player_reference() -> Node:
 	"""Get a reference to the player node for other systems to use"""
+	# If a live GolfSmith exists on the map, return it as the primary target
+	var npcs = get_tree().get_nodes_in_group("NPC")
+	for n in npcs:
+		if is_instance_valid(n) and n.name == "GolfSmith":
+			# Check alive state using common patterns
+			var alive := true
+			if n.has_method("get_is_dead"):
+				alive = not n.get_is_dead()
+			elif n.has_method("is_dead"):
+				alive = not n.is_dead()
+			elif "is_dead" in n:
+				alive = not n.is_dead
+			if alive:
+				return n
+	# Fallback to real player
 	if player_manager and player_manager.get_player_node():
 		return player_manager.get_player_node()
 	return null

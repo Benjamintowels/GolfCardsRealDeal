@@ -648,8 +648,14 @@ func get_y_sort_point() -> float:
 	return global_position.y
 
 func _find_player_reference() -> void:
-	"""Find the player reference for AI behavior"""
-	# Find player in the scene
+	"""Find target for AI (Golfsmith-first via course reference)"""
+	if course and course.has_method("get_player_reference"):
+		var target = course.get_player_reference()
+		if target:
+			player = target
+			print("✓ ZombieGolfer found target via course reference: ", player.name)
+			return
+	# Fallback to original group search
 	var players = get_tree().get_nodes_in_group("player")
 	if players.size() > 0:
 		player = players[0]

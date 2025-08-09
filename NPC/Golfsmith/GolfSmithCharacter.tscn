@@ -37,3 +37,10 @@ shape = SubResource("CircleShape2D_7y123")
 position = Vector2(0, -92)
 
 [node name="YSortPoint" type="Marker2D" parent="."]
+
+[node name="HitBox" type="Area2D" parent="."]
+position = Vector2(-1, -36)
+scale = Vector2(1.6, 2.88)
+
+[node name="HitBoxShape" type="CollisionShape2D" parent="HitBox"]
+shape = SubResource("CircleShape2D_7y123")

@@ -14,6 +14,7 @@ signal turn_completed
 @onready var body_area: Area2D = $BodyArea2D
 @onready var top_height: Marker2D = $TopHeight
 @onready var ysort_point: Marker2D = $YSortPoint
+@onready var hitbox: Area2D = $HitBox
 
 var grid_position: Vector2i = Vector2i.ZERO
 var grid_pos: Vector2i = Vector2i.ZERO
@@ -28,7 +29,7 @@ var movement_tween: Tween
 var movement_duration: float = 0.3
 
 # AI
-var movement_range: int = 3
+var movement_range: int = 1
 var vision_range: int = 12
 var attack_range: int = 2
 var attack_damage: int = 45
@@ -100,6 +101,11 @@ func _setup_body_collision() -> void:
 		body_area.connect("area_entered", _on_body_area_entered)
 	if not body_area.is_connected("area_exited", _on_body_area_exited):
 		body_area.connect("area_exited", _on_body_area_exited)
+	# Ensure hitbox is discoverable by weapon systems
+	if hitbox:
+		hitbox.collision_layer = 2
+		hitbox.collision_mask = 0
+		hitbox.add_to_group("hitboxes")
 
 func _create_block_bar() -> void:
 	block_bar_container = Control.new()
@@ -124,12 +130,9 @@ func take_turn() -> void:
 	if is_dead or not is_alive:
 		turn_completed.emit()
 		return
-	# Simple AI: if enemy within 2 tiles, attack; else move away from nearest enemy
+	# Defensive AI: always move away from nearest enemy and block
 	var enemy_pos: Variant = _get_nearest_enemy_grid_pos()
-	if enemy_pos != null and grid_position.distance_to(enemy_pos) <= attack_range:
-		_attack_enemy_at(enemy_pos)
-	else:
-		_move_away_from(enemy_pos)
+	_move_away_from(enemy_pos)
 	# Raise block for the coming player/enemy actions (visual + mitigation)
 	activate_block(max_block_amount)
 	# End of this unit's turn
@@ -158,18 +161,9 @@ func _get_nearest_enemy_grid_pos() -> Variant:
 			nearest = pos
 	return nearest
 
-func _attack_enemy_at(enemy_grid_pos: Vector2i) -> void:
-	# Move one step toward enemy if not already adjacent, then apply damage if overlapping/adjacent
-	var direction: Vector2i = enemy_grid_pos - grid_position
-	if direction.x != 0:
-		direction.x = 1 if (direction.x > 0) else -1
-	if direction.y != 0:
-		direction.y = 1 if (direction.y > 0) else -1
-	var step_target: Vector2i = grid_position + direction
-	if step_target != grid_position and _is_position_free(step_target):
-		_move_to(step_target)
-	# Deal damage to any enemy at our tile
-	_deal_melee_damage_in_radius(1)
+func _attack_enemy_at(_enemy_grid_pos: Vector2i) -> void:
+	# Disabled: Golfsmith is defensive-only now
+	pass
 
 func _move_away_from(threat_grid_pos: Variant) -> void:
 	if threat_grid_pos == null:
@@ -306,8 +300,8 @@ func take_damage(amount: int) -> void:
 			clear_block()
 	if remaining <= 0:
 		return
-	# Golfsmith is a fragile NPC; no dedicated health bar for now. If needed, wire one later.
-	# If we want death on any health loss beyond block, we could mark dead here after threshold.
+	# Apply simple health logic: if any damage gets through block, Golfsmith dies
+	_die()
 
 func activate_block(amount: int) -> void:
 	block_active = true
@@ -354,6 +348,16 @@ func update_z_index_for_ysort() -> void:
 func get_script_path() -> String:
 	return get_script().resource_path if get_script() else ""
 
+func _die() -> void:
+	if not is_alive:
+		return
+	is_alive = false
+	is_dead = true
+	visible = false
+	# Unregister from Entities if present
+	if entities_manager and entities_manager.has_method("unregister_npc"):
+		entities_manager.unregister_npc(self)
+
 # Spawning helpers
 static func should_spawn_this_round() -> bool:
 	# If Golfsmith questline is completed, do not spawn on random holes
@@ -368,17 +372,6 @@ func get_preferred_target_grid_pos() -> Vector2i:
 	return grid_position
 
 # Utility to deal melee damage to hostile NPCs around us
-func _deal_melee_damage_in_radius(radius: int) -> void:
-	var nodes: Array = get_tree().get_nodes_in_group("NPC")
-	for n in nodes:
-		if n == self or not is_instance_valid(n):
-			continue
-		if not n.has_method("get_grid_position") or not n.has_method("take_damage"):
-			continue
-		var spath: String = n.get_script().resource_path if n.get_script() else ""
-		if spath.find("GangMember.gd") == -1 and spath.find("ZombieGolfer.gd") == -1 and spath.find("police.gd") == -1:
-			continue
-		var pos: Vector2i = n.get_grid_position()
-		if grid_position.distance_to(pos) <= radius:
-			if n.has_method("take_damage"):
-				n.take_damage(attack_damage)
+func _deal_melee_damage_in_radius(_radius: int) -> void:
+	# Disabled: Golfsmith no longer attacks
+	pass

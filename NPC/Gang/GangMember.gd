@@ -825,10 +825,11 @@ func _process(delta):
 	# No need to update Y-sort every frame or when camera moves
 	pass
 
+
 func _find_player_reference() -> void:
 	"""Find the player reference using multiple methods"""
 	
-	# Method 1: Try to get player from course method (most reliable)
+	# Method 1: Try to get target from course method (Golfsmith-first policy)
 	if course and course.has_method("get_player_reference"):
 		player = course.get_player_reference()
 		if player:
