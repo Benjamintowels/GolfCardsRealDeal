@@ -624,6 +624,14 @@ func handle_player_death() -> void:
 	"""Handle player death sequence"""
 	print("=== PLAYER DEATH SEQUENCE ===")
 	player_died.emit()
+	# Blood explosion FX
+	var fx_scene: PackedScene = preload("res://Interactables/BloodExplosion.tscn")
+	var fx: Node2D = fx_scene.instantiate()
+	if player_node:
+		fx.global_position = player_node.global_position
+		get_tree().current_scene.add_child(fx)
+		if fx.has_method("trigger"):
+			fx.trigger()
 	
 	# Call GameStateManager's death handling
 	var course = get_parent()

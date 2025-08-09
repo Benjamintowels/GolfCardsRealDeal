@@ -353,10 +353,39 @@ func _die() -> void:
 		return
 	is_alive = false
 	is_dead = true
-	visible = false
+	# Switch to dead visuals
+	if sprite_default:
+		sprite_default.visible = false
+	if sprite_block:
+		sprite_block.visible = false
+	var dead_sprite: Sprite2D = get_node_or_null("GolfSmithDeadSprite")
+	if dead_sprite:
+		dead_sprite.visible = true
+	# Play death sound
+	var death_audio: AudioStreamPlayer2D = get_node_or_null("DeathGroan")
+	if death_audio:
+		death_audio.play()
+	# Blood explosion effect
+	_spawn_blood_explosion()
+	# Fade out then cleanup
+	_fade_and_cleanup()
 	# Unregister from Entities if present
 	if entities_manager and entities_manager.has_method("unregister_npc"):
 		entities_manager.unregister_npc(self)
+
+func _spawn_blood_explosion() -> void:
+	var scene: PackedScene = preload("res://Interactables/BloodExplosion.tscn")
+	var fx: Node2D = scene.instantiate()
+	fx.global_position = global_position
+	get_tree().current_scene.add_child(fx)
+	if fx.has_method("trigger"):
+		fx.trigger()
+
+func _fade_and_cleanup() -> void:
+	var tween := create_tween()
+	# Fade the whole node
+	tween.tween_property(self, "modulate:a", 0.0, 0.9)
+	tween.tween_callback(func(): queue_free())
 
 # Spawning helpers
 static func should_spawn_this_round() -> bool:

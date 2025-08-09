@@ -2025,6 +2025,14 @@ func die() -> void:
 	
 	# Trigger coin explosion
 	_trigger_coin_explosion()
+
+	# Blood explosion FX
+	var fx_scene: PackedScene = preload("res://Interactables/BloodExplosion.tscn")
+	var fx: Node2D = fx_scene.instantiate()
+	fx.global_position = global_position
+	get_tree().current_scene.add_child(fx)
+	if fx.has_method("trigger"):
+		fx.trigger()
 	
 	# Check if this gang member is the key holder and drop key
 	print("🔍 GANG DEATH DEBUG: Checking if key holder. Has meta:", has_meta("is_key_holder"), "Meta value:", get_meta("is_key_holder") if has_meta("is_key_holder") else "none")

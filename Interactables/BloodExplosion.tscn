@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=3 uid="uid://kf7d6r0es3d5"]
+
+[ext_resource type="Script" uid="uid://x7kf640htvum" path="res://Interactables/blood_explosion.gd" id="1_oi7a0"]
+
+[node name="BloodExplosion" type="Node2D"]
+script = ExtResource("1_oi7a0")
+
+[node name="GPUParticles2D" type="GPUParticles2D" parent="."]

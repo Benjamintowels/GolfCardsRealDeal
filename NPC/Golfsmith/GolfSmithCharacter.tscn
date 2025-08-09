@@ -1,9 +1,11 @@
-[gd_scene load_steps=6 format=3 uid="uid://bw4gbo60jepwp"]
+[gd_scene load_steps=8 format=3 uid="uid://bw4gbo60jepwp"]
 
 [ext_resource type="Script" uid="uid://b1mvbwrn17nqn" path="res://NPC/Golfsmith/golf_smith_character.gd" id="1_7y123"]
 [ext_resource type="Texture2D" uid="uid://wbc6vg34c84y" path="res://NPC/Golfsmith/GolfsmithSprite.png" id="1_hkm7x"]
 [ext_resource type="Texture2D" uid="uid://cu6g5iqa2666w" path="res://NPC/Animals/Ash/Shadow.png" id="1_mbctf"]
 [ext_resource type="Texture2D" uid="uid://b4v6t0pief6mn" path="res://NPC/Golfsmith/GolfsmithBlock.png" id="4_3cyr3"]
+[ext_resource type="Texture2D" uid="uid://de754j2c006ss" path="res://NPC/Golfsmith/GolfsmithDead.png" id="5_agoqa"]
+[ext_resource type="AudioStream" uid="uid://clorehgdvljmk" path="res://Sounds/DeathGroan.mp3" id="6_6jf5m"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_7y123"]
 radius = 13.0
@@ -27,6 +29,12 @@ texture_filter = 1
 position = Vector2(0, -45)
 texture = ExtResource("4_3cyr3")
 
+[node name="GolfSmithDeadSprite" type="Sprite2D" parent="."]
+visible = false
+texture_filter = 1
+position = Vector2(0, -45)
+texture = ExtResource("5_agoqa")
+
 [node name="BodyArea2D" type="Area2D" parent="."]
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="BodyArea2D"]
@@ -44,3 +52,7 @@ scale = Vector2(1.6, 2.88)
 
 [node name="HitBoxShape" type="CollisionShape2D" parent="HitBox"]
 shape = SubResource("CircleShape2D_7y123")
+
+[node name="DeathGroan" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("6_6jf5m")
+pitch_scale = 0.81
