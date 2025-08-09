@@ -56,6 +56,9 @@ var current_dialog_script: DialogScript
 var save_file_manager: Node
 var main_scene: Node
 
+# Store UI state so we can restore exactly what was visible/enabled before the cutscene
+var ui_previous_states: Dictionary = {}
+
 # UI Elements
 var cutscene_panel: Panel
 var skip_label: Label
@@ -357,6 +360,13 @@ func _hide_ui_elements(targets: Array):
 	for target_name in targets:
 		var target = _resolve_ui_target(target_name)
 		if target:
+			# Record previous state once per target
+			var path_key = str(target.get_path())
+			if not ui_previous_states.has(path_key):
+				var prev: Dictionary = {"visible": target.visible}
+				if target is BaseButton:
+					prev["disabled"] = target.disabled
+				ui_previous_states[path_key] = prev
 			target.visible = false
 			# If it's a button, also disable it to prevent input by script
 			if target is BaseButton:
@@ -367,9 +377,16 @@ func _show_ui_elements(targets: Array):
 	for target_name in targets:
 		var target = _resolve_ui_target(target_name)
 		if target:
-			target.visible = true
-			if target is BaseButton:
-				target.disabled = false
+			var path_key = str(target.get_path())
+			if ui_previous_states.has(path_key):
+				var prev: Dictionary = ui_previous_states[path_key]
+				if prev.has("visible"):
+					target.visible = prev["visible"]
+				if target is BaseButton and prev.has("disabled"):
+					target.disabled = prev["disabled"]
+			else:
+				# Fallback: do nothing if we never hid this target
+				pass
 
 func _play_animation(target_name: String, animation_name: String):
 	"""Play an animation on a target"""
@@ -408,6 +425,8 @@ func _end_cutscene():
 	# Execute cleanup actions
 	var cutscene = cutscene_data[current_cutscene]
 	_execute_actions(cutscene.get("cleanup_actions", []))
+	# Clear stored UI state after restoration
+	ui_previous_states.clear()
 	
 	# Mark as played
 	if cutscene.has("played_flag"):
