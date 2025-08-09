@@ -805,8 +805,11 @@ func get_npc_priority(npc: Node) -> int:
 	# Check the NPC's script to determine type
 	var script_path = npc.get_script().resource_path if npc.get_script() else ""
 	
-	# Squirrels are fastest (highest priority) - they chase and push balls
-	if "Squirrel.gd" in script_path:
+	# GolfSmith gets highest priority to move first
+	if "golf_smith_character.gd" in script_path:
+		return 5
+	# Squirrels are next fastest - they chase and push balls
+	elif "Squirrel.gd" in script_path:
 		return 4
 	# Zombies are second fastest
 	elif "ZombieGolfer.gd" in script_path:

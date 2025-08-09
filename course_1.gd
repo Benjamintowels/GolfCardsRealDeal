@@ -978,6 +978,13 @@ func adjust_background_positioning() -> void:
 	else:
 		map_manager.load_map_data(GolfCourseLayout.get_hole_layout(game_state_manager.get_current_hole_index()))
 	build_map.build_map_from_layout_with_randomization(map_manager.level_layout, game_state_manager.get_current_hole_index(), game_state_manager.get_current_puzzle_type())
+
+	# Ensure a GolfSmith spawns for FightRoom maps (testing)
+	if game_state_manager.get_current_puzzle_type() == "fight_room":
+		_spawn_golfsmith_for_testing()
+	# Spawn GolfSmith on random holes when round starts (if quest not completed)
+	else:
+		_spawn_golfsmith_on_random_hole_if_needed()
 	
 	# Generate initial wind factor for the first hole
 	if weather_manager:
@@ -4730,6 +4737,79 @@ func get_player_reference() -> Node:
 	if player_manager and player_manager.get_player_node():
 		return player_manager.get_player_node()
 	return null
+
+func _spawn_golfsmith_for_testing() -> void:
+	# Instantiate GolfSmith and place at a valid tile near the center for fight rooms
+	var scene: PackedScene = preload("res://NPC/Golfsmith/GolfSmithCharacter.tscn")
+	var gs = scene.instantiate()
+	gs.name = "GolfSmith"
+	# Pick a random SW (sidewalk) tile for fight room
+	var pos: Vector2i = Vector2i.ZERO
+	var sw_positions: Array[Vector2i] = []
+	if map_manager and map_manager.level_layout:
+		for y in map_manager.level_layout.size():
+			for x in map_manager.level_layout[y].size():
+				if map_manager.level_layout[y][x] == "SW":
+					var p := Vector2i(x, y)
+					if is_position_valid_for_movement(p) and not is_position_occupied_by_entity(p):
+						sw_positions.append(p)
+	# Choose random SW; fallback to center if none
+	if sw_positions.size() > 0:
+		pos = sw_positions[randi() % sw_positions.size()]
+	else:
+		var grid_center: Vector2i = Vector2i(grid_manager.get_grid_size().x / 2, grid_manager.get_grid_size().y / 2)
+		pos = grid_center
+	# Place in camera container like other dynamic nodes
+	var world_pos: Vector2 = Vector2(pos.x, pos.y) * float(cell_size) + Vector2(float(cell_size)/2.0, float(cell_size)/2.0)
+	grid_manager.get_camera_container().add_child(gs)
+	if gs.has_method("set_grid_position"):
+		gs.set_grid_position(pos)
+	else:
+		gs.position = world_pos
+	# Register with Entities so enemies can target
+	var entities = get_node_or_null("Entities")
+	if entities and entities.has_method("register_npc"):
+		entities.register_npc(gs)
+
+func _spawn_golfsmith_on_random_hole_if_needed() -> void:
+	var scene: PackedScene = preload("res://NPC/Golfsmith/GolfSmithCharacter.tscn")
+	# Check quest state
+	if Engine.has_singleton("SaveFileManager"):
+		var save = Engine.get_singleton("SaveFileManager")
+		if save and save.has_method("get_npc_quest_progress"):
+			if save.get_npc_quest_progress("golfsmith") >= 100:
+				return
+	# Random hole: place on a random valid tile (prefer SW if present, else any walkable)
+	var gs = scene.instantiate()
+	gs.name = "GolfSmith"
+	var pos: Vector2i = Vector2i.ZERO
+	var sw_positions: Array[Vector2i] = []
+	var any_positions: Array[Vector2i] = []
+	if map_manager and map_manager.level_layout:
+		for y in map_manager.level_layout.size():
+			for x in map_manager.level_layout[y].size():
+				var code: String = map_manager.level_layout[y][x]
+				var p := Vector2i(x, y)
+				if is_position_valid_for_movement(p) and not is_position_occupied_by_entity(p):
+					any_positions.append(p)
+					if code == "SW":
+						sw_positions.append(p)
+	if sw_positions.size() > 0:
+		pos = sw_positions[randi() % sw_positions.size()]
+	elif any_positions.size() > 0:
+		pos = any_positions[randi() % any_positions.size()]
+	else:
+		# Fallback: center
+		pos = Vector2i(grid_manager.get_grid_size().x / 2, grid_manager.get_grid_size().y / 2)
+	var world_pos: Vector2 = Vector2(pos.x, pos.y) * float(cell_size) + Vector2(float(cell_size)/2.0, float(cell_size)/2.0)
+	grid_manager.get_camera_container().add_child(gs)
+	if gs.has_method("set_grid_position"):
+		gs.set_grid_position(pos)
+	else:
+		gs.position = world_pos
+	var entities = get_node_or_null("Entities")
+	if entities and entities.has_method("register_npc"):
+		entities.register_npc(gs)
 
 func _on_player_pushed_to_tile(new_grid_pos: Vector2i) -> void:
 	"""Handle when player is pushed to a new tile - this is forced movement, not voluntary movement"""

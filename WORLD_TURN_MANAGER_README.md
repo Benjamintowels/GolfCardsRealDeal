@@ -50,6 +50,24 @@ The WorldTurnManager integrates with `course_1.gd` through:
 NPCs register with the WorldTurnManager by:
 
 1. **Registration**: Calling `register_npc(npc)` during their `_ready()` function
+2. **Signals**: Optionally listening to `world_turn_started` to reset per-turn state (e.g., block)
+3. **API**: Implementing `take_turn()` to perform their AI logic and emit `turn_completed` when done
+
+### Adding GolfSmithCharacter
+
+To integrate `GolfSmithCharacter` (res://NPC/Golfsmith/GolfSmithCharacter.tscn):
+
+- Ensure the scene contains:
+  - `BodyArea2D` with a `CollisionShape2D` for GolfBall collisions
+  - `TopHeight` and `YSortPoint` markers
+  - Default sprite `GolfSmithSprite` and block sprite `GolfSmithBlockSprite`
+- The script (`res://NPC/Golfsmith/golf_smith_character.gd`) will:
+  - Register with `WorldTurnManager` and `Entities`
+  - Provide `get_grid_position()`, `get_height()`, and `get_y_sort_point()`
+  - Use `Global.update_object_y_sort(self, "characters")` for global Y-sort
+  - Implement simple AI: move away from enemies; if an enemy is within 2 tiles, attack for 45
+  - Implement a block system with 30 block points and a `BlockHealthBar`
+- Priority: GolfSmith uses highest priority; update `get_npc_priority` to return a higher value for GolfSmith if needed.
 2. **Signal Connection**: Connecting to `npc_turn_started` and `npc_turn_ended` signals
 3. **Turn Completion**: Emitting `turn_completed` signal when their turn is done
 

@@ -1,0 +1,39 @@
+[gd_scene load_steps=6 format=3 uid="uid://bw4gbo60jepwp"]
+
+[ext_resource type="Script" uid="uid://b1mvbwrn17nqn" path="res://NPC/Golfsmith/golf_smith_character.gd" id="1_7y123"]
+[ext_resource type="Texture2D" uid="uid://wbc6vg34c84y" path="res://NPC/Golfsmith/GolfsmithSprite.png" id="1_hkm7x"]
+[ext_resource type="Texture2D" uid="uid://cu6g5iqa2666w" path="res://NPC/Animals/Ash/Shadow.png" id="1_mbctf"]
+[ext_resource type="Texture2D" uid="uid://b4v6t0pief6mn" path="res://NPC/Golfsmith/GolfsmithBlock.png" id="4_3cyr3"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_7y123"]
+radius = 13.0
+
+[node name="GolfSmithCharacter" type="Node2D"]
+script = ExtResource("1_7y123")
+
+[node name="Shadow" type="Sprite2D" parent="."]
+texture_filter = 1
+scale = Vector2(1.57062, 1.2573)
+texture = ExtResource("1_mbctf")
+
+[node name="GolfSmithSprite" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(0, -45)
+texture = ExtResource("1_hkm7x")
+
+[node name="GolfSmithBlockSprite" type="Sprite2D" parent="."]
+visible = false
+texture_filter = 1
+position = Vector2(0, -45)
+texture = ExtResource("4_3cyr3")
+
+[node name="BodyArea2D" type="Area2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="BodyArea2D"]
+scale = Vector2(1.59617, 1.34947)
+shape = SubResource("CircleShape2D_7y123")
+
+[node name="TopHeight" type="Marker2D" parent="."]
+position = Vector2(0, -92)
+
+[node name="YSortPoint" type="Marker2D" parent="."]
