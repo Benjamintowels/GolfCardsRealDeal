@@ -885,6 +885,9 @@ func adjust_background_positioning() -> void:
 	if Global.boss_room_mode:
 		print("=== STARTING BOSS ROOM MODE ===")
 		game_state_manager.start_front_nine()  # Use front nine mode for boss room
+		# Ensure boss fight spawns use difficulty-based NPC counts, not 'score'
+		game_state_manager.set_current_puzzle_type("boss_fight")
+		game_state_manager.set_next_puzzle_type("boss_fight")
 		Global.boss_room_mode = false  # Reset the flag
 		print("Boss room mode initialized")
 	

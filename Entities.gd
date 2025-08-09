@@ -193,6 +193,13 @@ func get_npcs() -> Array[Node]:
 	"""Get all registered NPCs"""
 	# Clean up invalid NPCs first
 	_cleanup_invalid_npcs()
+
+	# Auto-refresh registration if list is empty or out of sync with group
+	var group_npc_count = get_tree().get_nodes_in_group("NPC").size()
+	if npcs.is_empty() or npcs.size() != group_npc_count:
+		print("Entities: NPC list empty or out of sync (have:", npcs.size(), ", group:", group_npc_count, ") - re-registering")
+		re_register_all_npcs()
+
 	return npcs
 
 func _cleanup_invalid_npcs() -> void:

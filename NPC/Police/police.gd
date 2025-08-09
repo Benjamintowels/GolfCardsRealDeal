@@ -111,6 +111,17 @@ func _ready():
 	else:
 		print("✗ ERROR: Could not register with WorldTurnManager")
 		print("Tried paths: ", possible_paths)
+
+	# Ensure Entities manager knows about this NPC for the attack/damage system
+	entities_manager = course.get_node_or_null("Entities") if course else null
+	if entities_manager:
+		if entities_manager.has_method("register_npc"):
+			entities_manager.register_npc(self)
+			print("✓ Police registered with Entities manager")
+		else:
+			print("✗ ERROR: Entities manager missing register_npc method")
+	else:
+		print("✗ ERROR: Entities manager (node 'Entities') not found in course")
 	
 	# Initialize state machine
 	state_machine = StateMachine.new()

@@ -502,6 +502,10 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 			
 		_:
 			print("🎯 PUZZLE TYPE: Unknown puzzle type '", puzzle_type, "', using default")
+
+	# In boss_fight, do not include additional Wraiths from hole 18 base counts
+	if puzzle_type == "boss_fight" and "wraiths" in npc_counts:
+		npc_counts["wraiths"] = 0
 	
 	# Override NPC counts if fight room layout is detected (based on FW tiles)
 	if is_fight_room_layout:

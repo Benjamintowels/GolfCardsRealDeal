@@ -401,12 +401,22 @@ func calculate_valid_aoe_attack_tiles() -> void:
 		print("Meteor card detected - showing all tiles within range for 3x2 placement")
 		for y in grid_size.y:
 			for x in grid_size.x:
-				var pos := Vector2i(x, y)
-				if calculate_grid_distance(player_grid_pos, pos) <= attack_range and pos != player_grid_pos:
-					# Check if this position can be the top-left corner of a 3x2 area
-					if can_place_3x2_area_at_position(pos):
-						valid_attack_tiles.append(pos)
-						print("Added valid 3x2 placement position for Meteor at:", pos)
+				var top_left := Vector2i(x, y)
+				if not can_place_3x2_area_at_position(top_left):
+					continue
+				# Range rule: allow placement if ANY of the 6 tiles in the 3x2 is within range
+				var within_range := false
+				for oy in range(2):
+					for ox in range(3):
+						var tile_pos: Vector2i = top_left + Vector2i(ox, oy)
+						if calculate_grid_distance(player_grid_pos, tile_pos) <= attack_range and tile_pos != player_grid_pos:
+							within_range = true
+							break
+					if within_range:
+						break
+				if within_range:
+					valid_attack_tiles.append(top_left)
+					print("Added valid 3x2 placement top-left for Meteor at:", top_left)
 		print("Total valid 3x2 placement positions for Meteor:", valid_attack_tiles.size())
 		return
 
@@ -441,12 +451,27 @@ func find_valid_3x2_target_position(clicked_pos: Vector2i) -> Vector2i:
 	for y_offset in range(2):  # 2 rows
 		for x_offset in range(3):  # 3 columns
 			var top_left_pos = clicked_pos - Vector2i(x_offset, y_offset)
-			
-			# Check if this top-left position is in our valid tiles list
-			if top_left_pos in valid_attack_tiles:
+
+			# Ensure the 3x2 area fits in the grid
+			if not can_place_3x2_area_at_position(top_left_pos):
+				continue
+
+			# Placement range rule: allow placement if ANY tile within the 3x2 area
+			# is within the attack range from the player
+			var within_range := false
+			for ry in range(2):
+				for rx in range(3):
+					var tile_pos: Vector2i = top_left_pos + Vector2i(rx, ry)
+					if calculate_grid_distance(player_grid_pos, tile_pos) <= attack_range and tile_pos != player_grid_pos:
+						within_range = true
+						break
+				if within_range:
+					break
+
+			if within_range:
 				print("Found valid 3x2 area with top-left at:", top_left_pos, "containing clicked position:", clicked_pos)
 				return top_left_pos
-	
+
 	# If no valid 3x2 area found, return invalid position
 	return Vector2i(-1, -1)
 

@@ -226,7 +226,7 @@ func _transition_to_boss_fight() -> void:
 		course.build_map.build_map_from_layout_with_randomization(
 			course.map_manager.level_layout, 
 			course.game_state_manager.get_current_hole_index(), 
-			"miniboss"  # Use miniboss puzzle type for boss fight
+			"boss_fight"  # Build boss fight with boss layout + difficulty-based NPCs
 		)
 		print("Built boss fight map")
 	
