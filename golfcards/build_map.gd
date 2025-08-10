@@ -3,6 +3,7 @@ extends Node
 const ForestBorderManager = preload("res://ForestBorderManager.gd")
 const GameFenceHorizontal: PackedScene = preload("res://Obstacles/GameFenceHorizontal.tscn")
 const GameFenceVertical: PackedScene = preload("res://Obstacles/GameFenceVertical.tscn")
+const CowScene: PackedScene = preload("res://Obstacles/Cow/Cow.tscn")
 
 func _ready():
 	print("🔧 BUILD_MAP.GD LOADED!")
@@ -2387,6 +2388,9 @@ func _build_corrals(layout: Array) -> void:
 				_place_fence_vertical_at(left_pos)
 				_place_fence_vertical_at(right_pos)
 
+			# Place cows randomly on interior tiles (not touching the edge)
+			_place_cows_in_corral(x, y, width, height)
+
 func _place_fence_horizontal_at(grid_pos: Vector2i) -> void:
 	if GameFenceHorizontal == null:
 		return
@@ -2412,6 +2416,32 @@ func _place_fence_vertical_at(grid_pos: Vector2i) -> void:
 	fence.add_to_group("collision_objects")
 	obstacle_layer.add_child(fence)
 	ysort_objects.append({"node": fence, "grid_pos": grid_pos})
+
+func _place_cows_in_corral(start_x: int, start_y: int, width: int, height: int) -> void:
+	if CowScene == null:
+		return
+	# Collect interior tiles (exclude border tiles)
+	var interior: Array[Vector2i] = []
+	for yy in range(start_y + 1, start_y + height - 1):
+		for xx in range(start_x + 1, start_x + width - 1):
+			interior.append(Vector2i(xx, yy))
+	if interior.is_empty():
+		return
+	# Place a few cows: 1 per 6 interior tiles, at least 1
+	var num_cows: int = max(1, int(interior.size() / 6))
+	interior.shuffle()
+	for i in range(min(num_cows, interior.size())):
+		var pos: Vector2i = interior[i]
+		var world_pos: Vector2 = Vector2(pos.x, pos.y) * cell_size
+		var cow: Node2D = CowScene.instantiate() as Node2D
+		if cow == null:
+			continue
+		cow.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
+		cow.set_meta("grid_position", pos)
+		cow.add_to_group("collision_objects")
+		cow.add_to_group("animals")
+		obstacle_layer.add_child(cow)
+		ysort_objects.append({"node": cow, "grid_pos": pos})
 
 func _place_generator_puzzle_system(object_positions: Dictionary, layout: Array):
 	"""Place the generator puzzle system with generator switch, pylons, and force fields"""

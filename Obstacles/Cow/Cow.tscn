@@ -1,13 +1,15 @@
-[gd_scene load_steps=5 format=3 uid="uid://i5b5xhtlgwt1"]
+[gd_scene load_steps=6 format=3 uid="uid://i5b5xhtlgwt1"]
 
-[ext_resource type="Texture2D" uid="uid://d2oa570f04dgy" path="res://NPC/Animals/Cow/Cow.png" id="1_2hxia"]
+[ext_resource type="Texture2D" uid="uid://d2oa570f04dgy" path="res://Obstacles/Cow/Cow.png" id="1_2hxia"]
 [ext_resource type="AudioStream" uid="uid://dutrfsu2bi16k" path="res://Sounds/Moo1.mp3" id="2_mglwm"]
 [ext_resource type="AudioStream" uid="uid://cyvlmet715xf6" path="res://Sounds/Moo2.mp3" id="3_1s1su"]
+[ext_resource type="Script" uid="uid://d32wxkbu0drh0" path="res://Obstacles/Cow/cow.gd" id="4_script"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_2hxia"]
 radius = 49.0
 
 [node name="Cow" type="Node2D"]
+script = ExtResource("4_script")
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 texture_filter = 1
@@ -30,4 +32,5 @@ shape = SubResource("CircleShape2D_2hxia")
 stream = ExtResource("2_mglwm")
 
 [node name="Moo2" type="AudioStreamPlayer2D" parent="."]
+position = Vector2(39, -60)
 stream = ExtResource("3_1s1su")
