@@ -119,7 +119,7 @@ func add_card_to_deck(card: CardData) -> void:
 
 func is_club_card(card: CardData) -> bool:
 	"""Check if a card is a club card based on its name"""
-	var club_names = ["Putter", "Wood", "Wooden", "Iron", "Hybrid", "Driver", "PitchingWedge", "Fire Club", "Ice Club", "ElectricClub", "GrenadeLauncherClubCard"]
+	var club_names = ["Putter", "Wood", "Wooden", "Iron", "Hybrid", "Driver", "PitchingWedge", "Fire Club", "Ice Club", "ElectricClub", "WaterClub", "GrenadeLauncherClubCard"]
 	return club_names.has(card.name)
 
 func draw_from_club_deck(count: int = 1) -> Array[CardData]:
@@ -148,7 +148,7 @@ func draw_from_club_deck(count: int = 1) -> Array[CardData]:
 
 func draw_from_action_deck(count: int = 3) -> Array[CardData]:
 	# Show remaining cards in deck
-	var remaining = get_action_deck_remaining_cards()
+	var _remaining = get_action_deck_remaining_cards()
 
 	
 	var drawn_cards: Array[CardData] = []
@@ -247,11 +247,28 @@ func reshuffle_action_discard() -> void:
 	# Create a new deck order with remaining cards + discard pile
 	var new_deck_order: Array[CardData] = []
 	
+	# Safety: Ensure no club cards get into the action deck
+	# Move any misfiled club cards from remaining deck order to the club draw pile
+	var filtered_remaining: Array[CardData] = []
+	for c in remaining_cards:
+		if is_club_card(c):
+			# Clubs should not be in the action deck; return them to club draw pile
+			club_draw_pile.append(c)
+		else:
+			filtered_remaining.append(c)
+	
 	# Add remaining undrawn cards
-	new_deck_order.append_array(remaining_cards)
+	new_deck_order.append_array(filtered_remaining)
 	
 	# Add all cards from discard pile (no duplicates since we're starting fresh)
-	new_deck_order.append_array(action_discard_pile)
+	# Safety: Move any misfiled club cards found in the action discard into the club discard
+	var filtered_discard: Array[CardData] = []
+	for c in action_discard_pile:
+		if is_club_card(c):
+			club_discard_pile.append(c)
+		else:
+			filtered_discard.append(c)
+	new_deck_order.append_array(filtered_discard)
 	
 	# Shuffle the new deck order
 	new_deck_order.shuffle()
@@ -281,8 +298,13 @@ func reshuffle_action_discard() -> void:
 
 func insert_card_at_top_of_action_deck(card: CardData) -> void:
 	"""Insert a card at the top of the action deck (next to be drawn)"""
-	action_deck_order.insert(action_deck_index, card)
-	print("DeckManager: Inserted", card.name, "at top of action deck (index:", action_deck_index, ")")
+	# Safety: If this is a club card, insert it into the club deck instead
+	if is_club_card(card):
+		club_deck_order.insert(club_deck_index, card)
+		print("DeckManager: Redirected", card.name, "to top of CLUB deck (index:", club_deck_index, ")")
+	else:
+		action_deck_order.insert(action_deck_index, card)
+		print("DeckManager: Inserted", card.name, "at top of action deck (index:", action_deck_index, ")")
 	emit_signal("deck_updated")
 
 func get_action_deck_order() -> Array[CardData]:
@@ -324,7 +346,7 @@ func validate_deck_state() -> void:
 			action_cards_in_hand += 1
 	
 	var available_cards = get_action_deck_remaining_cards()
-	var total_action_cards_in_system = available_cards.size() + action_discard_pile.size() + action_cards_in_hand
+	var _total_action_cards_in_system = available_cards.size() + action_discard_pile.size() + action_cards_in_hand
 	
 	# Check for duplicates in deck order
 	var seen_cards = {}
