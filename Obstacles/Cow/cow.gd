@@ -27,9 +27,18 @@ func _on_area_entered(area: Area2D) -> void:
 	var projectile = area.get_parent()
 	if projectile == null:
 		return
-	# Balls handle reflection themselves; we just set roof level and play Moo
-	if projectile.has_method("_set_ground_level"):
-		projectile._set_ground_level(get_height())
+	var cow_height = get_height()
+	var proj_height := 0.0
+	if projectile.has_method("get_height"):
+		proj_height = projectile.get_height()
+	elif "z" in projectile:
+		proj_height = projectile.z
+	# If ball above cow, set ground level to allow roof bounce; otherwise reflect
+	if projectile.has_method("_set_ground_level") and proj_height > cow_height:
+		projectile._set_ground_level(cow_height)
+	else:
+		if projectile.has_method("_reflect_off_object"):
+			projectile._reflect_off_object(self)
 	_play_moo()
 
 func _on_area_exited(area: Area2D) -> void:
