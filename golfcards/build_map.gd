@@ -2422,13 +2422,18 @@ func _place_cows_in_corral(start_x: int, start_y: int, width: int, height: int) 
 		return
 	# Collect interior tiles (exclude border tiles)
 	var interior: Array[Vector2i] = []
-	for yy in range(start_y + 1, start_y + height - 1):
-		for xx in range(start_x + 1, start_x + width - 1):
+	# Add an extra buffer of one more tile from each edge (total 2 tiles from border)
+	var inner_top := start_y + 2
+	var inner_bottom := start_y + height - 2
+	var inner_left := start_x + 2
+	var inner_right := start_x + width - 2
+	for yy in range(inner_top, inner_bottom):
+		for xx in range(inner_left, inner_right):
 			interior.append(Vector2i(xx, yy))
 	if interior.is_empty():
 		return
-	# Place a few cows: 1 per 6 interior tiles, at least 1
-	var num_cows: int = max(1, int(interior.size() / 6))
+	# Place fewer cows: ~1 per 12 interior tiles, at least 1
+	var num_cows: int = max(1, int(interior.size() / 12.0))
 	interior.shuffle()
 	for i in range(min(num_cows, interior.size())):
 		var pos: Vector2i = interior[i]
@@ -2440,6 +2445,10 @@ func _place_cows_in_corral(start_x: int, start_y: int, width: int, height: int) 
 		cow.set_meta("grid_position", pos)
 		cow.add_to_group("collision_objects")
 		cow.add_to_group("animals")
+		# Randomly flip some cows horizontally for visual variety
+		var sprite: Sprite2D = cow.get_node_or_null("Sprite2D")
+		if sprite:
+			sprite.flip_h = randf() < 0.5
 		obstacle_layer.add_child(cow)
 		ysort_objects.append({"node": cow, "grid_pos": pos})
 
