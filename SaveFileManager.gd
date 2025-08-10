@@ -171,6 +171,11 @@ var CLUBHOUSE_PROGRESSION = {
 	
 	# ClubHouse Looty system
 	"clubhouse_looty": 0
+	,
+	# 3D Printer system
+	"3d_printer_unlocked": false,
+	"card_genes": [],                 # Array of card resource paths the player can print
+	"printed_cards_queue": []         # Cards selected to bring next round
 }
 
 # =============================================================================
@@ -382,7 +387,7 @@ func delete_save_file(slot_id: int) -> bool:
 		return true
 	
 	print("Failed to delete save file: ", filename)
-	print("DirAccess error code: ", dir.get_open_error())
+	print("DirAccess error code: ", DirAccess.get_open_error())
 	
 	# Try alternative deletion method using full path
 	print("Trying alternative deletion method with full path...")
@@ -428,7 +433,7 @@ func apply_save_data_to_globals():
 		return
 	
 	var game_state = current_save_data["game_state"]
-	var character_state = current_save_data.get("character_state", {})
+	var _character_state = current_save_data.get("character_state", {})
 	
 	# Apply to Global singleton - ensure character_id is an integer
 	Global.selected_character = int(current_save_data.get("character_id", 1))
@@ -831,8 +836,64 @@ func add_clubhouse_equipment(equipment_name: String) -> bool:
 
 func get_clubhouse_level() -> int:
 	"""Get ClubHouse level"""
+	# Prefer FileLevelManager's value if available (authoritative for levels)
+	var file_level_manager = FileLevelManager
+	if file_level_manager:
+		return int(file_level_manager.clubhouse_level)
+	# Fallback to saved file_level_manager block
+	var flm_data: Dictionary = current_save_data.get("file_level_manager", {})
+	if not flm_data.is_empty():
+		return int(flm_data.get("clubhouse_level", 1))
+	# Final fallback to old clubhouse_progression location
 	var clubhouse = current_save_data.get("clubhouse_progression", {})
-	return clubhouse.get("clubhouse_level", 1)
+	return int(clubhouse.get("clubhouse_level", 1))
+
+# 3D PRINTER / CARD GENE SYSTEM ------------------------------------------------
+func is_3d_printer_unlocked() -> bool:
+	var clubhouse = current_save_data.get("clubhouse_progression", {})
+	return clubhouse.get("3d_printer_unlocked", false)
+
+func unlock_3d_printer() -> bool:
+	var clubhouse = current_save_data.get("clubhouse_progression", {})
+	if not clubhouse.get("3d_printer_unlocked", false):
+		clubhouse["3d_printer_unlocked"] = true
+		current_save_data["clubhouse_progression"] = clubhouse
+		emit_signal("progression_updated", "clubhouse", "3d_printer_unlocked", true)
+		return true
+	return false
+
+func get_card_genes() -> Array:
+	var clubhouse = current_save_data.get("clubhouse_progression", {})
+	return clubhouse.get("card_genes", [])
+
+func unlock_card_gene(card_resource_path: String) -> bool:
+	var clubhouse = current_save_data.get("clubhouse_progression", {})
+	var genes: Array = clubhouse.get("card_genes", [])
+	if not genes.has(card_resource_path):
+		genes.append(card_resource_path)
+		clubhouse["card_genes"] = genes
+		current_save_data["clubhouse_progression"] = clubhouse
+		emit_signal("progression_updated", "clubhouse", "card_gene_unlocked", card_resource_path)
+		return true
+	return false
+
+func get_printed_cards_queue() -> Array:
+	var clubhouse = current_save_data.get("clubhouse_progression", {})
+	return clubhouse.get("printed_cards_queue", [])
+
+func queue_printed_card(card_resource_path: String) -> bool:
+	var clubhouse = current_save_data.get("clubhouse_progression", {})
+	var queue: Array = clubhouse.get("printed_cards_queue", [])
+	queue.append(card_resource_path)
+	clubhouse["printed_cards_queue"] = queue
+	current_save_data["clubhouse_progression"] = clubhouse
+	emit_signal("progression_updated", "clubhouse", "card_queued_for_next_round", card_resource_path)
+	return true
+
+func clear_printed_cards_queue():
+	var clubhouse = current_save_data.get("clubhouse_progression", {})
+	clubhouse["printed_cards_queue"] = []
+	current_save_data["clubhouse_progression"] = clubhouse
 
 func get_flippy_level() -> int:
 	"""Get Flippy level"""

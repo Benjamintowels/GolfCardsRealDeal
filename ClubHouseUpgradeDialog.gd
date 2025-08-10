@@ -13,6 +13,9 @@ var clubhouse_looty_label: Label
 var clubhouse_upgrade_manager: Node
 var golfsmith_upgrade_button: Button
 var golfsmith_cost_label: Label
+var printer_upgrade_button: Button
+var printer_cost_label: Label
+var printer_requirement_label: Label
 
 func _ready():
 	# Hide dialog initially
@@ -44,6 +47,12 @@ func _ready():
 	
 	if golfsmith_upgrade_button and is_instance_valid(golfsmith_upgrade_button):
 		golfsmith_upgrade_button.pressed.connect(_on_golfsmith_upgrade_pressed)
+
+	printer_upgrade_button = get_node_or_null("DialogContainer/UpgradeOptions/PrinterSection/PrinterUpgradeButton")
+	printer_cost_label = get_node_or_null("DialogContainer/UpgradeOptions/PrinterSection/PrinterCostLabel")
+	printer_requirement_label = get_node_or_null("DialogContainer/UpgradeOptions/PrinterSection/PrinterRequirementLabel")
+	if printer_upgrade_button and is_instance_valid(printer_upgrade_button):
+		printer_upgrade_button.pressed.connect(_on_printer_upgrade_pressed)
 	
 	# Connect to manager signals
 	clubhouse_upgrade_manager.flippy_level_changed.connect(_on_flippy_level_changed)
@@ -106,6 +115,17 @@ func update_display():
 	if clubhouse_looty_label and is_instance_valid(clubhouse_looty_label):
 		clubhouse_looty_label.text = "ClubHouse $Looty: " + str(clubhouse_looty)
 
+	# 3D Printer availability (requires ClubHouse level >= 4)
+	var save_file_manager2 = get_node("/root/SaveFileManager")
+	if save_file_manager2 and printer_upgrade_button:
+		var ch_level = save_file_manager2.get_clubhouse_level()
+		var unlocked = save_file_manager2.is_3d_printer_unlocked()
+		printer_requirement_label.visible = ch_level < 4 and not unlocked
+		printer_upgrade_button.disabled = (ch_level < 4) or unlocked or clubhouse_looty < 300
+		printer_upgrade_button.text = "3D Printer Purchased" if unlocked else "Purchase 3D Printer"
+		if printer_cost_label:
+			printer_cost_label.text = "Unlocked" if unlocked else "Cost: 300 $Looty"
+
 func _on_flippy_upgrade_pressed():
 	"""Handle Flippy upgrade button press"""
 	if not clubhouse_upgrade_manager:
@@ -121,7 +141,7 @@ func _on_flippy_upgrade_pressed():
 
 func _on_golfsmith_upgrade_pressed():
 	"""Handle Golfsmith shop upgrade purchase"""
-	var clubhouse_upgrade_manager = get_node("/root/ClubHouseUpgradeManager")
+	clubhouse_upgrade_manager = get_node("/root/ClubHouseUpgradeManager")
 	var save_file_manager = get_node("/root/SaveFileManager")
 	if not clubhouse_upgrade_manager or not save_file_manager:
 		return
@@ -139,6 +159,39 @@ func _on_golfsmith_upgrade_pressed():
 		print("✅ Golfsmith shop unlocked for 250 $Looty")
 		update_display()
 
+func _on_printer_upgrade_pressed():
+	"""Handle 3D printer upgrade purchase"""
+	clubhouse_upgrade_manager = get_node("/root/ClubHouseUpgradeManager")
+	var save_file_manager = get_node("/root/SaveFileManager")
+	if not clubhouse_upgrade_manager or not save_file_manager:
+		return
+	# Ensure level requirement
+	if save_file_manager.get_clubhouse_level() < 4:
+		return
+	# Spend 300 from ClubHouse wallet
+	if not clubhouse_upgrade_manager.spend_clubhouse_looty(300):
+		return
+	# Unlock printer and seed starting CardGenes
+	save_file_manager.unlock_3d_printer()
+	# Starter genes
+	var starter_genes = [
+		"res://Cards/Move1.tres",
+		"res://Cards/Move2.tres",
+		"res://Cards/BlockB.tres",
+		"res://Cards/PunchB.tres",
+		"res://Cards/KickB.tres",
+		"res://Cards/Putter.tres",
+		"res://Cards/Iron.tres"
+	]
+	for path in starter_genes:
+		save_file_manager.unlock_card_gene(path)
+	# Reward Teleport gene
+	save_file_manager.unlock_card_gene("res://Cards/TeleportCard.tres")
+	# Persist
+	save_file_manager.save_current_game()
+	print("✅ 3D Printer unlocked for 300 $Looty with starter CardGenes and Teleport")
+	update_display()
+
 func _on_close_pressed():
 	"""Handle close button press"""
 	hide_dialog()
@@ -150,10 +203,10 @@ func _on_background_clicked(event: InputEvent):
 		hide_dialog()
 		dialog_closed.emit()
 
-func _on_flippy_level_changed(new_level: int):
+func _on_flippy_level_changed(_new_level: int):
 	"""Handle Flippy level change"""
 	update_display()
 
-func _on_looty_changed(new_amount: int):
+func _on_looty_changed(_new_amount: int):
 	"""Handle Looty amount change"""
 	update_display()

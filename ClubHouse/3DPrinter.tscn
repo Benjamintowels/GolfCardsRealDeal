@@ -1,0 +1,19 @@
+[gd_scene load_steps=3 format=3 uid="uid://bf167m4joed2q"]
+
+[ext_resource type="Script" uid="uid://buln8vq86b6mh" path="res://ClubHouse/3d_printer.gd" id="1_winom"]
+[ext_resource type="Texture2D" uid="uid://b2a2pmke72u8o" path="res://ClubHouse/3Dprinter.png" id="2_0xopm"]
+
+[node name="3dPrinter" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_winom")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(679, 196)
+scale = Vector2(6.015, 6.015)
+texture = ExtResource("2_0xopm")

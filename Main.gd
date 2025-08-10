@@ -20,6 +20,11 @@ var kendama_button: Button
 @onready var clubhouse_upgrade_dialog = $ClubHouseUpgradeDialog
 @onready var clubhouse_looty_label = $UI/ClubHouseLootyLabel
 @onready var upgrade_clubhouse_button = $UI/UpgradeClubHouseButton
+@onready var printer_dialog: Control = null
+@onready var table_anim_player: AnimationPlayer = $ClubHouseBackgroundLayers/AnimationPlayer
+var table_printer_node: Control
+var table_sprite_node
+@onready var open_printer_button: Button = $UI/Open3DPrinterButton
 
 var selected_character = 1  # Default to character 1
 var deck_selection_dialog: Control
@@ -30,6 +35,7 @@ var is_reversing_animations = false  # Track if we're currently reversing animat
 var waiting_for_benny_confirmation = false  # Track if we're waiting for second click on Benny
 var waiting_for_perk_selection = false  # Track if we're waiting for perk selection
 var selected_course: String = ""  # "front_9" or "back_9" set by map marker buttons
+var is_table_focused: bool = false  # True after playing select_table animation
 
 func _ready():
 	# Get the buttons that might be hidden initially
@@ -42,6 +48,8 @@ func _ready():
 	boss_room_button = get_node_or_null("UI/BossRoom")
 	fight_room_button = get_node_or_null("UI/FightRoom")
 	kendama_button = get_node_or_null("UI/Kendama")
+	# 3D Printer node (name starts with a digit; cannot use $ shorthand)
+	table_printer_node = get_node_or_null("ClubHouseBackgroundLayers/Table/3dPrinter")
 	
 	# Set up button group for exclusive selection (only for UI buttons)
 	var button_group = ButtonGroup.new()
@@ -108,8 +116,16 @@ func _ready():
 	else:
 		print("❌ ERROR: FileLevelManager autoload not found in Main.gd _ready()")
 	
+	# Listen for save progression updates (e.g., 3D printer unlocked)
+	var save_file_manager_signals = get_node("/root/SaveFileManager")
+	if save_file_manager_signals:
+		save_file_manager_signals.progression_updated.connect(_on_progression_updated)
+	
 	# Setup ClubHouse upgrade system (deferred to ensure all nodes are ready)
 	call_deferred("_setup_clubhouse_upgrade_system")
+
+	# Setup 3D printer interaction
+	_setup_3d_printer_system()
 	
 	# Check if we have a loaded save file and update UI accordingly
 	update_ui_from_save_data()
@@ -145,6 +161,26 @@ func update_ui_from_save_data():
 		return
 	
 	var save_data = save_file_manager.current_save_data
+
+	# If the loaded save has a ClubHouse level >= 4, ensure the Upgrade button is unlocked/visible
+	var clubhouse_level_from_stats: int = 0
+	var file_level_manager_local = FileLevelManager
+	if file_level_manager_local:
+		var stats = file_level_manager_local.get_current_stats()
+		clubhouse_level_from_stats = int(stats.clubhouse_level)
+	else:
+		var flm_data: Dictionary = save_data.get("file_level_manager", {})
+		clubhouse_level_from_stats = int(flm_data.get("clubhouse_level", 1))
+	if clubhouse_level_from_stats >= 4:
+		# Set story flag so the standard UI update flow reveals the button
+		if not save_file_manager.get_story_flag("upgrade_button_unlocked"):
+			save_file_manager.set_story_flag("upgrade_button_unlocked", true)
+		# Also set visible immediately in case UI update runs later
+		if upgrade_clubhouse_button and is_instance_valid(upgrade_clubhouse_button):
+			upgrade_clubhouse_button.visible = true
+		# If the upgrade UI system is already set up, refresh it
+		if has_method("_update_clubhouse_upgrade_ui"):
+			_update_clubhouse_upgrade_ui()
 	
 	# Update character selection
 	selected_character = save_data.get("character_id", 1)
@@ -223,6 +259,22 @@ func _update_progression_ui():
 		var gs = npc_quests.get("golfsmith", {})
 		gs_node.visible = bool(gs.get("appear", false))
 
+	# Toggle 3D Printer visibility based on unlock flag
+	var save_file_manager4 = get_node("/root/SaveFileManager")
+	if table_printer_node and save_file_manager4:
+		table_printer_node.visible = save_file_manager4.is_3d_printer_unlocked()
+	# Hide obsolete UI button always
+	if open_printer_button and is_instance_valid(open_printer_button):
+		open_printer_button.visible = false
+
+func _on_progression_updated(category: String, key: String, value):
+	"""Respond to save progression updates (e.g., unlocking features)"""
+	if category == "clubhouse" and key == "3d_printer_unlocked" and bool(value):
+		if table_printer_node:
+			table_printer_node.visible = true
+		if open_printer_button and is_instance_valid(open_printer_button):
+			open_printer_button.visible = true
+
 func _setup_deck_selection_dialog():
 	"""Setup the deck selection dialog"""
 	print("Setting up deck selection dialog...")
@@ -285,6 +337,60 @@ func _setup_clubhouse_upgrade_system():
 	_update_clubhouse_upgrade_ui()
 	
 	print("ClubHouse upgrade system setup complete")
+
+func _setup_3d_printer_system():
+	"""Make Table sprite clickable to focus table; clicking 3DPrinter opens dialog"""
+	# Table sprite
+	table_sprite_node = get_node_or_null("ClubHouseBackgroundLayers/Table")
+	if table_sprite_node:
+		if table_sprite_node.has_method("set"):
+			table_sprite_node.set("input_pickable", true)
+		if table_sprite_node.has_signal("input_event"):
+			if not table_sprite_node.input_event.is_connected(_on_table_sprite_clicked):
+				table_sprite_node.input_event.connect(_on_table_sprite_clicked)
+	# 3D Printer control
+	if table_printer_node and is_instance_valid(table_printer_node):
+		table_printer_node.mouse_filter = Control.MOUSE_FILTER_STOP
+		if not table_printer_node.gui_input.is_connected(_on_printer_control_clicked):
+			table_printer_node.gui_input.connect(_on_printer_control_clicked)
+		var save_file_manager = get_node("/root/SaveFileManager")
+		if save_file_manager:
+			table_printer_node.visible = save_file_manager.is_3d_printer_unlocked()
+	# Always hide obsolete UI button
+	if open_printer_button and is_instance_valid(open_printer_button):
+		open_printer_button.visible = false
+
+func _on_table_sprite_clicked(_viewport, event: InputEvent, _shape_idx: int):
+	if not (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT):
+		return
+	if table_anim_player:
+		table_anim_player.play("select_table")
+		await table_anim_player.animation_finished
+		is_table_focused = true
+
+func _on_printer_control_clicked(event: InputEvent):
+	if not (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT):
+		return
+	# Require focusing the table first
+	if not is_table_focused:
+		if table_anim_player:
+			table_anim_player.play("select_table")
+			await table_anim_player.animation_finished
+			is_table_focused = true
+		return
+	var save_file_manager = get_node("/root/SaveFileManager")
+	if save_file_manager and not save_file_manager.is_3d_printer_unlocked():
+		return
+	_open_printer_dialog()
+
+func _open_printer_dialog():
+	if printer_dialog == null:
+		var scene: PackedScene = preload("res://UI/PrinterDialog.tscn")
+		printer_dialog = scene.instantiate()
+		add_child(printer_dialog)
+	# Show dialog
+	if printer_dialog:
+		printer_dialog.visible = true
 
 func _play_select_sound():
 	select_sound.play()
@@ -779,6 +885,18 @@ func _handle_right_click():
 	"""Handle right-click to reverse animations and show Character2"""
 	print("Right-click detected - reversing animations")
 	
+	# If the table focus is active, reverse the select_table animation first
+	if is_table_focused and table_anim_player:
+		# Prevent concurrent reversals
+		if is_reversing_animations:
+			return
+		is_reversing_animations = true
+		table_anim_player.play_backwards("select_table")
+		await table_anim_player.animation_finished
+		is_table_focused = false
+		is_reversing_animations = false
+		return
+
 	# Don't handle right-click if we're already reversing
 	if is_reversing_animations:
 		print("Already reversing animations, ignoring right-click")

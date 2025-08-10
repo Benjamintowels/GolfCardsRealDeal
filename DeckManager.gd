@@ -82,6 +82,22 @@ func sync_with_current_deck():
 	club_deck_order.shuffle()
 	club_deck_index = 0
 	
+	# Inject printed cards queued from 3D printer (add to action draw pile)
+	var save_file_manager = get_node_or_null("/root/SaveFileManager")
+	if save_file_manager:
+		var queued: Array = save_file_manager.get_printed_cards_queue()
+		if queued.size() > 0:
+			for path in queued:
+				var card: CardData = load(path)
+				if card:
+					action_draw_pile.append(card)
+			# Rebuild action deck order to include injected cards
+			action_deck_order = action_draw_pile.duplicate()
+			action_deck_order.shuffle()
+			action_deck_index = 0
+			# Clear queue after injection
+			save_file_manager.clear_printed_cards_queue()
+
 	print("DeckManager: Initialized ordered deck system")
 	print("Action deck order:", action_deck_order.size(), "cards")
 	print("Club deck order:", club_deck_order.size(), "cards")

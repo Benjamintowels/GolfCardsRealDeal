@@ -1,4 +1,4 @@
-[gd_scene load_steps=124 format=3 uid="uid://wyu3udwngros"]
+[gd_scene load_steps=126 format=3 uid="uid://wyu3udwngros"]
 
 [ext_resource type="Script" uid="uid://ct4bebh7dhisi" path="res://Main.gd" id="1_r0du0"]
 [ext_resource type="Script" uid="uid://cqehnplar8nuv" path="res://perk_receiver.gd" id="2_hri7i"]
@@ -22,6 +22,7 @@
 [ext_resource type="Texture2D" uid="uid://c5m7m06j7yols" path="res://ClubHouse/TableWooden.png" id="11_20pc6"]
 [ext_resource type="Texture2D" uid="uid://c1vpbijigd3m6" path="res://UI/WoodenDoor.png" id="12_5vvyt"]
 [ext_resource type="AudioStream" uid="uid://brvy126oki60w" path="res://Sounds/CoolSound.mp3" id="12_fpfj3"]
+[ext_resource type="PackedScene" uid="uid://bf167m4joed2q" path="res://ClubHouse/3DPrinter.tscn" id="12_o7g6l"]
 [ext_resource type="PackedScene" uid="uid://cuj4dcwcb5bwf" path="res://ClubHouse/FlippyTheDolphin.tscn" id="13_c6i3y"]
 [ext_resource type="Texture2D" uid="uid://c8ekwddqhh5t0" path="res://ClubHouse/DrivingRangeSign.png" id="14_j4qnp"]
 [ext_resource type="AudioStream" uid="uid://3igpboa5ny6" path="res://Sounds/Thud.mp3" id="15_3b0ty"]
@@ -1080,12 +1081,149 @@ tracks/10/keys = {
 "values": [Vector2(1.565, 1.565), Vector2(2.08, 2.08), Vector2(2.835, 2.835)]
 }
 
+[sub_resource type="Animation" id="Animation_sph85"]
+resource_name = "select_table"
+length = 0.921
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Outside:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.9),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [Vector2(895, 543), Vector2(895, 739.09)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("GolfGreenBg:position")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.9),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [Vector2(797.155, 512), Vector2(797.155, 717.555)]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("ChClean:position")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0, 0.9),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [Vector2(924, 547), Vector2(924, 730.51)]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("Table:position")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0, 0.9),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [Vector2(936, 880), Vector2(936, 906.86)]
+}
+tracks/4/type = "value"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath("Character2:position")
+tracks/4/interp = 1
+tracks/4/loop_wrap = true
+tracks/4/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(520, 783)]
+}
+tracks/5/type = "value"
+tracks/5/imported = false
+tracks/5/enabled = true
+tracks/5/path = NodePath("StartRoundDoor:position")
+tracks/5/interp = 1
+tracks/5/loop_wrap = true
+tracks/5/keys = {
+"times": PackedFloat32Array(0, 0.9),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [Vector2(1443, 584), Vector2(1443.19, 629.401)]
+}
+tracks/6/type = "value"
+tracks/6/imported = false
+tracks/6/enabled = true
+tracks/6/path = NodePath(".:scale")
+tracks/6/interp = 1
+tracks/6/loop_wrap = true
+tracks/6/keys = {
+"times": PackedFloat32Array(0, 0.9),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [Vector2(1, 1), Vector2(2.755, 2.755)]
+}
+tracks/7/type = "value"
+tracks/7/imported = false
+tracks/7/enabled = true
+tracks/7/path = NodePath(".:position")
+tracks/7/interp = 1
+tracks/7/loop_wrap = true
+tracks/7/keys = {
+"times": PackedFloat32Array(0, 0.9),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [Vector2(0, 0), Vector2(-1554, -1694)]
+}
+tracks/8/type = "value"
+tracks/8/imported = false
+tracks/8/enabled = true
+tracks/8/path = NodePath("ChClean:scale")
+tracks/8/interp = 1
+tracks/8/loop_wrap = true
+tracks/8/keys = {
+"times": PackedFloat32Array(0, 0.9),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [Vector2(1.45, 1.45), Vector2(1.45, 0.95)]
+}
+tracks/9/type = "value"
+tracks/9/imported = false
+tracks/9/enabled = true
+tracks/9/path = NodePath("../FlippyTheDolphin:position")
+tracks/9/interp = 1
+tracks/9/loop_wrap = true
+tracks/9/keys = {
+"times": PackedFloat32Array(0, 0.9),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [Vector2(1279, 943), Vector2(1974, 943)]
+}
+tracks/10/type = "value"
+tracks/10/imported = false
+tracks/10/enabled = true
+tracks/10/path = NodePath("../FlippyTheDolphin:scale")
+tracks/10/interp = 1
+tracks/10/loop_wrap = true
+tracks/10/keys = {
+"times": PackedFloat32Array(0, 0.9),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [Vector2(1.565, 1.565), Vector2(4.285, 4.285)]
+}
+
 [sub_resource type="AnimationLibrary" id="AnimationLibrary_5tuhn"]
 _data = {
 &"RESET": SubResource("Animation_5tuhn"),
 &"benny_door": SubResource("Animation_2gh4u"),
 &"map_intro": ExtResource("10_2gh4u"),
-&"select_benny": SubResource("Animation_kjvhd")
+&"select_benny": SubResource("Animation_kjvhd"),
+&"select_table": SubResource("Animation_sph85")
 }
 
 [sub_resource type="Animation" id="Animation_hhcpw"]
@@ -1317,7 +1455,6 @@ texture = ExtResource("11_20pc6")
 
 [node name="GolfsmithClubHouse" type="Sprite2D" parent="ClubHouseBackgroundLayers/Table"]
 visible = false
-z_index = 60
 texture_filter = 1
 position = Vector2(-1922.81, -154.386)
 scale = Vector2(11.139, 11.139)
@@ -1330,12 +1467,24 @@ visible = false
 position = Vector2(0, -120)
 scale = Vector2(0.7, 0.7)
 
+[node name="3dPrinter" parent="ClubHouseBackgroundLayers/Table" instance=ExtResource("12_o7g6l")]
+offset_left = -705.263
+offset_top = -414.035
+offset_right = -705.263
+offset_bottom = -414.035
+scale = Vector2(0.424, 0.424)
+
 [node name="Character2" type="TextureButton" parent="ClubHouseBackgroundLayers"]
 texture_filter = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
 offset_left = 520.0
 offset_top = 783.0
-offset_right = 2440.0
-offset_bottom = 2564.0
+offset_right = 1144.0
+offset_bottom = 1764.0
+grow_horizontal = 2
+grow_vertical = 2
 scale = Vector2(0.286, 0.284)
 texture_normal = ExtResource("5_5vvyt")
 texture_pressed = ExtResource("5_5vvyt")
@@ -1509,6 +1658,14 @@ text = "Upgrade ClubHouse"
 [node name="AdvanceContainer" parent="UI/UpgradeClubHouseButton" instance=ExtResource("18_sph85")]
 z_index = -1
 position = Vector2(-19, -11)
+
+[node name="Open3DPrinterButton" type="Button" parent="UI"]
+visible = false
+offset_left = 41.0
+offset_top = 1060.0
+offset_right = 203.0
+offset_bottom = 1091.0
+text = "Open 3D Printer"
 
 [node name="CharacterStatBanner" parent="." instance=ExtResource("20_kgwt8")]
 visible = false
