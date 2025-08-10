@@ -1051,16 +1051,16 @@ func _on_return_to_clubhouse():
 	# Update ClubHouse upgrade UI
 	_update_clubhouse_upgrade_ui()
 
-	# If Golfsmith was rescued (appear flag true) and intro not played yet, show Golfsmith intro cutscene
+	# If Golfsmith quest is completed and intro not played yet, show Golfsmith shop arrival cutscene
 	var save_file_manager2 = get_node("/root/SaveFileManager")
 	var cutscene_manager = get_node("/root/CutsceneManager")
 	if save_file_manager2 and cutscene_manager:
 		var story = save_file_manager2.current_save_data.get("story_progression", {})
 		var npc_quests = story.get("npc_quests", {})
 		var gs = npc_quests.get("golfsmith", {})
-		var golfsmith_appeared: bool = bool(gs.get("appear", false))
+		var quest_completed: bool = bool(gs.get("quest_completed", false))
 		var heard_intro: bool = story.get("story_events", {}).get("heard_golfsmith_intro", false)
-		if golfsmith_appeared and not heard_intro:
+		if quest_completed and not heard_intro:
 			# Ensure clubhouse sprite visible
 			var gs_node = get_node_or_null("ClubHouseBackgroundLayers/Table/GolfsmithClubHouse")
 			if gs_node:

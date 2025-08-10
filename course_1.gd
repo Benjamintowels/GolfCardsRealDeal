@@ -987,7 +987,7 @@ func adjust_background_positioning() -> void:
 	# Ensure a GolfSmith spawns for FightRoom maps (testing)
 	if game_state_manager.get_current_puzzle_type() == "fight_room":
 		_spawn_golfsmith_for_testing()
-	# Spawn GolfSmith on random holes when round starts (if quest not completed)
+	# Spawn GolfSmith on random holes when round starts (only before he moves into the shop)
 	else:
 		_spawn_golfsmith_on_random_hole_if_needed()
 	
@@ -4845,11 +4845,19 @@ func _spawn_golfsmith_for_testing() -> void:
 
 func _spawn_golfsmith_on_random_hole_if_needed() -> void:
 	var scene: PackedScene = preload("res://NPC/Golfsmith/GolfSmithCharacter.tscn")
-	# Check quest state
+	# Check quest state: do not spawn if Golfsmith has moved into the shop (intro seen) or quest completed
 	if Engine.has_singleton("SaveFileManager"):
 		var save = Engine.get_singleton("SaveFileManager")
-		if save and save.has_method("get_npc_quest_progress"):
-			if save.get_npc_quest_progress("golfsmith") >= 100:
+		if save:
+			var block_spawn := false
+			if save.has_method("get_story_flag"):
+				# If the clubhouse Golfsmith intro has been seen, stop spawning on course
+				if save.get_story_flag("heard_golfsmith_intro"):
+					block_spawn = true
+			if not block_spawn and save.has_method("get_npc_quest_progress"):
+				if save.get_npc_quest_progress("golfsmith") >= 100:
+					block_spawn = true
+			if block_spawn:
 				return
 	# Random hole: place on a random valid tile (prefer SW if present, else any walkable)
 	var gs = scene.instantiate()

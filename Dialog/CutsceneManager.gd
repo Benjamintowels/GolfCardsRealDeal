@@ -433,6 +433,15 @@ func _end_cutscene():
 	if cutscene.has("played_flag"):
 		save_file_manager.set_story_flag(cutscene["played_flag"], true)
 	
+	# Special handling: when Golfsmith clubhouse intro finishes, finalize his quest
+	if current_cutscene == "golfsmith_intro" and save_file_manager:
+		# Ensure Golfsmith quest is marked complete so he stops spawning on courses
+		if save_file_manager.has_method("set_npc_quest_progress"):
+			save_file_manager.set_npc_quest_progress("golfsmith", 100)
+		# Persist immediately so the flag survives reloads
+		if save_file_manager.has_method("save_current_game"):
+			save_file_manager.save_current_game()
+	
 	# Hide cutscene UI
 	visible = false
 	

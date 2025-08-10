@@ -404,8 +404,12 @@ static func should_spawn_this_round() -> bool:
 	# If Golfsmith questline is completed, do not spawn on random holes
 	if Engine.has_singleton("SaveFileManager"):
 		var save = Engine.get_singleton("SaveFileManager")
-		if save and save.has_method("get_npc_quest_progress"):
-			return save.get_npc_quest_progress("golfsmith") < 100
+		if save:
+			# If the clubhouse intro was heard, he has moved into the shop; do not spawn
+			if save.has_method("get_story_flag") and save.get_story_flag("heard_golfsmith_intro"):
+				return false
+			if save.has_method("get_npc_quest_progress"):
+				return save.get_npc_quest_progress("golfsmith") < 100
 	return true
 
 # Allow enemies to prefer chasing whichever is closer (player or golfsmith) by providing grid pos
