@@ -1,4 +1,4 @@
-[gd_scene load_steps=126 format=3 uid="uid://wyu3udwngros"]
+[gd_scene load_steps=127 format=3 uid="uid://wyu3udwngros"]
 
 [ext_resource type="Script" uid="uid://ct4bebh7dhisi" path="res://Main.gd" id="1_r0du0"]
 [ext_resource type="Script" uid="uid://cqehnplar8nuv" path="res://perk_receiver.gd" id="2_hri7i"]
@@ -10,6 +10,7 @@
 [ext_resource type="Texture2D" uid="uid://8wgf3n08vib" path="res://NPC/Animals/BackGroundAnimals/birdsflying.png" id="5_w3rk5"]
 [ext_resource type="Texture2D" uid="uid://cj2ru4qsekcbx" path="res://Characters/LaylaCoffeBig.png" id="7_5vvyt"]
 [ext_resource type="Texture2D" uid="uid://cwdlr21pb6ap" path="res://Title.png" id="7_lgr22"]
+[ext_resource type="Texture2D" uid="uid://bxonhwa77hsew" path="res://Obstacles/SummerBush1.png" id="7_vi5kq"]
 [ext_resource type="PackedScene" uid="uid://mikj057r7rx5" path="res://ClubHouse/CourseSelectionMap.tscn" id="8_5tuhn"]
 [ext_resource type="Script" uid="uid://cnne1a0u85wtc" path="res://current_deck_manager.gd" id="8_current_deck_manager"]
 [ext_resource type="PackedScene" uid="uid://wtf41wnk0sys" path="res://Dialog/SpeechBubble.tscn" id="8_mxvw5"]
@@ -1441,6 +1442,12 @@ autoplay = "birds_fly"
 position = Vector2(797.155, 512)
 scale = Vector2(1.223, 1.223)
 texture = ExtResource("4_5tuhn")
+
+[node name="CHbush" type="Sprite2D" parent="ClubHouseBackgroundLayers/GolfGreenBg"]
+texture_filter = 1
+position = Vector2(276.243, 152.903)
+scale = Vector2(2.48, 2.48)
+texture = ExtResource("7_vi5kq")
 
 [node name="ChClean" type="Sprite2D" parent="ClubHouseBackgroundLayers"]
 position = Vector2(924, 547)

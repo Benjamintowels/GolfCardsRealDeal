@@ -1,0 +1,33 @@
+[gd_scene load_steps=5 format=3 uid="uid://dq7ujbtujb4xa"]
+
+[ext_resource type="Script" uid="uid://bbs03oofsmw0" path="res://Obstacles/game_fence_vertical.gd" id="1_75mkx"]
+[ext_resource type="Texture2D" uid="uid://cf5bcq7q5d3cy" path="res://Backgrounds/WoodenFenceV.png" id="1_e7rqd"]
+[ext_resource type="AudioStream" uid="uid://01xbvo1dq6r0" path="res://Sounds/TrunkThunk.mp3" id="3_s10st"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_yy0id"]
+size = Vector2(5.98291, 31.7269)
+
+[node name="GameFenceVertical" type="Node2D"]
+script = ExtResource("1_75mkx")
+
+[node name="FenceVerticalSprite" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(1.5, -63.5)
+texture = ExtResource("1_e7rqd")
+
+[node name="Area2D" type="Area2D" parent="."]
+position = Vector2(1.5, -24.5)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D"]
+position = Vector2(-2.5, -5.5)
+scale = Vector2(3.51, 2.505)
+shape = SubResource("RectangleShape2D_yy0id")
+
+[node name="TopHeight" type="Marker2D" parent="."]
+position = Vector2(0, -92)
+
+[node name="YsortPoint" type="Marker2D" parent="."]
+position = Vector2(0, 6)
+
+[node name="TrunkThunk" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("3_s10st")

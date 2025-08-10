@@ -1,0 +1,11 @@
+[gd_scene load_steps=2 format=3 uid="uid://nnmfxu8su3sf"]
+
+[ext_resource type="Texture2D" uid="uid://ci7vmdtdg5mhl" path="res://Obstacles/BrownTile.png" id="1_2hatp"]
+
+[node name="EmptyDirt" type="Node2D"]
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+modulate = Color(0.66675, 0.426659, 0.216362, 1)
+texture_filter = 1
+position = Vector2(-1, 0)
+texture = ExtResource("1_2hatp")

@@ -1,6 +1,8 @@
 extends Node
 
 const ForestBorderManager = preload("res://ForestBorderManager.gd")
+const GameFenceHorizontal: PackedScene = preload("res://Obstacles/GameFenceHorizontal.tscn")
+const GameFenceVertical: PackedScene = preload("res://Obstacles/GameFenceVertical.tscn")
 
 func _ready():
 	print("🔧 BUILD_MAP.GD LOADED!")
@@ -112,6 +114,10 @@ func build_map_from_layout(layout: Array, puzzle_type: String = "score") -> void
 		forest_border_manager = ForestBorderManager.new()
 		forest_border_manager.setup(obstacle_layer, cell_size)
 		forest_border_manager.create_forest_borders(layout[0].size(), layout.size())
+
+	# Build corrals (fences) around rectangular groupings of "U" (EmptyDirt) tiles
+	_build_corrals(layout)
+	update_all_ysort_z_indices()
 
 # --- Clear all existing objects from the map ---
 func clear_existing_objects() -> void:
@@ -1520,6 +1526,8 @@ func build_map_from_layout_base(layout: Array, place_pin: bool = true) -> void:
 				obstacle_map[pos] = tile
 			else:
 				pass
+	# After laying base tiles, also build corrals for "U" rectangles
+	_build_corrals(layout)
 	if place_pin:
 		randomize()
 		random_seed_value = current_hole * 1000 + randi()
@@ -2319,6 +2327,91 @@ func update_all_ysort_z_indices():
 	"""Update z_index for all objects using the simple global Y-sort system"""
 	# Use the global Y-sort system for all objects
 	Global.update_all_objects_y_sort(ysort_objects)
+
+func _build_corrals(layout: Array) -> void:
+	"""Detect rectangular groupings of 'U' tiles and place fence scenes on their borders.
+	Top/bottom rows: GameFenceHorizontal on every 'U'.
+	Left/right columns: GameFenceVertical on every 'U' except the very top/bottom rows (corners left empty for horizontal).
+	"""
+	if layout.is_empty():
+		return
+	var rows: int = layout.size()
+
+	# Visited set to avoid recounting the same corral
+	var visited := {}
+
+	for y in rows:
+		for x in layout[y].size():
+			if visited.has(Vector2i(x, y)):
+				continue
+			if layout[y][x] != "U":
+				continue
+			# Find the maximal rectangle of contiguous 'U' tiles starting at (x,y)
+			var max_x: int = x
+			while max_x < layout[y].size() and layout[y][max_x] == "U":
+				max_x += 1
+			var width: int = max_x - x
+			# Determine height by ensuring each subsequent row has the same run of 'U'
+			var max_y: int = y
+			var is_rect := true
+			while max_y < rows:
+				for cx in range(x, x + width):
+					if layout[max_y][cx] != "U":
+						is_rect = false
+						break
+				if not is_rect:
+					break
+				max_y += 1
+			var height: int = max_y - y
+
+			# Mark all tiles in this rectangle as visited
+			for yy in range(y, y + height):
+				for xx in range(x, x + width):
+					visited[Vector2i(xx, yy)] = true
+
+			# Ignore degenerate or 1-cell wide/high "corrals"
+			if width < 2 or height < 2:
+				continue
+
+			# Place horizontal fences on top and bottom rows
+			for xx in range(x, x + width):
+				var top_pos := Vector2i(xx, y)
+				var bot_pos := Vector2i(xx, y + height - 1)
+				_place_fence_horizontal_at(top_pos)
+				_place_fence_horizontal_at(bot_pos)
+
+			# Place vertical fences on left/right columns excluding corners (top/bottom rows)
+			for yy in range(y + 1, y + height - 1):
+				var left_pos := Vector2i(x, yy)
+				var right_pos := Vector2i(x + width - 1, yy)
+				_place_fence_vertical_at(left_pos)
+				_place_fence_vertical_at(right_pos)
+
+func _place_fence_horizontal_at(grid_pos: Vector2i) -> void:
+	if GameFenceHorizontal == null:
+		return
+	var world_pos: Vector2 = Vector2(grid_pos.x, grid_pos.y) * cell_size
+	var fence: Node2D = GameFenceHorizontal.instantiate() as Node2D
+	if fence == null:
+		return
+	fence.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
+	fence.set_meta("grid_position", grid_pos)
+	fence.add_to_group("collision_objects")
+	obstacle_layer.add_child(fence)
+	ysort_objects.append({"node": fence, "grid_pos": grid_pos})
+
+func _place_fence_vertical_at(grid_pos: Vector2i) -> void:
+	if GameFenceVertical == null:
+		return
+	var world_pos: Vector2 = Vector2(grid_pos.x, grid_pos.y) * cell_size
+	var fence: Node2D = GameFenceVertical.instantiate() as Node2D
+	if fence == null:
+		return
+	fence.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
+	fence.set_meta("grid_position", grid_pos)
+	fence.add_to_group("collision_objects")
+	obstacle_layer.add_child(fence)
+	ysort_objects.append({"node": fence, "grid_pos": grid_pos})
 
 func _place_generator_puzzle_system(object_positions: Dictionary, layout: Array):
 	"""Place the generator puzzle system with generator switch, pylons, and force fields"""

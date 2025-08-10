@@ -1,0 +1,33 @@
+[gd_scene load_steps=5 format=3 uid="uid://crakoe4ihkvqo"]
+
+[ext_resource type="Script" uid="uid://cgsveve1rhx6y" path="res://Obstacles/barn.gd" id="1_bfi6t"]
+[ext_resource type="Texture2D" uid="uid://cv4ooc3a3nhpc" path="res://Obstacles/Barn.png" id="2_bfi6t"]
+[ext_resource type="AudioStream" uid="uid://01xbvo1dq6r0" path="res://Sounds/TrunkThunk.mp3" id="3_fx42i"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_iws6i"]
+size = Vector2(205, 48)
+
+[node name="Barn" type="Node2D"]
+z_index = 1
+script = ExtResource("1_bfi6t")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+z_index = 1
+texture_filter = 1
+position = Vector2(50.335, -80.045)
+texture = ExtResource("2_bfi6t")
+
+[node name="YsortPoint" type="Node2D" parent="."]
+texture_filter = 1
+
+[node name="BaseArea" type="Area2D" parent="."]
+
+[node name="ShopBase" type="CollisionShape2D" parent="BaseArea"]
+position = Vector2(53, 0)
+shape = SubResource("RectangleShape2D_iws6i")
+
+[node name="TopHeight" type="Marker2D" parent="."]
+position = Vector2(0, -182.67)
+
+[node name="TrunkThunk" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("3_fx42i")

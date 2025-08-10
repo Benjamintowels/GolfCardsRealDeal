@@ -267,6 +267,7 @@ var tile_scene_map := {
 	"B": preload("res://Obstacles/Garden.tscn"),  # Garden tile for flowers
 	"C": preload("res://Obstacles/Cement.tscn"),  # Cement tile
 	"FW": preload("res://Obstacles/FightWinTile.tscn"),  # Fight room exit tile
+	"U": preload("res://Obstacles/EmptyDirt.tscn"),  # Empty dirt / Corral ground
 }
 
 var object_scene_map := {
