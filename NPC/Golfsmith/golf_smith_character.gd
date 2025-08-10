@@ -409,7 +409,9 @@ static func should_spawn_this_round() -> bool:
 			if save.has_method("get_story_flag") and save.get_story_flag("heard_golfsmith_intro"):
 				return false
 			if save.has_method("get_npc_quest_progress"):
-				return save.get_npc_quest_progress("golfsmith") < 100
+				var progress: int = save.get_npc_quest_progress("golfsmith")
+				# Do not spawn on course if Golfsmith has reached the shop stage or beyond
+				return progress < 75
 	return true
 
 # Allow enemies to prefer chasing whichever is closer (player or golfsmith) by providing grid pos

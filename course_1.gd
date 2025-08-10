@@ -985,11 +985,9 @@ func adjust_background_positioning() -> void:
 		map_manager.load_map_data(GolfCourseLayout.get_hole_layout(game_state_manager.get_current_hole_index()))
 	build_map.build_map_from_layout_with_randomization(map_manager.level_layout, game_state_manager.get_current_hole_index(), game_state_manager.get_current_puzzle_type())
 
-	# Ensure a GolfSmith spawns for FightRoom maps (testing)
-	if game_state_manager.get_current_puzzle_type() == "fight_room":
-		_spawn_golfsmith_for_testing()
-	# Spawn GolfSmith on random holes when round starts (only before he moves into the shop)
-	else:
+	# Do not force-spawn GolfSmith in FightRoom maps
+	# Spawn GolfSmith on random holes only before he moves into the shop
+	if game_state_manager.get_current_puzzle_type() != "fight_room" and not is_fight_room_mode:
 		_spawn_golfsmith_on_random_hole_if_needed()
 	
 	# Generate initial wind factor for the first hole
@@ -4846,7 +4844,10 @@ func _spawn_golfsmith_for_testing() -> void:
 
 func _spawn_golfsmith_on_random_hole_if_needed() -> void:
 	var scene: PackedScene = preload("res://NPC/Golfsmith/GolfSmithCharacter.tscn")
-	# Check quest state: do not spawn if Golfsmith has moved into the shop (intro seen) or quest completed
+	# Skip entirely for FightRoom maps
+	if game_state_manager and game_state_manager.get_current_puzzle_type() == "fight_room":
+		return
+	# Check quest state: do not spawn if Golfsmith has moved into the shop (intro seen) or quest progressed to shop/completed
 	if Engine.has_singleton("SaveFileManager"):
 		var save = Engine.get_singleton("SaveFileManager")
 		if save:
@@ -4856,7 +4857,9 @@ func _spawn_golfsmith_on_random_hole_if_needed() -> void:
 				if save.get_story_flag("heard_golfsmith_intro"):
 					block_spawn = true
 			if not block_spawn and save.has_method("get_npc_quest_progress"):
-				if save.get_npc_quest_progress("golfsmith") >= 100:
+				var progress: int = save.get_npc_quest_progress("golfsmith")
+				# If quest has reached shop stage (>=75) or completed (>=100), do not spawn on course
+				if progress >= 75:
 					block_spawn = true
 			if block_spawn:
 				return

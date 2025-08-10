@@ -764,10 +764,25 @@ func flash_damage():
 	if not sprite:
 		print("[Player.gd] flash_damage: No character sprite for damage flash!")
 		return
-	
+
+	# Swap to BennyDamage sprite briefly
+	var benny_char = get_node_or_null("BennyChar")
+	if benny_char:
+		var normal_sprite: Sprite2D = benny_char.get_node_or_null("Sprite2D")
+		var damage_sprite: Sprite2D = benny_char.get_node_or_null("BennyDamage")
+		if normal_sprite and damage_sprite:
+			normal_sprite.visible = false
+			damage_sprite.visible = true
+			var timer := get_tree().create_timer(0.3)
+			timer.timeout.connect(func():
+				if is_instance_valid(normal_sprite) and is_instance_valid(damage_sprite):
+					damage_sprite.visible = false
+					normal_sprite.visible = true
+			)
+
 	if highlight_tween:
 		highlight_tween.kill()
-	
+
 	highlight_tween = create_tween()
 	# Flash red for 0.3 seconds, then return to normal
 	highlight_tween.tween_property(sprite, "modulate", Color(1, 0, 0, 1), 0.1)
