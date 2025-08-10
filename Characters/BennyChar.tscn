@@ -1,6 +1,7 @@
-[gd_scene load_steps=52 format=3 uid="uid://bc8s6t7wka23s"]
+[gd_scene load_steps=53 format=3 uid="uid://bc8s6t7wka23s"]
 
 [ext_resource type="Texture2D" uid="uid://bu6bwgk8aipl2" path="res://Characters/BennyChar.png" id="1_oukfo"]
+[ext_resource type="Texture2D" uid="uid://dc65d7uvjhltb" path="res://Characters/BennyDamage.png" id="2_hg782"]
 [ext_resource type="Script" uid="uid://d2iiaqe57mea" path="res://Characters/SwingAnimation.gd" id="2_swing"]
 [ext_resource type="Texture2D" uid="uid://bpphl4eyv0s1r" path="res://Characters/BennyPunch.png" id="2_uyafs"]
 [ext_resource type="Texture2D" uid="uid://cbtrxx8kk5abt" path="res://Characters/Swingserererer2.png" id="3_spritesheet"]
@@ -275,10 +276,19 @@ texture = ExtResource("1_oukfo")
 [node name="YSortPoint" type="Node2D" parent="Sprite2D"]
 position = Vector2(0, 38.72)
 
+[node name="RealSprite2D" type="Sprite2D" parent="Sprite2D"]
+visible = false
+
 [node name="TopHeight" type="Marker2D" parent="."]
 position = Vector2(0, -87)
 
 [node name="Feet" type="Marker2D" parent="."]
+
+[node name="BennyDamage" type="Sprite2D" parent="."]
+visible = false
+texture_filter = 1
+position = Vector2(0, -44)
+texture = ExtResource("2_hg782")
 
 [node name="Area2D" type="Area2D" parent="."]
 position = Vector2(0, -43.72)

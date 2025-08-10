@@ -14,6 +14,7 @@ var final_18_hole_score = 0  # Final score for 18-hole game
 var front_9_score = 0  # Score from front 9 holes
 var show_final_score_display = false  # Flag to trigger final score display when returning to main
 var score_only_mode = false  # Flag for score-only mode (no puzzle type selection)
+var Tripping: bool = false  # Global switch triggered by Mushroom pickup
 
 # Final screen helpers
 var show_final_score_force_bad: bool = false  # Force bad image (death/quit)
