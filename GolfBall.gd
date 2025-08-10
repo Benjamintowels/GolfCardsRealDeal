@@ -146,6 +146,7 @@ var element_sprite: AnimatedSprite2D = null  # Reference to the Element animated
 var fire_club_active: bool = false  # Fire Club special effects
 var ice_club_active: bool = false  # Ice Club special effects
 var electric_club_active: bool = false  # Electric Club special effects
+var water_club_active: bool = false  # Water Club special effects
 
 # Fire spreading system variables
 var last_fire_tile: Vector2i = Vector2i.ZERO  # Track the last tile that caught fire
@@ -154,6 +155,10 @@ var fire_tiles_created: Array[Vector2i] = []  # Track all fire tiles created by 
 # Ice spreading system
 var last_ice_tile: Vector2i = Vector2i.ZERO  # Track the last tile that froze
 var ice_tiles_created: Array[Vector2i] = []  # Track all ice tiles created by this ball
+
+# Wet (water) tile system
+var last_wet_tile: Vector2i = Vector2i.ZERO  # Track the last tile that became wet
+var wet_tiles_created: Array[Vector2i] = []  # Track all wet tiles created by this ball
 
 # Ball landing highlight system
 var final_landing_tile: Vector2i = Vector2i.ZERO  # Track the final tile where ball stopped
@@ -861,6 +866,10 @@ func _process(delta):
 			_check_fire_spreading()
 			# Check for ice spreading while rolling
 			_check_ice_spreading()
+			# Check for wet spreading while rolling
+			_check_wet_spreading()
+			# Check for wet spreading while rolling
+			_check_wet_spreading()
 			
 			# Check for water hazard while rolling
 			var tile_x_roll = int(floor(position.x / cell_size))
@@ -871,6 +880,12 @@ func _process(delta):
 				if ice_club_active:
 					pass  # Ice Club effect: Ball passes through water tile while rolling
 					# Continue normal physics - don't stop the ball
+				elif (current_element and current_element.name == "Water") or water_club_active:
+					# Treat as normal ground while rolling; also play WaterEffect once when entering
+					if last_tile_type != "W":
+						var water_effect = get_node_or_null("WaterEffect")
+						if water_effect:
+							water_effect.play()
 				else:
 					velocity = Vector2.ZERO
 					vz = 0.0
@@ -1269,6 +1284,9 @@ func _on_area_entered(area):
 		# GolfBall: NPC collision detected
 		print("GolfBall: Processing body area collision with ", area.get_parent().name)
 		area.get_parent()._handle_ball_collision(self)
+		# Water element knockback: push NPC 1 tile on collision
+		if current_element and current_element.name == "Water":
+			_apply_one_tile_knockback_to_npc(area.get_parent())
 		_notify_bounce_room_bounce()
 	# Check if this is a Player collision
 	elif area.get_parent() and area.get_parent().has_method("take_damage"):
@@ -1282,6 +1300,10 @@ func _on_area_entered(area):
 		
 		# Player collision detected - handle player damage
 		_handle_player_collision(area.get_parent())
+		
+		# Water element knockback: push player 1 tile on collision
+		if current_element and current_element.name == "Water":
+			_apply_one_tile_knockback_to_player(area.get_parent())
 		# Notify course to re-enable player collision since ball hit player
 		notify_course_of_collision()
 	# Check if this is a Tree collision
@@ -1446,6 +1468,61 @@ func _handle_player_collision(player: Node2D) -> void:
 	# Apply the reflected velocity to the ball
 	velocity = reflected_velocity
 
+func _apply_one_tile_knockback_to_player(player: Node) -> void:
+	# Try grid-based knockback by 1 tile away from ball
+	if not ("grid_pos" in player):
+		return
+	var course = get_tree().current_scene
+	var grid_size: Vector2i = Vector2i(50, 50)
+	if course and "grid_size" in course:
+		grid_size = course.grid_size
+	var player_center: Vector2 = player.global_position
+	var to_player_dir: Vector2 = (player_center - global_position).normalized()
+	var step: Vector2i = Vector2i(signi(to_player_dir.x), signi(to_player_dir.y))
+	# Prefer strongest axis movement
+	if abs(to_player_dir.x) > abs(to_player_dir.y):
+		step = Vector2i(signi(to_player_dir.x), 0)
+	else:
+		step = Vector2i(0, signi(to_player_dir.y))
+	var target: Vector2i = player.grid_pos + step
+	target.x = clamp(target.x, 0, grid_size.x - 1)
+	target.y = clamp(target.y, 0, grid_size.y - 1)
+	if player.has_method("push_back"):
+		player.push_back(target)
+
+func _apply_one_tile_knockback_to_npc(npc: Node) -> void:
+	# Try grid-based knockback by 1 tile away from ball if NPC supports grid_position
+	var grid_pos: Vector2i = Vector2i.ZERO
+	if npc.has_method("get_grid_position"):
+		grid_pos = npc.get_grid_position()
+	elif "grid_position" in npc:
+		grid_pos = npc.grid_position
+	else:
+		return
+	var course = get_tree().current_scene
+	var grid_size: Vector2i = Vector2i(50, 50)
+	if course and "grid_size" in course:
+		grid_size = course.grid_size
+	var npc_center: Vector2 = npc.global_position
+	var to_npc_dir: Vector2 = (npc_center - global_position).normalized()
+	var step: Vector2i = Vector2i(signi(to_npc_dir.x), signi(to_npc_dir.y))
+	if abs(to_npc_dir.x) > abs(to_npc_dir.y):
+		step = Vector2i(signi(to_npc_dir.x), 0)
+	else:
+		step = Vector2i(0, signi(to_npc_dir.y))
+	var target: Vector2i = grid_pos + step
+	target.x = clamp(target.x, 0, grid_size.x - 1)
+	target.y = clamp(target.y, 0, grid_size.y - 1)
+	if npc.has_method("push_back"):
+		npc.push_back(target)
+
+func signi(v: float) -> int:
+	if v > 0.1:
+		return 1
+	if v < -0.1:
+		return -1
+	return 0
+
 func _play_bounce_sound() -> void:
 	"""Play the appropriate bounce sound based on the current tile type"""
 	if map_manager == null:
@@ -1492,6 +1569,7 @@ func reset_shot_effects() -> void:
 	fire_club_active = false
 	ice_club_active = false
 	electric_club_active = false
+	water_club_active = false
 	
 	# Deactivate ElectricArea when ball lands
 	var electric_area = get_node_or_null("Shadow/ElectricArea")
@@ -1505,6 +1583,10 @@ func reset_shot_effects() -> void:
 	# Reset ice spreading system
 	last_ice_tile = Vector2i.ZERO
 	ice_tiles_created.clear()
+
+	# Reset wet spreading system
+	last_wet_tile = Vector2i.ZERO
+	wet_tiles_created.clear()
 
 func notify_course_of_collision() -> void:
 	"""Notify the course that the ball has collided with something, so it can re-enable player collision"""
@@ -1767,7 +1849,19 @@ func check_out_of_bounds_collision() -> void:
 	# This prevents balls from bouncing off water tiles when they're high in the air
 	if z <= current_ground_level:
 		var tile_type = map_manager.get_tile_type(tile_pos.x, tile_pos.y)
-		if tile_type == "W":  # Water is out-of-bounds
+		if tile_type == "W":  # Water is out-of-bounds (except with water element/club)
+			# Water element or Water Club: allow bouncing off water without consuming a bounce
+			if (current_element and current_element.name == "Water") or water_club_active:
+				# Reflect gently and do not increment bounce_count
+				var current_bounce_factor = get_tile_bounce_factor()
+				vz = abs(vz) * current_bounce_factor
+				velocity *= 0.98
+				# Play splash sound
+				var splash_sound = get_node_or_null("Splash")
+				if splash_sound:
+					splash_sound.play()
+				# Do not set landed/out_of_bounds; continue flight
+				return
 			# Ice Club can pass through water tiles
 			if ice_club_active:
 				pass  # Ice Club effect: Ball passes through water tile
@@ -2085,6 +2179,25 @@ func _check_ice_spreading() -> void:
 	# Create ice tile
 	_create_ice_tile(current_tile)
 
+func _check_wet_spreading() -> void:
+	"""Check if the water ball should wet the current tile"""
+
+	if not current_element or current_element.name != "Water":
+		return  # Not a water ball
+	
+	if map_manager == null:
+		return  # No map manager
+	
+	# Get current tile position
+	var current_tile = Vector2i(floor(position.x / cell_size), floor(position.y / cell_size))
+	
+	# Avoid duplicate wet tiles
+	if current_tile in wet_tiles_created:
+		return
+	
+	# Create wet tile
+	_create_wet_tile(current_tile)
+
 func _is_tile_iced_or_frozen(tile_pos: Vector2i) -> bool:
 	"""Check if a tile is currently iced or frozen"""
 	# Check for existing ice tiles in the scene
@@ -2125,6 +2238,40 @@ func _create_ice_tile(tile_pos: Vector2i) -> void:
 	# Track this ice tile
 	ice_tiles_created.append(tile_pos)
 	last_ice_tile = tile_pos
+
+func _create_wet_tile(tile_pos: Vector2i) -> void:
+	"""Create a wet tile at the specified position (blue darken tint and sound)"""
+	var wet_tile_scene = preload("res://Particles/WetTile.tscn")
+	var wet_tile = wet_tile_scene.instantiate()
+	
+	# Set the tile position
+	if wet_tile.has_method("set_tile_position"):
+		wet_tile.set_tile_position(tile_pos)
+	
+	# Find the camera container to add the wet tile to (so it moves with the world)
+	var camera_container = get_parent()  # The ball should be a child of the camera container
+	
+	# Position the wet tile at the tile center (relative to camera container)
+	var tile_center = Vector2(tile_pos.x * cell_size + cell_size / 2, tile_pos.y * cell_size + cell_size / 2)
+	wet_tile.position = tile_center
+	
+	# Add to wet tiles group for easy management
+	wet_tile.add_to_group("wet_tiles")
+	
+	# Connect to completion signal if exists
+	if wet_tile.has_signal("wet_tile_completed"):
+		wet_tile.wet_tile_completed.connect(_on_wet_tile_completed)
+	
+	# Add to camera container so it moves with the world
+	camera_container.add_child(wet_tile)
+	
+	# Track this wet tile
+	wet_tiles_created.append(tile_pos)
+	last_wet_tile = tile_pos
+
+func _on_wet_tile_completed(tile_pos: Vector2i) -> void:
+	# Hook for future map state changes (e.g., reduce friction), not required now
+	pass
 
 func _on_ice_tile_completed(tile_pos: Vector2i) -> void:
 	"""Handle when an ice tile transitions to frozen state"""

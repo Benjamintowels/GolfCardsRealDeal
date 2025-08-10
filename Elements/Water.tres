@@ -8,5 +8,5 @@ script = ExtResource("1_u85i8")
 name = "Water"
 texture = ExtResource("2_h1dal")
 color = Color(0.12549, 0.592157, 1, 1)
-scene_path = ""
+scene_path = "res://Elements/WaterBallEffect.tscn"
 metadata/_custom_type_script = "uid://dk64kh6fkqud7"

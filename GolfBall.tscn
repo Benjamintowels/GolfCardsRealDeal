@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=3 uid="uid://ccplraisoursi"]
+[gd_scene load_steps=17 format=3 uid="uid://ccplraisoursi"]
 
 [ext_resource type="Texture2D" uid="uid://cvys8vcc4i6hi" path="res://GolfBall.png" id="1_c77dq"]
 [ext_resource type="Script" uid="uid://bn6hvthphgj16" path="res://GolfBall.gd" id="1_coy0q"]
@@ -10,7 +10,9 @@
 [ext_resource type="AudioStream" uid="uid://cqm2ebplq8wlo" path="res://Sounds/BallHop.mp3" id="8_skc11"]
 [ext_resource type="AudioStream" uid="uid://b2hhspkeba64h" path="res://Sounds/Icy.mp3" id="9_icpn2"]
 [ext_resource type="AudioStream" uid="uid://tu47pjuwugnn" path="res://Sounds/Snow.mp3" id="10_7npbr"]
+[ext_resource type="AudioStream" uid="uid://bai0c5vkjpy3x" path="res://Sounds/Splash.mp3" id="11_7uw1m"]
 [ext_resource type="AudioStream" uid="uid://01xbvo1dq6r0" path="res://Sounds/TrunkThunk.mp3" id="11_wv1ht"]
+[ext_resource type="AudioStream" uid="uid://dssh4sttxceaa" path="res://Sounds/WaterEffect.mp3" id="12_etpqu"]
 [ext_resource type="PackedScene" uid="uid://tdket6rruuc3" path="res://Elements/ElectricArea.tscn" id="12_kccih"]
 
 [sub_resource type="CompressedTexture2D" id="CompressedTexture2D_k5viu"]
@@ -78,6 +80,14 @@ volume_db = -10.254
 
 [node name="Icy" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("9_icpn2")
+volume_db = -2.197
+
+[node name="Splash" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("11_7uw1m")
+volume_db = -2.197
+
+[node name="WaterEffect" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("12_etpqu")
 volume_db = -2.197
 
 [node name="RoughSound" type="AudioStreamPlayer2D" parent="."]

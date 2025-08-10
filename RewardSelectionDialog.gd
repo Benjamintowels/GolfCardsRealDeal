@@ -63,6 +63,10 @@ var base_cards: Array[CardData] = [
 	preload("res://Cards/BagCheck.tres"),
 	preload("res://Cards/FiragaCard.tres"),
 	preload("res://Cards/IceSpearCard.tres"),
+	preload("res://Cards/FireBallCard.tres"),
+	preload("res://Cards/IceBallCard.tres"),
+	preload("res://Cards/WaterBallCard.tres"),
+	preload("res://Cards/ShockBallCard.tres"),
 	preload("res://Cards/Putter.tres"),
 	preload("res://Cards/Wooden.tres"),
 	preload("res://Cards/Iron.tres"),
@@ -71,7 +75,8 @@ var base_cards: Array[CardData] = [
 	preload("res://Cards/PitchingWedge.tres"),
 	preload("res://Cards/FireClub.tres"),
 	preload("res://Cards/IceClub.tres"),
-	preload("res://Cards/ElectricClub.tres")
+	preload("res://Cards/ElectricClub.tres"),
+	preload("res://Cards/WaterClub.tres")
 ]
 
 # Available cards for rewards (includes all levels)
@@ -380,7 +385,7 @@ func get_tiered_equipment() -> Array[EquipmentData]:
 func get_club_cards() -> Array[CardData]:
 	"""Get all club cards from available cards"""
 	var club_cards: Array[CardData] = []
-	var club_names = ["Putter", "Wood", "Wooden", "Iron", "Hybrid", "Driver", "PitchingWedge", "Fire Club", "Ice Club", "ElectricClub"]
+	var club_names = ["Putter", "Wood", "Wooden", "Iron", "Hybrid", "Driver", "PitchingWedge", "Fire Club", "Ice Club", "ElectricClub", "WaterClub"]
 	
 	for card in available_cards:
 		if club_names.has(card.name):
@@ -391,7 +396,7 @@ func get_club_cards() -> Array[CardData]:
 func get_action_cards() -> Array[CardData]:
 	"""Get all action cards (non-club cards) from available cards"""
 	var action_cards: Array[CardData] = []
-	var club_names = ["Putter", "Wood", "Wooden", "Iron", "Hybrid", "Driver", "PitchingWedge", "Fire Club", "Ice Club", "ElectricClub"]
+	var club_names = ["Putter", "Wood", "Wooden", "Iron", "Hybrid", "Driver", "PitchingWedge", "Fire Club", "Ice Club", "ElectricClub", "WaterClub"]
 	
 	for card in available_cards:
 		if not club_names.has(card.name):

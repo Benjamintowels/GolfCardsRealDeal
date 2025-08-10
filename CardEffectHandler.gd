@@ -171,6 +171,57 @@ func handle_modify_next_card(card: CardData):
 		# Remove only the specific card button, not the entire hand
 		remove_specific_card_button(card)
 	
+	elif card.name == "WaterBall":
+		# Mirror IceBall/FireBall pattern for Water
+		if course.has_method("set_water_ball_active"):
+			course.set_water_ball_active(true)
+		else:
+			# Fallback to inline flags on course if available
+			if "water_ball_active" in course:
+				course.water_ball_active = true
+			course.next_shot_modifier = "water_ball"
+		print("WaterBall effect applied to next shot")
+		
+		# Play Splash preview from a temp GolfBall node
+		var player = course.player_manager.get_player_node() if course.player_manager else null
+		if player:
+			var ball_scene = preload("res://GolfBall.tscn")
+			var temp_ball = ball_scene.instantiate()
+			course.add_child(temp_ball)
+			var splash_sound = temp_ball.get_node_or_null("Splash")
+			if splash_sound:
+				splash_sound.play()
+				print("Playing water splash sound effect")
+			await get_tree().create_timer(0.1).timeout
+			temp_ball.queue_free()
+		
+		# Discard/animate like other ModifyNext cards
+		if course.deck_manager.hand.has(card):
+			course.deck_manager.discard(card)
+			course.card_stack_display.animate_card_discard(card.name)
+			course.ui_manager.update_deck_display()
+		else:
+			course.card_stack_display.animate_card_discard(card.name)
+			print("WaterBall card used from bag pile")
+		remove_specific_card_button(card)
+
+	elif card.name == "ShockBall":
+		# Electric element ball modifier
+		if "shock_ball_active" in course:
+			course.shock_ball_active = true
+		course.next_shot_modifier = "shock_ball"
+		print("ShockBall effect applied to next shot")
+		
+		# Discard/animate like other ModifyNext cards
+		if course.deck_manager.hand.has(card):
+			course.deck_manager.discard(card)
+			course.card_stack_display.animate_card_discard(card.name)
+			course.ui_manager.update_deck_display()
+		else:
+			course.card_stack_display.animate_card_discard(card.name)
+			print("ShockBall card used from bag pile")
+		remove_specific_card_button(card)
+	
 	elif card.name == "Explosive":
 		course.explosive_shot_active = true
 		course.next_shot_modifier = "explosive_shot"

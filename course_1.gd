@@ -120,6 +120,8 @@ var bouncey_shot_active := false  # Track if Bouncey effect is active
 var fire_ball_active := false  # Track if FireBall effect is active
 var ice_ball_active := false  # Track if IceBall effect is active
 var explosive_shot_active := false  # Track if Explosive effect is active
+var water_ball_active := false  # Track if WaterBall effect is active
+var shock_ball_active := false  # Track if ShockBall (Electric) effect is active
 var next_shot_modifier := ""  # Track what modifier to apply to next shot
 var next_card_doubled := false  # Track if the next card should have its effect doubled
 var rooboost_active := false  # Track if RooBoost effect is active
@@ -3650,6 +3652,33 @@ func _on_ball_launched(ball: Node2D):
 			ice_ball_active = false
 			next_shot_modifier = ""
 		
+		if water_ball_active and next_shot_modifier == "water_ball":
+			# Apply Water element to the ball
+			var water_element = preload("res://Elements/Water.tres")
+			ball.set_element(water_element)
+			# Ensure electric systems are off for water element
+			var ea_water_shot = ball.get_node_or_null("Shadow/ElectricArea")
+			if ea_water_shot and ea_water_shot.has_method("deactivate_electric_area"):
+				ea_water_shot.deactivate_electric_area()
+			ball.electric_club_active = false
+			# Play splash on launch
+			var splash = ball.get_node_or_null("Splash")
+			if splash:
+				splash.play()
+			water_ball_active = false
+			next_shot_modifier = ""
+		
+		if shock_ball_active and next_shot_modifier == "shock_ball":
+			# Apply Electric element to the ball
+			var electric_element = preload("res://Elements/Electric.tres")
+			ball.set_element(electric_element)
+			# Enable electric area similar to ElectricClub
+			var electric_area = ball.get_node_or_null("Shadow/ElectricArea")
+			if electric_area and electric_area.has_method("activate_electric_area"):
+				electric_area.activate_electric_area()
+			shock_ball_active = false
+			next_shot_modifier = ""
+		
 		if explosive_shot_active and next_shot_modifier == "explosive_shot":
 			# Apply explosive effect to the ball
 			ball.explosive_shot_active = true
@@ -3662,6 +3691,10 @@ func _on_ball_launched(ball: Node2D):
 			var fire_element = preload("res://Elements/Fire.tres")
 			ball.set_element(fire_element)
 			print("Fire Club selected - applying Fire element to ball")
+			# Ensure electric systems are off for non-electric elements
+			var ea_fire = ball.get_node_or_null("Shadow/ElectricArea")
+			if ea_fire and ea_fire.has_method("deactivate_electric_area"):
+				ea_fire.deactivate_electric_area()
 			
 			# Play flame sound effect
 			var flame_sound = ball.get_node_or_null("FlameOn")
@@ -3678,6 +3711,10 @@ func _on_ball_launched(ball: Node2D):
 			var ice_element = preload("res://Elements/Ice.tres")
 			ball.set_element(ice_element)
 			print("Ice Club selected - applying Ice element to ball")
+			# Ensure electric systems are off for non-electric elements
+			var ea_ice = ball.get_node_or_null("Shadow/ElectricArea")
+			if ea_ice and ea_ice.has_method("deactivate_electric_area"):
+				ea_ice.deactivate_electric_area()
 			
 			# Play ice sound effect
 			var ice_sound = ball.get_node_or_null("IceOn")
@@ -3693,35 +3730,23 @@ func _on_ball_launched(ball: Node2D):
 			# Apply Electric element to the ball
 			var electric_element = preload("res://Elements/Electric.tres")
 			ball.set_element(electric_element)
-			print("ElectricClub selected - applying Electric element to ball")
-			
-			# Enable electric area and activate chain lightning
-			print("=== ELECTRIC AREA ACTIVATION DEBUG ===")
-			var electric_area = ball.get_node_or_null("Shadow/ElectricArea")
-			print("ElectricArea found:", electric_area != null)
-			if electric_area:
-				print("ElectricArea name:", electric_area.name)
-				print("ElectricArea has activate_electric_area method:", electric_area.has_method("activate_electric_area"))
-				if electric_area.has_method("activate_electric_area"):
-					print("Calling activate_electric_area()")
-					electric_area.activate_electric_area()
-					print("ElectricClub special effect: Chain lightning activated")
-				else:
-					print("✗ ElectricArea missing activate_electric_area method")
-			else:
-				print("✗ ElectricArea not found in ball")
-				print("Ball children:")
-				for child in ball.get_children():
-					print("  -", child.name, "Type:", child.get_class())
-				print("Shadow children:")
-				var shadow = ball.get_node_or_null("Shadow")
-				if shadow:
-					for child in shadow.get_children():
-						print("  -", child.name, "Type:", child.get_class())
-			
-			# Electric Club special effect: Chain lightning system
-			ball.electric_club_active = true
-			print("ElectricClub special effect: Chain lightning system active")
+		elif game_state_manager.get_selected_club() == "WaterClub":
+			# Apply Water element to the ball
+			var water_element = preload("res://Elements/Water.tres")
+			ball.set_element(water_element)
+			# Ensure electric systems are off for non-electric elements
+			var ea_water = ball.get_node_or_null("Shadow/ElectricArea")
+			if ea_water and ea_water.has_method("deactivate_electric_area"):
+				ea_water.deactivate_electric_area()
+			ball.electric_club_active = false
+			# Play splash on equip
+			var splash2 = ball.get_node_or_null("Splash")
+			if splash2:
+				splash2.play()
+			# Water club special: treat water tiles as bounceable without consuming bounce
+			if "water_club_active" in ball:
+				ball.water_club_active = true
+			print("Water Club selected - applying Water element to ball")
 
 func _on_launch_phase_entered():
 	game_state_manager.set_game_phase("launch")
@@ -4244,6 +4269,8 @@ func clear_player_state():
 	fire_ball_active = false
 	ice_ball_active = false
 	explosive_shot_active = false
+	water_ball_active = false
+	shock_ball_active = false
 	next_shot_modifier = ""
 	next_card_doubled = false
 	rooboost_active = false
