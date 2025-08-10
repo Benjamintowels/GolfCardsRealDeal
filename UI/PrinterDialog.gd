@@ -58,9 +58,10 @@ func _refresh():
 	if not save_file_manager:
 		return
 	# Update looty label
-	var looty = clubhouse_upgrade_manager.get_clubhouse_looty() if clubhouse_upgrade_manager else 0
+	var clubhouse_looty: int = clubhouse_upgrade_manager.get_clubhouse_looty() if clubhouse_upgrade_manager else 0
+	var player_looty: int = Global.get_looty()
 	if looty_label:
-		looty_label.text = "$Looty: %d (Cost to print: 25)" % looty
+		looty_label.text = "$Looty — ClubHouse: %d | Player: %d (Cost to print: 25)" % [clubhouse_looty, player_looty]
 	_update_print_button_state()
 	# Populate list
 	if genes_list:
@@ -73,6 +74,10 @@ func _refresh():
 				display = card_name
 			genes_list.add_item(display)
 			genes_list.set_item_metadata(genes_list.item_count - 1, path)
+		# Auto-select the first gene if none selected to make printing straightforward
+		if genes_list.item_count > 0 and genes_list.get_selected_items().is_empty():
+			genes_list.select(0)
+	_update_print_button_state()
 
 func _on_background_clicked(event: InputEvent):
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
@@ -94,7 +99,12 @@ func _on_print_pressed():
 	var idx: int = int(selected[0])
 	var card_path: String = String(genes_list.get_item_metadata(idx))
 	# Cost 25 from ClubHouse wallet
-	if not clubhouse_upgrade_manager.spend_clubhouse_looty(25):
+	var paid: bool = clubhouse_upgrade_manager.spend_clubhouse_looty(25)
+	if not paid:
+		# Fallback to player's personal $Looty if ClubHouse wallet can't cover it
+		if Global.spend_looty(25):
+			paid = true
+	if not paid:
 		return
 	# Play SFX
 	if sfx:
@@ -132,5 +142,7 @@ func _update_print_button_state():
 	if not print_button:
 		return
 	var can_select := genes_list and genes_list.get_selected_items().size() > 0
-	var looty: int = clubhouse_upgrade_manager.get_clubhouse_looty() if clubhouse_upgrade_manager else 0
-	print_button.disabled = not (can_select and looty >= 25)
+	var clubhouse_looty: int = clubhouse_upgrade_manager.get_clubhouse_looty() if clubhouse_upgrade_manager else 0
+	var player_looty: int = Global.get_looty()
+	var can_afford := (clubhouse_looty >= 25) or (player_looty >= 25)
+	print_button.disabled = not (can_select and can_afford)

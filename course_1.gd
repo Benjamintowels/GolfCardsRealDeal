@@ -663,6 +663,9 @@ func _ready() -> void:
 	
 	# Force sync with CurrentDeckManager immediately
 	deck_manager.sync_with_current_deck()
+	# Inject any printed cards from the 3D printer after sync (ensures save data is loaded)
+	if deck_manager.has_method("inject_printed_cards_from_queue"):
+		deck_manager.inject_printed_cards_from_queue()
 	
 	# Setup attack handler first (before movement controller)
 	attack_handler.setup(

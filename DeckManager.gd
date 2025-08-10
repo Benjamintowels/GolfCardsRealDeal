@@ -36,6 +36,8 @@ func _ready():
 			for child in get_parent().get_children():
 				print("  -", child.name)
 
+	# Do not inject printed cards here; defer to course scene after sync
+
 func _on_current_deck_updated():
 	"""Called when CurrentDeckManager deck is updated"""
 	# Only sync if we haven't initialized separate decks yet
@@ -82,21 +84,7 @@ func sync_with_current_deck():
 	club_deck_order.shuffle()
 	club_deck_index = 0
 	
-	# Inject printed cards queued from 3D printer (add to action draw pile)
-	var save_file_manager = get_node_or_null("/root/SaveFileManager")
-	if save_file_manager:
-		var queued: Array = save_file_manager.get_printed_cards_queue()
-		if queued.size() > 0:
-			for path in queued:
-				var card: CardData = load(path)
-				if card:
-					action_draw_pile.append(card)
-			# Rebuild action deck order to include injected cards
-			action_deck_order = action_draw_pile.duplicate()
-			action_deck_order.shuffle()
-			action_deck_index = 0
-			# Clear queue after injection
-			save_file_manager.clear_printed_cards_queue()
+	# Note: Printed cards will be injected by the course scene after sync
 
 	print("DeckManager: Initialized ordered deck system")
 	print("Action deck order:", action_deck_order.size(), "cards")
@@ -354,6 +342,38 @@ func validate_deck_state() -> void:
 			print("  ", card_name, ":", seen_cards[card_name])
 	
 	print("=== END VALIDATION ===")
+
+func _inject_printed_cards_if_any(current_deck_manager: Node = null) -> void:
+	var save_file_manager = get_node_or_null("/root/SaveFileManager")
+	if not save_file_manager:
+		return
+	var queued: Array = save_file_manager.get_printed_cards_queue()
+	if queued.size() == 0:
+		return
+	for path in queued:
+		var card: CardData = load(path)
+		if card:
+			# Ensure action pile exists (clubs handled separately)
+			if is_club_card(card):
+				club_draw_pile.append(card)
+				club_deck_order = club_draw_pile.duplicate()
+				club_deck_order.shuffle()
+				club_deck_index = 0
+			else:
+				action_draw_pile.append(card)
+				action_deck_order = action_draw_pile.duplicate()
+				action_deck_order.shuffle()
+				action_deck_index = 0
+			if current_deck_manager and current_deck_manager.has_method("add_card_to_deck"):
+				current_deck_manager.add_card_to_deck(card)
+	# Clear queue after injection so cards are one-time
+	save_file_manager.clear_printed_cards_queue()
+	print("DeckManager: Injected", queued.size(), "printed card(s) from 3D printer")
+	emit_signal("deck_updated")
+
+func inject_printed_cards_from_queue() -> void:
+	var current_deck_manager = get_parent().get_node_or_null("CurrentDeckManager")
+	_inject_printed_cards_if_any(current_deck_manager)
 
 func draw_cards(count: int = 3) -> void:
 	for i in range(count):
