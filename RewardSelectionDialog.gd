@@ -875,19 +875,26 @@ func generate_score_mode_rewards() -> Array:
 	"""Generate rewards for Score Mode - all club cards"""
 	var rewards = []
 	
-	# Get tiered club cards
+	# Get tiered club cards only (no action card fallback in score mode)
 	var tiered_club_cards = get_tiered_club_cards()
+	var club_only_pool: Array[CardData] = tiered_club_cards
 	
-	# If we don't have enough club cards, fall back to any cards
-	var available_cards_for_fallback = tiered_club_cards
-	if available_cards_for_fallback.size() < 3:
-		available_cards_for_fallback = get_tiered_cards()
-		print("🎯 SCORE MODE: Not enough club cards, using all cards as fallback")
+	# If empty or too small, build a pure club pool from base club cards
+	if club_only_pool.size() < 3:
+		print("🎯 SCORE MODE: Not enough tiered club cards, building club-only pool")
+		club_only_pool = get_club_cards()
+		# If still empty, fallback to a safe club (Putter)
+		if club_only_pool.is_empty():
+			print("🎯 SCORE MODE: Club pool empty, falling back to Putter")
+			for base_card in base_cards:
+				if base_card.name == "Putter":
+					club_only_pool.append(base_card)
+					break
 	
-	# Generate 3 random club cards (or any cards if not enough clubs)
-	var card1 = available_cards_for_fallback[randi() % available_cards_for_fallback.size()]
-	var card2 = available_cards_for_fallback[randi() % available_cards_for_fallback.size()]
-	var card3 = available_cards_for_fallback[randi() % available_cards_for_fallback.size()]
+	# Generate 3 random club cards (with replacement if pool < 3)
+	var card1 = club_only_pool[randi() % club_only_pool.size()]
+	var card2 = club_only_pool[randi() % club_only_pool.size()]
+	var card3 = club_only_pool[randi() % club_only_pool.size()]
 	
 	# Build rewards array: [card1, "card", card2, "card", card3, "card"]
 	rewards = [card1, "card", card2, "card", card3, "card"]
@@ -961,19 +968,26 @@ func generate_score_mode_random_rewards() -> Array:
 	"""Generate rewards for Score Mode - all club cards (random)"""
 	var rewards = []
 	
-	# Get tiered club cards
+	# Get tiered club cards only (no action card fallback in score mode)
 	var tiered_club_cards = get_tiered_club_cards()
+	var club_only_pool: Array[CardData] = tiered_club_cards
 	
-	# If we don't have enough club cards, fall back to any cards
-	var available_cards_for_fallback = tiered_club_cards
-	if available_cards_for_fallback.size() < 3:
-		available_cards_for_fallback = get_tiered_cards()
-		print("🎯 SCORE MODE: Not enough club cards, using all cards as fallback (random)")
+	# If empty or too small, build a pure club pool from base club cards
+	if club_only_pool.size() < 3:
+		print("🎯 SCORE MODE: Not enough tiered club cards, building club-only pool (random)")
+		club_only_pool = get_club_cards()
+		# If still empty, fallback to a safe club (Putter)
+		if club_only_pool.is_empty():
+			print("🎯 SCORE MODE: Club pool empty, falling back to Putter (random)")
+			for base_card in base_cards:
+				if base_card.name == "Putter":
+					club_only_pool.append(base_card)
+					break
 	
-	# Generate 3 random club cards (or any cards if not enough clubs)
-	var card1 = available_cards_for_fallback[randi() % available_cards_for_fallback.size()]
-	var card2 = available_cards_for_fallback[randi() % available_cards_for_fallback.size()]
-	var card3 = available_cards_for_fallback[randi() % available_cards_for_fallback.size()]
+	# Generate 3 random club cards (with replacement if pool < 3)
+	var card1 = club_only_pool[randi() % club_only_pool.size()]
+	var card2 = club_only_pool[randi() % club_only_pool.size()]
+	var card3 = club_only_pool[randi() % club_only_pool.size()]
 	
 	# Build rewards array: [card1, "card", card2, "card", card3, "card"]
 	rewards = [card1, "card", card2, "card", card3, "card"]
