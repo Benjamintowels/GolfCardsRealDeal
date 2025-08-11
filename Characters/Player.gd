@@ -1746,6 +1746,10 @@ func _update_mouse_facing() -> void:
 	# Flip the sprite horizontally based on mouse position
 	# Assuming the default sprite faces right, so we flip when mouse is on the left
 	sprite.flip_h = mouse_is_left
+	# Also flip the Real child sprite if present (for tripping visuals)
+	var real_main: Sprite2D = sprite.get_node_or_null("RealSprite2D")
+	if real_main:
+		real_main.flip_h = sprite.flip_h
 	
 	# Update clothing sprites to match player sprite flip
 	var equipment_manager = get_tree().current_scene.get_node_or_null("EquipmentManager")
@@ -1772,8 +1776,16 @@ func update_animation_facing(animation_sprite: Node) -> void:
 	# Apply the same flip as the main character sprite
 	if animation_sprite is Sprite2D:
 		animation_sprite.flip_h = is_facing_left()
+		# Flip matching Real child if present (e.g., RealBennyKick)
+		var real_child: Sprite2D = animation_sprite.get_node_or_null("Real" + animation_sprite.name)
+		if real_child:
+			real_child.flip_h = animation_sprite.flip_h
 	elif animation_sprite is AnimatedSprite2D:
 		animation_sprite.flip_h = is_facing_left()
+		# Flip matching Real child if present (e.g., RealBennyPunch)
+		var real_anim_child: Sprite2D = animation_sprite.get_node_or_null("Real" + animation_sprite.name)
+		if real_anim_child:
+			real_anim_child.flip_h = animation_sprite.flip_h
 	
 	print("Updated animation facing - Direction: ", current_facing_direction, ", Flip H: ", animation_sprite.flip_h)
 
@@ -2207,6 +2219,8 @@ func is_swinging() -> bool:
 	return false
 
 # Kick animation methods
+var _block_visible_before_attack: bool = false
+var _block_sprite_ref: Sprite2D = null
 func _setup_kick_animation() -> void:
 	"""Setup the kick animation system"""
 	# Try to find the kick sprite using a recursive search
@@ -2230,7 +2244,7 @@ func start_kick_animation() -> void:
 		return
 	
 	is_kicking = true
-	
+
 	# Get the normal character sprite
 	var normal_sprite = get_character_sprite()
 	if not normal_sprite or not kick_sprite:
@@ -2239,6 +2253,18 @@ func start_kick_animation() -> void:
 	# Update the kick sprite facing before showing it
 	update_animation_facing(kick_sprite)
 	
+	# Hide block if it is currently visible, so attack shows
+	_block_sprite_ref = normal_sprite.get_parent().get_node_or_null("BennyBlock") if normal_sprite else null
+	_block_visible_before_attack = false
+	if _block_sprite_ref and _block_sprite_ref is Sprite2D:
+		var bs := _block_sprite_ref as Sprite2D
+		_block_visible_before_attack = bs.visible
+		if _block_visible_before_attack:
+			bs.visible = false
+			var real_block: Sprite2D = bs.get_node_or_null("RealBennyBlock")
+			if real_block:
+				real_block.visible = false
+
 	# Hide the normal sprite and show the kick sprite
 	normal_sprite.visible = false
 	kick_sprite.visible = true
@@ -2254,9 +2280,17 @@ func _on_kick_animation_complete() -> void:
 	"""Called when the kick animation completes"""
 	# Get the normal character sprite
 	var normal_sprite = get_character_sprite()
-	if normal_sprite and kick_sprite:
-		# Switch back to normal sprite
+	if kick_sprite:
 		kick_sprite.visible = false
+	# Restore block if it was visible before the attack
+	if _block_visible_before_attack and _block_sprite_ref:
+		var bs := _block_sprite_ref as Sprite2D
+		bs.visible = true
+		var real_block: Sprite2D = bs.get_node_or_null("RealBennyBlock")
+		if real_block:
+			real_block.visible = Global.Tripping
+	elif normal_sprite:
+		# Otherwise return to normal sprite
 		normal_sprite.visible = true
 	
 	is_kicking = false
@@ -2266,9 +2300,15 @@ func stop_kick_animation() -> void:
 	if is_kicking:
 		# Get the normal character sprite
 		var normal_sprite = get_character_sprite()
-		if normal_sprite and kick_sprite:
-			# Switch back to normal sprite
+		if kick_sprite:
 			kick_sprite.visible = false
+		if _block_visible_before_attack and _block_sprite_ref:
+			var bs := _block_sprite_ref as Sprite2D
+			bs.visible = true
+			var real_block: Sprite2D = bs.get_node_or_null("RealBennyBlock")
+			if real_block:
+				real_block.visible = Global.Tripping
+		elif normal_sprite:
 			normal_sprite.visible = true
 		
 		# Stop the tween
@@ -2328,7 +2368,7 @@ func start_punchb_animation() -> void:
 		return
 	
 	is_punching = true
-	
+
 	# Get the normal character sprite
 	var normal_sprite = get_character_sprite()
 	if not normal_sprite:
@@ -2339,6 +2379,18 @@ func start_punchb_animation() -> void:
 	# Update the punch animation facing before showing it
 	update_animation_facing(punchb_animation)
 	
+	# Hide block if it is currently visible, so attack shows
+	_block_sprite_ref = normal_sprite.get_parent().get_node_or_null("BennyBlock") if normal_sprite else null
+	_block_visible_before_attack = false
+	if _block_sprite_ref and _block_sprite_ref is Sprite2D:
+		var bs := _block_sprite_ref as Sprite2D
+		_block_visible_before_attack = bs.visible
+		if _block_visible_before_attack:
+			bs.visible = false
+			var real_block: Sprite2D = bs.get_node_or_null("RealBennyBlock")
+			if real_block:
+				real_block.visible = false
+
 	# Hide the normal sprite and show the animated sprite
 	normal_sprite.visible = false
 	punchb_animation.visible = true
@@ -2358,11 +2410,18 @@ func _on_punchb_animation_complete() -> void:
 	
 	# Get the normal character sprite
 	var normal_sprite = get_character_sprite()
-	if normal_sprite and punchb_animation:
-		# Stop the animation and hide the animated sprite
+	if punchb_animation:
 		punchb_animation.stop()
 		punchb_animation.visible = false
-		# Show the normal sprite
+	# Restore block if it was visible before the attack
+	if _block_visible_before_attack and _block_sprite_ref:
+		var bs := _block_sprite_ref as Sprite2D
+		bs.visible = true
+		var real_block: Sprite2D = bs.get_node_or_null("RealBennyBlock")
+		if real_block:
+			real_block.visible = Global.Tripping
+	elif normal_sprite:
+		# Otherwise return to normal sprite
 		normal_sprite.visible = true
 	
 	is_punching = false
@@ -2372,9 +2431,15 @@ func stop_punchb_animation() -> void:
 	if is_punching:
 		# Get the normal character sprite
 		var normal_sprite = get_character_sprite()
-		if normal_sprite and punchb_animation:
-			# Switch back to normal sprite
+		if punchb_animation:
 			punchb_animation.visible = false
+		if _block_visible_before_attack and _block_sprite_ref:
+			var bs := _block_sprite_ref as Sprite2D
+			bs.visible = true
+			var real_block: Sprite2D = bs.get_node_or_null("RealBennyBlock")
+			if real_block:
+				real_block.visible = Global.Tripping
+		elif normal_sprite:
 			normal_sprite.visible = true
 		
 		# Stop the tween
