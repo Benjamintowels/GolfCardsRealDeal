@@ -1310,16 +1310,8 @@ func _on_area_entered(area):
 	elif area.get_parent():
 		var parent_obj = area.get_parent()
 		var is_tree_trunk_area = area.name == "TrunkBaseArea"
-		var parent_has_trunk_method = parent_obj and parent_obj.has_method("_handle_trunk_collision")
-		var parent_groups = []
-		if parent_obj and parent_obj.has_method("get_groups"):
-			parent_groups = parent_obj.get_groups()
-		print("[BallTree] area_entered: name=", area.name, " parent=", (parent_obj.name if parent_obj else "null"), " class=", (parent_obj.get_class() if parent_obj else "null"), " has_trunk_method=", parent_has_trunk_method, " is_trunk_area=", is_tree_trunk_area, " groups=", parent_groups)
 		if parent_obj.has_method("_handle_trunk_collision"):
 			# Delegate to the tree's own collision handler so it reads the ball's current height
-			var __ball_h_dbg = get_height()
-			var __tree_h_dbg = Global.get_object_height_from_marker(parent_obj)
-			print("[BallTree] Delegating to tree._handle_trunk_collision | ball_h=", __ball_h_dbg, " tree_h=", __tree_h_dbg, " tree=", parent_obj.name)
 			parent_obj._handle_trunk_collision(self)
 			_notify_bounce_room_bounce()
 			# Notify course to re-enable player collision since ball hit tree
@@ -1327,21 +1319,12 @@ func _on_area_entered(area):
 		elif is_tree_trunk_area:
 			# Fallback: prefer tree's handler if available; otherwise use ball's roof-bounce
 			if parent_obj.has_method("_handle_trunk_collision"):
-				var __ball_h_dbg2 = get_height()
-				var __tree_h_dbg2 = Global.get_object_height_from_marker(parent_obj)
-				print("[BallTree] Fallback trunk area -> tree._handle_trunk_collision | ball_h=", __ball_h_dbg2, " tree_h=", __tree_h_dbg2, " tree=", parent_obj.name)
 				parent_obj._handle_trunk_collision(self)
 			else:
 				# Treat as tree-like: pass over when above trunk height, reflect when below
 				var __tree_h_fb = Global.get_object_height_from_marker(parent_obj)
 				var __ball_h_fb = get_height()
-				print("[BallTree] Fallback trunk area -> tree-like handling | ball_h=", __ball_h_fb, " tree_h=", __tree_h_fb, " parent=", (parent_obj.name if parent_obj else "null"))
-				if __ball_h_fb > __tree_h_fb:
-					# Pass over: do nothing
-					print("[BallTree] Pass-over (no ground set)")
-				else:
-					# Reflect off trunk
-					print("[BallTree] Reflecting off trunk (fallback)")
+				if __ball_h_fb <= __tree_h_fb:
 					_reflect_off_object(parent_obj)
 			_notify_bounce_room_bounce()
 			notify_course_of_collision()

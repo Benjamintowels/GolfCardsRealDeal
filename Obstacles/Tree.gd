@@ -675,7 +675,6 @@ func _handle_roof_bounce_collision(projectile: Node2D) -> void:
 		projectile_height = projectile.z
 	# Get tree height using the appropriate height marker
 	var tree_height := _get_effective_tree_height()
-	print("[TreeCollision] roof_bounce: ball_h=", projectile_height, " tree_h=", tree_height)
 	# Check if projectile is above the tree
 	if projectile_height > tree_height:
 		# Projectile is above tree - set ground level to tree height (roof bounce)
@@ -685,10 +684,8 @@ func _handle_roof_bounce_collision(projectile: Node2D) -> void:
 			projectile.set_ground_level(tree_height)
 		elif "current_ground_level" in projectile:
 			projectile.current_ground_level = tree_height
-		print("[TreeCollision] roof_bounce result -> set_ground")
 	else:
 		# Projectile is below tree height - reflect off tree
-		print("[TreeCollision] roof_bounce result -> reflect")
 		_reflect_projectile(projectile)
 
 func _get_effective_tree_height() -> float:
@@ -712,7 +709,6 @@ func _handle_trunk_collision(projectile: Node2D) -> void:
 	Handle trunk collision - this is the method the golf ball looks for.
 	Delegates to the roof bounce collision system.
 	"""
-	print("[TreeCollision] _handle_trunk_collision called | projectile=", projectile.name)
 	_handle_roof_bounce_collision(projectile)
 
 func _allow_projectile_entry(projectile: Node2D, tree_height: float):
