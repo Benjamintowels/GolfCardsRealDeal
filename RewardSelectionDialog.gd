@@ -282,20 +282,26 @@ func get_tiered_cards() -> Array[CardData]:
 	var all_cards: Array[CardData] = []
 	var weights: Array[float] = []
 	
-	# Add tier 1 cards with tier 1 weight
-	for card in tier_1_cards:
-		all_cards.append(card)
-		weights.append(probabilities["tier_1"])
-	
-	# Add tier 2 cards with tier 2 weight
-	for card in tier_2_cards:
-		all_cards.append(card)
-		weights.append(probabilities["tier_2"])
-	
-	# Add tier 3 cards with tier 3 weight
-	for card in tier_3_cards:
-		all_cards.append(card)
-		weights.append(probabilities["tier_3"])
+	# Add cards for tiers that have non-zero probability only
+	if probabilities["tier_1"] > 0.0:
+		for card in tier_1_cards:
+			all_cards.append(card)
+			weights.append(probabilities["tier_1"])
+	if probabilities["tier_2"] > 0.0:
+		for card in tier_2_cards:
+			all_cards.append(card)
+			weights.append(probabilities["tier_2"])
+	if probabilities["tier_3"] > 0.0:
+		for card in tier_3_cards:
+			all_cards.append(card)
+			weights.append(probabilities["tier_3"])
+
+	# If nothing can be selected, return empty to trigger higher-level fallbacks
+	var initial_total_weight_cards := 0.0
+	for w in weights:
+		initial_total_weight_cards += w
+	if all_cards.is_empty() or initial_total_weight_cards <= 0.0:
+		return []
 	
 	# Select cards using weighted random selection
 	var num_to_select = min(available_cards.size(), all_cards.size())
@@ -437,20 +443,26 @@ func get_tiered_club_cards() -> Array[CardData]:
 	var all_cards: Array[CardData] = []
 	var weights: Array[float] = []
 	
-	# Add tier 1 cards with tier 1 weight
-	for card in tier_1_cards:
-		all_cards.append(card)
-		weights.append(probabilities["tier_1"])
-	
-	# Add tier 2 cards with tier 2 weight
-	for card in tier_2_cards:
-		all_cards.append(card)
-		weights.append(probabilities["tier_2"])
-	
-	# Add tier 3 cards with tier 3 weight
-	for card in tier_3_cards:
-		all_cards.append(card)
-		weights.append(probabilities["tier_3"])
+	# Add action cards for tiers that have non-zero probability only
+	if probabilities["tier_1"] > 0.0:
+		for card in tier_1_cards:
+			all_cards.append(card)
+			weights.append(probabilities["tier_1"])
+	if probabilities["tier_2"] > 0.0:
+		for card in tier_2_cards:
+			all_cards.append(card)
+			weights.append(probabilities["tier_2"])
+	if probabilities["tier_3"] > 0.0:
+		for card in tier_3_cards:
+			all_cards.append(card)
+			weights.append(probabilities["tier_3"])
+
+	# If nothing can be selected, return empty to trigger higher-level fallbacks
+	var initial_total_weight_actions := 0.0
+	for w in weights:
+		initial_total_weight_actions += w
+	if all_cards.is_empty() or initial_total_weight_actions <= 0.0:
+		return []
 	
 	# Select cards using weighted random selection
 	var num_to_select = min(club_cards.size(), all_cards.size())
@@ -538,20 +550,26 @@ func get_tiered_action_cards() -> Array[CardData]:
 	var all_cards: Array[CardData] = []
 	var weights: Array[float] = []
 	
-	# Add tier 1 cards with tier 1 weight
-	for card in tier_1_cards:
-		all_cards.append(card)
-		weights.append(probabilities["tier_1"])
-	
-	# Add tier 2 cards with tier 2 weight
-	for card in tier_2_cards:
-		all_cards.append(card)
-		weights.append(probabilities["tier_2"])
-	
-	# Add tier 3 cards with tier 3 weight
-	for card in tier_3_cards:
-		all_cards.append(card)
-		weights.append(probabilities["tier_3"])
+	# Add cards only from tiers that have non-zero probability
+	if probabilities["tier_1"] > 0.0:
+		for card in tier_1_cards:
+			all_cards.append(card)
+			weights.append(probabilities["tier_1"])
+	if probabilities["tier_2"] > 0.0:
+		for card in tier_2_cards:
+			all_cards.append(card)
+			weights.append(probabilities["tier_2"])
+	if probabilities["tier_3"] > 0.0:
+		for card in tier_3_cards:
+			all_cards.append(card)
+			weights.append(probabilities["tier_3"])
+
+	# If nothing can be selected, return empty to trigger higher-level fallbacks
+	var initial_total_weight_cards := 0.0
+	for w in weights:
+		initial_total_weight_cards += w
+	if all_cards.is_empty() or initial_total_weight_cards <= 0.0:
+		return []
 	
 	# Select cards using weighted random selection
 	var num_to_select = min(action_cards.size(), all_cards.size())
