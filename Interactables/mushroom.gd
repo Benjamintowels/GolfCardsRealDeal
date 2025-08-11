@@ -37,7 +37,17 @@ func _on_area_2d_area_entered(area: Area2D) -> void:
 	if parent:
 		var player_node = _find_player_in_hierarchy(parent)
 		if player_node:
-			Global.Tripping = true
+			# Play Mushroom sound from Player1 scene if available
+			var player = _find_player_in_hierarchy(player_node)
+			if player and player.has_node("Mushroom"):
+				var sfx = player.get_node("Mushroom")
+				if sfx and sfx is AudioStreamPlayer2D:
+					(sfx as AudioStreamPlayer2D).play()
+			# Start tripping visuals for 3 turns
+			if Global.has_method("start_tripping"):
+				Global.start_tripping(3)
+			else:
+				Global.Tripping = true
 			queue_free()
 
 func _find_player_in_hierarchy(node: Node) -> Node:

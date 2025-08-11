@@ -15,6 +15,10 @@ var front_9_score = 0  # Score from front 9 holes
 var show_final_score_display = false  # Flag to trigger final score display when returning to main
 var score_only_mode = false  # Flag for score-only mode (no puzzle type selection)
 var Tripping: bool = false  # Global switch triggered by Mushroom pickup
+var tripping_turns_remaining: int = 0  # How many player turns the tripping effect should last
+
+# Visual mode signals
+signal tripping_changed(active: bool)
 
 # Final screen helpers
 var show_final_score_force_bad: bool = false  # Force bad image (death/quit)
@@ -93,6 +97,26 @@ const HEIGHT_SHADOW_SCALE_FACTOR = 0.5  # How much to scale shadow per unit of h
 
 # Equipment functions
 signal equipment_buffs_applied
+
+# ===== Tripping (Mushroom) Visual Effect Control =====
+func start_tripping(turns: int = 3) -> void:
+	# Activate tripping visuals for the given number of turns
+	Tripping = true
+	tripping_turns_remaining = max(0, int(turns))
+	tripping_changed.emit(true)
+
+func stop_tripping() -> void:
+	# Deactivate tripping visuals immediately
+	Tripping = false
+	tripping_turns_remaining = 0
+	tripping_changed.emit(false)
+
+func decrement_tripping_turn() -> void:
+	# Called at end of player turn
+	if Tripping:
+		tripping_turns_remaining = max(0, tripping_turns_remaining - 1)
+		if tripping_turns_remaining == 0:
+			stop_tripping()
 
 func add_equipment(equipment: EquipmentData) -> void:
 	"""Add equipment to inventory and apply buffs"""

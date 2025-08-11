@@ -26,6 +26,9 @@ var vampire_mode_tween: Tween
 var dodge_mode_active := false
 var dodge_mode_tween: Tween
 
+# Tripping visual state
+var _tripping_pairs: Array = []  # Array of dictionaries: { base: CanvasItem, real: CanvasItem, callable: Callable }
+
 # Grid and positioning
 var grid_size: Vector2i
 var cell_size: int
@@ -127,6 +130,11 @@ func create_player() -> void:
 			if player_node.has_method("setup_meditation_after_character"):
 				player_node.setup_meditation_after_character()
 
+			# Hook tripping visuals after character is created
+			_connect_tripping_signal()
+			# Apply current state on spawn
+			_apply_tripping_visuals(Global.Tripping)
+
 	var base_mobility = player_stats.get("base_mobility", 0)
 	# Add safety checks for parameters before calling setup
 	if grid_size != Vector2i.ZERO and cell_size > 0:
@@ -151,6 +159,105 @@ func create_player() -> void:
 	update_player_position()
 	if player_node:
 		player_node.visible = false
+
+# ===== Tripping (Mushroom real-mode) visuals =====
+func _connect_tripping_signal() -> void:
+	if Global.tripping_changed.is_connected(_on_tripping_changed):
+		Global.tripping_changed.disconnect(_on_tripping_changed)
+	Global.tripping_changed.connect(_on_tripping_changed)
+
+func _on_tripping_changed(active: bool) -> void:
+	_apply_tripping_visuals(active)
+
+func _apply_tripping_visuals(active: bool) -> void:
+	if not player_node or not is_instance_valid(player_node):
+		return
+	# Clear any previous connections/state
+	_clear_tripping_connections()
+	# Find the active character scene (focus on Benny)
+	var character_scene: Node = null
+	for child in player_node.get_children():
+		if child is Node and (child.name == "BennyChar" or child.name == "LaylaChar" or child.name == "ClarkChar"):
+			character_scene = child
+			break
+	if character_scene == null:
+		return
+	_toggle_real_sprites_in_tree(character_scene, active)
+
+func _clear_tripping_connections() -> void:
+	for entry in _tripping_pairs:
+		var base_item: CanvasItem = entry.base
+		var real_item: CanvasItem = entry.real
+		var cb: Callable = entry.callable
+		if is_instance_valid(base_item) and base_item.visibility_changed.is_connected(cb):
+			base_item.visibility_changed.disconnect(cb)
+		# Restore base draw state and hide real
+		if is_instance_valid(base_item):
+			_restore_base_draw(base_item)
+		if is_instance_valid(real_item):
+			real_item.visible = false
+	_tripping_pairs.clear()
+
+func _toggle_real_sprites_in_tree(root: Node, active: bool) -> void:
+	var stack: Array = [root]
+	while not stack.is_empty():
+		var node: Node = stack.pop_back()
+		for child in node.get_children():
+			stack.append(child)
+		# Only toggle CanvasItem-based nodes that aren't already Real*
+		if node != root and node is CanvasItem:
+			var base_item := node as CanvasItem
+			if not node.name.begins_with("Real"):
+				var real_child_name = "Real" + node.name
+				var real_node: Node = node.get_node_or_null(real_child_name)
+				if real_node != null and real_node is CanvasItem:
+					var real_item := real_node as CanvasItem
+					var is_direct_child := real_item.get_parent() == base_item
+					if active:
+						# Show real, mirror base visibility, and disable base's own draw
+						real_item.visible = base_item.visible
+						_hide_base_draw(base_item)
+						# Keep real in sync with base visibility
+						var cb := Callable(self, "_on_base_visibility_changed").bind(base_item, real_item)
+						if not base_item.visibility_changed.is_connected(cb):
+							base_item.visibility_changed.connect(cb)
+						_tripping_pairs.append({"base": base_item, "real": real_item, "callable": cb})
+					else:
+						# On deactivation, restore draw state immediately
+						_restore_base_draw(base_item)
+						real_item.visible = false
+
+func _on_base_visibility_changed(base_item: CanvasItem, real_item: CanvasItem) -> void:
+	if is_instance_valid(real_item) and is_instance_valid(base_item):
+		real_item.visible = base_item.visible
+
+func _hide_base_draw(base_item: CanvasItem) -> void:
+	# Hide only the base's own drawing without affecting children
+	if base_item is Sprite2D:
+		var sprite := base_item as Sprite2D
+		if not sprite.has_meta("_trip_prev_texture"):
+			sprite.set_meta("_trip_prev_texture", sprite.texture)
+		sprite.texture = null
+	elif base_item is AnimatedSprite2D:
+		var anim := base_item as AnimatedSprite2D
+		if not anim.has_meta("_trip_prev_frames"):
+			anim.set_meta("_trip_prev_frames", anim.sprite_frames)
+		anim.sprite_frames = null
+	else:
+		# Fallback: leave as-is to avoid hiding children unexpectedly
+		pass
+
+func _restore_base_draw(base_item: CanvasItem) -> void:
+	if base_item is Sprite2D:
+		var sprite := base_item as Sprite2D
+		if sprite.has_meta("_trip_prev_texture"):
+			sprite.texture = sprite.get_meta("_trip_prev_texture")
+			sprite.remove_meta("_trip_prev_texture")
+	elif base_item is AnimatedSprite2D:
+		var anim := base_item as AnimatedSprite2D
+		if anim.has_meta("_trip_prev_frames"):
+			anim.sprite_frames = anim.get_meta("_trip_prev_frames")
+			anim.remove_meta("_trip_prev_frames")
 
 func update_player_stats_from_equipment() -> void:
 	"""Update player stats to reflect equipment buffs"""

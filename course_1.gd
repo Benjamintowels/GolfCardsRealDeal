@@ -220,6 +220,13 @@ var club_data = {
 		"min_height": 18.0,       # Medium-high min height
 		"max_height": 280.0       # Medium-high max height
 	},
+	"WaterClub": {
+		"max_distance": 900.0,
+		"min_distance": 400.0,
+		"trailoff_forgiveness": 0.5,
+		"min_height": 5.0,        # Enforce min height for non-putter
+		"max_height": 280.0
+	},
 	"GrenadeLauncherClubCard": {
 		"max_distance": 2000.0,   # Much higher velocity - 3.3x more than before!
 		"min_distance": 500.0,    # Increased min distance to match higher power
@@ -1700,6 +1707,10 @@ func _end_turn_logic() -> void:
 		sound_manager.play_discard_sound()
 	elif cards_to_discard == 0:
 		sound_manager.play_discard_empty_sound()
+
+	# Decrement tripping effect duration at end of player's turn
+	if Global.Tripping and Global.has_method("decrement_tripping_turn"):
+		Global.decrement_tripping_turn()
 
 	# Check if player has extra turns
 	if extra_turns_remaining > 0:

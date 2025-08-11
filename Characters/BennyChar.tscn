@@ -1,20 +1,32 @@
-[gd_scene load_steps=53 format=3 uid="uid://bc8s6t7wka23s"]
+[gd_scene load_steps=94 format=3 uid="uid://bc8s6t7wka23s"]
 
 [ext_resource type="Texture2D" uid="uid://bu6bwgk8aipl2" path="res://Characters/BennyChar.png" id="1_oukfo"]
+[ext_resource type="Texture2D" uid="uid://3kwecshjpb7a" path="res://Characters/Real/RealBennyCharF.png" id="2_ayi6g"]
 [ext_resource type="Texture2D" uid="uid://dc65d7uvjhltb" path="res://Characters/BennyDamage.png" id="2_hg782"]
 [ext_resource type="Script" uid="uid://d2iiaqe57mea" path="res://Characters/SwingAnimation.gd" id="2_swing"]
 [ext_resource type="Texture2D" uid="uid://bpphl4eyv0s1r" path="res://Characters/BennyPunch.png" id="2_uyafs"]
 [ext_resource type="Texture2D" uid="uid://cbtrxx8kk5abt" path="res://Characters/Swingserererer2.png" id="3_spritesheet"]
+[ext_resource type="Texture2D" uid="uid://bdf5nip7op15s" path="res://Characters/Real/RealBennyDamage.png" id="4_k27mr"]
 [ext_resource type="Texture2D" uid="uid://v4jenktcxsee" path="res://Characters/BennyKick.png" id="4_woj5g"]
 [ext_resource type="Texture2D" uid="uid://bxy6rtxgb2fco" path="res://Characters/Block.png" id="6_3tp8o"]
+[ext_resource type="Texture2D" uid="uid://dl6fclfddjxt0" path="res://Characters/Real/SwingAnimationReal.png" id="6_qxphq"]
 [ext_resource type="Texture2D" uid="uid://27c7xxjtjvye" path="res://Characters/BennySlash.png" id="6_ym4u6"]
+[ext_resource type="Texture2D" uid="uid://cacee062c30n0" path="res://Characters/Real/RealBennyPunch.png" id="7_5f4j0"]
 [ext_resource type="Texture2D" uid="uid://bv35vxn4r6qcl" path="res://Characters/BennyMeditate.png" id="7_423w5"]
 [ext_resource type="Texture2D" uid="uid://cs0bv0ottfwux" path="res://Particles/ShineGif.png" id="7_ghbtk"]
 [ext_resource type="Texture2D" uid="uid://jenr44lel6lx" path="res://Characters/BennyArmless.png" id="8_bc1tv"]
 [ext_resource type="Script" uid="uid://bkhq5oyslgb0n" path="res://Characters/BennyArmHeightController.gd" id="9_arm_height_controller"]
 [ext_resource type="Texture2D" uid="uid://b0xvya1sogjsu" path="res://Characters/BennyDodge.png" id="10_tjcqo"]
+[ext_resource type="Texture2D" uid="uid://b82m4cq6fr180" path="res://Characters/Real/RealBennyKick.png" id="11_gg2xg"]
 [ext_resource type="Texture2D" uid="uid://cci0xicp4bfu2" path="res://Characters/BennyDodgeReady.png" id="11_jc6xu"]
+[ext_resource type="Texture2D" uid="uid://b11dm4k0q5pk2" path="res://Characters/Real/RealBennySlash2.png" id="14_0vpeq"]
 [ext_resource type="Texture2D" uid="uid://dmf4mnmyaden" path="res://Characters/BennyEscape.png" id="14_dqnxb"]
+[ext_resource type="Texture2D" uid="uid://cvscujykmg0li" path="res://Characters/Real/RealBennyBlock.png" id="16_1bh1m"]
+[ext_resource type="Texture2D" uid="uid://b5lvjwgfpirnp" path="res://Characters/Real/RealBennyMeditating.png" id="18_32d4k"]
+[ext_resource type="Texture2D" uid="uid://bw60vtxyyof7x" path="res://Characters/Real/RealBennyArmless.png" id="19_55l6l"]
+[ext_resource type="Texture2D" uid="uid://jehei0x2pl5g" path="res://Characters/Real/RealBennyDodge.png" id="22_55l6l"]
+[ext_resource type="Texture2D" uid="uid://copdqd503cp5f" path="res://Characters/Real/RealBennyDodgeReady.png" id="24_dq0x1"]
+[ext_resource type="Texture2D" uid="uid://dfbvks8kbdqo2" path="res://Characters/Real/RealBennyEscape.png" id="26_32d4k"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_oukfo"]
 radius = 7.64385
@@ -54,6 +66,122 @@ region = Rect2(469, 0, 67, 87)
 [sub_resource type="AtlasTexture" id="AtlasTexture_qxphq"]
 atlas = ExtResource("2_uyafs")
 region = Rect2(536, 0, 67, 87)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_n04x6"]
+atlas = ExtResource("6_qxphq")
+region = Rect2(0, 0, 80, 120)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_v7pdf"]
+atlas = ExtResource("6_qxphq")
+region = Rect2(80, 0, 80, 120)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_eg4u4"]
+atlas = ExtResource("6_qxphq")
+region = Rect2(160, 0, 80, 120)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_6m1ee"]
+atlas = ExtResource("6_qxphq")
+region = Rect2(240, 0, 80, 120)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_88fli"]
+atlas = ExtResource("6_qxphq")
+region = Rect2(320, 0, 80, 120)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_k6weg"]
+atlas = ExtResource("6_qxphq")
+region = Rect2(400, 0, 80, 120)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_0uxbq"]
+atlas = ExtResource("6_qxphq")
+region = Rect2(480, 0, 80, 120)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_3jnei"]
+atlas = ExtResource("6_qxphq")
+region = Rect2(560, 0, 80, 120)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_f3slj"]
+atlas = ExtResource("6_qxphq")
+region = Rect2(640, 0, 80, 120)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_3l8x2"]
+atlas = ExtResource("6_qxphq")
+region = Rect2(720, 0, 80, 120)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_3nqdf"]
+atlas = ExtResource("6_qxphq")
+region = Rect2(800, 0, 80, 120)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_pp2hp"]
+atlas = ExtResource("6_qxphq")
+region = Rect2(880, 0, 80, 120)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_lt3t0"]
+atlas = ExtResource("6_qxphq")
+region = Rect2(960, 0, 80, 120)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_xsb4v"]
+atlas = ExtResource("6_qxphq")
+region = Rect2(1040, 0, 80, 120)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_o141m"]
+atlas = ExtResource("6_qxphq")
+region = Rect2(1120, 0, 80, 120)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_deuia"]
+atlas = ExtResource("6_qxphq")
+region = Rect2(1200, 0, 80, 120)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_7htll"]
+atlas = ExtResource("6_qxphq")
+region = Rect2(1280, 0, 80, 120)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_4asib"]
+atlas = ExtResource("6_qxphq")
+region = Rect2(1360, 0, 80, 120)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_rodte"]
+atlas = ExtResource("6_qxphq")
+region = Rect2(1440, 0, 80, 120)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_10xgv"]
+atlas = ExtResource("6_qxphq")
+region = Rect2(1520, 0, 80, 120)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_1724l"]
+atlas = ExtResource("6_qxphq")
+region = Rect2(1600, 0, 80, 120)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_dlids"]
+atlas = ExtResource("6_qxphq")
+region = Rect2(1680, 0, 80, 120)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_iorp4"]
+atlas = ExtResource("6_qxphq")
+region = Rect2(1760, 0, 80, 120)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_6wvry"]
+atlas = ExtResource("6_qxphq")
+region = Rect2(1840, 0, 80, 120)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_dkjvp"]
+atlas = ExtResource("6_qxphq")
+region = Rect2(1920, 0, 80, 120)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_2qwbe"]
+atlas = ExtResource("6_qxphq")
+region = Rect2(2000, 0, 80, 120)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_3v85v"]
+atlas = ExtResource("6_qxphq")
+region = Rect2(2080, 0, 80, 120)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_aniqk"]
+atlas = ExtResource("6_qxphq")
+region = Rect2(2160, 0, 80, 120)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_bkgjq"]
+atlas = ExtResource("6_qxphq")
+region = Rect2(2240, 0, 80, 120)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_l40i3"]
 atlas = ExtResource("3_spritesheet")
@@ -120,6 +248,98 @@ animations = [{
 "loop": false,
 "name": &"Punch",
 "speed": 33.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_n04x6")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_v7pdf")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_eg4u4")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_6m1ee")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_88fli")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_k6weg")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_0uxbq")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_3jnei")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_f3slj")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_3l8x2")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_3nqdf")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_pp2hp")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_lt3t0")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_xsb4v")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_o141m")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_deuia")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_7htll")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_4asib")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_rodte")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_10xgv")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_1724l")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_dlids")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_iorp4")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_6wvry")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_dkjvp")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_2qwbe")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_3v85v")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_aniqk")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_bkgjq")
+}],
+"loop": false,
+"name": &"real_swing",
+"speed": 22.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -278,6 +498,9 @@ position = Vector2(0, 38.72)
 
 [node name="RealSprite2D" type="Sprite2D" parent="Sprite2D"]
 visible = false
+texture_filter = 1
+scale = Vector2(0.33, 0.33)
+texture = ExtResource("2_ayi6g")
 
 [node name="TopHeight" type="Marker2D" parent="."]
 position = Vector2(0, -87)
@@ -289,6 +512,12 @@ visible = false
 texture_filter = 1
 position = Vector2(0, -44)
 texture = ExtResource("2_hg782")
+
+[node name="RealBennyDamage" type="Sprite2D" parent="BennyDamage"]
+visible = false
+texture_filter = 1
+scale = Vector2(0.33, 0.33)
+texture = ExtResource("4_k27mr")
 
 [node name="Area2D" type="Area2D" parent="."]
 position = Vector2(0, -43.72)
@@ -317,18 +546,24 @@ libraries = {
 &"": SubResource("AnimationLibrary_vac1x")
 }
 
+[node name="RealBennyPunch" type="Sprite2D" parent="AnimatedSprite2D"]
+visible = false
+texture_filter = 1
+position = Vector2(0, -36.9748)
+scale = Vector2(0.33, 0.33)
+texture = ExtResource("7_5f4j0")
+
 [node name="SwingAnimation" type="Node2D" parent="."]
 visible = false
 script = ExtResource("2_swing")
 
 [node name="SwingSprite" type="AnimatedSprite2D" parent="SwingAnimation"]
+visible = false
 texture_filter = 1
-position = Vector2(4.76837e-07, -44)
+position = Vector2(1.69407e-21, -61)
 scale = Vector2(1.15625, 1.16667)
 sprite_frames = SubResource("SpriteFrames_swing")
 animation = &"swing"
-frame = 7
-frame_progress = 1.0
 
 [node name="HeadClothes" type="Marker2D" parent="."]
 position = Vector2(0, -88)
@@ -345,6 +580,12 @@ texture_filter = 1
 position = Vector2(4, -42)
 texture = ExtResource("4_woj5g")
 
+[node name="RealBennyKick" type="Sprite2D" parent="BennyKick"]
+visible = false
+texture_filter = 1
+scale = Vector2(0.33, 0.33)
+texture = ExtResource("11_gg2xg")
+
 [node name="BennySlash" type="Sprite2D" parent="."]
 visible = false
 texture_filter = 1
@@ -356,6 +597,12 @@ z_index = 3280
 position = Vector2(62, -45)
 sprite_frames = SubResource("SpriteFrames_l40i3")
 animation = &"Shiner"
+
+[node name="RealBennySlash" type="Sprite2D" parent="BennySlash"]
+visible = false
+texture_filter = 1
+scale = Vector2(0.33, 0.33)
+texture = ExtResource("14_0vpeq")
 
 [node name="BennyPunch" type="AnimatedSprite2D" parent="."]
 visible = false
@@ -377,6 +624,12 @@ texture_filter = 1
 position = Vector2(5, -44)
 texture = ExtResource("6_3tp8o")
 
+[node name="RealBennyBlock" type="Sprite2D" parent="BennyBlock"]
+visible = false
+texture_filter = 1
+scale = Vector2(0.33, 0.33)
+texture = ExtResource("16_1bh1m")
+
 [node name="Shadow" type="Sprite2D" parent="."]
 modulate = Color(0, 0, 0, 0.3)
 texture_filter = 1
@@ -391,11 +644,24 @@ texture_filter = 1
 position = Vector2(0, -33)
 texture = ExtResource("7_423w5")
 
+[node name="RealBennyMeditateSprite" type="Sprite2D" parent="BennyMeditateSprite"]
+visible = false
+texture_filter = 1
+position = Vector2(0, -5)
+scale = Vector2(0.33, 0.33)
+texture = ExtResource("18_32d4k")
+
 [node name="BennyArmlessSprite" type="Sprite2D" parent="."]
 visible = false
 texture_filter = 1
 position = Vector2(-1, -44)
 texture = ExtResource("8_bc1tv")
+
+[node name="RealBennyArmlessSprite" type="Sprite2D" parent="BennyArmlessSprite"]
+visible = false
+texture_filter = 1
+scale = Vector2(0.33, 0.33)
+texture = ExtResource("19_55l6l")
 
 [node name="BennyArmHeightController" type="Node2D" parent="."]
 script = ExtResource("9_arm_height_controller")
@@ -406,6 +672,12 @@ texture_filter = 1
 position = Vector2(4, -41)
 texture = ExtResource("10_tjcqo")
 
+[node name="RealBennyDodge" type="Sprite2D" parent="BennyDodge"]
+visible = false
+texture_filter = 1
+scale = Vector2(0.33, 0.33)
+texture = ExtResource("22_55l6l")
+
 [node name="BennyDodgeReady" type="Sprite2D" parent="."]
 visible = false
 texture_filter = 1
@@ -413,12 +685,24 @@ position = Vector2(3, -44)
 scale = Vector2(0.95, 1)
 texture = ExtResource("11_jc6xu")
 
+[node name="RealBennyDodgeReady" type="Sprite2D" parent="BennyDodgeReady"]
+visible = false
+texture_filter = 1
+scale = Vector2(0.33, 0.33)
+texture = ExtResource("24_dq0x1")
+
 [node name="BennyEscape" type="Sprite2D" parent="."]
 visible = false
 texture_filter = 1
 position = Vector2(0, -44)
 scale = Vector2(0.95, 1)
 texture = ExtResource("14_dqnxb")
+
+[node name="RealBennyEscape" type="Sprite2D" parent="BennyEscape"]
+visible = false
+texture_filter = 1
+scale = Vector2(0.33, 0.33)
+texture = ExtResource("26_32d4k")
 
 [node name="LightOccluder2D" type="LightOccluder2D" parent="."]
 occluder = SubResource("OccluderPolygon2D_jc6xu")

@@ -493,13 +493,10 @@ func is_in_flight() -> bool:
 	# Ball is in flight if it's not landed and has velocity
 	return not landed_flag and (velocity.length() > 0.1 or vz != 0.0 or z > current_ground_level)
 
+
 func _process(delta):
 	if landed_flag:
 		return
-	
-	# Debug: Check if ball has unexpected velocity
-	if velocity.length() > 0.1 and not is_rolling and z <= current_ground_level:
-		print("WARNING: Ball has unexpected velocity: ", velocity, " at position: ", position)
 	
 	# Update BallHop cooldown
 	if ballhop_cooldown > 0.0:
@@ -617,6 +614,8 @@ func _process(delta):
 			
 			_check_fire_spreading()
 			_check_ice_spreading()
+			# Also allow wet tiles to spread on landings/bounces
+			_check_wet_spreading()
 			
 			# Check for water hazard on any bounce
 			var tile_x = int(floor(position.x / cell_size))
@@ -837,10 +836,11 @@ func _process(delta):
 					# Play ball landing sound on every bounce
 					_play_bounce_sound()
 					
-					# Check for fire spreading on bounce
+					# Check for spreading effects on bounce
 					print("=== BOUNCE FIRE SPREADING CHECK ===")
 					print("Bounce count:", bounce_count, "Position:", position, "Tile:", Vector2i(floor(position.x / cell_size), floor(position.y / cell_size)))
 					_check_fire_spreading()
+					_check_wet_spreading()
 					
 					# Simple physics: reflect the vertical velocity with energy loss
 					# The ball was falling with negative vz, so bounce it back up with positive vz

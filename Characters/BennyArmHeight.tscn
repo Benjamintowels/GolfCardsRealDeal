@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3 uid="uid://d0e888bbx6u08"]
+[gd_scene load_steps=3 format=3 uid="uid://d0e888bbx6u08"]
 
 [ext_resource type="Texture2D" uid="uid://da6klqoju56fg" path="res://Characters/BennyHeightArm.png" id="1_mqtqj"]
+[ext_resource type="Texture2D" uid="uid://cfb65otux1thb" path="res://Characters/Real/RealSetHeightArm.png" id="2_ihgti"]
 
 [node name="BennyArmHeight" type="Node2D"]
 position = Vector2(15, 0)
@@ -19,3 +20,9 @@ position = Vector2(17.114, -25.2212)
 rotation = -0.619573
 scale = Vector2(0.805, 0.805)
 texture = ExtResource("1_mqtqj")
+
+[node name="RealSprite2D" type="Sprite2D" parent="PivotPoint/RotationContainer/Sprite2D"]
+position = Vector2(-14.2329, -8.02421)
+rotation = -0.82828
+scale = Vector2(0.44, 0.44)
+texture = ExtResource("2_ihgti")

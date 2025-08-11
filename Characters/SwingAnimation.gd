@@ -50,9 +50,15 @@ func _ready():
 	print("✓ Swing animation system ready")
 
 func start_swing_animation():
-	
-	
-	
+	# Choose correct sprite animation set based on tripping state
+	if swing_sprite:
+		var desired_anim := "real_swing" if Global.Tripping else "swing"
+		# Validate the animation exists; fallback to swing
+		if swing_sprite.sprite_frames and swing_sprite.sprite_frames.has_animation(desired_anim):
+			swing_sprite.animation = desired_anim
+		else:
+			swing_sprite.animation = "swing"
+
 	is_swinging = true
 	current_state = SwingState.SWINGING
 	
@@ -68,7 +74,7 @@ func start_swing_animation():
 		# Reset the swing sprite to frame 0
 		swing_sprite.frame = 0
 		
-		# Play the animation
+		# Play the animation track that advances frames
 		animation_player.play("Swing")
 
 		# Force the SwingAnimation node to be visible so the SwingSprite can be seen

@@ -110,17 +110,14 @@ func _process(delta: float):
 		if height_meter:
 			var meter_fill = height_meter.get_node_or_null("MeterFill")
 			var value_label = height_meter.get_node_or_null("HeightValue")
-			
 			# Get club-specific height range
-			var club_min_height = club_data.get(selected_club, {}).get("min_height", 0.0)
+			var club_min_height = get_club_min_height_safe(selected_club)
 			var club_max_height = club_data.get(selected_club, {}).get("max_height", MAX_LAUNCH_HEIGHT)
-			
 			# Calculate height percentage based on club's range
 			var height_percentage = 0.0
 			if club_max_height > club_min_height:
 				height_percentage = (launch_height - club_min_height) / (club_max_height - club_min_height)
 			height_percentage = clamp(height_percentage, 0.0, 1.0)
-			
 			if meter_fill:
 				# Update the height of the meter fill instead of scaling
 				var max_height = 300.0  # Height of the meter background
@@ -137,15 +134,13 @@ func _process(delta: float):
 			var value_label = height_meter.get_node_or_null("HeightValue")
 			
 			# Get club-specific height range
-			var club_min_height = club_data.get(selected_club, {}).get("min_height", 0.0)
+			var club_min_height = get_club_min_height_safe(selected_club)
 			var club_max_height = club_data.get(selected_club, {}).get("max_height", MAX_LAUNCH_HEIGHT)
-			
 			# Calculate height percentage based on club's range
 			var height_percentage = 0.0
 			if club_max_height > club_min_height:
 				height_percentage = (launch_height - club_min_height) / (club_max_height - club_min_height)
 			height_percentage = clamp(height_percentage, 0.0, 1.0)
-			
 			if meter_fill:
 				# Update the height of the meter fill
 				var max_height = 300.0  # Height of the meter background
@@ -199,7 +194,7 @@ func enter_launch_phase() -> void:
 		print("LaunchManager: Starting height selection phase for club:", selected_club)
 		show_height_meter()
 		# Start at club's min height instead of 0
-		var club_min_height = club_data.get(selected_club, {}).get("min_height", 0.0)
+		var club_min_height = get_club_min_height_safe(selected_club)
 		launch_height = club_min_height
 		is_selecting_height = true
 		print("LaunchManager: Height selection activated - is_selecting_height:", is_selecting_height, " launch_height:", launch_height)
@@ -1085,7 +1080,7 @@ func show_height_meter():
 			course.power_meter.start_preview_mode()
 	
 	# Get club-specific height range
-	var club_min_height = club_data.get(selected_club, {}).get("min_height", 0.0)
+	var club_min_height = get_club_min_height_safe(selected_club)
 	var club_max_height = club_data.get(selected_club, {}).get("max_height", MAX_LAUNCH_HEIGHT)
 	
 	height_meter = Control.new()
@@ -1299,7 +1294,7 @@ func handle_input(event: InputEvent) -> bool:
 			var height_change = -mouse_delta.y * HEIGHT_SELECTION_SENSITIVITY  # Negative because up = higher height
 			
 			# Get club-specific height range
-			var club_min_height = club_data.get(selected_club, {}).get("min_height", 0.0)
+			var club_min_height = get_club_min_height_safe(selected_club)
 			var club_max_height = club_data.get(selected_club, {}).get("max_height", MAX_LAUNCH_HEIGHT)
 			
 			# Clamp height to club's specific range
@@ -1317,6 +1312,17 @@ func handle_input(event: InputEvent) -> bool:
 			return true
 	
 	return false
+
+func get_club_min_height_safe(club: String) -> float:
+	"""Return a safe minimum height. For non-putters without an explicit min_height, default to 5.0."""
+	var data: Dictionary = club_data.get(club, {})
+	var is_putter: bool = data.get("is_putter", false)
+	if is_putter:
+		return data.get("min_height", 0.0)
+	var configured_min: float = data.get("min_height", -1.0)
+	if configured_min <= 0.0:
+		return 5.0
+	return configured_min
 
 # Spin indicator visibility function removed
 
