@@ -50,8 +50,6 @@ var chosen_landing_spot: Vector2
 var course_reference: Node = null
 var selected_club: String:
 	set(value):
-		if selected_club != value:
-			print("LaunchManager: selected_club changed from '", selected_club, "' to '", value, "'")
 		selected_club = value
 var club_data: Dictionary
 var player_stats: Dictionary
@@ -152,7 +150,6 @@ func _process(delta: float):
 
 func enter_launch_phase() -> void:
 	"""Enter the launch phase for taking a shot"""
-	print("LaunchManager: enter_launch_phase called")
 	emit_signal("launch_phase_entered")
 	charge_time = 0.0
 	original_aim_mouse_pos = camera.get_global_mouse_position()
@@ -178,26 +175,22 @@ func enter_launch_phase() -> void:
 		launch_height = fixed_height
 		# Don't show height meter since height is fixed
 		# Start with power charging immediately for fixed height clubs
-		print("LaunchManager: Fixed height club detected, showing power meter")
 		show_power_meter()
 		var scaled_min_power = power_meter.get_meta("scaled_min_power", MIN_LAUNCH_POWER)
 		launch_power = scaled_min_power
 	elif is_putting:
 		# Putters start with power charging immediately
 		launch_height = 0.0
-		print("LaunchManager: Putter detected, showing power meter")
 		show_power_meter()
 		var scaled_min_power = power_meter.get_meta("scaled_min_power", MIN_LAUNCH_POWER)
 		launch_power = scaled_min_power
 	else:
 		# Start with height selection phase for non-putter clubs
-		print("LaunchManager: Starting height selection phase for club:", selected_club)
 		show_height_meter()
 		# Start at club's min height instead of 0
 		var club_min_height = get_club_min_height_safe(selected_club)
 		launch_height = club_min_height
 		is_selecting_height = true
-		print("LaunchManager: Height selection activated - is_selecting_height:", is_selecting_height, " launch_height:", launch_height)
 		# Emit signal to notify about height selection phase
 		emit_signal("charging_state_changed", is_charging, is_charging_height)
 	
@@ -217,7 +210,6 @@ func enter_launch_phase() -> void:
 	var course = card_effect_handler.course if card_effect_handler else null
 	if course:
 		create_or_update_ball_at_player_center(player_center, course)
-		print("LaunchManager: Ball created/updated for launch phase")
 	
 	# Spin indicator removed
 	pass
@@ -1176,11 +1168,9 @@ func hide_height_meter():
 func handle_input(event: InputEvent) -> bool:
 	"""Handle input events for launch mechanics. Returns true if event was handled."""
 	
-	print("LaunchManager: handle_input called with event type:", event.get_class())
 	
 	# Check if a ball is available for launch - if not, don't allow new launches
 	if not is_ball_available_for_launch():
-		print("LaunchManager: No ball available for launch")
 		return false
 	
 	if event is InputEventMouseButton:

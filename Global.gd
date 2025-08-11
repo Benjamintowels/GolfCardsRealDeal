@@ -400,12 +400,15 @@ func get_object_height_from_marker(object_node: Node2D) -> float:
 			var height_from_marker = abs(dead_gang_top_height_marker.position.y)
 			return height_from_marker
 	
-	# Look for regular TopHeight Marker2D
+	# Look for regular TopHeight Marker2D (direct or nested)
 	var top_height_marker = object_node.get_node_or_null("TopHeight")
-	if top_height_marker:
-		# The marker's Y position represents the height from the object's base to its top
-		# Since the marker is positioned at the top of the sprite, we take the absolute value
-		var height_from_marker = abs(top_height_marker.position.y)
+	if top_height_marker == null:
+		# Fallback: search recursively for a nested TopHeight marker (e.g., under Sprite2D)
+		top_height_marker = object_node.find_child("TopHeight", true, false)
+	if top_height_marker and top_height_marker is Node2D:
+		# Use global-space delta Y to account for parent transforms (scale/rotation)
+		var marker_node := top_height_marker as Node2D
+		var height_from_marker = abs(marker_node.global_position.y - object_node.global_position.y)
 		return height_from_marker
 	
 	# Fallback to standard height based on object type

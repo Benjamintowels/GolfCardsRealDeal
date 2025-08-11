@@ -200,7 +200,8 @@ position = Vector2(4.73358, -120.275)
 scale = Vector2(0.689136, 0.760678)
 texture = ExtResource("2_8toid")
 
-[node name="TopHeight" type="Marker2D" parent="TreeStump"]
+[node name="TreeStumpTopHeight" type="Marker2D" parent="TreeStump"]
+visible = false
 position = Vector2(-5.41777, 101.587)
 
 [node name="TreeTop" type="Sprite2D" parent="."]
@@ -211,8 +212,10 @@ scale = Vector2(0.689136, 0.760678)
 texture = ExtResource("3_eps3q")
 
 [node name="Area2D" type="Area2D" parent="TreeTop"]
+visible = false
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="TreeTop/Area2D"]
+visible = false
 position = Vector2(0.3866, -20.6723)
 scale = Vector2(6.95496, 9.73657)
 shape = SubResource("CapsuleShape2D_8toid")
@@ -230,6 +233,10 @@ texture_filter = 1
 position = Vector2(4.73358, -120.275)
 scale = Vector2(0.689136, 0.760678)
 texture = ExtResource("2_8f3lk")
+
+[node name="TopHeight" type="Marker2D" parent="Sprite2D"]
+position = Vector2(-6.86886, -166.595)
+scale = Vector2(1.45109, 1.31462)
 
 [node name="AnimationPlayer" type="AnimationPlayer" parent="Sprite2D"]
 libraries = {
@@ -297,8 +304,6 @@ position = Vector2(-3, -23.075)
 scale = Vector2(1.525, 0.605)
 shape = SubResource("CapsuleShape2D_8f3lk")
 
-[node name="TopHeight" type="Marker2D" parent="."]
-position = Vector2(0, -195)
-
 [node name="LightOccluder2D" type="LightOccluder2D" parent="."]
+visible = false
 occluder = SubResource("OccluderPolygon2D_8f3lk")
