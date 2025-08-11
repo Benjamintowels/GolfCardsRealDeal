@@ -1812,6 +1812,83 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 	
 	print("🌺 Found", garden_positions.size(), "Garden tiles for flower placement")
 	
+	# Place a single ScareCrow at the center of the largest qualifying Garden grouping (>= 3x3)
+	if garden_positions.size() > 0:
+		var garden_set := {}
+		for pos in garden_positions:
+			garden_set[pos] = true
+		var visited := {}
+		var groups: Array = []
+		for pos in garden_positions:
+			if visited.has(pos):
+				continue
+			var queue: Array = [pos]
+			visited[pos] = true
+			var group: Array = []
+			while queue.size() > 0:
+				var p: Vector2i = queue.pop_front()
+				group.append(p)
+				var neighbors = [Vector2i(p.x + 1, p.y), Vector2i(p.x - 1, p.y), Vector2i(p.x, p.y + 1), Vector2i(p.x, p.y - 1)]
+				for n in neighbors:
+					if not visited.has(n) and garden_set.has(n):
+						visited[n] = true
+						queue.append(n)
+			groups.append(group)
+		
+		var best_group: Array = []
+		var best_area: int = -1
+		for group in groups:
+			var min_x: int = group[0].x
+			var max_x: int = group[0].x
+			var min_y: int = group[0].y
+			var max_y: int = group[0].y
+			for p in group:
+				min_x = min(min_x, p.x)
+				max_x = max(max_x, p.x)
+				min_y = min(min_y, p.y)
+				max_y = max(max_y, p.y)
+			var width: int = max_x - min_x + 1
+			var height: int = max_y - min_y + 1
+			if width >= 3 and height >= 3:
+				# Prefer the largest grouping by tile count
+				var area_tiles: int = group.size()
+				if area_tiles > best_area:
+					best_area = area_tiles
+					best_group = group
+		
+		if best_group.size() > 0:
+			# Find the tile in the group closest to the center of its bounding box
+			var min_x: int = best_group[0].x
+			var max_x: int = best_group[0].x
+			var min_y: int = best_group[0].y
+			var max_y: int = best_group[0].y
+			for p in best_group:
+				min_x = min(min_x, p.x)
+				max_x = max(max_x, p.x)
+				min_y = min(min_y, p.y)
+				max_y = max(max_y, p.y)
+			var center := Vector2((min_x + max_x) / 2.0, (min_y + max_y) / 2.0)
+			var chosen: Vector2i = best_group[0]
+			var best_dist: float = 1e20
+			for p in best_group:
+				var d := (Vector2(p) - center).length_squared()
+				if d < best_dist:
+					best_dist = d
+					chosen = p
+			# Remove chosen tile from flower placement to avoid overlap
+			garden_positions.erase(chosen)
+			# Instantiate and place the ScareCrow
+			var scarecrow_scene: PackedScene = preload("res://Obstacles/ScareCrow.tscn")
+			var scarecrow: Node2D = scarecrow_scene.instantiate() as Node2D
+			if scarecrow:
+				var world_pos: Vector2 = Vector2(chosen.x, chosen.y) * cell_size
+				scarecrow.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
+				scarecrow.set_meta("grid_position", chosen)
+				scarecrow.add_to_group("scarecrows")
+				scarecrow.add_to_group("collision_objects")
+				ysort_objects.append({"node": scarecrow, "grid_pos": chosen})
+				obstacle_layer.add_child(scarecrow)
+	
 	# Place flowers on all Garden tiles
 	for flower_pos in garden_positions:
 		var scene: PackedScene = object_scene_map["FLOWER"]

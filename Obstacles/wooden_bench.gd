@@ -80,12 +80,12 @@ func _check_for_new_balls():
 func _on_ball_landed():
 	if not is_destroyed:
 		current_health = max_health
-        # No health bar on benches
+		# No health bar on benches
 
 func take_damage(amount: int) -> void:
 	_play_thunk()
 	current_health = max(0, current_health - amount)
-    # No health bar on benches
+	# No health bar on benches
 	if current_health <= 0:
 		is_destroyed = true
 		_destroy_self()
