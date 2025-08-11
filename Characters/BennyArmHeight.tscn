@@ -22,6 +22,7 @@ scale = Vector2(0.805, 0.805)
 texture = ExtResource("1_mqtqj")
 
 [node name="RealSprite2D" type="Sprite2D" parent="PivotPoint/RotationContainer/Sprite2D"]
+visible = false
 position = Vector2(-14.2329, -8.02421)
 rotation = -0.82828
 scale = Vector2(0.44, 0.44)

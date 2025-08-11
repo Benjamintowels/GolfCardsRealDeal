@@ -47,6 +47,10 @@ func _maybe_spawn_mushroom():
     if base_type != "U":
         return
 
+    # 25% chance to spawn to keep effect modest
+    if randf() >= 0.25:
+        return
+
     var course = get_tree().current_scene
     if not course:
         return
