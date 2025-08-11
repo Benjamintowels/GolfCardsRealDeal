@@ -992,9 +992,8 @@ func adjust_background_positioning() -> void:
 		map_manager.load_map_data(GolfCourseLayout.get_hole_layout(game_state_manager.get_current_hole_index()))
 	build_map.build_map_from_layout_with_randomization(map_manager.level_layout, game_state_manager.get_current_hole_index(), game_state_manager.get_current_puzzle_type())
 
-	# Do not force-spawn GolfSmith in FightRoom maps
-	# Spawn GolfSmith on random holes only before he moves into the shop
-	if game_state_manager.get_current_puzzle_type() != "fight_room" and not is_fight_room_mode:
+	# Spawn GolfSmith only if this hole is designated for the round and quest allows it
+	if not is_fight_room_mode and game_state_manager.get_should_spawn_golfsmith_on_current_hole(game_state_manager.get_current_puzzle_type()):
 		_spawn_golfsmith_on_random_hole_if_needed()
 	
 	# Generate initial wind factor for the first hole
@@ -2600,6 +2599,10 @@ func _load_next_hole():
 		map_manager.load_map_data(GolfCourseLayout.get_hole_layout(game_state_manager.get_current_hole_index()))
 	
 	build_map.build_map_from_layout_with_randomization(map_manager.level_layout, game_state_manager.get_current_hole_index(), game_state_manager.get_current_puzzle_type())
+	
+	# Ensure GolfSmith only appears on the designated hole for this round
+	if not Global.fight_room_mode and game_state_manager.get_should_spawn_golfsmith_on_current_hole(game_state_manager.get_current_puzzle_type()):
+		_spawn_golfsmith_on_random_hole_if_needed()
 	
 	# Generate new wind factor for the new hole
 	if weather_manager:
@@ -4858,22 +4861,28 @@ func _spawn_golfsmith_on_random_hole_if_needed() -> void:
 	# Skip entirely for FightRoom maps
 	if game_state_manager and game_state_manager.get_current_puzzle_type() == "fight_room":
 		return
-	# Check quest state: do not spawn if Golfsmith has moved into the shop (intro seen) or quest progressed to shop/completed
-	if Engine.has_singleton("SaveFileManager"):
-		var save = Engine.get_singleton("SaveFileManager")
-		if save:
-			var block_spawn := false
-			if save.has_method("get_story_flag"):
-				# If the clubhouse Golfsmith intro has been seen, stop spawning on course
-				if save.get_story_flag("heard_golfsmith_intro"):
-					block_spawn = true
-			if not block_spawn and save.has_method("get_npc_quest_progress"):
-				var progress: int = save.get_npc_quest_progress("golfsmith")
-				# If quest has reached shop stage (>=75) or completed (>=100), do not spawn on course
-				if progress >= 75:
-					block_spawn = true
-			if block_spawn:
-				return
+	# Ensure we don't double-spawn if already present on this hole
+	for n in get_tree().get_nodes_in_group("NPC"):
+		if is_instance_valid(n) and n.name == "GolfSmith":
+			return
+	# Check quest state using autoload node; do not spawn if moved into shop or progressed to shop/completed
+	var save: Node = get_node_or_null("/root/SaveFileManager")
+	if save:
+		var block_spawn := false
+		if save.has_method("get_story_flag") and save.get_story_flag("heard_golfsmith_intro"):
+			block_spawn = true
+		if not block_spawn and save.has_method("get_npc_quest_progress"):
+			var progress: int = save.get_npc_quest_progress("golfsmith")
+			if progress >= 75:
+				block_spawn = true
+		if not block_spawn and ("current_save_data" in save):
+			var story: Dictionary = save.current_save_data.get("story_progression", {})
+			var npc_quests: Dictionary = story.get("npc_quests", {})
+			var gs: Dictionary = npc_quests.get("golfsmith", {})
+			if bool(gs.get("shop", false)) or bool(gs.get("quest_completed", false)):
+				block_spawn = true
+		if block_spawn:
+			return
 	# Random hole: place on a random valid tile (prefer SW if present, else any walkable)
 	var gs = scene.instantiate()
 	gs.name = "GolfSmith"

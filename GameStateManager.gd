@@ -94,6 +94,9 @@ var movement_controller: Node = null
 var attack_handler: Node = null
 var weapon_handler: Node = null
 var launch_manager: Node = null
+ 
+# Golfsmith per-round spawn control
+var golfsmith_designated_hole_index: int = -1
 
 func setup(course_ref: Node, ui_mgr: Node, map_mgr: Node, build_map_ref: Node, player_mgr: Node, grid_mgr: Node, camera_mgr: Node, deck_mgr: Node, movement_ctrl: Node, attack_hdlr: Node, weapon_hdlr: Node, launch_mgr: Node):
 	"""Initialize the game state manager with required references"""
@@ -137,6 +140,7 @@ func start_front_nine() -> void:
 	round_scores.clear()
 	round_complete = false
 	print("Front 9 mode initialized, starting at hole:", current_hole + 1)
+	_pick_golfsmith_hole_for_round()
 
 func start_back_nine() -> void:
 	"""Initialize back nine mode"""
@@ -145,6 +149,45 @@ func start_back_nine() -> void:
 	round_scores.clear()
 	round_complete = false
 	print("Back 9 mode initialized, starting at hole:", current_hole + 1)
+	_pick_golfsmith_hole_for_round()
+
+func reset_golfsmith_designation() -> void:
+	"""Clear any Golfsmith designated hole for this round."""
+	golfsmith_designated_hole_index = -1
+
+func _pick_golfsmith_hole_for_round() -> void:
+	"""Pick exactly one hole in the current 9-hole segment for Golfsmith to appear, unless quest state blocks spawning entirely."""
+	var save: Node = get_node_or_null("/root/SaveFileManager")
+	if save:
+		var block_spawn := false
+		if save.has_method("get_story_flag") and save.get_story_flag("heard_golfsmith_intro"):
+			block_spawn = true
+		if not block_spawn and save.has_method("get_npc_quest_progress"):
+			var progress: int = save.get_npc_quest_progress("golfsmith")
+			if progress >= 75:
+				block_spawn = true
+		if not block_spawn and ("current_save_data" in save):
+			var story: Dictionary = save.current_save_data.get("story_progression", {})
+			var npc_quests: Dictionary = story.get("npc_quests", {})
+			var gs: Dictionary = npc_quests.get("golfsmith", {})
+			if bool(gs.get("shop", false)) or bool(gs.get("quest_completed", false)):
+				block_spawn = true
+		if block_spawn:
+			golfsmith_designated_hole_index = -1
+			return
+	randomize()
+	var segment_start: int = back_9_start_hole if is_back_9_mode else 0
+	var segment_end_inclusive: int = segment_start + NUM_HOLES - 1
+	golfsmith_designated_hole_index = randi() % NUM_HOLES + segment_start
+	print("Golfsmith designated hole index set to:", golfsmith_designated_hole_index)
+
+func get_should_spawn_golfsmith_on_current_hole(puzzle_type: String) -> bool:
+	"""Return true if Golfsmith should spawn on this specific hole given the round designation and quest state."""
+	if puzzle_type == "fight_room":
+		return false
+	if golfsmith_designated_hole_index < 0:
+		return false
+	return current_hole == golfsmith_designated_hole_index
 
 func advance_to_next_hole() -> void:
 	"""Advance to the next hole"""

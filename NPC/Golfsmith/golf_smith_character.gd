@@ -402,16 +402,22 @@ func _fade_and_cleanup() -> void:
 # Spawning helpers
 static func should_spawn_this_round() -> bool:
 	# If Golfsmith questline is completed, do not spawn on random holes
-	if Engine.has_singleton("SaveFileManager"):
-		var save = Engine.get_singleton("SaveFileManager")
-		if save:
-			# If the clubhouse intro was heard, he has moved into the shop; do not spawn
-			if save.has_method("get_story_flag") and save.get_story_flag("heard_golfsmith_intro"):
+	var save: Node = Engine.get_main_loop().root.get_node_or_null("/root/SaveFileManager")
+	if save:
+		# If the clubhouse intro was heard, he has moved into the shop; do not spawn
+		if save.has_method("get_story_flag") and save.get_story_flag("heard_golfsmith_intro"):
+			return false
+		if save.has_method("get_npc_quest_progress"):
+			var progress: int = save.get_npc_quest_progress("golfsmith")
+			# Do not spawn on course if Golfsmith has reached the shop stage or beyond
+			if progress >= 75:
 				return false
-			if save.has_method("get_npc_quest_progress"):
-				var progress: int = save.get_npc_quest_progress("golfsmith")
-				# Do not spawn on course if Golfsmith has reached the shop stage or beyond
-				return progress < 75
+		if "current_save_data" in save:
+			var story: Dictionary = save.current_save_data.get("story_progression", {})
+			var npc_quests: Dictionary = story.get("npc_quests", {})
+			var gs: Dictionary = npc_quests.get("golfsmith", {})
+			if bool(gs.get("shop", false)) or bool(gs.get("quest_completed", false)):
+				return false
 	return true
 
 # Allow enemies to prefer chasing whichever is closer (player or golfsmith) by providing grid pos
