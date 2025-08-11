@@ -27,8 +27,7 @@ var starter_deck: Array[CardData] = [
 	preload("res://Cards/BlockB.tres"),
 	
 	# Club cards - only Wooden club
-	preload("res://Cards/Wooden.tres"),        # Wooden club only
-	preload("res://Cards/ElectricClub.tres")   # ElectricClub for testing
+	preload("res://Cards/Wooden.tres")        # Wooden club only
 ]
 
 # Fighter deck for testing all attack mechanics and NPC combat

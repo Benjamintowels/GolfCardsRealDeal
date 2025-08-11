@@ -178,6 +178,8 @@ var object_scene_map := {
 	"GANG": preload("res://NPC/Gang/GangMember.tscn"),
 	"POLICE": preload("res://NPC/Police/Police.tscn"),
 	"OIL": preload("res://Interactables/OilDrum.tscn"),
+	"CRATE": preload("res://Interactables/Crate.tscn"),
+	"BENCH": preload("res://Obstacles/WoodenBench.tscn"),
 	"WALL": preload("res://Obstacles/StoneWall.tscn"),
 	"BOULDER": preload("res://Obstacles/Boulder.tscn"),
 	"BUSH": preload("res://Obstacles/Bush.tscn"),
@@ -1178,6 +1180,7 @@ func get_driving_range_object_positions(layout: Array) -> Dictionary:
 		"gang_members": [],
 		"oil_drums": [],
 		"crates": [],
+		"benches": [],
 		"stone_walls": [],  # Empty for driving range
 		"boulders": [],
 		"bushes": [],
@@ -1260,6 +1263,31 @@ func get_driving_range_object_positions(layout: Array) -> Dictionary:
 			placed_objects.append(crate_pos)
 			crates_placed += 1
 		valid_positions.remove_at(crate_index)
+
+	# Place Wooden Benches with low chance on Base tiles above SideWalk (SW)
+	var bench_candidate_positions: Array = []
+	for y in range(1, layout.size()):
+		for x in layout[y].size():
+			if layout[y][x] == "Base" and y + 1 < layout.size() and layout[y + 1][x] == "SW":
+				bench_candidate_positions.append(Vector2i(x, y))
+	print("🪑 BENCH (DRIVING): Found ", bench_candidate_positions.size(), " candidates")
+	var benches_placed := 0
+	var max_benches := 3
+	for candidate in bench_candidate_positions:
+		if benches_placed >= max_benches:
+			break
+		if randi() % 10 < 3:
+			var valid := true
+			for placed_pos in placed_objects:
+				var distance = max(abs(candidate.x - placed_pos.x), abs(candidate.y - placed_pos.y))
+				if distance < 6:
+					valid = false
+					break
+			if valid:
+				positions.benches.append(candidate)
+				placed_objects.append(candidate)
+				benches_placed += 1
+	print("🪑 BENCH (DRIVING): Selected ", benches_placed, " placements")
 	
 	# Place bushes (fewer for driving range)
 	var num_bushes = 3  # Reduced from 6
@@ -1400,6 +1428,25 @@ func place_driving_range_objects(object_positions: Dictionary, layout: Array) ->
 		obstacle_layer.add_child(crate)
 		if crate.has_method("blocks") and crate.blocks():
 			build_map.obstacle_map[crate_pos] = crate
+
+	# Place Wooden Benches
+	for bench_pos in object_positions.benches:
+		var scene: PackedScene = object_scene_map["BENCH"]
+		if scene == null:
+			push_error("🚫 WoodenBench scene is null")
+			continue
+		var bench: Node2D = scene.instantiate() as Node2D
+		if bench == null:
+			push_error("❌ WoodenBench instantiation failed at (%d,%d)" % [bench_pos.x, bench_pos.y])
+			continue
+		var world_pos: Vector2 = Vector2(bench_pos.x, bench_pos.y) * cell_size
+		bench.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
+		bench.set_meta("grid_position", bench_pos)
+		bench.add_to_group("interactables")
+		bench.add_to_group("collision_objects")
+		build_map.ysort_objects.append({"node": bench, "grid_pos": bench_pos})
+		obstacle_layer.add_child(bench)
+		print("🪑 BENCH (DRIVING): Placed at ", bench_pos)
 	
 	# Place Bushes
 	var bush_manager = get_node_or_null("/root/BushManager")

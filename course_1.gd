@@ -286,6 +286,7 @@ var object_scene_map := {
 	"POLICE": preload("res://NPC/Police/Police.tscn"),
 	"OIL": preload("res://Interactables/OilDrum.tscn"),
 	"CRATE": preload("res://Interactables/Crate.tscn"),
+	"BENCH": preload("res://Obstacles/WoodenBench.tscn"),
 	"WALL": preload("res://Obstacles/StoneWall.tscn"),
 	"BOULDER": preload("res://Obstacles/Boulder.tscn"),
 	"BUSH": preload("res://Obstacles/Bush.tscn"),

@@ -455,6 +455,7 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 		"gang_members": [],
 		"oil_drums": [],
 		"crates": [],
+		"benches": [],
 		"stone_walls": [],
 		"boulders": [],
 		"bushes": [],
@@ -1246,6 +1247,38 @@ func get_random_positions_for_objects(layout: Array, num_trees: int = 8, include
 			crates_placed += 1
 		
 		crate_positions.remove_at(crate_index)
+
+	# Place Wooden Benches with low chance on Base tiles that are directly above a SideWalk (SW) tile
+	var bench_candidate_positions: Array = []
+	for y in range(0, layout.size() - 1):
+		for x in layout[y].size():
+			# Current tile is Base and the tile directly below is SW
+			if layout[y][x] == "Base" and layout[y + 1][x] == "SW":
+				bench_candidate_positions.append(Vector2i(x, y))
+	print("🪑 BENCH: Found ", bench_candidate_positions.size(), " candidate positions")
+
+	# Low spawn chance with cap per hole; avoid only exact tile overlaps
+	var benches_placed := 0
+	var max_benches := 4
+	for candidate in bench_candidate_positions:
+		if benches_placed >= max_benches:
+			break
+		# ~40% chance per candidate
+		if randi() % 10 < 4:
+			# Skip if this exact tile is already reserved (trees/shop/etc.) or slated for a crate
+			var skip := false
+			for reserved_pos in placed_objects:
+				if reserved_pos == candidate:
+					skip = true
+					break
+			if not skip and candidate in positions.crates:
+				skip = true
+			if skip:
+				continue
+			positions.benches.append(candidate)
+			placed_objects.append(candidate)
+			benches_placed += 1
+	print("🪑 BENCH: Selected ", benches_placed, " placement positions")
 	
 	# Place SuitCase on fairway tiles (every 6 holes)
 	if should_place_suitcase():
@@ -2217,9 +2250,27 @@ func place_objects_at_positions(object_positions: Dictionary, layout: Array) -> 
 		
 		ysort_objects.append({"node": crate, "grid_pos": crate_pos})
 		obstacle_layer.add_child(crate)
-		# Add crate to obstacle map to block movement
-		if crate.has_method("blocks") and crate.blocks():
-			obstacle_map[crate_pos] = crate
+
+	# Place Wooden Benches
+	for bench_pos in object_positions.benches:
+		var scene: PackedScene = object_scene_map["BENCH"]
+		if scene == null:
+			push_error("🚫 WoodenBench scene is null")
+			continue
+		var bench: Node2D = scene.instantiate() as Node2D
+		if bench == null:
+			push_error("❌ WoodenBench instantiation failed at (%d,%d)" % [bench_pos.x, bench_pos.y])
+			continue
+		var world_pos: Vector2 = Vector2(bench_pos.x, bench_pos.y) * cell_size
+		bench.position = world_pos + Vector2(cell_size / 2, cell_size / 2)
+		bench.set_meta("grid_position", bench_pos)
+		bench.add_to_group("interactables")
+		bench.add_to_group("collision_objects")
+		ysort_objects.append({"node": bench, "grid_pos": bench_pos})
+		obstacle_layer.add_child(bench)
+		if bench.has_method("blocks") and bench.blocks():
+			obstacle_map[bench_pos] = bench
+		print("🪑 BENCH: Placed WoodenBench at ", bench_pos)
 	
 	# Place Squirrels
 	if "SQUIRREL" in object_scene_map:

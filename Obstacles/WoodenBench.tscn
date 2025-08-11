@@ -1,0 +1,58 @@
+[gd_scene load_steps=8 format=3 uid="uid://fjhwg1ejxx20"]
+
+[ext_resource type="Script" uid="uid://cm5cewoolbgd1" path="res://Obstacles/wooden_bench.gd" id="1_6ia46"]
+[ext_resource type="Texture2D" uid="uid://dmd7wbl2i0um6" path="res://Obstacles/WoodenBench.png" id="1_ty6v5"]
+[ext_resource type="AudioStream" uid="uid://01xbvo1dq6r0" path="res://Sounds/TrunkThunk.mp3" id="2_tj84y"]
+[ext_resource type="PackedScene" uid="uid://decuxjhm70lht" path="res://Interactables/CrateExplosion.tscn" id="4_krkj6"]
+[ext_resource type="AudioStream" uid="uid://baxfoi2ekxyxi" path="res://Sounds/BoxBreak.mp3" id="5_x06tr"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_ty6v5"]
+size = Vector2(74, 15)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_6ia46"]
+size = Vector2(32, 32)
+
+[node name="WoodenBench" type="Node2D"]
+script = ExtResource("1_6ia46")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(0, -22)
+texture = ExtResource("1_ty6v5")
+
+[node name="TopHeight" type="Marker2D" parent="."]
+position = Vector2(0, -47)
+
+[node name="YSortPoint" type="Marker2D" parent="."]
+
+[node name="Area2D" type="Area2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D"]
+position = Vector2(0, -2.5)
+shape = SubResource("RectangleShape2D_ty6v5")
+
+[node name="TrunkThunk" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("2_tj84y")
+pitch_scale = 1.28
+
+[node name="Hitbox" type="Area2D" parent="."]
+position = Vector2(0, -23)
+scale = Vector2(0.825, 0.59)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hitbox"]
+scale = Vector2(2.625, 2.625)
+shape = SubResource("RectangleShape2D_6ia46")
+
+[node name="CrateExplosion" parent="." instance=ExtResource("4_krkj6")]
+position = Vector2(0, -43)
+
+[node name="BoxBreak" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("5_x06tr")
+pitch_scale = 0.51
+
+[node name="CrateArea2D" type="Area2D" parent="."]
+position = Vector2(0, -22)
+
+[node name="CollisionShape2D2" type="CollisionShape2D" parent="CrateArea2D"]
+position = Vector2(0, -2.5)
+shape = SubResource("RectangleShape2D_ty6v5")
