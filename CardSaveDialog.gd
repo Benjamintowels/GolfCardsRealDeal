@@ -104,9 +104,10 @@ func load_player_deck():
 		# Create button for the card
 		var card_button = TextureButton.new()
 		card_button.texture_normal = card_data.image
-		card_button.custom_minimum_size = Vector2(100, 120)
+		card_button.custom_minimum_size = Vector2(80, 100)
 		card_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		card_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		card_button.scale = Vector2(0.075, 0.075)  # Use same scale as BagDisplay
 		card_button.pressed.connect(_on_card_button_pressed.bind(card_data))
 		
 		# Disable button if gene is already unlocked
@@ -120,7 +121,7 @@ func load_player_deck():
 func create_card_display(card_data: CardData, count: int, is_gene_unlocked: bool) -> Control:
 	"""Create a display for a single card with count and gene status"""
 	var container = Control.new()
-	container.custom_minimum_size = Vector2(100, 120)
+	container.custom_minimum_size = Vector2(80, 100)
 	container.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	container.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	container.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Allow clicks to pass through
@@ -128,7 +129,7 @@ func create_card_display(card_data: CardData, count: int, is_gene_unlocked: bool
 	# Use CardVisual for consistent display
 	var card_scene = preload("res://CardVisual.tscn")
 	var card_instance = card_scene.instantiate()
-	card_instance.size = Vector2(100, 120)
+	card_instance.size = Vector2(80, 100)
 	card_instance.position = Vector2(0, 0)
 	card_instance.scale = Vector2(1.236, 1.113)
 	card_instance.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -141,16 +142,16 @@ func create_card_display(card_data: CardData, count: int, is_gene_unlocked: bool
 	if is_gene_unlocked:
 		var gene_indicator = ColorRect.new()
 		gene_indicator.color = Color.GREEN
-		gene_indicator.size = Vector2(25, 25)
-		gene_indicator.position = Vector2(75, 0)
+		gene_indicator.size = Vector2(20, 20)
+		gene_indicator.position = Vector2(60, 0)
 		gene_indicator.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		container.add_child(gene_indicator)
 		
 		var gene_label = Label.new()
 		gene_label.text = "✓"
-		gene_label.add_theme_font_size_override("font_size", 18)
+		gene_label.add_theme_font_size_override("font_size", 16)
 		gene_label.add_theme_color_override("font_color", Color.WHITE)
-		gene_label.position = Vector2(81, 3)
+		gene_label.position = Vector2(65, 2)
 		gene_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		container.add_child(gene_label)
 	
