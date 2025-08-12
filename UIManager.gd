@@ -802,8 +802,14 @@ func _on_puzzle_type_selected(puzzle_type: String) -> void:
 	if puzzle_dialog:
 		puzzle_dialog.queue_free()
 	
-	# Reset for next hole (this will advance to the next hole and set up the new hole)
-	course.reset_for_next_hole()
+	# Check if we just completed hole 9 (front nine) and need to show front nine completion dialog
+	var completed_holes_count = course.game_state_manager.get_round_scores().size() if course.game_state_manager else 0
+	if completed_holes_count == 9 and not course.game_state_manager.is_back_9_mode:
+		# This was hole 9 completion - show front nine completion dialog
+		show_front_nine_complete_dialog()
+	else:
+		# Reset for next hole (this will advance to the next hole and set up the new hole)
+		course.reset_for_next_hole()
 
 func _handle_shop_puzzle_type() -> void:
 	"""Handle shop puzzle type selection - fade to black, transition to next hole with shop overlay"""
@@ -818,11 +824,17 @@ func _handle_shop_puzzle_type() -> void:
 	if puzzle_dialog:
 		puzzle_dialog.queue_free()
 	
-	# Reset for next hole (this will advance to the next hole and set up the new hole)
-	course.reset_for_next_hole()
-	
-	# Show the shop overlay after the hole is loaded
-	show_shop_overlay()
+	# Check if we just completed hole 9 (front nine) and need to show front nine completion dialog
+	var completed_holes_count = course.game_state_manager.get_round_scores().size() if course.game_state_manager else 0
+	if completed_holes_count == 9 and not course.game_state_manager.is_back_9_mode:
+		# This was hole 9 completion - show front nine completion dialog
+		show_front_nine_complete_dialog()
+	else:
+		# Reset for next hole (this will advance to the next hole and set up the new hole)
+		course.reset_for_next_hole()
+		
+		# Show the shop overlay after the hole is loaded
+		show_shop_overlay()
 
 
 

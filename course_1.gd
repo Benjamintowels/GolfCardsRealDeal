@@ -2460,16 +2460,43 @@ func _on_advance_to_next_hole():
 	# Update HUD to reflect any changes (including $Looty balance)
 	ui_manager.update_deck_display()
 	
-	# Special handling for hole 9 - show front nine completion dialog
-	if game_state_manager.get_current_hole_index() == 8 and not game_state_manager.is_back_9_mode:  # Hole 9 (index 8) in front 9 mode
-		ui_manager.show_front_nine_complete_dialog()
-	else:
+	# Check if we should show puzzle type selection (every third hole)
+	var should_show_puzzle_selection = _should_show_puzzle_type_selection()
+	
+	if should_show_puzzle_selection:
 		# Show puzzle type selection dialog
 		ui_manager.show_puzzle_type_selection()
+	else:
+		# Skip puzzle type selection and go directly to next hole
+		print("🎯 PUZZLE SELECTION: Skipping puzzle type selection - not every third hole")
+		# Set default puzzle type for the next hole
+		if game_state_manager:
+			game_state_manager.set_next_puzzle_type("score")
+			print("🎯 PUZZLE SELECTION: Setting default puzzle type 'score' for next hole")
+		reset_for_next_hole()
 
 # Puzzle type selection function moved to UIManager
 
 # Puzzle type selected function moved to UIManager
+
+func _should_show_puzzle_type_selection() -> bool:
+	"""Check if puzzle type selection should be shown (every third hole)"""
+	if not game_state_manager:
+		return false
+	
+	# Get the number of completed holes (length of round_scores array)
+	var completed_holes_count = game_state_manager.get_round_scores().size()
+	
+	# Show puzzle type selection every third hole (holes 3, 6, 9, 12, 15, 18)
+	# Note: completed_holes_count is 0-based, so we add 1 to get the actual hole number
+	var current_hole_number = completed_holes_count + 1
+	
+	# Check if this is every third hole
+	var should_show = (current_hole_number % 3 == 0)
+	
+	print("🎯 PUZZLE SELECTION: Completed holes:", completed_holes_count, "Current hole number:", current_hole_number, "Should show puzzle selection:", should_show)
+	
+	return should_show
 
 func reset_for_next_hole():
 	print("=== ADVANCING TO HOLE", game_state_manager.get_current_hole_index() + 2, "===")
