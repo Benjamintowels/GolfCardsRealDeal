@@ -111,6 +111,15 @@ horizontal_alignment = 1
 layout_mode = 2
 text = "Hire Golfsmith for Shop"
 
+[node name="GolfsmithCardSaveCostLabel" type="Label" parent="DialogContainer/UpgradeOptions/GolfsmithSection"]
+layout_mode = 2
+text = "Card Save Cost: 400 $Looty"
+horizontal_alignment = 1
+
+[node name="GolfsmithCardSaveButton" type="Button" parent="DialogContainer/UpgradeOptions/GolfsmithSection"]
+layout_mode = 2
+text = "Unlock Card Save Feature"
+
 [node name="PrinterSection" type="VBoxContainer" parent="DialogContainer/UpgradeOptions"]
 layout_mode = 2
 

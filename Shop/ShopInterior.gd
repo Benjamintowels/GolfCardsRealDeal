@@ -964,8 +964,101 @@ func on_replacement_completed(reward_data: Resource, reward_type: String):
 	enable_shop_item_containers()
 
 func _on_golfsmith_button_pressed():
-	"""Handle Golfsmith button press - show card upgrade dialog"""
-	print("ShopInterior: Golfsmith button pressed - opening upgrade dialog")
+	"""Handle Golfsmith button press - show upgrade or card save dialog"""
+	print("ShopInterior: Golfsmith button pressed")
+	
+	# Check if Card Save feature is unlocked
+	var save_file_manager = get_node_or_null("/root/SaveFileManager")
+	var card_save_unlocked = false
+	if save_file_manager:
+		var story = save_file_manager.current_save_data.get("story_progression", {})
+		var npc_quests = story.get("npc_quests", {})
+		var gs = npc_quests.get("golfsmith", {})
+		card_save_unlocked = bool(gs.get("card_save", false))
+	
+	if card_save_unlocked:
+		# Show choice dialog between upgrade and card save
+		show_golfsmith_choice_dialog()
+	else:
+		# Show only upgrade dialog (original behavior)
+		show_card_upgrade_dialog()
+
+func show_golfsmith_choice_dialog():
+	"""Show dialog to choose between upgrade and card save"""
+	# Create choice dialog
+	var choice_dialog = Control.new()
+	choice_dialog.name = "GolfsmithChoiceDialog"
+	choice_dialog.size = get_viewport_rect().size
+	choice_dialog.z_index = 2000
+	choice_dialog.mouse_filter = Control.MOUSE_FILTER_STOP
+	
+	var dialog_bg = ColorRect.new()
+	dialog_bg.color = Color(0, 0, 0, 0.8)
+	dialog_bg.size = choice_dialog.size
+	dialog_bg.mouse_filter = Control.MOUSE_FILTER_STOP
+	choice_dialog.add_child(dialog_bg)
+	
+	var dialog_box = ColorRect.new()
+	dialog_box.color = Color(0.2, 0.2, 0.2, 0.95)
+	dialog_box.size = Vector2(400, 300)
+	dialog_box.position = (choice_dialog.size - dialog_box.size) / 2
+	dialog_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	choice_dialog.add_child(dialog_box)
+	
+	# Title
+	var title = Label.new()
+	title.text = "Golfsmith Services"
+	title.add_theme_font_size_override("font_size", 24)
+	title.add_theme_color_override("font_color", Color.YELLOW)
+	title.add_theme_constant_override("outline_size", 2)
+	title.add_theme_color_override("font_outline_color", Color.BLACK)
+	title.position = Vector2(150, 20)
+	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dialog_box.add_child(title)
+	
+	# Description
+	var desc_label = Label.new()
+	desc_label.text = "Choose a service:"
+	desc_label.add_theme_font_size_override("font_size", 16)
+	desc_label.add_theme_color_override("font_color", Color.WHITE)
+	desc_label.add_theme_constant_override("outline_size", 1)
+	desc_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	desc_label.position = Vector2(150, 60)
+	desc_label.size = Vector2(200, 30)
+	desc_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	desc_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dialog_box.add_child(desc_label)
+	
+	# Buttons
+	var button_container = VBoxContainer.new()
+	button_container.position = Vector2(100, 120)
+	button_container.size = Vector2(200, 120)
+	button_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dialog_box.add_child(button_container)
+	
+	var upgrade_button = Button.new()
+	upgrade_button.text = "Upgrade Cards"
+	upgrade_button.size = Vector2(200, 50)
+	upgrade_button.pressed.connect(func(): 
+		choice_dialog.queue_free()
+		show_card_upgrade_dialog()
+	)
+	button_container.add_child(upgrade_button)
+	
+	var card_save_button = Button.new()
+	card_save_button.text = "Card Save (Unlock Genes)"
+	card_save_button.size = Vector2(200, 50)
+	card_save_button.pressed.connect(func(): 
+		choice_dialog.queue_free()
+		show_card_save_dialog()
+	)
+	button_container.add_child(card_save_button)
+	
+	add_child(choice_dialog)
+
+func show_card_upgrade_dialog():
+	"""Show the card upgrade dialog"""
+	print("ShopInterior: Opening card upgrade dialog")
 	
 	# Create and show the upgrade dialog
 	var upgrade_dialog_scene = preload("res://CardUpgradeDialog.tscn")
@@ -980,6 +1073,28 @@ func _on_golfsmith_button_pressed():
 	
 	# Show the dialog
 	upgrade_dialog.show_dialog()
+	
+	# Disable shop input while dialog is open
+	shop_input_enabled = false
+	disable_shop_item_containers()
+
+func show_card_save_dialog():
+	"""Show the card save dialog"""
+	print("ShopInterior: Opening card save dialog")
+	
+	# Create and show the save dialog
+	var save_dialog_scene = preload("res://CardSaveDialog.tscn")
+	var save_dialog = save_dialog_scene.instantiate()
+	
+	# Add to the shop scene
+	add_child(save_dialog)
+	
+	# Connect signals
+	save_dialog.card_saved.connect(_on_card_saved)
+	save_dialog.dialog_closed.connect(_on_save_dialog_closed)
+	
+	# Show the dialog
+	save_dialog.show_dialog()
 	
 	# Disable shop input while dialog is open
 	shop_input_enabled = false
@@ -1000,6 +1115,21 @@ func _on_card_upgraded(card: CardData):
 func _on_upgrade_dialog_closed():
 	"""Handle upgrade dialog closure"""
 	print("ShopInterior: Upgrade dialog closed")
+	
+	# Re-enable shop input
+	shop_input_enabled = true
+	enable_shop_item_containers()
+
+func _on_card_saved(card: CardData):
+	"""Handle card save completion"""
+	print("ShopInterior: Card saved:", card.name)
+	
+	# Show save message
+	show_purchase_message("CardGene unlocked: " + card.name + "!")
+
+func _on_save_dialog_closed():
+	"""Handle save dialog closure"""
+	print("ShopInterior: Save dialog closed")
 	
 	# Re-enable shop input
 	shop_input_enabled = true

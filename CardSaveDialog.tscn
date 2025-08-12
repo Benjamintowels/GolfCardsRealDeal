@@ -1,0 +1,82 @@
+[gd_scene load_steps=3 format=3 uid="uid://bvn8x7y2q3m4p"]
+
+[ext_resource type="Script" uid="uid://d2eq5b21epkpv" path="res://CardSaveDialog.gd" id="1_card_save_dialog"]
+[ext_resource type="AudioStream" uid="uid://bgwp7dbnyhl1v" path="res://Sounds/BagSound.mp3" id="2_bag_sound"]
+
+[node name="CardSaveDialog" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_card_save_dialog")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.7)
+
+[node name="DialogBox" type="Panel" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -300.0
+offset_top = -250.0
+offset_right = 300.0
+offset_bottom = 250.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="TitleLabel" type="Label" parent="DialogBox"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 20.0
+offset_top = 20.0
+offset_right = -20.0
+offset_bottom = 60.0
+grow_horizontal = 2
+text = "Card Save - Unlock CardGenes for 3D Printer"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="CardContainer" type="GridContainer" parent="DialogBox"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 20.0
+offset_top = 80.0
+offset_right = -20.0
+offset_bottom = -80.0
+grow_horizontal = 2
+grow_vertical = 2
+columns = 5
+
+[node name="CloseButton" type="Button" parent="DialogBox"]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -50.0
+offset_top = -50.0
+offset_right = 50.0
+offset_bottom = -20.0
+grow_horizontal = 2
+grow_vertical = 0
+text = "Close"
+
+[node name="SaveSound" type="AudioStreamPlayer2D" parent="."]
+
+[node name="BagSound" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("2_bag_sound")

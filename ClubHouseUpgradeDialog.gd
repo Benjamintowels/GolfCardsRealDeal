@@ -13,6 +13,8 @@ var clubhouse_looty_label: Label
 var clubhouse_upgrade_manager: Node
 var golfsmith_upgrade_button: Button
 var golfsmith_cost_label: Label
+var golfsmith_card_save_button: Button
+var golfsmith_card_save_cost_label: Label
 var printer_upgrade_button: Button
 var printer_cost_label: Label
 var printer_requirement_label: Label
@@ -29,6 +31,8 @@ func _ready():
 	clubhouse_looty_label = get_node_or_null("DialogContainer/ClubHouseLootyLabel")
 	golfsmith_upgrade_button = get_node_or_null("DialogContainer/UpgradeOptions/GolfsmithSection/GolfsmithUpgradeButton")
 	golfsmith_cost_label = get_node_or_null("DialogContainer/UpgradeOptions/GolfsmithSection/GolfsmithCostLabel")
+	golfsmith_card_save_button = get_node_or_null("DialogContainer/UpgradeOptions/GolfsmithSection/GolfsmithCardSaveButton")
+	golfsmith_card_save_cost_label = get_node_or_null("DialogContainer/UpgradeOptions/GolfsmithSection/GolfsmithCardSaveCostLabel")
 	
 	# Get the ClubHouse upgrade manager
 	clubhouse_upgrade_manager = get_node("/root/ClubHouseUpgradeManager")
@@ -47,6 +51,8 @@ func _ready():
 	
 	if golfsmith_upgrade_button and is_instance_valid(golfsmith_upgrade_button):
 		golfsmith_upgrade_button.pressed.connect(_on_golfsmith_upgrade_pressed)
+	if golfsmith_card_save_button and is_instance_valid(golfsmith_card_save_button):
+		golfsmith_card_save_button.pressed.connect(_on_golfsmith_card_save_upgrade_pressed)
 
 	printer_upgrade_button = get_node_or_null("DialogContainer/UpgradeOptions/PrinterSection/PrinterUpgradeButton")
 	printer_cost_label = get_node_or_null("DialogContainer/UpgradeOptions/PrinterSection/PrinterCostLabel")
@@ -103,12 +109,23 @@ func update_display():
 		var story = save_file_manager.current_save_data.get("story_progression", {})
 		var npc_quests = story.get("npc_quests", {})
 		var gs = npc_quests.get("golfsmith", {})
-		var already_unlocked: bool = bool(gs.get("shop", false))
+		var shop_unlocked: bool = bool(gs.get("shop", false))
+		var card_save_unlocked: bool = bool(gs.get("card_save", false))
+		
+		# Shop upgrade (first level)
 		if golfsmith_upgrade_button and is_instance_valid(golfsmith_upgrade_button):
-			golfsmith_upgrade_button.disabled = already_unlocked or clubhouse_upgrade_manager.get_clubhouse_looty() < 250
-			golfsmith_upgrade_button.text = "Golfsmith Hired" if already_unlocked else "Hire Golfsmith for Shop"
+			golfsmith_upgrade_button.disabled = shop_unlocked or clubhouse_upgrade_manager.get_clubhouse_looty() < 250
+			golfsmith_upgrade_button.text = "Golfsmith Hired" if shop_unlocked else "Hire Golfsmith for Shop"
 		if golfsmith_cost_label and is_instance_valid(golfsmith_cost_label):
-			golfsmith_cost_label.text = "Cost: 250 $Looty" if not already_unlocked else "Unlocked"
+			golfsmith_cost_label.text = "Cost: 250 $Looty" if not shop_unlocked else "Unlocked"
+		
+		# Card Save upgrade (second level) - requires shop to be unlocked first
+		if golfsmith_card_save_button and is_instance_valid(golfsmith_card_save_button):
+			var can_upgrade_card_save = shop_unlocked and not card_save_unlocked and clubhouse_upgrade_manager.get_clubhouse_looty() >= 400
+			golfsmith_card_save_button.disabled = not can_upgrade_card_save
+			golfsmith_card_save_button.text = "Card Save Unlocked" if card_save_unlocked else "Unlock Card Save Feature"
+		if golfsmith_card_save_cost_label and is_instance_valid(golfsmith_card_save_cost_label):
+			golfsmith_card_save_cost_label.text = "Unlocked" if card_save_unlocked else "Cost: 400 $Looty"
 
 	# Update ClubHouse Looty display
 	var clubhouse_looty = clubhouse_upgrade_manager.get_clubhouse_looty()
@@ -151,12 +168,39 @@ func _on_golfsmith_upgrade_pressed():
 		var story = save_file_manager.current_save_data.get("story_progression", {})
 		var npc_quests = story.get("npc_quests", {})
 		if not npc_quests.has("golfsmith"):
-			npc_quests["golfsmith"] = {"appear": false, "shop": false, "quest_completed": false, "quest_progress": 0}
+			npc_quests["golfsmith"] = {"appear": false, "shop": false, "card_save": false, "quest_completed": false, "quest_progress": 0}
 		npc_quests["golfsmith"]["shop"] = true
 		story["npc_quests"] = npc_quests
 		save_file_manager.current_save_data["story_progression"] = story
 		save_file_manager.save_current_game()
 		print("✅ Golfsmith shop unlocked for 250 $Looty")
+		update_display()
+
+func _on_golfsmith_card_save_upgrade_pressed():
+	"""Handle Golfsmith Card Save upgrade purchase"""
+	clubhouse_upgrade_manager = get_node("/root/ClubHouseUpgradeManager")
+	var save_file_manager = get_node("/root/SaveFileManager")
+	if not clubhouse_upgrade_manager or not save_file_manager:
+		return
+	
+	# Check if shop is unlocked first
+	var story = save_file_manager.current_save_data.get("story_progression", {})
+	var npc_quests = story.get("npc_quests", {})
+	var gs = npc_quests.get("golfsmith", {})
+	if not bool(gs.get("shop", false)):
+		print("❌ Card Save upgrade requires shop to be unlocked first")
+		return
+	
+	# Cost 400 $Looty from ClubHouse wallet
+	if clubhouse_upgrade_manager.spend_clubhouse_looty(400):
+		# Set card_save flag
+		if not npc_quests.has("golfsmith"):
+			npc_quests["golfsmith"] = {"appear": false, "shop": false, "card_save": false, "quest_completed": false, "quest_progress": 0}
+		npc_quests["golfsmith"]["card_save"] = true
+		story["npc_quests"] = npc_quests
+		save_file_manager.current_save_data["story_progression"] = story
+		save_file_manager.save_current_game()
+		print("✅ Golfsmith Card Save feature unlocked for 400 $Looty")
 		update_display()
 
 func _on_printer_upgrade_pressed():
